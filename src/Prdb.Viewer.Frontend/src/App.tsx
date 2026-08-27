@@ -18,6 +18,7 @@ const queryKeys = {
   accounts: ['accounts'] as const,
   configuration: ['configuration'] as const,
   libraryDirectoryCandidates: ['library-directory-candidates'] as const,
+  backgroundWork: ['background-work'] as const,
 }
 
 export function App() {
@@ -193,11 +194,66 @@ function Library({ account }: { account: Account }) {
         {account.authority === 'Administrator' && (
           <>
             <InstallationSetup account={account} />
+            <BackgroundWorkPanel account={account} />
             <AccountAdministration account={account} />
           </>
         )}
       </section>
     </main>
+  )
+}
+
+function BackgroundWorkPanel({ account }: { account: Account }) {
+  const configuration = useQuery({ queryKey: queryKeys.configuration, queryFn: api.configuration })
+  const status = useQuery({
+    queryKey: queryKeys.backgroundWork,
+    queryFn: api.backgroundWork,
+    refetchInterval: 2_000,
+  })
+  const queryClient = useQueryClient()
+  const scan = useMutation({
+    mutationFn: (libraryDirectoryId: string) =>
+      api.queueLibraryScan(libraryDirectoryId, account.csrfToken),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.backgroundWork }),
+  })
+
+  return (
+    <section className="admin-panel" aria-labelledby="work-title">
+      <div className="section-heading">
+        <div><span className="eyebrow">Administrator</span><h3 id="work-title">Background work</h3></div>
+        {status.isFetching && <span className="muted">Refreshing…</span>}
+      </div>
+      <p>Library Scans and technical inspection resume from durable checkpoints after a restart.</p>
+      <div className="scan-actions">
+        {configuration.data?.libraryDirectories.map((directory) => (
+          <button
+            className="quiet-button"
+            key={directory.id}
+            onClick={() => scan.mutate(directory.id)}
+            disabled={scan.isPending}
+          >
+            Scan {directory.name}
+          </button>
+        ))}
+      </div>
+      {status.data?.work.length === 0 && <p className="muted">No Background Work has run yet.</p>}
+      {status.data?.work.map((work) => (
+        <article className="work-row" key={work.id}>
+          <div>
+            <strong>{friendlyState(work.category)}</strong>
+            <small>{work.libraryDirectoryName} · {friendlyState(work.state)}</small>
+          </div>
+          <span>{work.completedItemCount}/{work.discoveredCandidateCount}</span>
+        </article>
+      ))}
+      {status.data?.issues.map((issue) => (
+        <div className="work-issue" key={issue.id}>
+          <strong>{friendlyState(issue.cause)} · {issue.affectedScope}</strong>
+          <p>{issue.impact} {issue.requiredAction}</p>
+        </div>
+      ))}
+      {(configuration.isError || status.isError || scan.isError) && <RequestError />}
+    </section>
   )
 }
 

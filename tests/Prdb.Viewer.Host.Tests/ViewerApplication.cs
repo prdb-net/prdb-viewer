@@ -25,6 +25,7 @@ internal sealed class ViewerApplication(IPrdbConnectionVerifier? prdbConnectionV
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseSetting("VIEWER_DATA_DIRECTORY", dataDirectory);
+        builder.UseSetting("VIEWER_BACKGROUND_WORK_ENABLED", "false");
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<LibraryMountRoot>();

@@ -17,3 +17,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   single-use recovery codes.
 - Add guided prdb credential verification and staged activation of readable
   Library Directories within the documented read-only mount area.
+- Add durable, restart-resumable Library Scans and bounded technical inspection
+  with `ffprobe`, rename and absence reconciliation, visible Work Issues, and
+  Administrator-triggered rescans.

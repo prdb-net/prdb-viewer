@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Prdb.Viewer.Core.Access;
 using Prdb.Viewer.Core.Configuration;
+using Prdb.Viewer.Infrastructure.Library;
 using Prdb.Viewer.Infrastructure.Persistence;
 
 namespace Prdb.Viewer.Infrastructure.Configuration;
@@ -13,6 +14,7 @@ public sealed class InstallationConfigurationService(
     LibraryMountRoot mountRoot,
     LibraryDirectoryInspector directories,
     IPrdbConnectionVerifier prdb,
+    LibraryWorkScheduler work,
     TimeProvider timeProvider)
 {
     public async Task<InstallationConfigurationSummary> GetAsync(
@@ -197,6 +199,7 @@ public sealed class InstallationConfigurationService(
         };
         database.LibraryDirectories.Add(directory);
         database.LibraryDirectoryStages.Remove(stage);
+        work.QueueInitialScan(directory, now);
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 

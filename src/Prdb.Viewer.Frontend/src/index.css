@@ -64,6 +64,12 @@ p { color: #bdb8c7; line-height: 1.6; }
 .account-row button { padding: .55rem .7rem; font-size: .78rem; }
 .account-row .danger-button { color: #ffd9da; background: rgb(240 91 92 / 20%); }
 .muted { color: #928c9b; font-size: .8rem; }
+.scan-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin: 1rem 0; }
+.work-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 0; border-top: 1px solid rgb(255 255 255 / 8%); }
+.work-row small { display: block; margin-top: .25rem; color: #928c9b; }
+.work-row > span { color: #cdb7ff; font-variant-numeric: tabular-nums; }
+.work-issue { margin-top: .8rem; padding: .9rem; border-radius: .75rem; color: #ffd9da; background: rgb(240 91 92 / 10%); }
+.work-issue p { margin: .35rem 0 0; color: #d7bdc1; font-size: .82rem; }
 
 @media (max-width: 600px) {
   .shell { padding: 1rem; }

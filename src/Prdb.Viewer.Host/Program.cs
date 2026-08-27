@@ -10,6 +10,7 @@ using Microsoft.OpenApi;
 
 using Prdb.Viewer.Host.Access;
 using Prdb.Viewer.Host.Configuration;
+using Prdb.Viewer.Host.Library;
 using Prdb.Viewer.Infrastructure.Persistence;
 
 var operatorCommand = OperatorCommands.Matches(args);
@@ -20,6 +21,11 @@ var dataDirectory = builder.Configuration["VIEWER_DATA_DIRECTORY"]
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddViewerPersistence(dataDirectory);
+if (builder.Configuration.GetValue("VIEWER_BACKGROUND_WORK_ENABLED", true))
+{
+    builder.Services.AddHostedService<LibraryScanWorker>();
+    builder.Services.AddHostedService<TechnicalInspectionWorker>();
+}
 builder.Services
     .AddAuthentication(SessionAuthentication.Scheme)
     .AddScheme<AuthenticationSchemeOptions, SessionAuthenticationHandler>(
@@ -109,6 +115,7 @@ app.MapGet("/api/health", () => TypedResults.Ok(new HealthResponse("ok")))
 
 app.MapAccess();
 app.MapConfiguration();
+app.MapBackgroundWork();
 
 app.MapFallback("/api/{*rest}", () => Results.NotFound());
 app.MapFallbackToFile("index.html").AllowAnonymous();

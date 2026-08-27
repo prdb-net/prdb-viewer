@@ -82,9 +82,30 @@ public sealed class ConfigurationRouteTests
             "/api/admin/configuration/",
             TestContext.Current.CancellationToken);
         Assert.Equal("Verified", current.GetProperty("prdbConnectionStatus").GetString());
-        Assert.Equal("ConfigurationPending", current.GetProperty("status").GetString());
+        Assert.Equal("Configured", current.GetProperty("status").GetString());
         Assert.Single(current.GetProperty("libraryDirectories").EnumerateArray());
         Assert.DoesNotContain("test-api-key", current.ToString());
+
+        var backgroundWork = await administrator.GetFromJsonAsync<JsonElement>(
+            "/api/admin/background-work/",
+            TestContext.Current.CancellationToken);
+        var queuedScan = Assert.Single(backgroundWork.GetProperty("work").EnumerateArray());
+        Assert.Equal("LibraryScan", queuedScan.GetProperty("category").GetString());
+        Assert.Equal("Queued", queuedScan.GetProperty("state").GetString());
+
+        var directoryId = current.GetProperty("libraryDirectories")[0].GetProperty("id").GetGuid();
+        using var missingCsrf = await administrator.PostAsync(
+            $"/api/admin/background-work/library-directories/{directoryId}/scans",
+            content: null,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Forbidden, missingCsrf.StatusCode);
+
+        using var rescan = await administrator.SendAsync(
+            Post($"/api/admin/background-work/library-directories/{directoryId}/scans", null, csrf),
+            TestContext.Current.CancellationToken);
+        var rescanResult = await rescan.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+        Assert.Equal("Coalesced", rescanResult.GetProperty("verdict").GetString());
     }
 
     private static HttpRequestMessage Post(string path, object? body, string csrf)

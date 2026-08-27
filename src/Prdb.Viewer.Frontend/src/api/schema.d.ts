@@ -664,6 +664,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/background-work": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BackgroundWorkStatus"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/background-work/library-directories/{libraryDirectoryId}/scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    libraryDirectoryId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["QueueLibraryScanResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -690,6 +762,35 @@ export interface components {
             state: components["schemas"]["AccountState"];
             /** Format: date-time */
             registeredAt: string;
+        };
+        /** @enum {unknown} */
+        BackgroundWorkCategory: "LibraryScan" | "TechnicalInspection";
+        /** @enum {unknown} */
+        BackgroundWorkState: "Queued" | "Running" | "Waiting" | "Paused" | "Completed" | "CompletedWithIssues" | "Cancelled";
+        BackgroundWorkStatus: {
+            work: components["schemas"]["BackgroundWorkSummary"][];
+            issues: components["schemas"]["WorkIssueSummary"][];
+        };
+        BackgroundWorkSummary: {
+            /** Format: uuid */
+            id: string;
+            category: components["schemas"]["BackgroundWorkCategory"];
+            state: components["schemas"]["BackgroundWorkState"];
+            /** Format: uuid */
+            libraryDirectoryId: string;
+            libraryDirectoryName: string;
+            /** Format: int32 */
+            discoveredCandidateCount: number | string;
+            /** Format: int32 */
+            completedItemCount: number | string;
+            /** Format: int32 */
+            issueCount: number | string;
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            startedAt: null | string;
+            /** Format: date-time */
+            finishedAt: null | string;
         };
         /** @enum {unknown} */
         BootstrapClaimVerdict: "Created" | "InvalidInput" | "InvalidAuthorization" | "AlreadyClaimed";
@@ -774,6 +875,13 @@ export interface components {
         PrdbCredentialRequest: {
             credential: null | string;
         };
+        QueueLibraryScanResult: {
+            verdict: components["schemas"]["QueueLibraryScanVerdict"];
+            /** Format: uuid */
+            workId?: null | string;
+        };
+        /** @enum {unknown} */
+        QueueLibraryScanVerdict: "Queued" | "Coalesced" | "NotFound";
         RecoverRequest: {
             username: null | string;
             recoveryCode: null | string;
@@ -800,6 +908,8 @@ export interface components {
         };
         /** @enum {unknown} */
         RegistrationRequestVerdict: "Submitted" | "InvalidInput" | "InstallationUnclaimed";
+        /** @enum {unknown} */
+        RemediationOwner: "AutomaticRecovery" | "Administrator" | "InstallationOperator";
         SignedInAccountResponse: {
             /** Format: uuid */
             id: string;
@@ -818,6 +928,24 @@ export interface components {
         };
         /** @enum {unknown} */
         SignInVerdict: "SignedIn" | "InvalidCredentials" | "ApprovalPending" | "Disabled";
+        /** @enum {unknown} */
+        WorkIssueCause: "SourceAccess" | "ChangingSource" | "InvalidContent" | "Capacity" | "ExternalAvailability" | "ExternalAuthority" | "Configuration" | "InternalConsistency";
+        /** @enum {unknown} */
+        WorkIssueSeverity: "ScopedIssue" | "OperationalBlocker" | "SafetyStop";
+        WorkIssueSummary: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            backgroundWorkId: string;
+            severity: components["schemas"]["WorkIssueSeverity"];
+            cause: components["schemas"]["WorkIssueCause"];
+            remediationOwner: components["schemas"]["RemediationOwner"];
+            affectedScope: string;
+            impact: string;
+            requiredAction: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
     };
     responses: never;
     parameters: never;

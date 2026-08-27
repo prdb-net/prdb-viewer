@@ -1,8 +1,10 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 using Prdb.Viewer.Infrastructure.Persistence;
 using Prdb.Viewer.Infrastructure.Configuration;
+using Prdb.Viewer.Infrastructure.Library;
 
 using Xunit;
 
@@ -24,7 +26,8 @@ internal sealed class TestDatabase : IAsyncDisposable
 
     public static async Task<TestDatabase> CreateAsync(
         TimeProvider? timeProvider = null,
-        IPrdbConnectionVerifier? prdbConnectionVerifier = null)
+        IPrdbConnectionVerifier? prdbConnectionVerifier = null,
+        IMediaProbe? mediaProbe = null)
     {
         var directory = Path.Combine(Path.GetTempPath(), $"prdb-viewer-{Guid.NewGuid():n}");
         var libraryMountRoot = Path.Combine(directory, "libraries");
@@ -37,6 +40,12 @@ internal sealed class TestDatabase : IAsyncDisposable
         if (prdbConnectionVerifier is not null)
         {
             services.AddSingleton(prdbConnectionVerifier);
+        }
+
+        if (mediaProbe is not null)
+        {
+            services.RemoveAll<IMediaProbe>();
+            services.AddSingleton(mediaProbe);
         }
 
         var database = new TestDatabase(directory, services.BuildServiceProvider());

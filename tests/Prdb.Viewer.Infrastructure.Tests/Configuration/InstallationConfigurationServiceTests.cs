@@ -68,7 +68,7 @@ public sealed class InstallationConfigurationServiceTests
         Assert.Equal(PrdbConnectionStatus.Verified, current.PrdbConnectionStatus);
         Assert.True(current.HasPrdbCredential);
         Assert.False(current.CredentialReplacementPending);
-        Assert.Equal(InstallationConfigurationStatus.ConfigurationPending, current.Status);
+        Assert.Equal(InstallationConfigurationStatus.Configured, current.Status);
         Assert.Single(current.LibraryDirectories);
         Assert.Equal(before, Directory.GetFileSystemEntries(library));
         Assert.Equal("source media", await File.ReadAllTextAsync(

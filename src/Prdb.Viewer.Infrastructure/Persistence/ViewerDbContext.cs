@@ -23,6 +23,16 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<LibraryDirectoryRow> LibraryDirectories => Set<LibraryDirectoryRow>();
 
+    public DbSet<BackgroundWorkRow> BackgroundWork => Set<BackgroundWorkRow>();
+
+    public DbSet<WorkIssueRow> WorkIssues => Set<WorkIssueRow>();
+
+    public DbSet<VideoRow> Videos => Set<VideoRow>();
+
+    public DbSet<VideoFileRow> VideoFiles => Set<VideoFileRow>();
+
+    public DbSet<VideoFileCandidateRow> VideoFileCandidates => Set<VideoFileCandidateRow>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.Entity<AccountRow>(account =>
@@ -109,6 +119,77 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             directory.HasIndex(row => row.ContainerPath)
                 .IsUnique()
                 .HasFilter("\"State\" = 'Active'");
+        });
+
+        builder.Entity<BackgroundWorkRow>(work =>
+        {
+            work.ToTable("background_work");
+            work.HasKey(row => row.Id);
+            work.Property(row => row.Id).ValueGeneratedNever();
+            work.Property(row => row.Category).HasConversion<string>();
+            work.Property(row => row.State).HasConversion<string>();
+            work.HasIndex(row => new { row.Category, row.State, row.RequestedAt });
+            work.HasIndex(row => new
+            {
+                row.LibraryDirectoryId,
+                row.Category,
+                row.ConfigurationGeneration,
+            });
+            work.HasOne(row => row.LibraryDirectory)
+                .WithMany()
+                .HasForeignKey(row => row.LibraryDirectoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<WorkIssueRow>(issue =>
+        {
+            issue.ToTable("work_issue");
+            issue.HasKey(row => row.Id);
+            issue.Property(row => row.Id).ValueGeneratedNever();
+            issue.Property(row => row.Severity).HasConversion<string>();
+            issue.Property(row => row.Cause).HasConversion<string>();
+            issue.Property(row => row.RemediationOwner).HasConversion<string>();
+            issue.HasIndex(row => new { row.BackgroundWorkId, row.ResolvedAt });
+            issue.HasOne(row => row.BackgroundWork)
+                .WithMany()
+                .HasForeignKey(row => row.BackgroundWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<VideoRow>(video =>
+        {
+            video.ToTable("video");
+            video.HasKey(row => row.Id);
+            video.Property(row => row.Id).ValueGeneratedNever();
+            video.HasIndex(row => row.DiscoveryDate);
+        });
+
+        builder.Entity<VideoFileRow>(videoFile =>
+        {
+            videoFile.ToTable("video_file");
+            videoFile.HasKey(row => row.Id);
+            videoFile.Property(row => row.Id).ValueGeneratedNever();
+            videoFile.Property(row => row.Availability).HasConversion<string>();
+            videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.RelativePath });
+            videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Sha256 });
+            videoFile.HasOne(row => row.Video)
+                .WithMany(row => row.VideoFiles)
+                .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Restrict);
+            videoFile.HasOne(row => row.LibraryDirectory)
+                .WithMany()
+                .HasForeignKey(row => row.LibraryDirectoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<VideoFileCandidateRow>(candidate =>
+        {
+            candidate.ToTable("video_file_candidate");
+            candidate.HasKey(row => row.Id);
+            candidate.Property(row => row.Id).ValueGeneratedNever();
+            candidate.Property(row => row.State).HasConversion<string>();
+            candidate.HasIndex(row => new { row.LibraryScanId, row.RelativePath }).IsUnique();
+            candidate.HasIndex(row => new { row.LibraryScanId, row.State });
         });
     }
 }

@@ -1,0 +1,65 @@
+using Prdb.Viewer.Infrastructure.Library;
+
+namespace Prdb.Viewer.Host.Library;
+
+public sealed class LibraryScanWorker(
+    IServiceScopeFactory scopes,
+    ILogger<LibraryScanWorker> logger) : BackgroundService
+{
+    protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
+        WorkerLoop.RunAsync<LibraryScanRunner>(
+            scopes,
+            logger,
+            (runner, cancellationToken) => runner.RunNextSliceAsync(cancellationToken),
+            stoppingToken);
+}
+
+public sealed class TechnicalInspectionWorker(
+    IServiceScopeFactory scopes,
+    ILogger<TechnicalInspectionWorker> logger) : BackgroundService
+{
+    protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
+        WorkerLoop.RunAsync<TechnicalInspectionRunner>(
+            scopes,
+            logger,
+            (runner, cancellationToken) => runner.RunNextSliceAsync(cancellationToken),
+            stoppingToken);
+}
+
+internal static class WorkerLoop
+{
+    private static readonly TimeSpan IdleDelay = TimeSpan.FromMilliseconds(500);
+
+    public static async Task RunAsync<TRunner>(
+        IServiceScopeFactory scopes,
+        ILogger logger,
+        Func<TRunner, CancellationToken, Task<bool>> run,
+        CancellationToken stoppingToken)
+        where TRunner : notnull
+    {
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            try
+            {
+                await using var scope = scopes.CreateAsyncScope();
+                var handled = await run(
+                    scope.ServiceProvider.GetRequiredService<TRunner>(),
+                    stoppingToken);
+
+                if (!handled)
+                {
+                    await Task.Delay(IdleDelay, stoppingToken);
+                }
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception exception)
+            {
+                logger.LogError(exception, "A background-work lane could not advance its next slice.");
+                await Task.Delay(IdleDelay, stoppingToken);
+            }
+        }
+    }
+}

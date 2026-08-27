@@ -18,6 +18,8 @@ export type PrdbConnectionUpdate = components['schemas']['PrdbConnectionUpdateRe
 export type LibraryDirectoryCandidates = components['schemas']['LibraryDirectoryCandidatesResponse']
 export type LibraryDirectoryStage = components['schemas']['LibraryDirectoryStageResult']
 export type LibraryDirectoryActivation = components['schemas']['LibraryDirectoryActivationResult']
+export type BackgroundWorkStatus = components['schemas']['BackgroundWorkStatus']
+export type QueueLibraryScanResult = components['schemas']['QueueLibraryScanResult']
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -75,6 +77,13 @@ export const api = {
   activateLibraryDirectory: (stageId: string, csrfToken: string) =>
     post<LibraryDirectoryActivation>(
       `/api/admin/configuration/library-directories/stages/${stageId}/activate`,
+      undefined,
+      csrfToken,
+    ),
+  backgroundWork: () => request<BackgroundWorkStatus>('/api/admin/background-work/'),
+  queueLibraryScan: (libraryDirectoryId: string, csrfToken: string) =>
+    post<QueueLibraryScanResult>(
+      `/api/admin/background-work/library-directories/${libraryDirectoryId}/scans`,
       undefined,
       csrfToken,
     ),

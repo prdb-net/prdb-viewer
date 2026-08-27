@@ -5,16 +5,16 @@ self-hosted library enriched with metadata from prdb.net. Each approved User
 sees the same Videos while playback history and personal organisation remain
 private to their Account.
 
-The project is in active development. The current executable provides the
-Walking Skeleton plus local Account access: an operator authorizes the first
-Administrator, Users request approval, and approved Accounts receive private
-sessions. Library scanning and playback are the next vertical slices. See
-[VISION.md](VISION.md) for the product contract.
+The project is in active development. The current executable provides local
+Account access, guided Installation Configuration, durable Library Scans, and
+technical inspection of discovered Video File Candidates. Browser playback is
+the next vertical slice. See [VISION.md](VISION.md) for the product contract.
 
 ## Prerequisites
 
 - .NET 10 SDK
 - Node.js 24 and npm
+- FFmpeg (`ffprobe`) when running the Host outside the container
 - Docker for the supported container workflow
 
 ## Build and test
@@ -134,3 +134,17 @@ SQLite database without application-level encryption. Treat the complete
 `/data` mount as sensitive, restrict its host permissions, and include it only
 in protected backups. Always mount source media read-only; validation and later
 scans do not write beneath a Library Directory.
+
+## Scan and inspect source media
+
+Activating a Library Directory queues its first Library Scan. Traversal and
+technical inspection run in separate bounded background-work lanes and persist
+their checkpoints, progress, and Work Issues in SQLite. The Administrator can
+follow those runs or coalesce another scan from the Background work panel.
+
+Recognised regular files are hashed and inspected with `ffprobe`. Technical
+facts are committed only if the file remains unchanged throughout inspection.
+A stable content identity preserves a Video File across a rename, while a
+changed file at an existing path is retained as Replaced. One trustworthy
+complete absence records Unreachable; a second records Missing. An incomplete
+or inaccessible traversal never infers absence for the directory.

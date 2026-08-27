@@ -49,6 +49,9 @@ describe('App', () => {
       if (input === '/api/admin/configuration/library-directory-candidates') {
         return json({ containerPaths: [] })
       }
+      if (input === '/api/admin/background-work/') {
+        return json({ work: [], issues: [] })
+      }
       return json([])
     })
 

@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Identity;
 
 using Prdb.Viewer.Infrastructure.Access;
 using Prdb.Viewer.Infrastructure.Configuration;
+using Prdb.Viewer.Infrastructure.Library;
 
 namespace Prdb.Viewer.Infrastructure.Persistence;
 
@@ -31,6 +32,11 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<LibraryDirectoryInspector>();
         services.AddScoped<IPrdbConnectionVerifier, PrdbConnectionVerifier>();
         services.AddScoped<InstallationConfigurationService>();
+        services.AddScoped<LibraryWorkScheduler>();
+        services.AddScoped<LibraryScanRunner>();
+        services.AddScoped<TechnicalInspectionRunner>();
+        services.AddScoped<BackgroundWorkQuery>();
+        services.AddSingleton<IMediaProbe, FfprobeMediaProbe>();
         services.AddTransient<ProductUserAgentHandler>();
         services.AddHttpClient(PrdbConnectionVerifier.TransportName)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler

@@ -447,6 +447,55 @@
           }
         }
       }
+    },
+    "/api/admin/background-work": {
+      "get": {
+        "tags": [
+          "Background Work"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundWorkStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/background-work/library-directories/{libraryDirectoryId}/scans": {
+      "post": {
+        "tags": [
+          "Background Work"
+        ],
+        "parameters": [
+          {
+            "name": "libraryDirectoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QueueLibraryScanResult"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -530,6 +579,121 @@
           },
           "registeredAt": {
             "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BackgroundWorkCategory": {
+        "enum": [
+          "LibraryScan",
+          "TechnicalInspection"
+        ]
+      },
+      "BackgroundWorkState": {
+        "enum": [
+          "Queued",
+          "Running",
+          "Waiting",
+          "Paused",
+          "Completed",
+          "CompletedWithIssues",
+          "Cancelled"
+        ]
+      },
+      "BackgroundWorkStatus": {
+        "required": [
+          "work",
+          "issues"
+        ],
+        "type": "object",
+        "properties": {
+          "work": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BackgroundWorkSummary"
+            }
+          },
+          "issues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkIssueSummary"
+            }
+          }
+        }
+      },
+      "BackgroundWorkSummary": {
+        "required": [
+          "id",
+          "category",
+          "state",
+          "libraryDirectoryId",
+          "libraryDirectoryName",
+          "discoveredCandidateCount",
+          "completedItemCount",
+          "issueCount",
+          "requestedAt",
+          "startedAt",
+          "finishedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category": {
+            "$ref": "#/components/schemas/BackgroundWorkCategory"
+          },
+          "state": {
+            "$ref": "#/components/schemas/BackgroundWorkState"
+          },
+          "libraryDirectoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "libraryDirectoryName": {
+            "type": "string"
+          },
+          "discoveredCandidateCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "completedItemCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "issueCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "startedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         }
@@ -903,6 +1067,31 @@
           }
         }
       },
+      "QueueLibraryScanResult": {
+        "required": [
+          "verdict"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/QueueLibraryScanVerdict"
+          },
+          "workId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "QueueLibraryScanVerdict": {
+        "enum": [
+          "Queued",
+          "Coalesced",
+          "NotFound"
+        ]
+      },
       "RecoverRequest": {
         "required": [
           "username",
@@ -1021,6 +1210,13 @@
           "InstallationUnclaimed"
         ]
       },
+      "RemediationOwner": {
+        "enum": [
+          "AutomaticRecovery",
+          "Administrator",
+          "InstallationOperator"
+        ]
+      },
       "SignedInAccountResponse": {
         "required": [
           "id",
@@ -1102,6 +1298,71 @@
           "ApprovalPending",
           "Disabled"
         ]
+      },
+      "WorkIssueCause": {
+        "enum": [
+          "SourceAccess",
+          "ChangingSource",
+          "InvalidContent",
+          "Capacity",
+          "ExternalAvailability",
+          "ExternalAuthority",
+          "Configuration",
+          "InternalConsistency"
+        ]
+      },
+      "WorkIssueSeverity": {
+        "enum": [
+          "ScopedIssue",
+          "OperationalBlocker",
+          "SafetyStop"
+        ]
+      },
+      "WorkIssueSummary": {
+        "required": [
+          "id",
+          "backgroundWorkId",
+          "severity",
+          "cause",
+          "remediationOwner",
+          "affectedScope",
+          "impact",
+          "requiredAction",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "backgroundWorkId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/WorkIssueSeverity"
+          },
+          "cause": {
+            "$ref": "#/components/schemas/WorkIssueCause"
+          },
+          "remediationOwner": {
+            "$ref": "#/components/schemas/RemediationOwner"
+          },
+          "affectedScope": {
+            "type": "string"
+          },
+          "impact": {
+            "type": "string"
+          },
+          "requiredAction": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       }
     }
   },
@@ -1117,6 +1378,9 @@
     },
     {
       "name": "Configuration"
+    },
+    {
+      "name": "Background Work"
     }
   ]
 }
