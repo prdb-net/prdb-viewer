@@ -52,10 +52,31 @@ describe('App', () => {
       if (input === '/api/admin/background-work/') {
         return json({ work: [], issues: [] })
       }
+      if (input === '/api/library/videos') {
+        return json([{
+          id: '01994dd4-2a0a-7000-8000-000000000010',
+          displayTitle: 'Sample Video',
+          discoveryDate: '2026-08-27T12:00:00Z',
+          videoFiles: [{
+            id: '01994dd4-2a0a-7000-8000-000000000011',
+            relativePath: 'sample.mp4',
+            size: 10,
+            durationMilliseconds: 10000,
+            containerFormat: 'mp4',
+            videoCodec: 'h264',
+            audioCodec: 'aac',
+            width: 640,
+            height: 360,
+            availability: 'Available',
+            directPlayClassification: 'BaselineCandidate',
+            deliveryUrl: '/media/videos/01994dd4-2a0a-7000-8000-000000000012',
+          }],
+        }])
+      }
       return json([])
     })
 
-    renderApp()
+    const rendered = renderApp()
     expect(await screen.findByRole('heading', { name: 'Claim this installation' })).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('One-time authorization'), { target: { value: 'authorization' } })
@@ -65,6 +86,11 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Your collection starts here' })).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Configuration' })).toBeInTheDocument()
+    fireEvent.click(await screen.findByRole('button', { name: 'Play' }))
+    expect(rendered.container.querySelector('video')).toHaveAttribute(
+      'src',
+      '/media/videos/01994dd4-2a0a-7000-8000-000000000012',
+    )
     expect(globalThis.fetch).toHaveBeenCalledWith(
       '/api/access/bootstrap',
       expect.objectContaining({ method: 'POST' }),

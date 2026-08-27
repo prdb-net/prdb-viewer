@@ -191,6 +191,7 @@ public sealed class TechnicalInspectionRunner(
                 LibraryDirectoryId = work.LibraryDirectoryId,
                 RelativePath = candidate.RelativePath,
                 Sha256 = observation.Sha256,
+                PublicDeliveryId = Guid.NewGuid(),
                 ContainerFormat = facts.ContainerFormat,
                 VideoCodec = facts.VideoCodec,
             };
@@ -208,11 +209,23 @@ public sealed class TechnicalInspectionRunner(
         current.DurationMilliseconds = facts.DurationMilliseconds;
         current.Width = facts.Width;
         current.Height = facts.Height;
+        current.DirectPlayClassification = DirectPlayClassificationRule.Classify(
+            facts.ContainerFormat,
+            facts.VideoCodec,
+            facts.AudioCodec);
         current.Availability = VideoFileAvailability.Available;
         current.LastObservedScanId = candidate.LibraryScanId;
         current.ConsecutiveCompleteAbsences = 0;
         current.InspectedAt = Now();
         candidate.State = VideoFileCandidateState.Accepted;
+
+        if (current.DirectPlayClassification == DirectPlayClassification.BaselineCandidate)
+        {
+            var configuration = await database.InstallationConfigurations
+                .AsTracking()
+                .SingleAsync(cancellationToken);
+            configuration.FirstPlayableVideoReachedAt ??= Now();
+        }
     }
 
     private async Task MarkReplacedIfDifferentAsync(

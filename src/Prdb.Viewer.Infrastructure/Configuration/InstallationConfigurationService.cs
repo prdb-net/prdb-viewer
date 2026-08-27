@@ -51,6 +51,8 @@ public sealed class InstallationConfigurationService(
             AsOffset(configuration?.LastConnectionAttemptAt),
             AsOffset(configuration?.LastConnectionVerifiedAt),
             configuration?.LastConnectionIssue,
+            AsOffset(configuration?.ConfiguredAt),
+            AsOffset(configuration?.FirstPlayableVideoReachedAt),
             mountRoot.Path,
             activeDirectories.Select(Summary).ToArray());
     }
@@ -200,6 +202,15 @@ public sealed class InstallationConfigurationService(
         database.LibraryDirectories.Add(directory);
         database.LibraryDirectoryStages.Remove(stage);
         work.QueueInitialScan(directory, now);
+        var installation = await database.InstallationConfigurations
+            .AsTracking()
+            .SingleAsync(cancellationToken);
+
+        if (installation.PrdbConnectionStatus == PrdbConnectionStatus.Verified)
+        {
+            installation.ConfiguredAt ??= now;
+        }
+
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -235,6 +246,15 @@ public sealed class InstallationConfigurationService(
                 configuration.PrdbConnectionStatus = PrdbConnectionStatus.Verified;
                 configuration.LastConnectionVerifiedAt = now;
                 configuration.LastConnectionIssue = null;
+
+                if (await database.LibraryDirectories.AnyAsync(
+                        directory => directory.State == LibraryDirectoryState.Active &&
+                                     directory.InitialProcessingStartedAt != null,
+                        cancellationToken))
+                {
+                    configuration.ConfiguredAt ??= now;
+                }
+
                 await database.SaveChangesAsync(cancellationToken);
                 return new PrdbConnectionUpdateResult(PrdbConnectionUpdateVerdict.Verified);
 

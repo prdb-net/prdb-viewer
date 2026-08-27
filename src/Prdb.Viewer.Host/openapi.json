@@ -25,6 +25,51 @@
         }
       }
     },
+    "/api/library/videos": {
+      "get": {
+        "tags": [
+          "Library"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VideoSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/media/videos/{deliveryId}": {
+      "get": {
+        "tags": [
+          "Video Delivery"
+        ],
+        "parameters": [
+          {
+            "name": "deliveryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/access/state": {
       "get": {
         "tags": [
@@ -763,6 +808,14 @@
           }
         }
       },
+      "DirectPlayClassification": {
+        "enum": [
+          "BaselineCandidate",
+          "ClientDependent",
+          "Unsupported",
+          "Undetermined"
+        ]
+      },
       "HealthResponse": {
         "required": [
           "status"
@@ -792,6 +845,8 @@
           "lastConnectionAttemptAt",
           "lastConnectionVerifiedAt",
           "lastConnectionIssue",
+          "configuredAt",
+          "firstPlayableVideoReachedAt",
           "libraryMountRoot",
           "libraryDirectories"
         ],
@@ -832,6 +887,20 @@
                 "$ref": "#/components/schemas/PrdbConnectionIssue"
               }
             ]
+          },
+          "configuredAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "firstPlayableVideoReachedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           },
           "libraryMountRoot": {
             "type": "string"
@@ -1299,6 +1368,124 @@
           "Disabled"
         ]
       },
+      "VideoFileAvailability": {
+        "enum": [
+          "Available",
+          "Unreachable",
+          "Missing",
+          "Replaced",
+          "Removed"
+        ]
+      },
+      "VideoFileSummary": {
+        "required": [
+          "id",
+          "relativePath",
+          "size",
+          "durationMilliseconds",
+          "containerFormat",
+          "videoCodec",
+          "audioCodec",
+          "width",
+          "height",
+          "availability",
+          "directPlayClassification",
+          "deliveryUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "relativePath": {
+            "type": "string"
+          },
+          "size": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "durationMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "containerFormat": {
+            "type": "string"
+          },
+          "videoCodec": {
+            "type": "string"
+          },
+          "audioCodec": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "width": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "height": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "availability": {
+            "$ref": "#/components/schemas/VideoFileAvailability"
+          },
+          "directPlayClassification": {
+            "$ref": "#/components/schemas/DirectPlayClassification"
+          },
+          "deliveryUrl": {
+            "type": "string"
+          }
+        }
+      },
+      "VideoSummary": {
+        "required": [
+          "id",
+          "displayTitle",
+          "discoveryDate",
+          "videoFiles"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayTitle": {
+            "type": "string"
+          },
+          "discoveryDate": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "videoFiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VideoFileSummary"
+            }
+          }
+        }
+      },
       "WorkIssueCause": {
         "enum": [
           "SourceAccess",
@@ -1369,6 +1556,12 @@
   "tags": [
     {
       "name": "Health"
+    },
+    {
+      "name": "Library"
+    },
+    {
+      "name": "Video Delivery"
     },
     {
       "name": "Access"

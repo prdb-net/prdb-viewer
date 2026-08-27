@@ -39,6 +39,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/library/videos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["VideoSummary"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/media/videos/{deliveryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    deliveryId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/access/state": {
         parameters: {
             query?: never;
@@ -804,6 +874,8 @@ export interface components {
             verdict: components["schemas"]["BootstrapClaimVerdict"];
             account: null | components["schemas"]["SignedInAccountResponse"];
         };
+        /** @enum {unknown} */
+        DirectPlayClassification: "BaselineCandidate" | "ClientDependent" | "Unsupported" | "Undetermined";
         HealthResponse: {
             status: string;
         };
@@ -819,6 +891,10 @@ export interface components {
             /** Format: date-time */
             lastConnectionVerifiedAt: null | string;
             lastConnectionIssue: null | components["schemas"]["PrdbConnectionIssue"];
+            /** Format: date-time */
+            configuredAt: null | string;
+            /** Format: date-time */
+            firstPlayableVideoReachedAt: null | string;
             libraryMountRoot: string;
             libraryDirectories: components["schemas"]["LibraryDirectorySummary"][];
         };
@@ -928,6 +1004,35 @@ export interface components {
         };
         /** @enum {unknown} */
         SignInVerdict: "SignedIn" | "InvalidCredentials" | "ApprovalPending" | "Disabled";
+        /** @enum {unknown} */
+        VideoFileAvailability: "Available" | "Unreachable" | "Missing" | "Replaced" | "Removed";
+        VideoFileSummary: {
+            /** Format: uuid */
+            id: string;
+            relativePath: string;
+            /** Format: int64 */
+            size: number | string;
+            /** Format: int64 */
+            durationMilliseconds: number | string;
+            containerFormat: string;
+            videoCodec: string;
+            audioCodec: null | string;
+            /** Format: int32 */
+            width: null | number | string;
+            /** Format: int32 */
+            height: null | number | string;
+            availability: components["schemas"]["VideoFileAvailability"];
+            directPlayClassification: components["schemas"]["DirectPlayClassification"];
+            deliveryUrl: string;
+        };
+        VideoSummary: {
+            /** Format: uuid */
+            id: string;
+            displayTitle: string;
+            /** Format: date-time */
+            discoveryDate: string;
+            videoFiles: components["schemas"]["VideoFileSummary"][];
+        };
         /** @enum {unknown} */
         WorkIssueCause: "SourceAccess" | "ChangingSource" | "InvalidContent" | "Capacity" | "ExternalAvailability" | "ExternalAuthority" | "Configuration" | "InternalConsistency";
         /** @enum {unknown} */

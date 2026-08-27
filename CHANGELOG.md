@@ -20,3 +20,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Add durable, restart-resumable Library Scans and bounded technical inspection
   with `ffprobe`, rename and absence reconciliation, visible Work Issues, and
   Administrator-triggered rescans.
+- Add the authenticated shared Video catalogue, static Direct-Play
+  Classification, durable First Playable Video Milestone, and anonymous opaque
+  video delivery with HTTP byte-range support.

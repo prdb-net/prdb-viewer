@@ -10,6 +10,7 @@ import {
   type RecoverRequest,
   type RegistrationRequest,
   type SignInRequest,
+  type VideoSummary,
 } from './api/client'
 
 const queryKeys = {
@@ -19,6 +20,7 @@ const queryKeys = {
   configuration: ['configuration'] as const,
   libraryDirectoryCandidates: ['library-directory-candidates'] as const,
   backgroundWork: ['background-work'] as const,
+  videos: ['videos'] as const,
 }
 
 export function App() {
@@ -191,6 +193,7 @@ function Library({ account }: { account: Account }) {
           <h2>Your collection starts here</h2>
           <p>Account access is ready. Active Library Directories will appear here as scanning discovers playable Videos.</p>
         </div>
+        <VideoLibrary />
         {account.authority === 'Administrator' && (
           <>
             <InstallationSetup account={account} />
@@ -200,6 +203,52 @@ function Library({ account }: { account: Account }) {
         )}
       </section>
     </main>
+  )
+}
+
+function VideoLibrary() {
+  const videos = useQuery({
+    queryKey: queryKeys.videos,
+    queryFn: api.videos,
+    refetchInterval: 5_000,
+  })
+  const [playing, setPlaying] = useState<{ video: VideoSummary; source: string }>()
+
+  if (videos.isPending) {
+    return <p role="status">Opening the shared library…</p>
+  }
+
+  if (videos.isError) {
+    return <RequestError />
+  }
+
+  if (videos.data.length === 0) {
+    return <div className="empty-library"><strong>No Videos yet</strong><p>Videos appear here as technical inspection completes.</p></div>
+  }
+
+  return (
+    <section className="video-library" aria-labelledby="videos-title">
+      <div className="section-heading"><h3 id="videos-title">Videos</h3><span className="muted">{videos.data.length} available</span></div>
+      {playing && (
+        <div className="player-shell">
+          <div className="section-heading"><strong>{playing.video.displayTitle}</strong><button className="quiet-button" onClick={() => setPlaying(undefined)}>Close</button></div>
+          <video controls autoPlay src={playing.source}>Your browser cannot play this Video File.</video>
+        </div>
+      )}
+      <div className="video-grid">
+        {videos.data.map((video) => {
+          const source = video.videoFiles.find((file) => file.directPlayClassification === 'BaselineCandidate') ??
+            video.videoFiles.find((file) => file.directPlayClassification === 'ClientDependent')
+          return (
+            <article className="video-card" key={video.id}>
+              <div className="video-placeholder" aria-hidden="true">▶</div>
+              <div><strong>{video.displayTitle}</strong><small>{friendlyState(source?.directPlayClassification ?? video.videoFiles[0].directPlayClassification)}</small></div>
+              {source ? <button className="primary-button" onClick={() => setPlaying({ video, source: source.deliveryUrl })}>Play</button> : <span className="unsupported">No direct-play candidate</span>}
+            </article>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 

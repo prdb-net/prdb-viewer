@@ -116,6 +116,7 @@ app.MapGet("/api/health", () => TypedResults.Ok(new HealthResponse("ok")))
 app.MapAccess();
 app.MapConfiguration();
 app.MapBackgroundWork();
+app.MapVideos();
 
 app.MapFallback("/api/{*rest}", () => Results.NotFound());
 app.MapFallbackToFile("index.html").AllowAnonymous();

@@ -36,6 +36,8 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<LibraryScanRunner>();
         services.AddScoped<TechnicalInspectionRunner>();
         services.AddScoped<BackgroundWorkQuery>();
+        services.AddScoped<VideoCatalog>();
+        services.AddScoped<VideoDeliveryService>();
         services.AddSingleton<IMediaProbe, FfprobeMediaProbe>();
         services.AddTransient<ProductUserAgentHandler>();
         services.AddHttpClient(PrdbConnectionVerifier.TransportName)

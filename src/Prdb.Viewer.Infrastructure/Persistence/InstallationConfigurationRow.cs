@@ -23,4 +23,6 @@ public sealed class InstallationConfigurationRow
     public PrdbConnectionIssue? LastConnectionIssue { get; set; }
 
     public DateTime? ConfiguredAt { get; set; }
+
+    public DateTime? FirstPlayableVideoReachedAt { get; set; }
 }

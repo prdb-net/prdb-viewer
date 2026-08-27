@@ -1,6 +1,8 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 using Prdb.Viewer.Infrastructure.Persistence;
 using Prdb.Viewer.Infrastructure.Configuration;
@@ -27,7 +29,8 @@ internal sealed class TestDatabase : IAsyncDisposable
     public static async Task<TestDatabase> CreateAsync(
         TimeProvider? timeProvider = null,
         IPrdbConnectionVerifier? prdbConnectionVerifier = null,
-        IMediaProbe? mediaProbe = null)
+        IMediaProbe? mediaProbe = null,
+        string? targetMigration = null)
     {
         var directory = Path.Combine(Path.GetTempPath(), $"prdb-viewer-{Guid.NewGuid():n}");
         var libraryMountRoot = Path.Combine(directory, "libraries");
@@ -49,13 +52,30 @@ internal sealed class TestDatabase : IAsyncDisposable
         }
 
         var database = new TestDatabase(directory, services.BuildServiceProvider());
-        await database.provider.PrepareViewerDatabaseAsync(TestContext.Current.CancellationToken);
+        if (targetMigration is null)
+        {
+            await database.provider.PrepareViewerDatabaseAsync(TestContext.Current.CancellationToken);
+        }
+        else
+        {
+            await database.MigrateAsync(targetMigration);
+        }
+
         return database;
     }
 
     public AsyncServiceScope Scope() => provider.CreateAsyncScope();
 
     public LibraryMountRoot LibraryMountRoot => provider.GetRequiredService<LibraryMountRoot>();
+
+    public async Task MigrateAsync(string? targetMigration = null)
+    {
+        await using var scope = Scope();
+        var context = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        await context.GetService<IMigrator>().MigrateAsync(
+            targetMigration,
+            TestContext.Current.CancellationToken);
+    }
 
     public async ValueTask DisposeAsync()
     {

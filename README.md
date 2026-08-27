@@ -7,8 +7,9 @@ private to their Account.
 
 The project is in active development. The current executable provides local
 Account access, guided Installation Configuration, durable Library Scans, and
-technical inspection of discovered Video File Candidates. Browser playback is
-the next vertical slice. See [VISION.md](VISION.md) for the product contract.
+technical inspection of discovered Video File Candidates, plus the first
+authenticated catalogue and direct browser playback path. See
+[VISION.md](VISION.md) for the product contract.
 
 ## Prerequisites
 
@@ -148,3 +149,18 @@ A stable content identity preserves a Video File across a rename, while a
 changed file at an existing path is retained as Replaced. One trustworthy
 complete absence records Unreachable; a second records Missing. An incomplete
 or inaccessible traversal never infers absence for the directory.
+
+## Browse and directly play Videos
+
+Approved Users receive the shared catalogue of Available Videos. Inspected
+H.264/AAC MP4 files are Baseline Candidates; formats whose browser support
+varies remain Client-Dependent, while known legacy codecs are Unsupported and
+unknown combinations remain Undetermined. These installation-wide classes are
+technical guidance rather than a guarantee for a particular browser.
+
+The browser plays original files directly and the Host supports HTTP byte
+ranges for seeking. Catalogue access remains authenticated. Video delivery is
+intentionally outside the authentication boundary defined by the product
+contract and uses a random, non-enumerable public identifier rather than a
+filesystem path or sequential database key. Treat a copied delivery URL as a
+direct link to that source Video File.

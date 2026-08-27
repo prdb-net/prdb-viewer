@@ -42,8 +42,12 @@ public sealed class LibraryProcessingTests
                 videoFile.RelativePath);
             Assert.Equal(VideoFileAvailability.Available, videoFile.Availability);
             Assert.Equal("h264", videoFile.VideoCodec);
+            Assert.Equal(DirectPlayClassification.BaselineCandidate, videoFile.DirectPlayClassification);
+            Assert.NotEqual(Guid.Empty, videoFile.PublicDeliveryId);
             Assert.Equal(4, videoFile.Size);
             Assert.Single(await database.Videos.ToListAsync(TestContext.Current.CancellationToken));
+            Assert.NotNull((await database.InstallationConfigurations.SingleAsync(
+                TestContext.Current.CancellationToken)).FirstPlayableVideoReachedAt);
         }
         Assert.Equal([1, 2, 3, 4], await File.ReadAllBytesAsync(
             original,

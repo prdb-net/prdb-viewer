@@ -69,6 +69,8 @@ public sealed record InstallationConfigurationSummary(
     DateTimeOffset? LastConnectionAttemptAt,
     DateTimeOffset? LastConnectionVerifiedAt,
     PrdbConnectionIssue? LastConnectionIssue,
+    DateTimeOffset? ConfiguredAt,
+    DateTimeOffset? FirstPlayableVideoReachedAt,
     string LibraryMountRoot,
     IReadOnlyList<LibraryDirectorySummary> LibraryDirectories);
 

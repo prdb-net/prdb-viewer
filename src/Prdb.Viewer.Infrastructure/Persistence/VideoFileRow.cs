@@ -22,6 +22,8 @@ public sealed class VideoFileRow
 
     public required string Sha256 { get; set; }
 
+    public Guid PublicDeliveryId { get; set; }
+
     public required string ContainerFormat { get; set; }
 
     public required string VideoCodec { get; set; }
@@ -35,6 +37,8 @@ public sealed class VideoFileRow
     public int? Height { get; set; }
 
     public VideoFileAvailability Availability { get; set; }
+
+    public DirectPlayClassification DirectPlayClassification { get; set; }
 
     public Guid LastObservedScanId { get; set; }
 

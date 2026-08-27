@@ -170,6 +170,8 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             videoFile.HasKey(row => row.Id);
             videoFile.Property(row => row.Id).ValueGeneratedNever();
             videoFile.Property(row => row.Availability).HasConversion<string>();
+            videoFile.Property(row => row.DirectPlayClassification).HasConversion<string>();
+            videoFile.HasIndex(row => row.PublicDeliveryId).IsUnique();
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.RelativePath });
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Sha256 });
             videoFile.HasOne(row => row.Video)

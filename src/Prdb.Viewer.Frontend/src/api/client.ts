@@ -20,6 +20,7 @@ export type LibraryDirectoryStage = components['schemas']['LibraryDirectoryStage
 export type LibraryDirectoryActivation = components['schemas']['LibraryDirectoryActivationResult']
 export type BackgroundWorkStatus = components['schemas']['BackgroundWorkStatus']
 export type QueueLibraryScanResult = components['schemas']['QueueLibraryScanResult']
+export type VideoSummary = components['schemas']['VideoSummary']
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -48,6 +49,7 @@ function post<T>(path: string, body?: unknown, csrfToken?: string) {
 
 export const api = {
   state: () => request<AccessState>('/api/access/state'),
+  videos: () => request<VideoSummary[]>('/api/library/videos'),
   me: () => request<Account>('/api/access/me'),
   bootstrap: (input: BootstrapRequest) => post<BootstrapResponse>('/api/access/bootstrap', input),
   signIn: (input: SignInRequest) => post<SignInResponse>('/api/access/sign-in', input),
