@@ -806,6 +806,375 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/personal/library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PersonalLibrarySummary"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/videos/{videoId}/playback-attempts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PlaybackAttemptRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaybackAttemptResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/playback-attempts/{playbackAttemptId}/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    playbackAttemptId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PlaybackReportRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaybackReportResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/playback-attempts/{playbackAttemptId}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    playbackAttemptId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["EndPlaybackAttemptResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/videos/{videoId}/favourite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PersonalStateMutationResult"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PersonalStateMutationResult"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/videos/{videoId}/watch-later": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PersonalStateMutationResult"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PersonalStateMutationResult"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/videos/{videoId}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PersonalRatingRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PersonalStateMutationResult"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PersonalStateMutationResult"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/videos/{videoId}/continue-watching/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PersonalStateMutationResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -876,6 +1245,9 @@ export interface components {
         };
         /** @enum {unknown} */
         DirectPlayClassification: "BaselineCandidate" | "ClientDependent" | "Unsupported" | "Undetermined";
+        EndPlaybackAttemptResponse: {
+            ended: boolean;
+        };
         HealthResponse: {
             status: string;
         };
@@ -939,6 +1311,71 @@ export interface components {
             activatedAt: string;
             initialProcessingStarted: boolean;
         };
+        PersonalLibrarySummary: {
+            continueWatching: components["schemas"]["VideoSummary"][];
+            favourites: components["schemas"]["VideoSummary"][];
+            watchLater: components["schemas"]["VideoSummary"][];
+        };
+        /** @enum {unknown} */
+        PersonalPlayState: "Unplayed" | "InProgress" | "Completed";
+        PersonalRatingRequest: {
+            /** Format: int32 */
+            rating: null | number | string;
+        };
+        PersonalStateMutationResult: {
+            verdict: components["schemas"]["PersonalStateMutationVerdict"];
+            personalState: null | components["schemas"]["PersonalVideoStateSummary"];
+        };
+        /** @enum {unknown} */
+        PersonalStateMutationVerdict: "Updated" | "VideoNotFound" | "InvalidRating";
+        PersonalVideoStateSummary: {
+            /** Format: int64 */
+            playbackProgressMilliseconds: null | number | string;
+            /** Format: int64 */
+            accumulatedWatchDurationMilliseconds: number | string;
+            /** Format: int32 */
+            playCount: number | string;
+            hasViewingCompletion: boolean;
+            playState: components["schemas"]["PersonalPlayState"];
+            continueWatching: boolean;
+            favourite: boolean;
+            watchLater: boolean;
+            /** Format: int32 */
+            personalRating: null | number | string;
+        };
+        PlaybackAttemptRequest: {
+            /** Format: uuid */
+            videoFileId: string;
+        };
+        PlaybackAttemptResult: {
+            verdict: components["schemas"]["PlaybackAttemptVerdict"];
+            /** Format: uuid */
+            playbackAttemptId: null | string;
+            /** Format: int64 */
+            resumePositionMilliseconds: null | number | string;
+        };
+        /** @enum {unknown} */
+        PlaybackAttemptVerdict: "Started" | "VideoNotFound" | "VideoFileUnavailable";
+        PlaybackReportRequest: {
+            /** Format: uuid */
+            reportId: string;
+            /** Format: int32 */
+            sequence: number | string;
+            /** Format: uuid */
+            videoFileId: string;
+            /** Format: int64 */
+            positionMilliseconds: number | string;
+            /** Format: int64 */
+            activeWatchingMilliseconds: number | string;
+            naturalEndConfirmed: boolean;
+            endSession: boolean;
+        };
+        PlaybackReportResult: {
+            verdict: components["schemas"]["PlaybackReportVerdict"];
+            personalState: null | components["schemas"]["PersonalVideoStateSummary"];
+        };
+        /** @enum {unknown} */
+        PlaybackReportVerdict: "Accepted" | "Duplicate" | "NotFound" | "AttemptEnded" | "InvalidReport";
         /** @enum {unknown} */
         PrdbConnectionIssue: "ExternalAuthority" | "ExternalAvailability" | "ReplacementRejected" | null;
         /** @enum {unknown} */
@@ -1005,6 +1442,8 @@ export interface components {
         /** @enum {unknown} */
         SignInVerdict: "SignedIn" | "InvalidCredentials" | "ApprovalPending" | "Disabled";
         /** @enum {unknown} */
+        VideoAvailability: "Available" | "Unavailable" | "Removed";
+        /** @enum {unknown} */
         VideoFileAvailability: "Available" | "Unreachable" | "Missing" | "Replaced" | "Removed";
         VideoFileSummary: {
             /** Format: uuid */
@@ -1031,7 +1470,9 @@ export interface components {
             displayTitle: string;
             /** Format: date-time */
             discoveryDate: string;
+            availability: components["schemas"]["VideoAvailability"];
             videoFiles: components["schemas"]["VideoFileSummary"][];
+            personalState: components["schemas"]["PersonalVideoStateSummary"];
         };
         /** @enum {unknown} */
         WorkIssueCause: "SourceAccess" | "ChangingSource" | "InvalidContent" | "Capacity" | "ExternalAvailability" | "ExternalAuthority" | "Configuration" | "InternalConsistency";

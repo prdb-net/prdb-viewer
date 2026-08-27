@@ -1,4 +1,5 @@
 using Prdb.Viewer.Infrastructure.Library;
+using Prdb.Viewer.Host.Access;
 
 namespace Prdb.Viewer.Host.Library;
 
@@ -8,8 +9,11 @@ public static class VideoEndpoints
     {
         routes.MapGet("/api/library/videos", async (
             VideoCatalog catalog,
+            HttpContext http,
             CancellationToken cancellationToken) =>
-            TypedResults.Ok(await catalog.GetAsync(cancellationToken)))
+            TypedResults.Ok(await catalog.GetAsync(
+                http.User.AccountId()!.Value,
+                cancellationToken)))
             .WithTags("Library");
 
         routes.MapGet("/media/videos/{deliveryId:guid}", async (

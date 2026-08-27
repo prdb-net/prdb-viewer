@@ -52,11 +52,29 @@ describe('App', () => {
       if (input === '/api/admin/background-work/') {
         return json({ work: [], issues: [] })
       }
+      if (input === '/api/personal/library') {
+        return json({ continueWatching: [], favourites: [], watchLater: [] })
+      }
+      if (input === '/api/personal/videos/01994dd4-2a0a-7000-8000-000000000010/playback-attempts') {
+        return json({
+          verdict: 'Started',
+          playbackAttemptId: '01994dd4-2a0a-7000-8000-000000000013',
+          resumePositionMilliseconds: null,
+        })
+      }
+      if (input === '/api/personal/playback-attempts/01994dd4-2a0a-7000-8000-000000000013/reports') {
+        return json({ verdict: 'Accepted', personalState: personalState({ playState: 'InProgress' }) })
+      }
+      if (input === '/api/personal/playback-attempts/01994dd4-2a0a-7000-8000-000000000013/end') {
+        return json({ ended: true })
+      }
       if (input === '/api/library/videos') {
         return json([{
           id: '01994dd4-2a0a-7000-8000-000000000010',
           displayTitle: 'Sample Video',
           discoveryDate: '2026-08-27T12:00:00Z',
+          availability: 'Available',
+          personalState: personalState(),
           videoFiles: [{
             id: '01994dd4-2a0a-7000-8000-000000000011',
             relativePath: 'sample.mp4',
@@ -87,14 +105,110 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Your collection starts here' })).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Configuration' })).toBeInTheDocument()
     fireEvent.click(await screen.findByRole('button', { name: 'Play' }))
+    expect(await screen.findByText('Your browser cannot play this Video File.')).toBeInTheDocument()
     expect(rendered.container.querySelector('video')).toHaveAttribute(
       'src',
       '/media/videos/01994dd4-2a0a-7000-8000-000000000012',
     )
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await vi.waitFor(() => expect(rendered.container.querySelector('video')).toBeNull())
     expect(globalThis.fetch).toHaveBeenCalledWith(
       '/api/access/bootstrap',
       expect.objectContaining({ method: 'POST' }),
     )
+  })
+
+  it('reports confirmed playback and exposes private organisation actions', async () => {
+    const video = {
+      id: '01994dd4-2a0a-7000-8000-000000000010',
+      displayTitle: 'Resume Me',
+      discoveryDate: '2026-08-27T12:00:00Z',
+      availability: 'Available',
+      personalState: personalState({
+        playbackProgressMilliseconds: 20_000,
+        playState: 'InProgress',
+        continueWatching: true,
+      }),
+      videoFiles: [{
+        id: '01994dd4-2a0a-7000-8000-000000000011',
+        relativePath: 'resume.mp4',
+        size: 10,
+        durationMilliseconds: 100_000,
+        containerFormat: 'mp4',
+        videoCodec: 'h264',
+        audioCodec: 'aac',
+        width: 640,
+        height: 360,
+        availability: 'Available',
+        directPlayClassification: 'BaselineCandidate',
+        deliveryUrl: '/media/videos/resume',
+      }],
+    }
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      if (input === '/api/access/state') return json({ claimed: true, signedIn: true })
+      if (input === '/api/access/me') return json({
+        id: '01994dd4-2a0a-7000-8000-000000000001',
+        username: 'viewer',
+        email: null,
+        authority: 'User',
+        csrfToken: 'csrf-token',
+      })
+      if (input === '/api/library/videos') return json([video])
+      if (input === '/api/personal/library') {
+        return json({ continueWatching: [video], favourites: [], watchLater: [] })
+      }
+      if (input === '/api/personal/videos/01994dd4-2a0a-7000-8000-000000000010/playback-attempts') {
+        return json({
+          verdict: 'Started',
+          playbackAttemptId: '01994dd4-2a0a-7000-8000-000000000013',
+          resumePositionMilliseconds: 20_000,
+        })
+      }
+      if (input === '/api/personal/playback-attempts/01994dd4-2a0a-7000-8000-000000000013/reports') {
+        return json({ verdict: 'Accepted', personalState: video.personalState })
+      }
+      if (input === '/api/personal/playback-attempts/01994dd4-2a0a-7000-8000-000000000013/end') {
+        return json({ ended: true })
+      }
+      if (input === '/api/personal/videos/01994dd4-2a0a-7000-8000-000000000010/favourite') {
+        return json({ verdict: 'Updated', personalState: personalState({ favourite: true }) })
+      }
+      return json([])
+    })
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(0)
+
+    const rendered = renderApp()
+    expect(await screen.findByRole('region', { name: 'Continue Watching' })).toBeInTheDocument()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Favourite' })[0])
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/personal/videos/01994dd4-2a0a-7000-8000-000000000010/favourite',
+      expect.objectContaining({ method: 'PUT', headers: { 'X-CSRF-Token': 'csrf-token' } }),
+    ))
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Resume' })[0])
+    const player = await waitForVideo(rendered.container)
+    Object.defineProperty(player, 'paused', { configurable: true, value: false })
+    player.currentTime = 20
+    fireEvent.playing(player)
+    clock.mockReturnValue(6_000)
+    player.currentTime = 26
+    fireEvent.timeUpdate(player)
+
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/personal/playback-attempts/01994dd4-2a0a-7000-8000-000000000013/reports',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ 'X-CSRF-Token': 'csrf-token' }),
+      }),
+    ))
+    const reportCall = vi.mocked(globalThis.fetch).mock.calls.find(([path]) =>
+      path === '/api/personal/playback-attempts/01994dd4-2a0a-7000-8000-000000000013/reports')
+    expect(JSON.parse(reportCall![1]!.body!.toString())).toEqual(expect.objectContaining({
+      positionMilliseconds: 26_000,
+      activeWatchingMilliseconds: 6_000,
+    }))
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+    await vi.waitFor(() => expect(rendered.container.querySelector('video')).toBeNull())
   })
 
   it('offers sign-in and an approval-gated registration request', async () => {
@@ -112,3 +226,23 @@ describe('App', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Access begins only after approval.')
   })
 })
+
+function personalState(overrides: Record<string, unknown> = {}) {
+  return {
+    playbackProgressMilliseconds: null,
+    accumulatedWatchDurationMilliseconds: 0,
+    playCount: 0,
+    hasViewingCompletion: false,
+    playState: 'Unplayed',
+    continueWatching: false,
+    favourite: false,
+    watchLater: false,
+    personalRating: null,
+    ...overrides,
+  }
+}
+
+async function waitForVideo(container: HTMLElement) {
+  await vi.waitFor(() => expect(container.querySelector('video')).not.toBeNull())
+  return container.querySelector('video')!
+}

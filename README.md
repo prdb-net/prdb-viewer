@@ -8,7 +8,8 @@ private to their Account.
 The project is in active development. The current executable provides local
 Account access, guided Installation Configuration, durable Library Scans, and
 technical inspection of discovered Video File Candidates, plus the first
-authenticated catalogue and direct browser playback path. See
+authenticated catalogue, direct browser playback path, and Account-private
+playback and Personal State surfaces. See
 [VISION.md](VISION.md) for the product contract.
 
 ## Prerequisites
@@ -164,3 +165,26 @@ intentionally outside the authentication boundary defined by the product
 contract and uses a random, non-enumerable public identifier rather than a
 filesystem path or sequential database key. Treat a copied delivery URL as a
 direct link to that source Video File.
+
+## Track playback and Personal State
+
+Starting playback creates a Playback Attempt, while viewing activity begins
+only after the browser confirms that playback advanced normally. Periodic,
+idempotent reports retain Playback Progress, Accumulated Watch Duration, Play
+Count, Viewing Completion, and the current Personal Play State. Pausing,
+buffering, seeking by itself, and missing reports do not invent activity.
+Concurrent reports for the same Account and Video are combined without
+double-counting overlapping watch duration.
+
+Resume positions transfer only to the same Video File until Timeline
+Equivalence is established. The browser resumes that file, reports subsequent
+activity, and derives Continue Watching from a qualifying unfinished Viewing
+Session. Users can dismiss a Continue Watching entry without deleting history,
+and can independently maintain Favourites, the oldest-first Watch Later queue,
+and an optional one-to-five Personal Rating.
+
+Every Personal State endpoint derives its Account from the authenticated local
+session and requires CSRF protection for changes. No request accepts another
+Account identifier, and Administrator authority does not grant access to a
+User's Personal State. Personal references survive temporary unavailability;
+they remain dormant only while their Video is removed from the active Library.

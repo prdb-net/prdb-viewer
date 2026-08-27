@@ -11,6 +11,7 @@ using Microsoft.OpenApi;
 using Prdb.Viewer.Host.Access;
 using Prdb.Viewer.Host.Configuration;
 using Prdb.Viewer.Host.Library;
+using Prdb.Viewer.Host.Personal;
 using Prdb.Viewer.Infrastructure.Persistence;
 
 var operatorCommand = OperatorCommands.Matches(args);
@@ -117,6 +118,7 @@ app.MapAccess();
 app.MapConfiguration();
 app.MapBackgroundWork();
 app.MapVideos();
+app.MapPersonalState();
 
 app.MapFallback("/api/{*rest}", () => Results.NotFound());
 app.MapFallbackToFile("index.html").AllowAnonymous();

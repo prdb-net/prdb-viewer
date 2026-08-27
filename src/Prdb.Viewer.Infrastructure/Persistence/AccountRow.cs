@@ -23,4 +23,8 @@ public sealed class AccountRow
     public DateTime? ApprovedAt { get; set; }
 
     public DateTime? DisabledAt { get; set; }
+
+    public ICollection<PersonalVideoStateRow> PersonalVideoStates { get; set; } = [];
+
+    public ICollection<PlaybackAttemptRow> PlaybackAttempts { get; set; } = [];
 }

@@ -33,6 +33,15 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<VideoFileCandidateRow> VideoFileCandidates => Set<VideoFileCandidateRow>();
 
+    public DbSet<PersonalVideoStateRow> PersonalVideoStates => Set<PersonalVideoStateRow>();
+
+    public DbSet<PlaybackAttemptRow> PlaybackAttempts => Set<PlaybackAttemptRow>();
+
+    public DbSet<PlaybackReportRow> PlaybackReports => Set<PlaybackReportRow>();
+
+    public DbSet<PlaybackAttemptVideoFileRow> PlaybackAttemptVideoFiles =>
+        Set<PlaybackAttemptVideoFileRow>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.Entity<AccountRow>(account =>
@@ -192,6 +201,71 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             candidate.Property(row => row.State).HasConversion<string>();
             candidate.HasIndex(row => new { row.LibraryScanId, row.RelativePath }).IsUnique();
             candidate.HasIndex(row => new { row.LibraryScanId, row.State });
+        });
+
+        builder.Entity<PersonalVideoStateRow>(state =>
+        {
+            state.ToTable("personal_video_state");
+            state.ToTable(table => table.HasCheckConstraint(
+                "CK_personal_video_state_PersonalRating",
+                "\"PersonalRating\" IS NULL OR \"PersonalRating\" BETWEEN 1 AND 5"));
+            state.HasKey(row => new { row.AccountId, row.VideoId });
+            state.Property(row => row.PlayState).HasConversion<string>();
+            state.HasIndex(row => new { row.AccountId, row.LastQualifiedActivityAt });
+            state.HasIndex(row => new { row.AccountId, row.FavouriteAddedAt });
+            state.HasIndex(row => new { row.AccountId, row.WatchLaterAddedAt });
+            state.HasOne(row => row.Account)
+                .WithMany(row => row.PersonalVideoStates)
+                .HasForeignKey(row => row.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+            state.HasOne(row => row.Video)
+                .WithMany(row => row.PersonalStates)
+                .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<PlaybackAttemptRow>(attempt =>
+        {
+            attempt.ToTable("playback_attempt");
+            attempt.HasKey(row => row.Id);
+            attempt.Property(row => row.Id).ValueGeneratedNever();
+            attempt.HasIndex(row => new { row.AccountId, row.VideoId, row.AttemptedAt });
+            attempt.HasIndex(row => new { row.AccountId, row.EndedAt, row.LastActivityAt });
+            attempt.HasOne(row => row.Account)
+                .WithMany(row => row.PlaybackAttempts)
+                .HasForeignKey(row => row.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+            attempt.HasOne(row => row.Video)
+                .WithMany(row => row.PlaybackAttempts)
+                .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<PlaybackReportRow>(report =>
+        {
+            report.ToTable("playback_report");
+            report.HasKey(row => row.Id);
+            report.Property(row => row.Id).ValueGeneratedNever();
+            report.HasIndex(row => new { row.PlaybackAttemptId, row.Sequence });
+            report.HasIndex(row => new { row.ActivityStartedAt, row.ActivityEndedAt });
+            report.HasOne(row => row.PlaybackAttempt)
+                .WithMany(row => row.Reports)
+                .HasForeignKey(row => row.PlaybackAttemptId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PlaybackAttemptVideoFileRow>(participation =>
+        {
+            participation.ToTable("playback_attempt_video_file");
+            participation.HasKey(row => new { row.PlaybackAttemptId, row.VideoFileId });
+            participation.HasOne(row => row.PlaybackAttempt)
+                .WithMany(row => row.VideoFiles)
+                .HasForeignKey(row => row.PlaybackAttemptId)
+                .OnDelete(DeleteBehavior.Cascade);
+            participation.HasOne(row => row.VideoFile)
+                .WithMany(row => row.PlaybackAttempts)
+                .HasForeignKey(row => row.VideoFileId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

@@ -385,7 +385,8 @@ to solve every kind of recognition or organisation. It includes:
     playability.
 11. Per-user playback progress, watch duration and play-count tracking, so the
    product does not lose the history that later recommendations require.
-12. Per-user Continue Watching, favourites and Watch Later surfaces.
+12. Per-user Continue Watching, favourites, Watch Later and Personal Rating
+    surfaces.
 13. A preference and filter for showing unsupported files, including their
     titles and previews when available.
 14. Command-line operations that create and restore a protected, portable

@@ -541,6 +541,349 @@
           }
         }
       }
+    },
+    "/api/personal/library": {
+      "get": {
+        "tags": [
+          "Personal State"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalLibrarySummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/videos/{videoId}/playback-attempts": {
+      "post": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaybackAttemptRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybackAttemptResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/playback-attempts/{playbackAttemptId}/reports": {
+      "post": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "playbackAttemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaybackReportRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybackReportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/playback-attempts/{playbackAttemptId}/end": {
+      "post": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "playbackAttemptId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EndPlaybackAttemptResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/videos/{videoId}/favourite": {
+      "put": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalStateMutationResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalStateMutationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/videos/{videoId}/watch-later": {
+      "put": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalStateMutationResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalStateMutationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/videos/{videoId}/rating": {
+      "put": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PersonalRatingRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalStateMutationResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalStateMutationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/videos/{videoId}/continue-watching/dismiss": {
+      "post": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PersonalStateMutationResult"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -816,6 +1159,17 @@
           "Undetermined"
         ]
       },
+      "EndPlaybackAttemptResponse": {
+        "required": [
+          "ended"
+        ],
+        "type": "object",
+        "properties": {
+          "ended": {
+            "type": "boolean"
+          }
+        }
+      },
       "HealthResponse": {
         "required": [
           "status"
@@ -1083,6 +1437,283 @@
             "type": "boolean"
           }
         }
+      },
+      "PersonalLibrarySummary": {
+        "required": [
+          "continueWatching",
+          "favourites",
+          "watchLater"
+        ],
+        "type": "object",
+        "properties": {
+          "continueWatching": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VideoSummary"
+            }
+          },
+          "favourites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VideoSummary"
+            }
+          },
+          "watchLater": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VideoSummary"
+            }
+          }
+        }
+      },
+      "PersonalPlayState": {
+        "enum": [
+          "Unplayed",
+          "InProgress",
+          "Completed"
+        ]
+      },
+      "PersonalRatingRequest": {
+        "required": [
+          "rating"
+        ],
+        "type": "object",
+        "properties": {
+          "rating": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PersonalStateMutationResult": {
+        "required": [
+          "verdict",
+          "personalState"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/PersonalStateMutationVerdict"
+          },
+          "personalState": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PersonalVideoStateSummary"
+              }
+            ]
+          }
+        }
+      },
+      "PersonalStateMutationVerdict": {
+        "enum": [
+          "Updated",
+          "VideoNotFound",
+          "InvalidRating"
+        ]
+      },
+      "PersonalVideoStateSummary": {
+        "required": [
+          "playbackProgressMilliseconds",
+          "accumulatedWatchDurationMilliseconds",
+          "playCount",
+          "hasViewingCompletion",
+          "playState",
+          "continueWatching",
+          "favourite",
+          "watchLater",
+          "personalRating"
+        ],
+        "type": "object",
+        "properties": {
+          "playbackProgressMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "accumulatedWatchDurationMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "playCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasViewingCompletion": {
+            "type": "boolean"
+          },
+          "playState": {
+            "$ref": "#/components/schemas/PersonalPlayState"
+          },
+          "continueWatching": {
+            "type": "boolean"
+          },
+          "favourite": {
+            "type": "boolean"
+          },
+          "watchLater": {
+            "type": "boolean"
+          },
+          "personalRating": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PlaybackAttemptRequest": {
+        "required": [
+          "videoFileId"
+        ],
+        "type": "object",
+        "properties": {
+          "videoFileId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "PlaybackAttemptResult": {
+        "required": [
+          "verdict",
+          "playbackAttemptId",
+          "resumePositionMilliseconds"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/PlaybackAttemptVerdict"
+          },
+          "playbackAttemptId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "resumePositionMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "PlaybackAttemptVerdict": {
+        "enum": [
+          "Started",
+          "VideoNotFound",
+          "VideoFileUnavailable"
+        ]
+      },
+      "PlaybackReportRequest": {
+        "required": [
+          "reportId",
+          "sequence",
+          "videoFileId",
+          "positionMilliseconds",
+          "activeWatchingMilliseconds",
+          "naturalEndConfirmed",
+          "endSession"
+        ],
+        "type": "object",
+        "properties": {
+          "reportId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sequence": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "videoFileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "positionMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "activeWatchingMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "naturalEndConfirmed": {
+            "type": "boolean"
+          },
+          "endSession": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PlaybackReportResult": {
+        "required": [
+          "verdict",
+          "personalState"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/PlaybackReportVerdict"
+          },
+          "personalState": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PersonalVideoStateSummary"
+              }
+            ]
+          }
+        }
+      },
+      "PlaybackReportVerdict": {
+        "enum": [
+          "Accepted",
+          "Duplicate",
+          "NotFound",
+          "AttemptEnded",
+          "InvalidReport"
+        ]
       },
       "PrdbConnectionIssue": {
         "enum": [
@@ -1368,6 +1999,13 @@
           "Disabled"
         ]
       },
+      "VideoAvailability": {
+        "enum": [
+          "Available",
+          "Unavailable",
+          "Removed"
+        ]
+      },
       "VideoFileAvailability": {
         "enum": [
           "Available",
@@ -1463,7 +2101,9 @@
           "id",
           "displayTitle",
           "discoveryDate",
-          "videoFiles"
+          "availability",
+          "videoFiles",
+          "personalState"
         ],
         "type": "object",
         "properties": {
@@ -1478,11 +2118,17 @@
             "type": "string",
             "format": "date-time"
           },
+          "availability": {
+            "$ref": "#/components/schemas/VideoAvailability"
+          },
           "videoFiles": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/VideoFileSummary"
             }
+          },
+          "personalState": {
+            "$ref": "#/components/schemas/PersonalVideoStateSummary"
           }
         }
       },
@@ -1574,6 +2220,9 @@
     },
     {
       "name": "Background Work"
+    },
+    {
+      "name": "Personal State"
     }
   ]
 }

@@ -266,6 +266,10 @@ _Avoid_: shared favourite, recommendation, rating
 A User-owned, explicitly maintained queue of Video references ordered from oldest to newest addition. Playback and completion do not alter its membership.
 _Avoid_: Continue Watching, playlist, viewing history
 
+**Personal Rating**:
+A User-owned optional score from one to five for a Video. Setting the same score is idempotent, changing it replaces the previous score, and clearing it removes only the score; it is independent of Favourite, Watch Later, and playback activity.
+_Avoid_: Favourite, vote, shared rating
+
 ### Discovery
 
 **Ordinary Discovery**:

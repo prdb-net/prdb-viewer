@@ -8,7 +8,7 @@
 
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: radial-gradient(circle at 78% 18%, rgb(130 70 255 / 18%), transparent 34rem), radial-gradient(circle at 18% 88%, rgb(240 91 92 / 13%), transparent 30rem), #111015; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: wait; opacity: .55; }
 h1, h2, h3, p { margin-top: 0; }
@@ -73,12 +73,22 @@ p { color: #bdb8c7; line-height: 1.6; }
 .empty-library { margin-top: 2rem; padding: 1.4rem; border: 1px dashed rgb(255 255 255 / 15%); border-radius: 1rem; }
 .empty-library p { margin: .35rem 0 0; }
 .video-library { margin-top: 3rem; }
+.personal-library { display: grid; gap: 2.5rem; margin-bottom: 3rem; }
+.personal-shelf { padding-bottom: .5rem; }
 .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 1rem; margin-top: 1rem; }
 .video-card { min-width: 0; padding: .8rem; border: 1px solid rgb(255 255 255 / 8%); border-radius: 1rem; background: rgb(26 24 32 / 78%); }
 .video-card small { display: block; margin-top: .25rem; color: #928c9b; }
 .video-placeholder { display: grid; aspect-ratio: 16 / 9; margin-bottom: .8rem; place-items: center; border-radius: .7rem; color: #cdb7ff; background: linear-gradient(135deg, #34274c, #19161f); }
 .video-card .primary-button { margin-top: .8rem; }
 .unsupported { display: block; margin-top: .8rem; color: #d7bdc1; font-size: .78rem; }
+.play-state { display: flex; gap: .45rem; flex-wrap: wrap; margin-top: .65rem; color: #bcb4c9; font-size: .7rem; }
+.play-state span { padding: .25rem .4rem; border-radius: .4rem; background: rgb(255 255 255 / 6%); }
+.personal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; margin-top: .65rem; }
+.personal-actions button, .dismiss-button { padding: .5rem; border: 1px solid rgb(255 255 255 / 10%); border-radius: .55rem; color: #aaa4b4; background: #211e28; font-size: .7rem; font-weight: 750; }
+.personal-actions button.selected { border-color: rgb(169 132 255 / 40%); color: #efe8ff; background: #49376d; }
+.rating-field { display: grid; gap: .3rem; margin-top: .65rem; color: #928c9b; font-size: .68rem; font-weight: 750; }
+.rating-field select { width: 100%; padding: .45rem; border: 1px solid rgb(255 255 255 / 10%); border-radius: .55rem; color: #d9d4e0; background: #211e28; }
+.dismiss-button { width: 100%; margin-top: .65rem; }
 .player-shell { margin: 1rem 0; padding: 1rem; border-radius: 1rem; background: #09080c; }
 .player-shell video { display: block; width: 100%; max-height: 70vh; margin-top: 1rem; border-radius: .7rem; background: #000; }
 

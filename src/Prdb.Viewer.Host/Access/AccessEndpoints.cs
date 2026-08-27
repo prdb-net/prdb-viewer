@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 
 using Prdb.Viewer.Core.Access;
 using Prdb.Viewer.Infrastructure.Access;
+using Prdb.Viewer.Infrastructure.Personal;
 
 namespace Prdb.Viewer.Host.Access;
 
@@ -94,9 +95,13 @@ public static class AccessEndpoints
 
         access.MapPost("/sign-out", async (
             AccessService service,
+            PersonalStateService personalState,
             HttpContext http,
             CancellationToken cancellationToken) =>
         {
+            await personalState.EndAccountPlaybackAttemptsAsync(
+                http.User.AccountId()!.Value,
+                cancellationToken);
             await service.SignOutAsync(
                 http.User.SessionId()!.Value,
                 http.User.AccountId()!.Value,
@@ -125,9 +130,17 @@ public static class AccessEndpoints
         accounts.MapPost("/{accountId:guid}/disable", async (
             Guid accountId,
             AccessService service,
+            PersonalStateService personalState,
             CancellationToken cancellationToken) =>
-            TypedResults.Ok(new AccountActionResponse(
-                await service.DisableAsync(accountId, cancellationToken))))
+        {
+            var verdict = await service.DisableAsync(accountId, cancellationToken);
+            if (verdict == AccountActionVerdict.Completed)
+            {
+                await personalState.EndAccountPlaybackAttemptsAsync(accountId, cancellationToken);
+            }
+
+            return TypedResults.Ok(new AccountActionResponse(verdict));
+        })
             .RequireCsrf();
 
         accounts.MapPost("/{accountId:guid}/recovery-code", async (

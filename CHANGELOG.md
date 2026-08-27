@@ -23,3 +23,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Add the authenticated shared Video catalogue, static Direct-Play
   Classification, durable First Playable Video Milestone, and anonymous opaque
   video delivery with HTTP byte-range support.
+- Add Account-private playback reporting, resume, watch duration, play count,
+  completion and Personal Play State, plus Continue Watching, Favourites,
+  Watch Later, and one-to-five Personal Ratings.

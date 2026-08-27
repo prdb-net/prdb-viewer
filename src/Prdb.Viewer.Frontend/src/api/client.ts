@@ -21,6 +21,12 @@ export type LibraryDirectoryActivation = components['schemas']['LibraryDirectory
 export type BackgroundWorkStatus = components['schemas']['BackgroundWorkStatus']
 export type QueueLibraryScanResult = components['schemas']['QueueLibraryScanResult']
 export type VideoSummary = components['schemas']['VideoSummary']
+export type PersonalLibrary = components['schemas']['PersonalLibrarySummary']
+export type PersonalVideoState = components['schemas']['PersonalVideoStateSummary']
+export type PlaybackAttempt = components['schemas']['PlaybackAttemptResult']
+export type PlaybackReportRequest = components['schemas']['PlaybackReportRequest']
+export type PlaybackReport = components['schemas']['PlaybackReportResult']
+export type PersonalStateMutation = components['schemas']['PersonalStateMutationResult']
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -47,9 +53,73 @@ function post<T>(path: string, body?: unknown, csrfToken?: string) {
   })
 }
 
+function mutate<T>(path: string, method: 'PUT' | 'DELETE', csrfToken: string, body?: unknown) {
+  return request<T>(path, {
+    method,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    headers: { 'X-CSRF-Token': csrfToken },
+  })
+}
+
 export const api = {
   state: () => request<AccessState>('/api/access/state'),
   videos: () => request<VideoSummary[]>('/api/library/videos'),
+  personalLibrary: () => request<PersonalLibrary>('/api/personal/library'),
+  startPlaybackAttempt: (videoId: string, videoFileId: string, csrfToken: string) =>
+    post<PlaybackAttempt>(
+      `/api/personal/videos/${videoId}/playback-attempts`,
+      { videoFileId },
+      csrfToken,
+    ),
+  reportPlayback: (
+    playbackAttemptId: string,
+    report: PlaybackReportRequest,
+    csrfToken: string,
+  ) => post<PlaybackReport>(
+    `/api/personal/playback-attempts/${playbackAttemptId}/reports`,
+    report,
+    csrfToken,
+  ),
+  endPlaybackAttempt: (playbackAttemptId: string, csrfToken: string, keepalive = false) =>
+    request<{ ended: boolean }>(
+      `/api/personal/playback-attempts/${playbackAttemptId}/end`,
+      {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrfToken },
+        keepalive,
+      },
+    ),
+  setFavourite: (videoId: string, selected: boolean, csrfToken: string) =>
+    mutate<PersonalStateMutation>(
+      `/api/personal/videos/${videoId}/favourite`,
+      selected ? 'PUT' : 'DELETE',
+      csrfToken,
+    ),
+  setWatchLater: (videoId: string, selected: boolean, csrfToken: string) =>
+    mutate<PersonalStateMutation>(
+      `/api/personal/videos/${videoId}/watch-later`,
+      selected ? 'PUT' : 'DELETE',
+      csrfToken,
+    ),
+  setRating: (videoId: string, rating: number | null, csrfToken: string) =>
+    rating === null
+      ? mutate<PersonalStateMutation>(
+          `/api/personal/videos/${videoId}/rating`,
+          'DELETE',
+          csrfToken,
+        )
+      : mutate<PersonalStateMutation>(
+          `/api/personal/videos/${videoId}/rating`,
+          'PUT',
+          csrfToken,
+          { rating },
+        ),
+  dismissContinueWatching: (videoId: string, csrfToken: string) =>
+    post<PersonalStateMutation>(
+      `/api/personal/videos/${videoId}/continue-watching/dismiss`,
+      undefined,
+      csrfToken,
+    ),
   me: () => request<Account>('/api/access/me'),
   bootstrap: (input: BootstrapRequest) => post<BootstrapResponse>('/api/access/bootstrap', input),
   signIn: (input: SignInRequest) => post<SignInResponse>('/api/access/sign-in', input),

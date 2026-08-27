@@ -45,4 +45,6 @@ public sealed class VideoFileRow
     public int ConsecutiveCompleteAbsences { get; set; }
 
     public DateTime InspectedAt { get; set; }
+
+    public ICollection<PlaybackAttemptVideoFileRow> PlaybackAttempts { get; set; } = [];
 }

@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
@@ -9,6 +9,7 @@ import {
   type LibraryDirectoryStage,
   type RecoverRequest,
   type RegistrationRequest,
+  type PlaybackReportRequest,
   type SignInRequest,
   type VideoSummary,
 } from './api/client'
@@ -21,6 +22,7 @@ const queryKeys = {
   libraryDirectoryCandidates: ['library-directory-candidates'] as const,
   backgroundWork: ['background-work'] as const,
   videos: ['videos'] as const,
+  personalLibrary: ['personal-library'] as const,
 }
 
 export function App() {
@@ -193,7 +195,7 @@ function Library({ account }: { account: Account }) {
           <h2>Your collection starts here</h2>
           <p>Account access is ready. Active Library Directories will appear here as scanning discovers playable Videos.</p>
         </div>
-        <VideoLibrary />
+        <VideoLibrary account={account} />
         {account.authority === 'Administrator' && (
           <>
             <InstallationSetup account={account} />
@@ -206,19 +208,89 @@ function Library({ account }: { account: Account }) {
   )
 }
 
-function VideoLibrary() {
+function VideoLibrary({ account }: { account: Account }) {
   const videos = useQuery({
     queryKey: queryKeys.videos,
     queryFn: api.videos,
     refetchInterval: 5_000,
   })
-  const [playing, setPlaying] = useState<{ video: VideoSummary; source: string }>()
+  const personalLibrary = useQuery({
+    queryKey: queryKeys.personalLibrary,
+    queryFn: api.personalLibrary,
+  })
+  const queryClient = useQueryClient()
+  const [playing, setPlaying] = useState<{
+    video: VideoSummary
+    source: string
+    videoFileId: string
+    playbackAttemptId: string
+    resumePositionMilliseconds: number
+  }>()
+  const startPlayback = useMutation({
+    mutationFn: ({ video, source, videoFileId }: {
+      video: VideoSummary
+      source: string
+      videoFileId: string
+    }) => api.startPlaybackAttempt(video.id, videoFileId, account.csrfToken)
+      .then((result) => ({ result, video, source, videoFileId })),
+    onSuccess: ({ result, video, source, videoFileId }) => {
+      if (result.verdict === 'Started' && result.playbackAttemptId) {
+        setPlaying({
+          video,
+          source,
+          videoFileId,
+          playbackAttemptId: result.playbackAttemptId,
+          resumePositionMilliseconds: Number(result.resumePositionMilliseconds ?? 0),
+        })
+      }
+    },
+  })
+  const personalAction = useMutation({
+    mutationFn: ({ kind, video, selected, rating }: {
+      kind: 'favourite' | 'watch-later' | 'rating' | 'dismiss'
+      video: VideoSummary
+      selected?: boolean
+      rating?: number | null
+    }) => {
+      if (kind === 'favourite') {
+        return api.setFavourite(video.id, selected === true, account.csrfToken)
+      }
+      if (kind === 'watch-later') {
+        return api.setWatchLater(video.id, selected === true, account.csrfToken)
+      }
+      if (kind === 'rating') {
+        return api.setRating(video.id, rating ?? null, account.csrfToken)
+      }
+      return api.dismissContinueWatching(video.id, account.csrfToken)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: queryKeys.videos })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personalLibrary })
+    },
+  })
+
+  const play = (video: VideoSummary) => {
+    const source = playableFile(video)
+    if (source) {
+      startPlayback.mutate({ video, source: source.deliveryUrl, videoFileId: source.id })
+    }
+  }
+  const act = (
+    kind: 'favourite' | 'watch-later' | 'rating' | 'dismiss',
+    video: VideoSummary,
+    value?: boolean | number | null,
+  ) => personalAction.mutate({
+    kind,
+    video,
+    selected: typeof value === 'boolean' ? value : undefined,
+    rating: typeof value === 'number' || value === null ? value : undefined,
+  })
 
   if (videos.isPending) {
     return <p role="status">Opening the shared library…</p>
   }
 
-  if (videos.isError) {
+  if (videos.isError || personalLibrary.isError) {
     return <RequestError />
   }
 
@@ -228,28 +300,279 @@ function VideoLibrary() {
 
   return (
     <section className="video-library" aria-labelledby="videos-title">
-      <div className="section-heading"><h3 id="videos-title">Videos</h3><span className="muted">{videos.data.length} available</span></div>
       {playing && (
-        <div className="player-shell">
-          <div className="section-heading"><strong>{playing.video.displayTitle}</strong><button className="quiet-button" onClick={() => setPlaying(undefined)}>Close</button></div>
-          <video controls autoPlay src={playing.source}>Your browser cannot play this Video File.</video>
+        <TrackedPlayer
+          {...playing}
+          csrfToken={account.csrfToken}
+          close={() => setPlaying(undefined)}
+          refresh={() => {
+            void queryClient.invalidateQueries({ queryKey: queryKeys.videos })
+            void queryClient.invalidateQueries({ queryKey: queryKeys.personalLibrary })
+          }}
+        />
+      )}
+      {personalLibrary.data && (
+        <div className="personal-library">
+          <VideoShelf title="Continue Watching" videos={personalLibrary.data.continueWatching} kind="continue" play={play} act={act} pending={personalAction.isPending || startPlayback.isPending || playing !== undefined} />
+          <VideoShelf title="Favourites" videos={personalLibrary.data.favourites} kind="favourite" play={play} act={act} pending={personalAction.isPending || startPlayback.isPending || playing !== undefined} />
+          <VideoShelf title="Watch Later" videos={personalLibrary.data.watchLater} kind="watch-later" play={play} act={act} pending={personalAction.isPending || startPlayback.isPending || playing !== undefined} />
         </div>
       )}
-      <div className="video-grid">
-        {videos.data.map((video) => {
-          const source = video.videoFiles.find((file) => file.directPlayClassification === 'BaselineCandidate') ??
-            video.videoFiles.find((file) => file.directPlayClassification === 'ClientDependent')
-          return (
-            <article className="video-card" key={video.id}>
-              <div className="video-placeholder" aria-hidden="true">▶</div>
-              <div><strong>{video.displayTitle}</strong><small>{friendlyState(source?.directPlayClassification ?? video.videoFiles[0].directPlayClassification)}</small></div>
-              {source ? <button className="primary-button" onClick={() => setPlaying({ video, source: source.deliveryUrl })}>Play</button> : <span className="unsupported">No direct-play candidate</span>}
-            </article>
-          )
-        })}
-      </div>
+      <div className="section-heading"><h3 id="videos-title">Videos</h3><span className="muted">{videos.data.length} available</span></div>
+      <VideoGrid videos={videos.data} play={play} act={act} pending={personalAction.isPending || startPlayback.isPending || playing !== undefined} />
+      {(startPlayback.isError || personalAction.isError) && <RequestError />}
     </section>
   )
+}
+
+type PersonalAction = (
+  kind: 'favourite' | 'watch-later' | 'rating' | 'dismiss',
+  video: VideoSummary,
+  value?: boolean | number | null,
+) => void
+
+function VideoShelf({ title, videos, kind, play, act, pending }: {
+  title: string
+  videos: VideoSummary[]
+  kind: 'continue' | 'favourite' | 'watch-later'
+  play: (video: VideoSummary) => void
+  act: PersonalAction
+  pending: boolean
+}) {
+  if (videos.length === 0) return null
+  return (
+    <section className="personal-shelf" aria-label={title}>
+      <div className="section-heading"><h3>{title}</h3><span className="muted">{videos.length}</span></div>
+      <VideoGrid videos={videos} play={play} act={act} pending={pending} dismissible={kind === 'continue'} />
+    </section>
+  )
+}
+
+function VideoGrid({ videos, play, act, pending, dismissible = false }: {
+  videos: VideoSummary[]
+  play: (video: VideoSummary) => void
+  act: PersonalAction
+  pending: boolean
+  dismissible?: boolean
+}) {
+  return (
+    <div className="video-grid">
+      {videos.map((video) => (
+        <VideoCard
+          key={video.id}
+          video={video}
+          play={() => play(video)}
+          act={act}
+          pending={pending}
+          dismissible={dismissible}
+        />
+      ))}
+    </div>
+  )
+}
+
+function VideoCard({ video, play, act, pending, dismissible }: {
+  video: VideoSummary
+  play: () => void
+  act: PersonalAction
+  pending: boolean
+  dismissible: boolean
+}) {
+  const source = playableFile(video)
+  const progress = Number(video.personalState.playbackProgressMilliseconds ?? 0)
+  return (
+    <article className="video-card">
+      <div className="video-placeholder" aria-hidden="true">▶</div>
+      <div>
+        <strong>{video.displayTitle}</strong>
+        <small>{source ? friendlyState(source.directPlayClassification) : friendlyState(video.availability)}</small>
+      </div>
+      {video.personalState.playState !== 'Unplayed' && (
+        <div className="play-state">
+          <span>{friendlyState(video.personalState.playState)}</span>
+          {progress > 0 && <span>{formatDuration(progress)}</span>}
+          <span>{Number(video.personalState.playCount)} plays</span>
+        </div>
+      )}
+      {source
+        ? <button className="primary-button" onClick={play} disabled={pending}>{progress > 0 && video.personalState.playState === 'InProgress' ? 'Resume' : 'Play'}</button>
+        : <span className="unsupported">No direct-play candidate</span>}
+      <div className="personal-actions">
+        <button
+          className={video.personalState.favourite ? 'selected' : ''}
+          aria-pressed={video.personalState.favourite}
+          onClick={() => act('favourite', video, !video.personalState.favourite)}
+          disabled={pending}
+        >Favourite</button>
+        <button
+          className={video.personalState.watchLater ? 'selected' : ''}
+          aria-pressed={video.personalState.watchLater}
+          onClick={() => act('watch-later', video, !video.personalState.watchLater)}
+          disabled={pending}
+        >Watch Later</button>
+      </div>
+      <label className="rating-field">
+        <span>Personal Rating</span>
+        <select
+          aria-label={`Rate ${video.displayTitle}`}
+          value={video.personalState.personalRating?.toString() ?? ''}
+          onChange={(event) => act('rating', video, event.target.value ? Number(event.target.value) : null)}
+          disabled={pending}
+        >
+          <option value="">Not rated</option>
+          {[1, 2, 3, 4, 5].map((rating) => <option key={rating} value={rating}>{rating} / 5</option>)}
+        </select>
+      </label>
+      {dismissible && <button className="dismiss-button" onClick={() => act('dismiss', video)} disabled={pending}>Dismiss</button>}
+    </article>
+  )
+}
+
+function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, resumePositionMilliseconds, csrfToken, close, refresh }: {
+  video: VideoSummary
+  source: string
+  videoFileId: string
+  playbackAttemptId: string
+  resumePositionMilliseconds: number
+  csrfToken: string
+  close: () => void
+  refresh: () => void
+}) {
+  const element = useRef<HTMLVideoElement>(null)
+  const lastMediaTime = useRef<number | undefined>(undefined)
+  const lastWallTime = useRef<number | undefined>(undefined)
+  const activeWatching = useRef(0)
+  const sequence = useRef(0)
+  const pendingReport = useRef<PlaybackReportRequest | undefined>(undefined)
+  const sending = useRef(false)
+  const ended = useRef(false)
+
+  const resetEvidence = () => {
+    const player = element.current
+    lastMediaTime.current = player ? player.currentTime * 1_000 : undefined
+    lastWallTime.current = performance.now()
+  }
+
+  const recordEvidence = () => {
+    const player = element.current
+    if (!player) return
+    const mediaTime = player.currentTime * 1_000
+    const wallTime = performance.now()
+    if (!player.paused && !player.seeking && lastMediaTime.current !== undefined && lastWallTime.current !== undefined) {
+      const mediaAdvance = mediaTime - lastMediaTime.current
+      const wallAdvance = wallTime - lastWallTime.current
+      if (mediaAdvance > 0 && wallAdvance > 0 && wallAdvance <= 16_000 && mediaAdvance <= wallAdvance + 1_000) {
+        activeWatching.current += Math.min(mediaAdvance, wallAdvance)
+      }
+    }
+    lastMediaTime.current = mediaTime
+    lastWallTime.current = wallTime
+  }
+
+  const flush = async (naturalEndConfirmed: boolean, endSession: boolean) => {
+    const player = element.current
+    if (!player || sending.current) return
+    if (!pendingReport.current) {
+      const active = Math.min(15_000, Math.round(activeWatching.current))
+      if (active === 0 && !endSession) return
+      activeWatching.current = Math.max(0, activeWatching.current - active)
+      pendingReport.current = {
+        reportId: crypto.randomUUID(),
+        sequence: sequence.current++,
+        videoFileId,
+        positionMilliseconds: Math.round(player.currentTime * 1_000),
+        activeWatchingMilliseconds: active,
+        naturalEndConfirmed,
+        endSession,
+      }
+    }
+
+    sending.current = true
+    try {
+      const result = await api.reportPlayback(playbackAttemptId, pendingReport.current, csrfToken)
+      if (result.verdict === 'Accepted' || result.verdict === 'Duplicate') {
+        pendingReport.current = undefined
+        refresh()
+      }
+    } catch {
+      // Retain the exact report identifier so the next flush retries idempotently.
+    } finally {
+      sending.current = false
+    }
+  }
+
+  useEffect(() => {
+    const interval = window.setInterval(() => void flush(false, false), 5_000)
+    const leave = () => {
+      ended.current = true
+      void api.endPlaybackAttempt(playbackAttemptId, csrfToken, true).catch(() => undefined)
+    }
+    window.addEventListener('pagehide', leave)
+    return () => {
+      window.clearInterval(interval)
+      window.removeEventListener('pagehide', leave)
+    }
+  }, [])
+
+  const stop = async () => {
+    recordEvidence()
+    try {
+      await flush(false, true)
+    } finally {
+      ended.current = true
+      await api.endPlaybackAttempt(playbackAttemptId, csrfToken).catch(() => undefined)
+      close()
+    }
+  }
+
+  const finish = () => {
+    recordEvidence()
+    ended.current = true
+    void flush(true, true).catch(() => undefined).finally(refresh)
+  }
+
+  return (
+    <div className="player-shell">
+      <div className="section-heading"><strong>{video.displayTitle}</strong><button className="quiet-button" onClick={() => void stop()}>Close</button></div>
+      <video
+        ref={element}
+        controls
+        autoPlay
+        src={source}
+        onLoadedMetadata={(event) => {
+          if (resumePositionMilliseconds > 0 && resumePositionMilliseconds < event.currentTarget.duration * 1_000) {
+            event.currentTarget.currentTime = resumePositionMilliseconds / 1_000
+          }
+          resetEvidence()
+        }}
+        onPlaying={resetEvidence}
+        onSeeking={resetEvidence}
+        onTimeUpdate={() => {
+          recordEvidence()
+          if (activeWatching.current >= 5_000) void flush(false, false)
+        }}
+        onPause={() => {
+          recordEvidence()
+          void flush(false, false)
+        }}
+        onEnded={finish}
+        onError={() => {
+          ended.current = true
+          void api.endPlaybackAttempt(playbackAttemptId, csrfToken).catch(() => undefined)
+        }}
+      >Your browser cannot play this Video File.</video>
+    </div>
+  )
+}
+
+function playableFile(video: VideoSummary) {
+  return video.videoFiles.find((file) => file.directPlayClassification === 'BaselineCandidate') ??
+    video.videoFiles.find((file) => file.directPlayClassification === 'ClientDependent')
+}
+
+function formatDuration(milliseconds: number) {
+  const totalSeconds = Math.floor(milliseconds / 1_000)
+  return `${Math.floor(totalSeconds / 60)}:${(totalSeconds % 60).toString().padStart(2, '0')}`
 }
 
 function BackgroundWorkPanel({ account }: { account: Account }) {

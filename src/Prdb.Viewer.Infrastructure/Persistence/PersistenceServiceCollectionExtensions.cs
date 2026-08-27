@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity;
 using Prdb.Viewer.Infrastructure.Access;
 using Prdb.Viewer.Infrastructure.Configuration;
 using Prdb.Viewer.Infrastructure.Library;
+using Prdb.Viewer.Infrastructure.Personal;
 
 namespace Prdb.Viewer.Infrastructure.Persistence;
 
@@ -38,6 +39,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<BackgroundWorkQuery>();
         services.AddScoped<VideoCatalog>();
         services.AddScoped<VideoDeliveryService>();
+        services.AddScoped<PersonalStateService>();
         services.AddSingleton<IMediaProbe, FfprobeMediaProbe>();
         services.AddTransient<ProductUserAgentHandler>();
         services.AddHttpClient(PrdbConnectionVerifier.TransportName)
