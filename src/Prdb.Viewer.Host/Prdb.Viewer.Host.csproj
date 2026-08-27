@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <FrontendDirectory>$(MSBuildProjectDirectory)\..\Prdb.Viewer.Frontend</FrontendDirectory>
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOptions>--file-name openapi</OpenApiGenerateDocumentsOptions>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Prdb.Viewer.Core\Prdb.Viewer.Core.csproj" />
+    <ProjectReference Include="..\Prdb.Viewer.Infrastructure\Prdb.Viewer.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Microsoft.OpenApi" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>Commit</_Parameter1>
+      <_Parameter2>$(SourceRevisionId)</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <Target Name="BuildFrontend"
+          BeforeTargets="Build"
+          Condition="'$(Configuration)' == 'Release' AND '$(SkipFrontendBuild)' != 'true'">
+    <Exec Command="npm ci" WorkingDirectory="$(FrontendDirectory)" />
+    <Exec Command="npm run build" WorkingDirectory="$(FrontendDirectory)" />
+    <ItemGroup>
+      <Content Include="wwwroot\**" Exclude="@(Content)" CopyToPublishDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
+</Project>

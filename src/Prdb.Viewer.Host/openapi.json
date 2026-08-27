@@ -1,0 +1,49 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "prdb-viewer",
+    "description": "The versioned API used by the prdb-viewer browser application.",
+    "version": "v1"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HealthResponse": {
+        "required": [
+          "status"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+.git
+.github
+.scratch
+**/bin
+**/obj
+**/node_modules
+src/Prdb.Viewer.Host/data
+src/Prdb.Viewer.Host/wwwroot
+TestResults

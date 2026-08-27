@@ -1,0 +1,23 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path="AGENTS.md" />
+    <File Path="CHANGELOG.md" />
+    <File Path="CONTEXT.md" />
+    <File Path="Directory.Build.props" />
+    <File Path="Directory.Packages.props" />
+    <File Path="Dockerfile" />
+    <File Path="README.md" />
+    <File Path="VISION.md" />
+    <File Path="global.json" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Prdb.Viewer.Core/Prdb.Viewer.Core.csproj" />
+    <Project Path="src/Prdb.Viewer.Infrastructure/Prdb.Viewer.Infrastructure.csproj" />
+    <Project Path="src/Prdb.Viewer.Host/Prdb.Viewer.Host.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Prdb.Viewer.Core.Tests/Prdb.Viewer.Core.Tests.csproj" />
+    <Project Path="tests/Prdb.Viewer.Infrastructure.Tests/Prdb.Viewer.Infrastructure.Tests.csproj" />
+    <Project Path="tests/Prdb.Viewer.Host.Tests/Prdb.Viewer.Host.Tests.csproj" />
+  </Folder>
+</Solution>
