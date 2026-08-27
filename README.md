@@ -5,10 +5,11 @@ self-hosted library enriched with metadata from prdb.net. Each approved User
 sees the same Videos while playback history and personal organisation remain
 private to their Account.
 
-The project is in active development. The current executable is the Walking
-Skeleton: it proves the application, database, frontend, HTTP contract, test,
-and container paths before product capabilities are added as vertical slices.
-See [VISION.md](VISION.md) for the product contract.
+The project is in active development. The current executable provides the
+Walking Skeleton plus local Account access: an operator authorizes the first
+Administrator, Users request approval, and approved Accounts receive private
+sessions. Library scanning and playback are the next vertical slices. See
+[VISION.md](VISION.md) for the product contract.
 
 ## Prerequisites
 
@@ -50,6 +51,26 @@ VIEWER_DATA_DIRECTORY="$PWD/.data" dotnet run --project src/Prdb.Viewer.Host
 The application listens on the address printed by ASP.NET Core. The public
 liveness endpoint is `/api/health`.
 
+Before opening a new installation in the browser, create its short-lived,
+single-use Bootstrap Authorization:
+
+```bash
+VIEWER_DATA_DIRECTORY="$PWD/.data" \
+  dotnet run --project src/Prdb.Viewer.Host -- bootstrap-authorize
+cat .data/operator/bootstrap-authorization.txt
+```
+
+The command prints only the credential file location. The browser consumes and
+deletes the credential when it creates the first Administrator. User
+registration requests do not grant access until an Administrator approves
+them. If an Administrator loses access, the operator can issue a short-lived,
+single-use recovery code without exposing it in command output:
+
+```bash
+VIEWER_DATA_DIRECTORY="$PWD/.data" \
+  dotnet run --project src/Prdb.Viewer.Host -- recover-administrator <username>
+```
+
 ## Run the container
 
 The image requires a persistent mount at `/data`. Library Directories are
@@ -65,6 +86,19 @@ docker run --rm \
   --env "PUID=$(id -u)" \
   --env "PGID=$(id -g)" \
   prdb-viewer:local
+```
+
+Create the initial Bootstrap Authorization against the same persistent data
+mount before starting the container, or run the equivalent command in an
+already running container:
+
+```bash
+docker run --rm \
+  --mount "type=bind,src=$PWD/.data,dst=/data" \
+  --env "PUID=$(id -u)" \
+  --env "PGID=$(id -g)" \
+  prdb-viewer:local \
+  dotnet Prdb.Viewer.Host.dll bootstrap-authorize
 ```
 
 Run the production-shaped smoke test against a built image:

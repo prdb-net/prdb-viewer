@@ -24,10 +24,436 @@
           }
         }
       }
+    },
+    "/api/access/state": {
+      "get": {
+        "tags": [
+          "Access"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessStateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/access/bootstrap": {
+      "post": {
+        "tags": [
+          "Access"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BootstrapRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BootstrapResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/access/sign-in": {
+      "post": {
+        "tags": [
+          "Access"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignInResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/access/registration-requests": {
+      "post": {
+        "tags": [
+          "Access"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationRequestResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/access/recover": {
+      "post": {
+        "tags": [
+          "Access"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoverRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoverResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/access/me": {
+      "get": {
+        "tags": [
+          "Access"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedInAccountResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/access/sign-out": {
+      "post": {
+        "tags": [
+          "Access"
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api/admin/accounts": {
+      "get": {
+        "tags": [
+          "Accounts"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AccountSummary"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/accounts/{accountId}/approve": {
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountActionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/accounts/{accountId}/disable": {
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountActionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/accounts/{accountId}/recovery-code": {
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecoveryCodeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AccessStateResponse": {
+        "required": [
+          "claimed",
+          "signedIn"
+        ],
+        "type": "object",
+        "properties": {
+          "claimed": {
+            "type": "boolean"
+          },
+          "signedIn": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AccountActionResponse": {
+        "required": [
+          "verdict"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/AccountActionVerdict"
+          }
+        }
+      },
+      "AccountActionVerdict": {
+        "enum": [
+          "Completed",
+          "NotFound",
+          "InvalidState",
+          "LastAdministrator"
+        ]
+      },
+      "AccountAuthority": {
+        "enum": [
+          "User",
+          "Administrator"
+        ]
+      },
+      "AccountState": {
+        "enum": [
+          "PendingApproval",
+          "Approved",
+          "Disabled"
+        ]
+      },
+      "AccountSummary": {
+        "required": [
+          "id",
+          "username",
+          "email",
+          "authority",
+          "state",
+          "registeredAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "authority": {
+            "$ref": "#/components/schemas/AccountAuthority"
+          },
+          "state": {
+            "$ref": "#/components/schemas/AccountState"
+          },
+          "registeredAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BootstrapClaimVerdict": {
+        "enum": [
+          "Created",
+          "InvalidInput",
+          "InvalidAuthorization",
+          "AlreadyClaimed"
+        ]
+      },
+      "BootstrapRequest": {
+        "required": [
+          "authorization",
+          "username",
+          "password",
+          "email"
+        ],
+        "type": "object",
+        "properties": {
+          "authorization": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "username": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "BootstrapResponse": {
+        "required": [
+          "verdict",
+          "account"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/BootstrapClaimVerdict"
+          },
+          "account": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SignedInAccountResponse"
+              }
+            ]
+          }
+        }
+      },
       "HealthResponse": {
         "required": [
           "status"
@@ -38,12 +464,218 @@
             "type": "string"
           }
         }
+      },
+      "RecoverRequest": {
+        "required": [
+          "username",
+          "recoveryCode",
+          "newPassword"
+        ],
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "recoveryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "newPassword": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RecoverResponse": {
+        "required": [
+          "verdict"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/RecoveryVerdict"
+          }
+        }
+      },
+      "RecoveryCodeResponse": {
+        "required": [
+          "verdict",
+          "recoveryCode",
+          "expiresAt"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/AccountActionVerdict"
+          },
+          "recoveryCode": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "RecoveryVerdict": {
+        "enum": [
+          "PasswordReplaced",
+          "InvalidInput",
+          "InvalidCode"
+        ]
+      },
+      "RegistrationRequest": {
+        "required": [
+          "username",
+          "password",
+          "email"
+        ],
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RegistrationRequestResponse": {
+        "required": [
+          "verdict"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/RegistrationRequestVerdict"
+          }
+        }
+      },
+      "RegistrationRequestVerdict": {
+        "enum": [
+          "Submitted",
+          "InvalidInput",
+          "InstallationUnclaimed"
+        ]
+      },
+      "SignedInAccountResponse": {
+        "required": [
+          "id",
+          "username",
+          "email",
+          "authority",
+          "csrfToken"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "username": {
+            "type": "string"
+          },
+          "email": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "authority": {
+            "$ref": "#/components/schemas/AccountAuthority"
+          },
+          "csrfToken": {
+            "type": "string"
+          }
+        }
+      },
+      "SignInRequest": {
+        "required": [
+          "username",
+          "password"
+        ],
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "password": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SignInResponse": {
+        "required": [
+          "verdict",
+          "account"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/SignInVerdict"
+          },
+          "account": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/SignedInAccountResponse"
+              }
+            ]
+          }
+        }
+      },
+      "SignInVerdict": {
+        "enum": [
+          "SignedIn",
+          "InvalidCredentials",
+          "ApprovalPending",
+          "Disabled"
+        ]
       }
     }
   },
   "tags": [
     {
       "name": "Health"
+    },
+    {
+      "name": "Access"
+    },
+    {
+      "name": "Accounts"
     }
   ]
 }

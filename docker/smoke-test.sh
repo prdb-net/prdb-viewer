@@ -47,6 +47,25 @@ pass "a persistent application-data mount is required"
 mkdir -p "$workspace/data" "$workspace/library"
 printf 'source media stays untouched\n' > "$workspace/library/marker.txt"
 
+operator_output="$(docker run --rm \
+    --volume "$workspace/data:/data" \
+    --env "PUID=$test_uid" \
+    --env "PGID=$test_gid" \
+    "$image" \
+    dotnet Prdb.Viewer.Host.dll bootstrap-authorize)"
+
+[[ "$operator_output" == *"The single-use credential was written to /data/operator/bootstrap-authorization.txt."* \
+    && "$operator_output" == *"Its value is never written to logs or command output."* ]] \
+    || fail "the Bootstrap Authorization command did not report safe file delivery"
+
+credential_mode="$(stat --format='%a' "$workspace/data/operator/bootstrap-authorization.txt")"
+[ "$credential_mode" = 600 ] \
+    || fail "the Bootstrap Authorization file mode is $credential_mode rather than 600"
+credential_owner="$(stat --format='%u:%g' "$workspace/data/operator/bootstrap-authorization.txt")"
+[ "$credential_owner" = "$test_uid:$test_gid" ] \
+    || fail "the Bootstrap Authorization belongs to $credential_owner rather than $test_uid:$test_gid"
+pass "operator credentials use restrictive application-data files"
+
 container="$(docker run --detach \
     --publish "$port:8080" \
     --volume "$workspace/data:/data" \

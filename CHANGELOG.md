@@ -12,3 +12,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Add the first runnable application shell, SQLite startup migration, public
   liveness endpoint, generated browser API contract, and production-shaped
   container baseline.
+- Add one-time operator-authorized installation claiming, local Account
+  sessions, approval-gated registration, account administration, and
+  single-use recovery codes.

@@ -21,11 +21,12 @@ internal sealed class TestDatabase : IAsyncDisposable
 
     public ViewerDatabaseLocation Location => provider.GetRequiredService<ViewerDatabaseLocation>();
 
-    public static async Task<TestDatabase> CreateAsync()
+    public static async Task<TestDatabase> CreateAsync(TimeProvider? timeProvider = null)
     {
         var directory = Path.Combine(Path.GetTempPath(), $"prdb-viewer-{Guid.NewGuid():n}");
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddSingleton(timeProvider ?? TimeProvider.System);
         services.AddViewerPersistence(directory);
 
         var database = new TestDatabase(directory, services.BuildServiceProvider());

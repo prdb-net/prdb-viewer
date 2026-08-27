@@ -1,6 +1,10 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using Microsoft.AspNetCore.Identity;
+
+using Prdb.Viewer.Infrastructure.Access;
+
 namespace Prdb.Viewer.Infrastructure.Persistence;
 
 public static class PersistenceServiceCollectionExtensions
@@ -18,6 +22,9 @@ public static class PersistenceServiceCollectionExtensions
             .AddInterceptors(provider.GetRequiredService<SqlitePragmaInterceptor>())
             .UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking));
         services.AddScoped<DatabaseMigrator>();
+        services.AddSingleton<OperatorCredentialFiles>();
+        services.AddSingleton<IPasswordHasher<AccountRow>, PasswordHasher<AccountRow>>();
+        services.AddScoped<AccessService>();
 
         return services;
     }

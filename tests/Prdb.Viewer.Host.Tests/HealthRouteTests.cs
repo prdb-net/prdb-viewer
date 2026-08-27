@@ -25,7 +25,7 @@ public sealed class HealthRouteTests
     }
 
     [Fact]
-    public async Task Unknown_api_routes_do_not_return_the_frontend()
+    public async Task Unknown_api_routes_are_not_an_anonymous_surface()
     {
         using var application = new ViewerApplication();
         using var client = application.CreateClient();
@@ -34,6 +34,6 @@ public sealed class HealthRouteTests
             "/api/not-a-route",
             TestContext.Current.CancellationToken);
 
-        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 }
