@@ -88,6 +88,10 @@ docker run --rm \
   prdb-viewer:local
 ```
 
+The image defaults to `UMASK=077` so newly created database, journal, and
+derived files are private to the configured process identity. Keep that default
+unless the application-data mount has an equivalent access-control policy.
+
 Create the initial Bootstrap Authorization against the same persistent data
 mount before starting the container, or run the equivalent command in an
 already running container:
@@ -110,3 +114,23 @@ docker/smoke-test.sh prdb-viewer:local
 The smoke test verifies startup migration, the non-root process identity, the
 application-data owner, `ffprobe` and `ffmpeg`, read-only source media, and
 graceful shutdown.
+
+## Configure the installation
+
+After creating the first Administrator, complete the guided Installation
+Configuration in the browser:
+
+1. Enter the installation's prdb API key. The application verifies it through
+   the official `Prdb.Sdk` client before activating it. Temporary service
+   failures remain visible and retryable; a rejected replacement never
+   overwrites a previously verified credential.
+2. Select a readable container path beneath `/libraries`, validate it, review
+   the staged result, and explicitly activate the Library Directory. Add or
+   change the corresponding host bind mount outside the application first.
+
+The application never returns a stored prdb credential through its API. It must
+recover that credential for unattended background work, so it is stored in the
+SQLite database without application-level encryption. Treat the complete
+`/data` mount as sensitive, restrict its host permissions, and include it only
+in protected backups. Always mount source media read-only; validation and later
+scans do not write beneath a Library Directory.

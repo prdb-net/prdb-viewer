@@ -15,6 +15,14 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<RecoveryCodeRow> RecoveryCodes => Set<RecoveryCodeRow>();
 
+    public DbSet<InstallationConfigurationRow> InstallationConfigurations =>
+        Set<InstallationConfigurationRow>();
+
+    public DbSet<LibraryDirectoryStageRow> LibraryDirectoryStages =>
+        Set<LibraryDirectoryStageRow>();
+
+    public DbSet<LibraryDirectoryRow> LibraryDirectories => Set<LibraryDirectoryRow>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.Entity<AccountRow>(account =>
@@ -66,6 +74,41 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
                 .WithMany()
                 .HasForeignKey(row => row.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<InstallationConfigurationRow>(configuration =>
+        {
+            configuration.ToTable("installation_configuration");
+            configuration.HasKey(row => row.Id);
+            configuration.Property(row => row.Id).ValueGeneratedNever();
+            configuration.Property(row => row.PrdbConnectionStatus).HasConversion<string>();
+            configuration.Property(row => row.LastConnectionIssue).HasConversion<string>();
+            configuration.HasData(new InstallationConfigurationRow());
+        });
+
+        builder.Entity<LibraryDirectoryStageRow>(stage =>
+        {
+            stage.ToTable("library_directory_stage");
+            stage.HasKey(row => row.Id);
+            stage.Property(row => row.Id).ValueGeneratedNever();
+            stage.Property(row => row.Name).IsRequired();
+            stage.Property(row => row.ContainerPath).IsRequired();
+            stage.HasIndex(row => row.ExpiresAt);
+        });
+
+        builder.Entity<LibraryDirectoryRow>(directory =>
+        {
+            directory.ToTable("library_directory");
+            directory.HasKey(row => row.Id);
+            directory.Property(row => row.Id).ValueGeneratedNever();
+            directory.Property(row => row.Name).IsRequired();
+            directory.Property(row => row.ContainerPath).IsRequired();
+            directory.Property(row => row.State).HasConversion<string>();
+            directory.Property(row => row.Health).HasConversion<string>();
+            directory.HasIndex(row => row.State);
+            directory.HasIndex(row => row.ContainerPath)
+                .IsUnique()
+                .HasFilter("\"State\" = 'Active'");
         });
     }
 }

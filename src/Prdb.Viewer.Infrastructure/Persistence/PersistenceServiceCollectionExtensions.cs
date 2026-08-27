@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Identity;
 
 using Prdb.Viewer.Infrastructure.Access;
+using Prdb.Viewer.Infrastructure.Configuration;
 
 namespace Prdb.Viewer.Infrastructure.Persistence;
 
@@ -11,7 +12,8 @@ public static class PersistenceServiceCollectionExtensions
 {
     public static IServiceCollection AddViewerPersistence(
         this IServiceCollection services,
-        string dataDirectory)
+        string dataDirectory,
+        string libraryMountRoot = LibraryMountRoot.DefaultPath)
     {
         var location = new ViewerDatabaseLocation(dataDirectory);
 
@@ -25,6 +27,18 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<OperatorCredentialFiles>();
         services.AddSingleton<IPasswordHasher<AccountRow>, PasswordHasher<AccountRow>>();
         services.AddScoped<AccessService>();
+        services.AddSingleton(new LibraryMountRoot(libraryMountRoot));
+        services.AddScoped<LibraryDirectoryInspector>();
+        services.AddScoped<IPrdbConnectionVerifier, PrdbConnectionVerifier>();
+        services.AddScoped<InstallationConfigurationService>();
+        services.AddTransient<ProductUserAgentHandler>();
+        services.AddHttpClient(PrdbConnectionVerifier.TransportName)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                AllowAutoRedirect = false,
+            })
+            .AddHttpMessageHandler<ProductUserAgentHandler>()
+            .RedactLoggedHeaders(["X-Api-Key"]);
 
         return services;
     }

@@ -58,10 +58,18 @@ operator_output="$(docker run --rm \
     && "$operator_output" == *"Its value is never written to logs or command output."* ]] \
     || fail "the Bootstrap Authorization command did not report safe file delivery"
 
-credential_mode="$(stat --format='%a' "$workspace/data/operator/bootstrap-authorization.txt")"
+credential_mode="$(docker run --rm \
+    --volume "$workspace/data:/data:ro" \
+    --entrypoint stat \
+    "$image" \
+    --format='%a' /data/operator/bootstrap-authorization.txt)"
 [ "$credential_mode" = 600 ] \
     || fail "the Bootstrap Authorization file mode is $credential_mode rather than 600"
-credential_owner="$(stat --format='%u:%g' "$workspace/data/operator/bootstrap-authorization.txt")"
+credential_owner="$(docker run --rm \
+    --volume "$workspace/data:/data:ro" \
+    --entrypoint stat \
+    "$image" \
+    --format='%u:%g' /data/operator/bootstrap-authorization.txt)"
 [ "$credential_owner" = "$test_uid:$test_gid" ] \
     || fail "the Bootstrap Authorization belongs to $credential_owner rather than $test_uid:$test_gid"
 pass "operator credentials use restrictive application-data files"
@@ -92,10 +100,15 @@ done
     || fail "no answer from /api/health within ${startup_timeout_seconds}s"
 pass "the application migrates and answers"
 
-database_owner="$(stat --format '%u:%g' "$workspace/data/prdb-viewer.db")"
+database_owner="$(docker exec "$container" stat --format '%u:%g' /data/prdb-viewer.db)"
 [ "$database_owner" = "$test_uid:$test_gid" ] \
     || fail "the database belongs to $database_owner rather than $test_uid:$test_gid"
 pass "application data belongs to PUID:PGID"
+
+database_mode="$(docker exec "$container" stat --format '%a' /data/prdb-viewer.db)"
+[ "$database_mode" = 600 ] \
+    || fail "the database file mode is $database_mode rather than 600"
+pass "the database is private to the application identity"
 
 process_identity="$(docker exec "$container" sh -c \
     "awk '/^Uid:/{uid=\$2} /^Gid:/{gid=\$2} END{print uid \":\" gid}' /proc/1/status")"

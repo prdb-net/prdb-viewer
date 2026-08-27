@@ -24,4 +24,22 @@ public sealed class ViewerDatabaseLocation
     public string ConnectionString { get; }
 
     public void EnsureDirectoryExists() => Directory.CreateDirectory(DataDirectory);
+
+    public void RestrictDatabaseFiles()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            return;
+        }
+
+        const UnixFileMode ownerReadWrite = UnixFileMode.UserRead | UnixFileMode.UserWrite;
+
+        foreach (var path in new[] { FilePath, $"{FilePath}-wal", $"{FilePath}-shm" })
+        {
+            if (File.Exists(path))
+            {
+                File.SetUnixFileMode(path, ownerReadWrite);
+            }
+        }
+    }
 }

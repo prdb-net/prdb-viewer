@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.OpenApi;
 
 using Prdb.Viewer.Host.Access;
+using Prdb.Viewer.Host.Configuration;
 using Prdb.Viewer.Infrastructure.Persistence;
 
 var operatorCommand = OperatorCommands.Matches(args);
@@ -107,6 +108,7 @@ app.MapGet("/api/health", () => TypedResults.Ok(new HealthResponse("ok")))
     .AllowAnonymous();
 
 app.MapAccess();
+app.MapConfiguration();
 
 app.MapFallback("/api/{*rest}", () => Results.NotFound());
 app.MapFallbackToFile("index.html").AllowAnonymous();

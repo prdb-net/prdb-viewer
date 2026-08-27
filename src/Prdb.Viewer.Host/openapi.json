@@ -302,6 +302,151 @@
           }
         }
       }
+    },
+    "/api/admin/configuration": {
+      "get": {
+        "tags": [
+          "Configuration"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InstallationConfigurationSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/configuration/prdb-connection": {
+      "post": {
+        "tags": [
+          "Configuration"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PrdbCredentialRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrdbConnectionUpdateResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/configuration/prdb-connection/retry": {
+      "post": {
+        "tags": [
+          "Configuration"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PrdbConnectionUpdateResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/configuration/library-directory-candidates": {
+      "get": {
+        "tags": [
+          "Configuration"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryDirectoryCandidatesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/configuration/library-directories/stages": {
+      "post": {
+        "tags": [
+          "Configuration"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryDirectoryStageRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryDirectoryStageResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/configuration/library-directories/stages/{stageId}/activate": {
+      "post": {
+        "tags": [
+          "Configuration"
+        ],
+        "parameters": [
+          {
+            "name": "stageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryDirectoryActivationResult"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -462,6 +607,299 @@
         "properties": {
           "status": {
             "type": "string"
+          }
+        }
+      },
+      "InstallationConfigurationStatus": {
+        "enum": [
+          "Unclaimed",
+          "ConfigurationRequired",
+          "ConfigurationPending",
+          "AttentionRequired",
+          "Configured"
+        ]
+      },
+      "InstallationConfigurationSummary": {
+        "required": [
+          "status",
+          "prdbConnectionStatus",
+          "hasPrdbCredential",
+          "credentialReplacementPending",
+          "lastConnectionAttemptAt",
+          "lastConnectionVerifiedAt",
+          "lastConnectionIssue",
+          "libraryMountRoot",
+          "libraryDirectories"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/InstallationConfigurationStatus"
+          },
+          "prdbConnectionStatus": {
+            "$ref": "#/components/schemas/PrdbConnectionStatus"
+          },
+          "hasPrdbCredential": {
+            "type": "boolean"
+          },
+          "credentialReplacementPending": {
+            "type": "boolean"
+          },
+          "lastConnectionAttemptAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastConnectionVerifiedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastConnectionIssue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PrdbConnectionIssue"
+              }
+            ]
+          },
+          "libraryMountRoot": {
+            "type": "string"
+          },
+          "libraryDirectories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryDirectorySummary"
+            }
+          }
+        }
+      },
+      "LibraryDirectoryActivationResult": {
+        "required": [
+          "verdict"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/LibraryDirectoryActivationVerdict"
+          },
+          "directory": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LibraryDirectorySummary"
+              }
+            ]
+          }
+        }
+      },
+      "LibraryDirectoryActivationVerdict": {
+        "enum": [
+          "Activated",
+          "NotFound",
+          "Expired",
+          "NoLongerValid",
+          "AlreadyConfigured"
+        ]
+      },
+      "LibraryDirectoryCandidatesResponse": {
+        "required": [
+          "containerPaths"
+        ],
+        "type": "object",
+        "properties": {
+          "containerPaths": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "LibraryDirectoryHealth": {
+        "enum": [
+          "Healthy",
+          "PartiallyUnreachable",
+          "Unreachable"
+        ]
+      },
+      "LibraryDirectoryStageRequest": {
+        "required": [
+          "name",
+          "containerPath"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "containerPath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "LibraryDirectoryStageResult": {
+        "required": [
+          "verdict"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/LibraryDirectoryStageVerdict"
+          },
+          "stageId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "containerPath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "expiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "LibraryDirectoryStageVerdict": {
+        "enum": [
+          "Staged",
+          "InvalidInput",
+          "OutsideMountArea",
+          "Missing",
+          "Unreadable",
+          "AlreadyConfigured"
+        ]
+      },
+      "LibraryDirectoryState": {
+        "enum": [
+          "Active",
+          "Removed"
+        ]
+      },
+      "LibraryDirectorySummary": {
+        "required": [
+          "id",
+          "name",
+          "containerPath",
+          "state",
+          "health",
+          "configurationGeneration",
+          "activatedAt",
+          "initialProcessingStarted"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "containerPath": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/components/schemas/LibraryDirectoryState"
+          },
+          "health": {
+            "$ref": "#/components/schemas/LibraryDirectoryHealth"
+          },
+          "configurationGeneration": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "activatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "initialProcessingStarted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PrdbConnectionIssue": {
+        "enum": [
+          "ExternalAuthority",
+          "ExternalAvailability",
+          "ReplacementRejected",
+          null
+        ]
+      },
+      "PrdbConnectionStatus": {
+        "enum": [
+          "Missing",
+          "VerificationPending",
+          "Verified",
+          "Rejected",
+          "Degraded"
+        ]
+      },
+      "PrdbConnectionUpdateResult": {
+        "required": [
+          "verdict"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/PrdbConnectionUpdateVerdict"
+          }
+        }
+      },
+      "PrdbConnectionUpdateVerdict": {
+        "enum": [
+          "Verified",
+          "Rejected",
+          "VerificationPending",
+          "Missing",
+          "InvalidInput",
+          "Superseded"
+        ]
+      },
+      "PrdbCredentialRequest": {
+        "required": [
+          "credential"
+        ],
+        "type": "object",
+        "properties": {
+          "credential": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -676,6 +1114,9 @@
     },
     {
       "name": "Accounts"
+    },
+    {
+      "name": "Configuration"
     }
   ]
 }

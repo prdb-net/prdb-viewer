@@ -23,6 +23,13 @@ public sealed class SqlitePersistenceTests
         Assert.Contains(
             "20260827000000_Initial",
             await context.Database.GetAppliedMigrationsAsync(TestContext.Current.CancellationToken));
+
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Equal(
+                UnixFileMode.UserRead | UnixFileMode.UserWrite,
+                File.GetUnixFileMode(database.Location.FilePath));
+        }
     }
 
     [Fact]

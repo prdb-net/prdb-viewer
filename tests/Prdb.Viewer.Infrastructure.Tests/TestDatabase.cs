@@ -2,6 +2,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.DependencyInjection;
 
 using Prdb.Viewer.Infrastructure.Persistence;
+using Prdb.Viewer.Infrastructure.Configuration;
 
 using Xunit;
 
@@ -21,13 +22,22 @@ internal sealed class TestDatabase : IAsyncDisposable
 
     public ViewerDatabaseLocation Location => provider.GetRequiredService<ViewerDatabaseLocation>();
 
-    public static async Task<TestDatabase> CreateAsync(TimeProvider? timeProvider = null)
+    public static async Task<TestDatabase> CreateAsync(
+        TimeProvider? timeProvider = null,
+        IPrdbConnectionVerifier? prdbConnectionVerifier = null)
     {
         var directory = Path.Combine(Path.GetTempPath(), $"prdb-viewer-{Guid.NewGuid():n}");
+        var libraryMountRoot = Path.Combine(directory, "libraries");
+        System.IO.Directory.CreateDirectory(libraryMountRoot);
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(timeProvider ?? TimeProvider.System);
-        services.AddViewerPersistence(directory);
+        services.AddViewerPersistence(directory, libraryMountRoot);
+
+        if (prdbConnectionVerifier is not null)
+        {
+            services.AddSingleton(prdbConnectionVerifier);
+        }
 
         var database = new TestDatabase(directory, services.BuildServiceProvider());
         await database.provider.PrepareViewerDatabaseAsync(TestContext.Current.CancellationToken);
@@ -35,6 +45,8 @@ internal sealed class TestDatabase : IAsyncDisposable
     }
 
     public AsyncServiceScope Scope() => provider.CreateAsyncScope();
+
+    public LibraryMountRoot LibraryMountRoot => provider.GetRequiredService<LibraryMountRoot>();
 
     public async ValueTask DisposeAsync()
     {

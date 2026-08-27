@@ -21,16 +21,35 @@ describe('App', () => {
   it('guides an unclaimed installation to create its first Administrator', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       if (input === '/api/access/state') return json({ claimed: false, signedIn: false })
-      return json({
-        verdict: 'Created',
-        account: {
-          id: '01994dd4-2a0a-7000-8000-000000000001',
-          username: 'administrator',
-          email: null,
-          authority: 'Administrator',
-          csrfToken: 'csrf-token',
-        },
-      })
+      if (input === '/api/access/bootstrap') {
+        return json({
+          verdict: 'Created',
+          account: {
+            id: '01994dd4-2a0a-7000-8000-000000000001',
+            username: 'administrator',
+            email: null,
+            authority: 'Administrator',
+            csrfToken: 'csrf-token',
+          },
+        })
+      }
+      if (input === '/api/admin/configuration/') {
+        return json({
+          status: 'ConfigurationRequired',
+          prdbConnectionStatus: 'Missing',
+          hasPrdbCredential: false,
+          credentialReplacementPending: false,
+          lastConnectionAttemptAt: null,
+          lastConnectionVerifiedAt: null,
+          lastConnectionIssue: null,
+          libraryMountRoot: '/libraries',
+          libraryDirectories: [],
+        })
+      }
+      if (input === '/api/admin/configuration/library-directory-candidates') {
+        return json({ containerPaths: [] })
+      }
+      return json([])
     })
 
     renderApp()
@@ -42,6 +61,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Create Administrator' }))
 
     expect(await screen.findByRole('heading', { name: 'Your collection starts here' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Configuration' })).toBeInTheDocument()
     expect(globalThis.fetch).toHaveBeenCalledWith(
       '/api/access/bootstrap',
       expect.objectContaining({ method: 'POST' }),

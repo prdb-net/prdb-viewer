@@ -16,6 +16,7 @@ public sealed class DatabaseMigrator(
             location.EnsureDirectoryExists();
             await EstablishWriteAheadLoggingAsync(cancellationToken);
             await context.Database.MigrateAsync(cancellationToken);
+            location.RestrictDatabaseFiles();
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

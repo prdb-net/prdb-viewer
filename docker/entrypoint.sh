@@ -8,7 +8,7 @@ refuse() { printf 'entrypoint: %s\n' "$*" >&2; exit 1; }
 data_directory="${VIEWER_DATA_DIRECTORY:-/data}"
 puid="${PUID:-1000}"
 pgid="${PGID:-1000}"
-umask_value="${UMASK:-022}"
+umask_value="${UMASK:-077}"
 
 case "$data_directory" in
     /data | /data/*) ;;

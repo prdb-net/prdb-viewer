@@ -13,6 +13,11 @@ export type RecoverRequest = components['schemas']['RecoverRequest']
 export type RecoverResponse = components['schemas']['RecoverResponse']
 export type RecoveryCodeResponse = components['schemas']['RecoveryCodeResponse']
 export type AccountActionResponse = components['schemas']['AccountActionResponse']
+export type InstallationConfiguration = components['schemas']['InstallationConfigurationSummary']
+export type PrdbConnectionUpdate = components['schemas']['PrdbConnectionUpdateResult']
+export type LibraryDirectoryCandidates = components['schemas']['LibraryDirectoryCandidatesResponse']
+export type LibraryDirectoryStage = components['schemas']['LibraryDirectoryStageResult']
+export type LibraryDirectoryActivation = components['schemas']['LibraryDirectoryActivationResult']
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -54,6 +59,25 @@ export const api = {
     post<AccountActionResponse>(`/api/admin/accounts/${accountId}/disable`, undefined, csrfToken),
   recoveryCode: (accountId: string, csrfToken: string) =>
     post<RecoveryCodeResponse>(`/api/admin/accounts/${accountId}/recovery-code`, undefined, csrfToken),
+  configuration: () => request<InstallationConfiguration>('/api/admin/configuration/'),
+  verifyPrdb: (credential: string, csrfToken: string) =>
+    post<PrdbConnectionUpdate>('/api/admin/configuration/prdb-connection', { credential }, csrfToken),
+  retryPrdb: (csrfToken: string) =>
+    post<PrdbConnectionUpdate>('/api/admin/configuration/prdb-connection/retry', undefined, csrfToken),
+  libraryDirectoryCandidates: () =>
+    request<LibraryDirectoryCandidates>('/api/admin/configuration/library-directory-candidates'),
+  stageLibraryDirectory: (name: string, containerPath: string, csrfToken: string) =>
+    post<LibraryDirectoryStage>(
+      '/api/admin/configuration/library-directories/stages',
+      { name, containerPath },
+      csrfToken,
+    ),
+  activateLibraryDirectory: (stageId: string, csrfToken: string) =>
+    post<LibraryDirectoryActivation>(
+      `/api/admin/configuration/library-directories/stages/${stageId}/activate`,
+      undefined,
+      csrfToken,
+    ),
   signOut: async (csrfToken: string) => {
     const response = await fetch('/api/access/sign-out', {
       method: 'POST',

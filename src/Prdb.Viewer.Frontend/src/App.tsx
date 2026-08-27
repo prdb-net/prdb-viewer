@@ -6,6 +6,7 @@ import {
   type Account,
   type AccountSummary,
   type BootstrapRequest,
+  type LibraryDirectoryStage,
   type RecoverRequest,
   type RegistrationRequest,
   type SignInRequest,
@@ -15,6 +16,8 @@ const queryKeys = {
   state: ['access-state'] as const,
   account: ['account'] as const,
   accounts: ['accounts'] as const,
+  configuration: ['configuration'] as const,
+  libraryDirectoryCandidates: ['library-directory-candidates'] as const,
 }
 
 export function App() {
@@ -185,11 +188,125 @@ function Library({ account }: { account: Account }) {
         <div>
           <span className="eyebrow">Library</span>
           <h2>Your collection starts here</h2>
-          <p>Account access is ready. The next slice connects configured library roots and the first playable Video.</p>
+          <p>Account access is ready. Active Library Directories will appear here as scanning discovers playable Videos.</p>
         </div>
-        {account.authority === 'Administrator' && <AccountAdministration account={account} />}
+        {account.authority === 'Administrator' && (
+          <>
+            <InstallationSetup account={account} />
+            <AccountAdministration account={account} />
+          </>
+        )}
       </section>
     </main>
+  )
+}
+
+function InstallationSetup({ account }: { account: Account }) {
+  const configuration = useQuery({ queryKey: queryKeys.configuration, queryFn: api.configuration })
+  const candidates = useQuery({
+    queryKey: queryKeys.libraryDirectoryCandidates,
+    queryFn: api.libraryDirectoryCandidates,
+  })
+  const queryClient = useQueryClient()
+  const [stage, setStage] = useState<LibraryDirectoryStage>()
+  const verify = useMutation({
+    mutationFn: (credential: string) => api.verifyPrdb(credential, account.csrfToken),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.configuration }),
+  })
+  const retry = useMutation({
+    mutationFn: () => api.retryPrdb(account.csrfToken),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.configuration }),
+  })
+  const stageDirectory = useMutation({
+    mutationFn: ({ name, containerPath }: { name: string; containerPath: string }) =>
+      api.stageLibraryDirectory(name, containerPath, account.csrfToken),
+    onSuccess: (result) => {
+      setStage(result)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.configuration })
+    },
+  })
+  const activate = useMutation({
+    mutationFn: (stageId: string) => api.activateLibraryDirectory(stageId, account.csrfToken),
+    onSuccess: () => {
+      setStage(undefined)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.configuration })
+    },
+  })
+
+  function submitCredential(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = event.currentTarget
+    verify.mutate(new FormData(form).get('credential')?.toString() ?? '', {
+      onSuccess: (result) => {
+        if (result.verdict === 'Verified') form.reset()
+      },
+    })
+  }
+
+  function submitDirectory(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    stageDirectory.mutate(values<{ name: string; containerPath: string }>(
+      event.currentTarget,
+      ['name', 'containerPath'],
+    ))
+  }
+
+  const current = configuration.data
+  const connectionReady = current?.prdbConnectionStatus === 'Verified'
+  const connectionRetryable = current?.prdbConnectionStatus === 'VerificationPending' ||
+    current?.prdbConnectionStatus === 'Degraded'
+
+  return (
+    <section className="admin-panel setup-panel" aria-labelledby="setup-title">
+      <div className="section-heading">
+        <div><span className="eyebrow">Installation</span><h3 id="setup-title">Configuration</h3></div>
+        {current && <span className={`state-badge ${current.status === 'Configured' ? 'ready' : ''}`}>{friendlyState(current.status)}</span>}
+      </div>
+
+      {configuration.isPending && <p role="status">Loading configuration…</p>}
+      {current && (
+        <div className="setup-grid">
+          <div className="setup-step">
+            <div className="step-title"><span>1</span><div><strong>prdb connection</strong><small>{friendlyState(current.prdbConnectionStatus)}</small></div></div>
+            <p>The API key is verified once and is never returned by the application.</p>
+            <form onSubmit={submitCredential}>
+              <Field name="credential" label={current.hasPrdbCredential ? 'Replacement API key' : 'API key'} type="password" autoComplete="off" required />
+              <SubmitButton pending={verify.isPending}>{connectionReady ? 'Verify replacement' : 'Verify connection'}</SubmitButton>
+            </form>
+            {connectionRetryable && <button className="quiet-button inline-button" onClick={() => retry.mutate()} disabled={retry.isPending}>Retry verification</button>}
+            {verify.data?.verdict === 'Verified' && <Notice kind="success">The prdb connection is verified.</Notice>}
+            {verify.data?.verdict === 'Rejected' && <Notice kind="error">prdb rejected this API key. The previously verified key, if any, remains active.</Notice>}
+            {verify.data?.verdict === 'VerificationPending' && <Notice kind="error">prdb is temporarily unavailable. The key is staged for a visible retry.</Notice>}
+          </div>
+
+          <div className="setup-step">
+            <div className="step-title"><span>2</span><div><strong>Library Directory</strong><small>{current.libraryDirectories.length > 0 ? 'Active' : 'Required'}</small></div></div>
+            <p>Select a readable directory mounted beneath <code>{current.libraryMountRoot}</code>. The container mount remains the Installation Operator's responsibility.</p>
+            <form onSubmit={submitDirectory}>
+              <Field name="name" label="Display name" placeholder="Main Library" required />
+              <Field name="containerPath" label="Container path" list="library-directory-candidates" placeholder={`${current.libraryMountRoot}/main`} required />
+              <datalist id="library-directory-candidates">
+                {candidates.data?.containerPaths.map((path) => <option key={path} value={path} />)}
+              </datalist>
+              <SubmitButton pending={stageDirectory.isPending}>Validate directory</SubmitButton>
+            </form>
+            {stage?.verdict === 'Staged' && stage.stageId && (
+              <div className="confirmation">
+                <p><strong>{stage.name}</strong><br /><code>{stage.containerPath}</code></p>
+                <button className="primary-button" onClick={() => activate.mutate(stage.stageId!)} disabled={activate.isPending}>Activate validated directory</button>
+              </div>
+            )}
+            {stage && stage.verdict !== 'Staged' && <Notice kind="error">{directoryStageMessage(stage.verdict)}</Notice>}
+            {current.libraryDirectories.map((directory) => (
+              <div className="configured-directory" key={directory.id}>
+                <strong>{directory.name}</strong><code>{directory.containerPath}</code>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {(configuration.isError || candidates.isError || verify.isError || retry.isError || stageDirectory.isError || activate.isError) && <RequestError />}
+    </section>
   )
 }
 
@@ -293,4 +410,16 @@ function signInMessage(verdict: string) {
   if (verdict === 'ApprovalPending') return 'Your request is waiting for Administrator approval.'
   if (verdict === 'Disabled') return 'This account has been disabled.'
   return 'The username or password is incorrect.'
+}
+
+function friendlyState(state: string) {
+  return state.replace(/([a-z])([A-Z])/g, '$1 $2')
+}
+
+function directoryStageMessage(verdict: string) {
+  if (verdict === 'OutsideMountArea') return 'Choose a directory beneath the documented library mount area.'
+  if (verdict === 'Missing') return 'The directory is not mounted or no longer exists.'
+  if (verdict === 'Unreadable') return 'The application identity cannot read this directory.'
+  if (verdict === 'AlreadyConfigured') return 'This Library Directory is already active.'
+  return 'Check the display name and container path.'
 }

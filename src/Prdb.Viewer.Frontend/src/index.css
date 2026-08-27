@@ -41,6 +41,20 @@ p { color: #bdb8c7; line-height: 1.6; }
 .workspace h2 { margin: .65rem 0 1rem; font-size: clamp(2.3rem, 7vw, 5rem); letter-spacing: -.055em; line-height: .98; }
 .eyebrow { color: #cdb7ff; font-size: .72rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
 .admin-panel { margin-top: 4rem; padding: clamp(1.2rem, 4vw, 2rem); border: 1px solid rgb(255 255 255 / 9%); border-radius: 1.4rem; background: rgb(26 24 32 / 78%); }
+.setup-panel { border-color: rgb(141 98 244 / 28%); }
+.setup-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+.setup-step { min-width: 0; padding: 1.2rem; border-radius: 1rem; background: rgb(0 0 0 / 18%); }
+.setup-step p { font-size: .88rem; }
+.setup-step code, .configured-directory code { color: #cdb7ff; overflow-wrap: anywhere; }
+.step-title { display: flex; align-items: center; gap: .75rem; margin-bottom: .8rem; }
+.step-title > span { display: grid; flex: 0 0 1.9rem; height: 1.9rem; place-items: center; border-radius: 50%; color: #e8deff; background: #57417f; font-size: .8rem; font-weight: 800; }
+.step-title small { display: block; margin-top: .15rem; color: #928c9b; }
+.state-badge { padding: .45rem .65rem; border-radius: 999px; color: #f7dfad; background: rgb(235 171 61 / 15%); font-size: .72rem; font-weight: 800; }
+.state-badge.ready { color: #dff9e8; background: rgb(76 185 119 / 14%); }
+.inline-button { margin-top: .8rem; }
+.confirmation { margin-top: 1rem; padding: 1rem; border: 1px solid rgb(76 185 119 / 25%); border-radius: .8rem; background: rgb(76 185 119 / 8%); }
+.confirmation .primary-button { margin-top: 0; }
+.configured-directory { display: grid; gap: .25rem; margin-top: .8rem; padding: .8rem; border-radius: .7rem; background: rgb(255 255 255 / 5%); font-size: .82rem; }
 .section-heading, .account-row, .row-actions { display: flex; align-items: center; }
 .section-heading, .account-row { justify-content: space-between; gap: 1rem; }
 .section-heading h3 { margin: .35rem 0 0; }
@@ -57,4 +71,5 @@ p { color: #bdb8c7; line-height: 1.6; }
   .account-menu > span { display: none; }
   .account-row { align-items: flex-start; flex-direction: column; }
   .row-actions { justify-content: flex-start; }
+  .setup-grid { grid-template-columns: 1fr; }
 }

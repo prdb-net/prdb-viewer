@@ -444,6 +444,226 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/configuration": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InstallationConfigurationSummary"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/configuration/prdb-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PrdbCredentialRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PrdbConnectionUpdateResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/configuration/prdb-connection/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PrdbConnectionUpdateResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/configuration/library-directory-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LibraryDirectoryCandidatesResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/configuration/library-directories/stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["LibraryDirectoryStageRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LibraryDirectoryStageResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/configuration/library-directories/stages/{stageId}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    stageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LibraryDirectoryActivationResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -485,6 +705,74 @@ export interface components {
         };
         HealthResponse: {
             status: string;
+        };
+        /** @enum {unknown} */
+        InstallationConfigurationStatus: "Unclaimed" | "ConfigurationRequired" | "ConfigurationPending" | "AttentionRequired" | "Configured";
+        InstallationConfigurationSummary: {
+            status: components["schemas"]["InstallationConfigurationStatus"];
+            prdbConnectionStatus: components["schemas"]["PrdbConnectionStatus"];
+            hasPrdbCredential: boolean;
+            credentialReplacementPending: boolean;
+            /** Format: date-time */
+            lastConnectionAttemptAt: null | string;
+            /** Format: date-time */
+            lastConnectionVerifiedAt: null | string;
+            lastConnectionIssue: null | components["schemas"]["PrdbConnectionIssue"];
+            libraryMountRoot: string;
+            libraryDirectories: components["schemas"]["LibraryDirectorySummary"][];
+        };
+        LibraryDirectoryActivationResult: {
+            verdict: components["schemas"]["LibraryDirectoryActivationVerdict"];
+            directory?: null | components["schemas"]["LibraryDirectorySummary"];
+        };
+        /** @enum {unknown} */
+        LibraryDirectoryActivationVerdict: "Activated" | "NotFound" | "Expired" | "NoLongerValid" | "AlreadyConfigured";
+        LibraryDirectoryCandidatesResponse: {
+            containerPaths: string[];
+        };
+        /** @enum {unknown} */
+        LibraryDirectoryHealth: "Healthy" | "PartiallyUnreachable" | "Unreachable";
+        LibraryDirectoryStageRequest: {
+            name: null | string;
+            containerPath: null | string;
+        };
+        LibraryDirectoryStageResult: {
+            verdict: components["schemas"]["LibraryDirectoryStageVerdict"];
+            /** Format: uuid */
+            stageId?: null | string;
+            name?: null | string;
+            containerPath?: null | string;
+            /** Format: date-time */
+            expiresAt?: null | string;
+        };
+        /** @enum {unknown} */
+        LibraryDirectoryStageVerdict: "Staged" | "InvalidInput" | "OutsideMountArea" | "Missing" | "Unreadable" | "AlreadyConfigured";
+        /** @enum {unknown} */
+        LibraryDirectoryState: "Active" | "Removed";
+        LibraryDirectorySummary: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            containerPath: string;
+            state: components["schemas"]["LibraryDirectoryState"];
+            health: components["schemas"]["LibraryDirectoryHealth"];
+            /** Format: int32 */
+            configurationGeneration: number | string;
+            /** Format: date-time */
+            activatedAt: string;
+            initialProcessingStarted: boolean;
+        };
+        /** @enum {unknown} */
+        PrdbConnectionIssue: "ExternalAuthority" | "ExternalAvailability" | "ReplacementRejected" | null;
+        /** @enum {unknown} */
+        PrdbConnectionStatus: "Missing" | "VerificationPending" | "Verified" | "Rejected" | "Degraded";
+        PrdbConnectionUpdateResult: {
+            verdict: components["schemas"]["PrdbConnectionUpdateVerdict"];
+        };
+        /** @enum {unknown} */
+        PrdbConnectionUpdateVerdict: "Verified" | "Rejected" | "VerificationPending" | "Missing" | "InvalidInput" | "Superseded";
+        PrdbCredentialRequest: {
+            credential: null | string;
         };
         RecoverRequest: {
             username: null | string;
