@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-08-28
+
+The first release: a self-hosted library that scans mounted video directories,
+plays them directly in the browser, keeps each Account's viewing private, and
+enriches Videos from prdb.net — with observable operations and operator backup
+and restore behind it.
+
 ### Added
 
 - Add the first runnable application shell, SQLite startup migration, public
