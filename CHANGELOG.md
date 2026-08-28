@@ -9,6 +9,23 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Decide direct playability for each Account on each browser rather than
+  installation-wide. Your browser qualifies the media configurations the library
+  holds with Media Capabilities, what it observed when it actually played a file
+  outranks that prediction, and Ordinary Discovery admits a Video by the result.
+  Both are Personal State: they never influence another Account and are never
+  shown to an Administrator as activity.
+- Try each Available Video File at most once per play action, in the order the
+  evidence dictates, and say which file was chosen and why. A decode failure is
+  remembered for that browser and the next variant is tried visibly; a delivery
+  or network failure stops the fallback and says so, because every other variant
+  would fail the same way.
+- Offer the three playability states as what they are: the ordinary Play action,
+  a labelled Try Direct Play with its reason, or variant details with an explicit
+  Try Anyway. A remembered failure can be forgotten with one explicit retry.
+- Retain the exact inspected media configuration — profile, level, bit depth,
+  frame rate, bitrate and audio layout — so a browser can be asked about the
+  file it would actually play.
 - Recognise a Video's originating site from the Video File's own path when prdb
   cannot match it, against a Site Directory fetched from prdb at most once a day
   and joined with every Site the installation has already established. A path
@@ -26,6 +43,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Baseline Candidate now means what the product contract says: a conforming WebM
+  with VP8 and Vorbis or no audio at ordinary demands. Ordinary H.264/AAC in MP4
+  is Client-Dependent, which is what it always was — it is now offered once your
+  browser has confirmed it rather than assumed for everyone. Existing
+  installations keep their classifications and rescan for the facts the new rules
+  need, so nothing disappears while that runs.
+- The library filter `readiness` became `playability` and reports Client Video
+  Playability.
 - A locally recognised Site gives way, without review, to the canonical Site of
   a work prdb later identifies, and the reading it replaces is retained as
   history. An Administrator's decision is never replaced this way.

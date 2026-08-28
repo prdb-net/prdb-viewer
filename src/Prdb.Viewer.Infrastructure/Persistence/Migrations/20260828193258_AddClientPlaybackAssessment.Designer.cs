@@ -1041,7 +1041,7 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("LibraryDirectoryId", "Availability", "SiteRecognisedPath");
 
-                    b.HasIndex("VideoId", "Availability", "DirectPlayClassification");
+                    b.HasIndex("VideoId", "Availability", "DirectPlayClassification", "ProfileKey");
 
                     b.ToTable("video_file", (string)null);
                 });

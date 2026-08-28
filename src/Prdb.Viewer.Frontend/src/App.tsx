@@ -458,11 +458,14 @@ function VideoLibrary({ account }: { account: Account }) {
     const next = category === 'Media' ? session.remaining[0] : undefined
 
     if (next) {
-      startPlayback.mutate({
-        video: session.video,
+      // Fallback stays inside the same Playback Attempt: one deliberate play action is one
+      // attempt, whichever of its Video Files ends up carrying it.
+      setPlaying({
+        ...session,
         variant: next,
         remaining: session.remaining.slice(1),
         attempted,
+        resumePositionMilliseconds: 0,
       })
       return
     }
@@ -519,6 +522,7 @@ function VideoLibrary({ account }: { account: Account }) {
           videoFileId={playing.variant.videoFileId}
           playbackAttemptId={playing.playbackAttemptId}
           resumePositionMilliseconds={playing.resumePositionMilliseconds}
+          previousAttempt={playing.attempted[playing.attempted.length - 1]}
           csrfToken={account.csrfToken}
           close={() => setPlaying(undefined)}
           failed={failed}
@@ -528,12 +532,6 @@ function VideoLibrary({ account }: { account: Account }) {
             void queryClient.invalidateQueries({ queryKey: queryKeys.personalLibrary })
           }}
         />
-      )}
-      {startPlayback.isPending && (startPlayback.variables?.attempted.length ?? 0) > 0 && (
-        <p className="fallback-notice" role="status">
-          That Video File did not play here. Trying{' '}
-          {fileFormat(startPlayback.variables!.variant)} instead…
-        </p>
       )}
       {failure && (
         <TerminalFailure
@@ -924,12 +922,13 @@ function VideoCard({ video, play, act, pending, dismissible }: {
   )
 }
 
-function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, resumePositionMilliseconds, csrfToken, close, failed, succeeded, refresh }: {
+function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, resumePositionMilliseconds, previousAttempt, csrfToken, close, failed, succeeded, refresh }: {
   video: VideoSummary
   source: string
   videoFileId: string
   playbackAttemptId: string
   resumePositionMilliseconds: number
+  previousAttempt?: PlaybackVariant
   csrfToken: string
   close: () => void
   failed: (category: PlaybackFailureCategory) => void
@@ -1042,6 +1041,12 @@ function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, resumePo
   return (
     <div className="player-shell">
       <div className="section-heading"><strong>{video.displayTitle}</strong><button className="quiet-button" onClick={() => void stop()}>Close</button></div>
+      {previousAttempt && (
+        <p className="fallback-notice" role="status">
+          {fileFormat(previousAttempt)} did not play in this browser. Trying another Video File of
+          the same Video.
+        </p>
+      )}
       <video
         ref={element}
         controls
@@ -1349,7 +1354,12 @@ async function classifyFailure(
   error: MediaError | null,
   source: string,
 ): Promise<PlaybackFailureCategory> {
-  if (error?.code === MediaError.MEDIA_ERR_DECODE) return 'Media'
+  // The two codes that need no second opinion: 3 is a decode failure, and 2 is the browser's own
+  // network error, which is still checked below because a 5xx reaches the element the same way.
+  const decodeFailure = 3
+  const networkFailure = 2
+
+  if (error?.code === decodeFailure) return 'Media'
 
   try {
     const probe = await fetch(source, { method: 'HEAD', credentials: 'same-origin' })
@@ -1360,7 +1370,7 @@ async function classifyFailure(
     return 'Network'
   }
 
-  return error?.code === MediaError.MEDIA_ERR_NETWORK ? 'Network' : 'Media'
+  return error?.code === networkFailure ? 'Network' : 'Media'
 }
 
 /// The end of one deliberate play action that never succeeded. It names what was attempted, says

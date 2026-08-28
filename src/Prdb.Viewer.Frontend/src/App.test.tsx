@@ -463,6 +463,129 @@ describe('App', () => {
     ))
   })
 
+  it('qualifies this browser, then falls back to the next variant when one fails to decode', async () => {
+    const first = variant({
+      videoFileId: '01994dd4-2a0a-7000-8000-0000000000a1',
+      deliveryUrl: '/media/videos/aaa',
+      containerFormat: 'mov,mp4,m4a,3gp,3g2,mj2',
+      videoCodec: 'h264',
+      audioCodec: 'aac',
+      directPlayClassification: 'ClientDependent',
+      profileKey: 'mp4-high',
+      preciseVideoContentType: 'video/mp4; codecs="avc1.640028"',
+      preciseAudioContentType: 'audio/mp4; codecs="mp4a.40.2"',
+      assessment: 'Positive',
+      smooth: true,
+      selectionReason: 'PositivelyAssessedAndSmooth',
+    })
+    const second = variant({
+      videoFileId: '01994dd4-2a0a-7000-8000-0000000000a2',
+      deliveryUrl: '/media/videos/bbb',
+      selectionReason: 'BaselineCandidate',
+    })
+    const video = libraryVideo({
+      displayTitle: 'Two Variants',
+      videoFiles: [first, second],
+    })
+    const decodingInfo = vi.fn().mockResolvedValue({
+      supported: true,
+      smooth: true,
+      powerEfficient: false,
+    })
+    Object.defineProperty(navigator, 'mediaCapabilities', {
+      configurable: true,
+      value: { decodingInfo },
+    })
+    const attempts: string[] = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      if (input === '/api/access/state') return json({ claimed: true, signedIn: true })
+      if (input === '/api/access/me') return json({
+        id: '01994dd4-2a0a-7000-8000-000000000001',
+        username: 'viewer',
+        email: null,
+        authority: 'User',
+        csrfToken: 'csrf-token',
+      })
+      if (input === '/api/personal/playback-profiles') {
+        return json([{
+          profileKey: 'mp4-high',
+          videoContentType: 'video/mp4; codecs="avc1.640028"',
+          audioContentType: 'audio/mp4; codecs="mp4a.40.2"',
+          basicContentType: 'video/mp4',
+          width: 1920,
+          height: 1080,
+          frameRate: 25,
+          bitrate: 4000000,
+          audioChannels: 2,
+          audioSampleRate: 48000,
+          audioBitrate: 128000,
+        }])
+      }
+      if (input === '/api/personal/playback-assessments') return json({ recorded: 1 })
+      if (input === '/api/personal/playback-outcomes') return json({ recorded: true })
+      if (typeof input === 'string' && input.endsWith('/playback-attempts')) {
+        const body = JSON.parse(String(init?.body ?? '{}')) as { videoFileId: string }
+        attempts.push(body.videoFileId)
+        return json({
+          verdict: 'Started',
+          playbackAttemptId: `attempt-${attempts.length}`,
+          resumePositionMilliseconds: null,
+        })
+      }
+      if (typeof input === 'string' && input.endsWith('/end')) return json({ ended: true })
+      if (typeof input === 'string' && input.startsWith('/media/videos/')) {
+        return Promise.resolve(new Response(null, { status: 206 }))
+      }
+      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isLibraryRequest(input)) return json(libraryPage([video]))
+      if (input === '/api/personal/library') {
+        return json({ continueWatching: [], favourites: [], watchLater: [] })
+      }
+      return json([])
+    })
+
+    const rendered = renderApp()
+    expect(await screen.findByText('Two Variants')).toBeInTheDocument()
+
+    // The browser answers for the configurations the library holds, and says how it answered.
+    await vi.waitFor(() => expect(decodingInfo).toHaveBeenCalled())
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/personal/playback-assessments',
+      expect.objectContaining({ method: 'PUT' }),
+    ))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+    const player = await waitForVideo(rendered.container)
+    expect(attempts).toEqual(['01994dd4-2a0a-7000-8000-0000000000a1'])
+
+    // A decode failure is remembered about that file and the next variant is tried, visibly.
+    Object.defineProperty(player, 'error', {
+      configurable: true,
+      // MEDIA_ERR_DECODE: the browser accepted the bytes and could not decode them.
+      value: { code: 3 },
+    })
+    fireEvent.error(player)
+
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/personal/playback-outcomes',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          videoFileId: '01994dd4-2a0a-7000-8000-0000000000a1',
+          outcome: 'Failed',
+          failureCategory: 'Media',
+        }),
+      }),
+    ))
+    // The fallback stays inside the same Playback Attempt, and it says so rather than presenting
+    // the intermediate failure as terminal.
+    expect(await screen.findByText(/did not play in this browser/)).toBeInTheDocument()
+    expect(attempts).toEqual(['01994dd4-2a0a-7000-8000-0000000000a1'])
+    await vi.waitFor(() => expect(
+      rendered.container.querySelector('video')?.getAttribute('src'),
+    ).toBe('/media/videos/bbb'))
+  })
+
   it('shows unsupported Videos with their title, preview, and the reason playback is unavailable', async () => {
     const unsupported = libraryVideo({
       displayTitle: 'An Unsupported Video',

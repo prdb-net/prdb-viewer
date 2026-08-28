@@ -36,8 +36,9 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             .Select(account => account.IncludesNotReadyForDirectPlay)
             .SingleOrDefaultAsync(cancellationToken);
         var matched = Matching(accountId, request);
-        var ready = ReadyHere(accountId, clientContextKey);
-        var attemptable = WorthAttemptingHere(accountId, clientContextKey);
+        var assessed = await AssessedAsync(accountId, clientContextKey, cancellationToken);
+        var ready = ReadyHere(accountId, clientContextKey, assessed);
+        var attemptable = WorthAttemptingHere(accountId, clientContextKey, assessed);
 
         // The counts describe what the current rules keep out of the answer, so they are taken
         // from the same match before playability and availability narrow it.
@@ -51,12 +52,13 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             .ToListAsync(cancellationToken);
         var hasMore = page.Count > take;
         var ids = page.Take(take).ToArray();
-        var hiddenNotReady = request.Playability.Count > 0 || preference
-            ? 0
-            : await matched
-                .Where(video => video.Availability == VideoAvailability.Available)
-                .Where(Not(ready))
-                .CountAsync(cancellationToken);
+        var hiddenNotReady = await HiddenNotReadyAsync(
+            matched,
+            request,
+            preference,
+            ready,
+            total,
+            cancellationToken);
         var hiddenUnavailable = request.Availability.Count > 0
             ? 0
             : await matched.CountAsync(
@@ -108,12 +110,84 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
     }
 
     /// <summary>
+    /// How many Available matches this client cannot play, which is what the view offers to reveal.
+    ///
+    /// In the ordinary case it is arithmetic rather than a second question: everything admitted was
+    /// Available and ready, so the ones kept out are the Available matches minus the admitted ones.
+    /// Asking the database to count them directly would mean deciding playability for every row of
+    /// the library twice over. An explicit availability filter breaks that identity, and only then
+    /// is the count taken the long way.
+    /// </summary>
+    private static async Task<int> HiddenNotReadyAsync(
+        IQueryable<VideoRow> matched,
+        LibraryDiscoveryRequest request,
+        bool preference,
+        Expression<Func<VideoRow, bool>> ready,
+        int total,
+        CancellationToken cancellationToken)
+    {
+        if (request.Playability.Count > 0 || preference)
+        {
+            return 0;
+        }
+
+        var available = matched.Where(video => video.Availability == VideoAvailability.Available);
+
+        return request.Availability.Count == 0
+            ? await available.CountAsync(cancellationToken) - total
+            : await available.Where(Not(ready)).CountAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// What this client has answered about the library's media configurations.
+    ///
+    /// It is read once and carried into the query as two small sets rather than asked again for
+    /// every Video File. A Profile Key describes a band of configurations rather than a file, so
+    /// even a large library holds a few dozen of them, while the question "is this Video ready
+    /// here" is asked of every row the page and its count consider.
+    /// </summary>
+    private async Task<AssessedProfiles> AssessedAsync(
+        Guid accountId,
+        string clientContextKey,
+        CancellationToken cancellationToken)
+    {
+        var assessments = await database.ClientPlaybackAssessments
+            .AsNoTracking()
+            .Where(assessment => assessment.AccountId == accountId &&
+                                 assessment.ClientContextKey == clientContextKey &&
+                                 assessment.Verdict != ClientPlaybackAssessmentVerdict.Indeterminate)
+            .Select(assessment => new { assessment.ProfileKey, assessment.Verdict })
+            .ToListAsync(cancellationToken);
+
+        return new AssessedProfiles(
+            assessments
+                .Where(assessment => assessment.Verdict == ClientPlaybackAssessmentVerdict.Positive)
+                .Select(assessment => assessment.ProfileKey)
+                .ToArray(),
+            assessments
+                .Where(assessment => assessment.Verdict == ClientPlaybackAssessmentVerdict.Negative)
+                .Select(assessment => assessment.ProfileKey)
+                .ToArray());
+    }
+
+    private sealed record AssessedProfiles(
+        IReadOnlyList<string> Positive,
+        IReadOnlyList<string> Negative);
+
+    /// <summary>
     /// Whether at least one Available occurrence is ready for direct play here: one this client has
     /// already played, or one it has not ruled out that is either the conservative baseline or a
     /// Client-Dependent file it assessed positively.
     /// </summary>
-    private Expression<Func<VideoRow, bool>> ReadyHere(Guid accountId, string clientContextKey) =>
-        video => database.VideoFiles.Any(file =>
+    private Expression<Func<VideoRow, bool>> ReadyHere(
+        Guid accountId,
+        string clientContextKey,
+        AssessedProfiles assessed)
+    {
+        var positive = assessed.Positive;
+        var negative = assessed.Negative;
+
+        return video => database.VideoFiles.Any(file =>
             file.VideoId == video.Id &&
             file.Availability == VideoFileAvailability.Available &&
             (database.ObservedPlaybackOutcomes.Any(outcome =>
@@ -122,24 +196,17 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
                  outcome.VideoFileId == file.Id &&
                  outcome.ContentSha256 == file.Sha256 &&
                  outcome.Outcome == ObservedPlaybackOutcome.Succeeded) ||
-             (!database.ObservedPlaybackOutcomes.Any(outcome =>
+             ((file.DirectPlayClassification == DirectPlayClassification.BaselineCandidate ||
+               (file.DirectPlayClassification == DirectPlayClassification.ClientDependent &&
+                positive.Contains(file.ProfileKey))) &&
+              !negative.Contains(file.ProfileKey) &&
+              !database.ObservedPlaybackOutcomes.Any(outcome =>
                   outcome.AccountId == accountId &&
                   outcome.ClientContextKey == clientContextKey &&
                   outcome.VideoFileId == file.Id &&
                   outcome.ContentSha256 == file.Sha256 &&
-                  outcome.Outcome == ObservedPlaybackOutcome.Failed) &&
-              !database.ClientPlaybackAssessments.Any(assessment =>
-                  assessment.AccountId == accountId &&
-                  assessment.ClientContextKey == clientContextKey &&
-                  assessment.ProfileKey == file.ProfileKey &&
-                  assessment.Verdict == ClientPlaybackAssessmentVerdict.Negative) &&
-              (file.DirectPlayClassification == DirectPlayClassification.BaselineCandidate ||
-               (file.DirectPlayClassification == DirectPlayClassification.ClientDependent &&
-                database.ClientPlaybackAssessments.Any(assessment =>
-                    assessment.AccountId == accountId &&
-                    assessment.ClientContextKey == clientContextKey &&
-                    assessment.ProfileKey == file.ProfileKey &&
-                    assessment.Verdict == ClientPlaybackAssessmentVerdict.Positive))))));
+                  outcome.Outcome == ObservedPlaybackOutcome.Failed))));
+    }
 
     /// <summary>
     /// Whether an attempt is still plausible: an Available occurrence with some direct-play path
@@ -147,22 +214,23 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
     /// </summary>
     private Expression<Func<VideoRow, bool>> WorthAttemptingHere(
         Guid accountId,
-        string clientContextKey) =>
-        video => database.VideoFiles.Any(file =>
+        string clientContextKey,
+        AssessedProfiles assessed)
+    {
+        var negative = assessed.Negative;
+
+        return video => database.VideoFiles.Any(file =>
             file.VideoId == video.Id &&
             file.Availability == VideoFileAvailability.Available &&
             file.DirectPlayClassification != DirectPlayClassification.Unsupported &&
+            !negative.Contains(file.ProfileKey) &&
             !database.ObservedPlaybackOutcomes.Any(outcome =>
                 outcome.AccountId == accountId &&
                 outcome.ClientContextKey == clientContextKey &&
                 outcome.VideoFileId == file.Id &&
                 outcome.ContentSha256 == file.Sha256 &&
-                outcome.Outcome == ObservedPlaybackOutcome.Failed) &&
-            !database.ClientPlaybackAssessments.Any(assessment =>
-                assessment.AccountId == accountId &&
-                assessment.ClientContextKey == clientContextKey &&
-                assessment.ProfileKey == file.ProfileKey &&
-                assessment.Verdict == ClientPlaybackAssessmentVerdict.Negative));
+                outcome.Outcome == ObservedPlaybackOutcome.Failed));
+    }
 
     /// <summary>
     /// Everything the query text and the non-playability facets match. Removed Videos and merged

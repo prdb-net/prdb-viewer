@@ -215,6 +215,25 @@ public sealed class SqliteWorkloadBenchmark
             })
             .ToArray();
         database.Accounts.AddRange(accounts);
+
+        // Every Account's client has qualified the library's one configuration, as it would after
+        // its first visit. Without that a signed-in User sees nothing and the measurement is of an
+        // empty answer.
+        foreach (var account in accounts)
+        {
+            database.ClientPlaybackAssessments.Add(new ClientPlaybackAssessmentRow
+            {
+                AccountId = account.Id,
+                ClientContextKey = LibraryPipeline.ClientContext,
+                ProfileKey = BenchmarkMedia.ProfileKey,
+                Verdict = ClientPlaybackAssessmentVerdict.Positive,
+                Smooth = true,
+                PowerEfficient = true,
+                Method = "MediaCapabilities",
+                AssessedAt = at,
+            });
+        }
+
         await database.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         for (var batch = 0; batch < videos; batch += 1_000)
@@ -288,6 +307,25 @@ public sealed class SqliteWorkloadBenchmark
         return accounts.Select(account => account.Id).ToArray();
     }
 
+    /// <summary>
+    /// Ordinary H.264/AAC in MP4: what a real library is mostly made of, and a Client-Dependent
+    /// configuration, so the measurement includes the per-Account, per-client admission question
+    /// rather than the one case that can skip it.
+    /// </summary>
+    private static readonly MediaConfiguration BenchmarkMedia =
+        new("mov,mp4,m4a,3gp,3g2,mj2", "h264", "aac")
+        {
+            VideoProfile = "High",
+            VideoLevel = 40,
+            BitDepth = 8,
+            Width = 1920,
+            Height = 1080,
+            FrameRate = 25,
+            VideoBitrate = 6_000_000,
+            AudioChannels = 2,
+            AudioSampleRate = 48_000,
+        };
+
     private static VideoFileRow NewFile(
         Guid videoId,
         Guid directoryId,
@@ -304,14 +342,22 @@ public sealed class SqliteWorkloadBenchmark
             LastWriteTimeUtc = at,
             Sha256 = Convert.ToHexString(BitConverter.GetBytes((long)index)).PadRight(64, '0'),
             PublicDeliveryId = Guid.NewGuid(),
-            ContainerFormat = "mov,mp4,m4a,3gp,3g2,mj2",
-            VideoCodec = "h264",
-            AudioCodec = "aac",
+            ContainerFormat = BenchmarkMedia.ContainerFormat,
+            VideoCodec = BenchmarkMedia.VideoCodec,
+            AudioCodec = BenchmarkMedia.AudioCodec,
+            VideoProfile = BenchmarkMedia.VideoProfile,
+            VideoLevel = BenchmarkMedia.VideoLevel,
+            BitDepth = BenchmarkMedia.BitDepth,
+            FrameRate = BenchmarkMedia.FrameRate,
+            VideoBitrate = BenchmarkMedia.VideoBitrate,
+            AudioChannels = BenchmarkMedia.AudioChannels,
+            AudioSampleRate = BenchmarkMedia.AudioSampleRate,
+            ProfileKey = BenchmarkMedia.ProfileKey,
             DurationMilliseconds = 3_600_000,
-            Width = 1920,
-            Height = 1080,
+            Width = BenchmarkMedia.Width,
+            Height = BenchmarkMedia.Height,
             Availability = VideoFileAvailability.Available,
-            DirectPlayClassification = DirectPlayClassification.BaselineCandidate,
+            DirectPlayClassification = DirectPlayClassificationRule.Classify(BenchmarkMedia),
             LastObservedScanId = Guid.CreateVersion7(),
             InspectedAt = at,
             HashState = VideoFileHashState.Computed,

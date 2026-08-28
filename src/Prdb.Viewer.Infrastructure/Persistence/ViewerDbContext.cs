@@ -347,7 +347,16 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Availability, row.PreviewState });
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.RelativePath });
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Sha256 });
-            videoFile.HasIndex(row => new { row.VideoId, row.Availability, row.DirectPlayClassification });
+            // The admission question discovery asks of every Video: which of its Available
+            // occurrences a client could play. Carrying the classification and the Profile Key in
+            // the index answers it without reading the rows themselves.
+            videoFile.HasIndex(row => new
+            {
+                row.VideoId,
+                row.Availability,
+                row.DirectPlayClassification,
+                row.ProfileKey,
+            });
             videoFile.HasIndex(row => row.ProfileKey);
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Availability, row.SiteRecognisedPath });
             videoFile.HasOne(row => row.Video)

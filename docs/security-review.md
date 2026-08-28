@@ -162,6 +162,15 @@ The trust boundaries this product actually has:
 
 ## Since this review
 
+- Client playability assessment, added after 0.1.0, stores two further kinds of
+  Personal State: what a browser answered about the library's media
+  configurations, and what it observed when it played a Video File. Both are
+  keyed by the Account and by an opaque client context the client names for
+  itself, are readable and writable only through the Account's own authenticated
+  session, are never returned to another Account, and are never exposed to an
+  Administrator. The context key is stored as it arrives, reduced to a fixed
+  harmless shape, and nothing is derived from request headers or retained about
+  the device beyond that key.
 - Local site recognition, added after 0.1.0, makes one further outbound request:
   `GET /sites` at most once a day, over the same transport with the same
   redacted `X-Api-Key` header and the same cross-origin redirect protection. It

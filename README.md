@@ -9,10 +9,11 @@ The project is in active development. The current executable provides local
 Account access, guided Installation Configuration, durable Library Scans, and
 technical inspection of discovered Video File Candidates, plus the first
 authenticated catalogue, direct browser playback path, Account-private playback
-and Personal State surfaces, a searchable and filterable library, prdb identification with
-local preview images, local site recognition and an Administrator review
-workflow, the observable background-work operations surface, and operator backup
-and restore. See
+and Personal State surfaces, a searchable and filterable library whose playability
+is assessed per Account and browser, prdb identification with local preview
+images, local site recognition and an Administrator review workflow, the
+observable background-work operations surface, and operator backup and restore.
+See
 [VISION.md](VISION.md) for the product contract.
 
 ## Prerequisites
@@ -186,11 +187,45 @@ or inaccessible traversal never infers absence for the directory.
 
 ## Browse and directly play Videos
 
-Approved Users receive the shared catalogue of Available Videos. Inspected
-H.264/AAC MP4 files are Baseline Candidates; formats whose browser support
-varies remain Client-Dependent, while known legacy codecs are Unsupported and
-unknown combinations remain Undetermined. These installation-wide classes are
-technical guidance rather than a guarantee for a particular browser.
+Approved Users receive the shared catalogue of Available Videos. Direct playback
+is decided at three levels, and each later one overrides an optimistic earlier
+one within its narrower scope:
+
+1. **The Direct-Play Classification** of a Video File, from its inspected
+   configuration alone. A conforming WebM carrying VP8 with Vorbis or no audio at
+   ordinary dimensions and frame rate is the Baseline Candidate — the narrowest
+   expectation that holds across the supported browsers. Ordinary H.264/AAC in
+   MP4, VP9, AV1, HEVC and the rest are Client-Dependent: a plausible path whose
+   support depends on the exact configuration and the device. Known legacy
+   codecs and containers with no browser path are Unsupported, and combinations
+   the rules do not settle stay Undetermined.
+2. **The Client Playback Assessment** your browser makes of that configuration.
+   Inspection retains profile, level, bit depth, dimensions, frame rate, bitrate
+   and audio layout, so the browser is asked about the exact codec string with
+   Media Capabilities where those facts determine one, and with the coarser type
+   test where they do not.
+3. **The Observed Playback Outcome** of actually playing the file there, which
+   outranks both because it is the only one that is not a prediction.
+
+A Video is therefore Ready for Direct Play, Compatibility Uncertain, or Not
+Directly Playable **for one Account on one browser**. Ready Videos get the
+ordinary Play action; uncertain ones get a labelled Try Direct Play with the
+reason; the rest keep their variant details and an explicit Try Anyway. See
+[ADR 0015](docs/adr/0015-decide-playability-per-account-and-client.md).
+
+One deliberate play action tries each Available occurrence at most once, in the
+order the evidence dictates: what already played here, then what this browser
+assessed positively — smooth and energy-efficient first — then the conservative
+baseline, then what is merely untried. A decode failure is remembered about that
+file for this browser and the next variant is tried, visibly and without a second
+confirmation. A delivery or network failure stops the fallback instead, because
+every other variant would fail the same way, and nothing about the media is
+concluded from it.
+
+What your browser answered and what it observed are Personal State: they are
+scoped to your Account and that browser, never influence another Account, and are
+never shown to an Administrator as activity. They expire on their own — a
+re-inspected file asks a new question, and a browser update is a new context.
 
 The browser plays original files directly and the Host supports HTTP byte
 ranges for seeking. Catalogue access remains authenticated. Video delivery is
@@ -211,8 +246,8 @@ one term and whose Actor matches the other. An exact title or label ranks above
 other titles, then Sites and Actors, then file names. There is deliberately no
 stemming, typo correction or semantic matching.
 
-Filters cover Site, Actor, Work Identification, review status, playability,
-availability and the Account's own Personal Play State. Values inside one facet
+Filters cover Site, Actor, Work Identification, review status, Client Video
+Playability, availability and the Account's own Personal Play State. Values inside one facet
 combine with OR and the facets combine with AND, and Unknown Work Identification,
 Unknown Site and Review Needed are explicit values rather than the absence of
 one. Established Sites and Actors are offered with their counts.
@@ -232,15 +267,11 @@ entry, and in place of a Play button it states the container and codecs that
 cannot be played directly. The preference is a standing checkbox that can be
 turned off again, and `Unsupported only` narrows one view without changing it.
 
-**One honest limit.** Readiness is currently the installation-wide Direct-Play
-Classification rather than a per-Account, per-client assessment, because the
-account-and-client layers of the direct-play contract are not built yet. A Video
-your browser cannot in fact play can therefore still appear. Nothing claims
-otherwise, and the player says so plainly if playback fails.
-
 Filtering and ordering happen in the database over a projection each Video
-maintains, so the cost of a page is the page. See
-[ADR 0013](docs/adr/0013-maintain-a-discovery-projection-for-each-video.md) and
+maintains, and admission is decided per Account and per client against that
+projection, so the cost of a page stays a page and one indexed question per
+Video. See [ADR 0013](docs/adr/0013-maintain-a-discovery-projection-for-each-video.md),
+[ADR 0015](docs/adr/0015-decide-playability-per-account-and-client.md) and
 [docs/performance.md](docs/performance.md).
 
 ## Track playback and Personal State

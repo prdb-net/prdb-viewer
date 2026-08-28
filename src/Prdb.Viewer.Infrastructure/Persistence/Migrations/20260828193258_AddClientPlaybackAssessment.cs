@@ -164,9 +164,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                 column: "ProfileKey");
 
             migrationBuilder.CreateIndex(
-                name: "IX_video_file_VideoId_Availability_DirectPlayClassification",
+                name: "IX_video_file_VideoId_Availability_DirectPlayClassification_ProfileKey",
                 table: "video_file",
-                columns: new[] { "VideoId", "Availability", "DirectPlayClassification" });
+                columns: new[] { "VideoId", "Availability", "DirectPlayClassification", "ProfileKey" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_observed_playback_outcome_VideoFileId",
@@ -188,7 +188,7 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                 table: "video_file");
 
             migrationBuilder.DropIndex(
-                name: "IX_video_file_VideoId_Availability_DirectPlayClassification",
+                name: "IX_video_file_VideoId_Availability_DirectPlayClassification_ProfileKey",
                 table: "video_file");
 
             migrationBuilder.DropColumn(

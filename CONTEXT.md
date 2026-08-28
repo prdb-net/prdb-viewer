@@ -202,6 +202,14 @@ _Avoid_: playable, compatibility
 The current client and device's assessment of whether a Video File is suitable for direct playback. It does not generalise to other clients and remains provisional until playback is attempted.
 _Avoid_: Direct-Play Classification, universal support
 
+**Playback Profile Key**:
+The identity of one inspected media configuration, derived from the container, codec, profile, level, bit depth, resolution band, frame-rate band and audio layout. It is the question a Video File puts to a client: files that share it share one Client Playback Assessment, and a re-inspected file that no longer shares it asks a new question.
+_Avoid_: codec string, Direct-Play Classification
+
+**Client Context**:
+The browser and device an Account is currently using, as that client names itself. Client Playback Assessments and Observed Playback Outcomes belong to one Client Context and stop applying when it materially changes.
+_Avoid_: session, device identifier, Account
+
 **Observed Playback Outcome**:
 The success or failure actually observed when an Account in a particular client context attempts to play a Video File. It is account-and-client-scoped Personal State and is stronger evidence there than either the Direct-Play Classification or Client Playback Assessment.
 _Avoid_: compatibility, support guarantee
