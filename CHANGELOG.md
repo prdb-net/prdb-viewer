@@ -7,6 +7,21 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-28
+
+### Fixed
+
+- Accept a container path that carries surrounding whitespace or a trailing
+  separator when staging a Library Directory. A path is pasted far more often
+  than it is typed, and neither says anything about what was meant.
+
+### Changed
+
+- Report an unusable display name and an unusable container path as separate
+  staging outcomes, `InvalidName` and `InvalidPath`, so the browser can say
+  which field to correct instead of naming both. This replaces the shared
+  `InvalidInput` outcome of the Library Directory staging contract.
+
 ## [0.1.1] - 2026-08-28
 
 ### Fixed

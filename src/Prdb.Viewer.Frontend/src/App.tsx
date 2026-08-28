@@ -1229,9 +1229,11 @@ function friendlyState(state: string | null | undefined) {
 }
 
 function directoryStageMessage(verdict: string) {
+  if (verdict === 'InvalidName') return 'Give the directory a display name of up to 80 characters.'
+  if (verdict === 'InvalidPath') return 'Enter the full container path, starting with a slash.'
   if (verdict === 'OutsideMountArea') return 'Choose a directory beneath the documented library mount area.'
   if (verdict === 'Missing') return 'The directory is not mounted or no longer exists.'
   if (verdict === 'Unreadable') return 'The application identity cannot read this directory.'
   if (verdict === 'AlreadyConfigured') return 'This Library Directory is already active.'
-  return 'Check the display name and container path.'
+  return 'The directory could not be validated.'
 }
