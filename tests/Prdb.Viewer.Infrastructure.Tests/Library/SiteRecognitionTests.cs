@@ -49,7 +49,7 @@ public sealed class SiteRecognitionTests
         // The Video stays Unknown: a recognised site says nothing about the work.
         var summary = (await scope.ServiceProvider
                 .GetRequiredService<VideoCatalog>()
-                .GetAsync(Guid.CreateVersion7(), TestContext.Current.CancellationToken))
+                .GetAsync(Guid.CreateVersion7(), LibraryPipeline.ClientContext, TestContext.Current.CancellationToken))
             .Single();
         Assert.Equal(IdentificationResolution.Unknown, summary.Identification.Work.Resolution);
         Assert.Equal(IdentificationResolution.Established, summary.Identification.Site.Resolution);
@@ -90,7 +90,7 @@ public sealed class SiteRecognitionTests
 
         var summary = (await scope.ServiceProvider
                 .GetRequiredService<VideoCatalog>()
-                .GetAsync(Guid.CreateVersion7(), TestContext.Current.CancellationToken))
+                .GetAsync(Guid.CreateVersion7(), LibraryPipeline.ClientContext, TestContext.Current.CancellationToken))
             .Single();
         Assert.Equal(IdentificationResolution.Unknown, summary.Identification.Site.Resolution);
         Assert.Equal(

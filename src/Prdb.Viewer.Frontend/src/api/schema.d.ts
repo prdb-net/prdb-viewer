@@ -1095,7 +1095,7 @@ export interface paths {
                     unknownSite?: boolean;
                     work?: string;
                     review?: string;
-                    readiness?: string;
+                    playability?: string;
                     availability?: string;
                     playState?: string;
                     skip?: number | string;
@@ -1230,6 +1230,156 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/playback-profiles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["UnassessedPlaybackProfile"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/playback-assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ClientPlaybackAssessmentsRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ClientPlaybackAssessmentsResponse"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/playback-outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ObservedPlaybackOutcomeRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ObservedPlaybackOutcomeResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/videos/{videoId}/playback-outcomes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ObservedPlaybackOutcomeResponse"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -1671,6 +1821,24 @@ export interface components {
             verdict: components["schemas"]["BootstrapClaimVerdict"];
             account: null | components["schemas"]["SignedInAccountResponse"];
         };
+        ClientPlaybackAssessmentReport: {
+            profileKey: string;
+            verdict: components["schemas"]["ClientPlaybackAssessmentVerdict"];
+            smooth: null | boolean;
+            powerEfficient: null | boolean;
+            method: string;
+        };
+        ClientPlaybackAssessmentsRequest: {
+            assessments: components["schemas"]["ClientPlaybackAssessmentReport"][];
+        };
+        ClientPlaybackAssessmentsResponse: {
+            /** Format: int32 */
+            recorded: number | string;
+        };
+        /** @enum {unknown} */
+        ClientPlaybackAssessmentVerdict: "Indeterminate" | "Positive" | "Negative" | null;
+        /** @enum {unknown} */
+        ClientVideoPlayability: "ReadyForDirectPlay" | "CompatibilityUncertain" | "NotDirectlyPlayable";
         /** @enum {unknown} */
         DirectPlayClassification: "BaselineCandidate" | "ClientDependent" | "Unsupported" | "Undetermined";
         EndPlaybackAttemptResponse: {
@@ -1912,6 +2080,17 @@ export interface components {
         };
         /** @enum {unknown} */
         LibrarySortOrder: "Newest" | "TitleAscending";
+        /** @enum {unknown} */
+        ObservedPlaybackOutcome: "Succeeded" | "Failed" | null;
+        ObservedPlaybackOutcomeRequest: {
+            /** Format: uuid */
+            videoFileId: string;
+            outcome: components["schemas"]["ObservedPlaybackOutcome"];
+            failureCategory: null | components["schemas"]["PlaybackFailureCategory"];
+        };
+        ObservedPlaybackOutcomeResponse: {
+            recorded: boolean;
+        };
         PersonalLibrarySummary: {
             continueWatching: components["schemas"]["VideoSummary"][];
             favourites: components["schemas"]["VideoSummary"][];
@@ -1957,6 +2136,8 @@ export interface components {
         };
         /** @enum {unknown} */
         PlaybackAttemptVerdict: "Started" | "VideoNotFound" | "VideoFileUnavailable";
+        /** @enum {unknown} */
+        PlaybackFailureCategory: "Media" | "Availability" | "Delivery" | "Network" | null;
         PlaybackReportRequest: {
             /** Format: uuid */
             reportId: string;
@@ -1977,6 +2158,43 @@ export interface components {
         };
         /** @enum {unknown} */
         PlaybackReportVerdict: "Accepted" | "Duplicate" | "NotFound" | "AttemptEnded" | "InvalidReport";
+        PlaybackVariantView: {
+            /** Format: uuid */
+            videoFileId: string;
+            deliveryUrl: string;
+            containerFormat: string;
+            videoCodec: string;
+            audioCodec: null | string;
+            /** Format: int32 */
+            width: null | number | string;
+            /** Format: int32 */
+            height: null | number | string;
+            /** Format: double */
+            frameRate: null | number | string;
+            /** Format: int64 */
+            bitrate: null | number | string;
+            /** Format: int32 */
+            audioChannels: null | number | string;
+            /** Format: int32 */
+            audioSampleRate: null | number | string;
+            /** Format: int64 */
+            audioBitrate: null | number | string;
+            /** Format: int64 */
+            size: number | string;
+            /** Format: int64 */
+            durationMilliseconds: number | string;
+            directPlayClassification: components["schemas"]["DirectPlayClassification"];
+            profileKey: string;
+            preciseVideoContentType: null | string;
+            preciseAudioContentType: null | string;
+            basicContentType: null | string;
+            assessment: null | components["schemas"]["ClientPlaybackAssessmentVerdict"];
+            smooth: null | boolean;
+            powerEfficient: null | boolean;
+            outcome: null | components["schemas"]["ObservedPlaybackOutcome"];
+            readyForDirectPlay: boolean;
+            selectionReason: components["schemas"]["VariantSelectionReason"];
+        };
         /** @enum {unknown} */
         PrdbConnectionIssue: "ExternalAuthority" | "ExternalAvailability" | "ReplacementRejected" | null;
         /** @enum {unknown} */
@@ -2042,31 +2260,34 @@ export interface components {
         };
         /** @enum {unknown} */
         SignInVerdict: "SignedIn" | "InvalidCredentials" | "ApprovalPending" | "Disabled";
+        UnassessedPlaybackProfile: {
+            profileKey: string;
+            videoContentType: null | string;
+            audioContentType: null | string;
+            basicContentType: null | string;
+            /** Format: int32 */
+            width: null | number | string;
+            /** Format: int32 */
+            height: null | number | string;
+            /** Format: double */
+            frameRate: null | number | string;
+            /** Format: int64 */
+            bitrate: null | number | string;
+            /** Format: int32 */
+            audioChannels: null | number | string;
+            /** Format: int32 */
+            audioSampleRate: null | number | string;
+            /** Format: int64 */
+            audioBitrate: null | number | string;
+        };
+        /** @enum {unknown} */
+        VariantSelectionReason: "PreviouslyPlayedHere" | "PositivelyAssessedAndSmooth" | "PositivelyAssessed" | "BaselineCandidate" | "NotYetAssessed" | "RuledOutHere";
         /** @enum {unknown} */
         VideoAvailability: "Available" | "Unavailable" | "Removed";
         /** @enum {unknown} */
         VideoFileAvailability: "Available" | "Unreachable" | "Missing" | "Replaced" | "Removed";
         /** @enum {unknown} */
         VideoFileHashState: "Pending" | "Computed" | "Incomplete" | "Failed";
-        VideoFileSummary: {
-            /** Format: uuid */
-            id: string;
-            relativePath: string;
-            /** Format: int64 */
-            size: number | string;
-            /** Format: int64 */
-            durationMilliseconds: number | string;
-            containerFormat: string;
-            videoCodec: string;
-            audioCodec: null | string;
-            /** Format: int32 */
-            width: null | number | string;
-            /** Format: int32 */
-            height: null | number | string;
-            availability: components["schemas"]["VideoFileAvailability"];
-            directPlayClassification: components["schemas"]["DirectPlayClassification"];
-            deliveryUrl: string;
-        };
         VideoSummary: {
             /** Format: uuid */
             id: string;
@@ -2076,7 +2297,9 @@ export interface components {
             availability: components["schemas"]["VideoAvailability"];
             previewUrl: null | string;
             identification: components["schemas"]["IdentificationSummary"];
-            videoFiles: components["schemas"]["VideoFileSummary"][];
+            playability: components["schemas"]["ClientVideoPlayability"];
+            isUnsupportedVideo: boolean;
+            videoFiles: components["schemas"]["PlaybackVariantView"][];
             personalState: components["schemas"]["PersonalVideoStateSummary"];
         };
         /** @enum {unknown} */

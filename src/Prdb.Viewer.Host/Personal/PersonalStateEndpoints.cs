@@ -1,4 +1,6 @@
+using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Host.Access;
+using Prdb.Viewer.Host.Library;
 using Prdb.Viewer.Infrastructure.Library;
 using Prdb.Viewer.Infrastructure.Personal;
 
@@ -16,7 +18,61 @@ public static class PersonalStateEndpoints
             CancellationToken cancellationToken) =>
             TypedResults.Ok(await catalog.GetPersonalLibraryAsync(
                 http.User.AccountId()!.Value,
+                http.ClientContextKey(),
                 cancellationToken)));
+
+        // The client's own qualification of this library's media configurations, and what it
+        // observed when it played them. Both are Personal State scoped to the Account and the
+        // client context the request speaks for.
+        personal.MapGet("/playback-profiles", async (
+            ClientPlaybackService service,
+            HttpContext http,
+            CancellationToken cancellationToken) =>
+            TypedResults.Ok(await service.UnassessedProfilesAsync(
+                http.User.AccountId()!.Value,
+                http.ClientContextKey(),
+                cancellationToken)));
+
+        personal.MapPut("/playback-assessments", async (
+            ClientPlaybackAssessmentsRequest request,
+            ClientPlaybackService service,
+            HttpContext http,
+            CancellationToken cancellationToken) =>
+            TypedResults.Ok(new ClientPlaybackAssessmentsResponse(
+                await service.RecordAssessmentsAsync(
+                    http.User.AccountId()!.Value,
+                    http.ClientContextKey(),
+                    request.Assessments,
+                    cancellationToken))))
+            .RequireCsrf();
+
+        personal.MapPost("/playback-outcomes", async (
+            ObservedPlaybackOutcomeRequest request,
+            ClientPlaybackService service,
+            HttpContext http,
+            CancellationToken cancellationToken) =>
+            TypedResults.Ok(new ObservedPlaybackOutcomeResponse(
+                await service.RecordOutcomeAsync(
+                    http.User.AccountId()!.Value,
+                    http.ClientContextKey(),
+                    request.VideoFileId,
+                    request.Outcome,
+                    request.FailureCategory,
+                    cancellationToken))))
+            .RequireCsrf();
+
+        personal.MapDelete("/videos/{videoId:guid}/playback-outcomes", async (
+            Guid videoId,
+            ClientPlaybackService service,
+            HttpContext http,
+            CancellationToken cancellationToken) =>
+            TypedResults.Ok(new ObservedPlaybackOutcomeResponse(
+                await service.ForgetOutcomesAsync(
+                    http.User.AccountId()!.Value,
+                    http.ClientContextKey(),
+                    videoId,
+                    cancellationToken) > 0)))
+            .RequireCsrf();
 
         personal.MapPost("/videos/{videoId:guid}/playback-attempts", async (
             Guid videoId,
@@ -149,6 +205,18 @@ public static class PersonalStateEndpoints
 }
 
 public sealed record PlaybackAttemptRequest(Guid VideoFileId);
+
+public sealed record ClientPlaybackAssessmentsRequest(
+    IReadOnlyList<ClientPlaybackAssessmentReport> Assessments);
+
+public sealed record ClientPlaybackAssessmentsResponse(int Recorded);
+
+public sealed record ObservedPlaybackOutcomeRequest(
+    Guid VideoFileId,
+    ObservedPlaybackOutcome Outcome,
+    PlaybackFailureCategory? FailureCategory);
+
+public sealed record ObservedPlaybackOutcomeResponse(bool Recorded);
 
 public sealed record PlaybackReportRequest(
     Guid ReportId,

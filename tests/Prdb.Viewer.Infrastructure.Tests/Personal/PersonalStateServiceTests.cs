@@ -9,6 +9,7 @@ using Prdb.Viewer.Core.Personal;
 using Prdb.Viewer.Infrastructure.Library;
 using Prdb.Viewer.Infrastructure.Persistence;
 using Prdb.Viewer.Infrastructure.Personal;
+using Prdb.Viewer.Infrastructure.Tests.Library;
 
 using Xunit;
 
@@ -221,11 +222,13 @@ public sealed class PersonalStateServiceTests
 
         var personal = await catalogue.GetPersonalLibraryAsync(
             seeded.FirstAccountId,
+            LibraryPipeline.ClientContext,
             TestContext.Current.CancellationToken);
         Assert.Single(personal.Favourites);
         Assert.Single(personal.WatchLater);
         var privateToOther = await catalogue.GetPersonalLibraryAsync(
             seeded.SecondAccountId,
+            LibraryPipeline.ClientContext,
             TestContext.Current.CancellationToken);
         Assert.Empty(privateToOther.Favourites);
         Assert.Empty(privateToOther.WatchLater);
@@ -346,6 +349,7 @@ public sealed class PersonalStateServiceTests
         await SetAvailabilityAsync(scope, seeded.VideoFileId, VideoFileAvailability.Missing);
         var unavailable = Assert.Single((await catalogue.GetPersonalLibraryAsync(
             seeded.FirstAccountId,
+            LibraryPipeline.ClientContext,
             TestContext.Current.CancellationToken)).Favourites);
         Assert.Equal(VideoAvailability.Unavailable, unavailable.Availability);
         Assert.Empty(unavailable.VideoFiles);
@@ -353,11 +357,13 @@ public sealed class PersonalStateServiceTests
         await SetAvailabilityAsync(scope, seeded.VideoFileId, VideoFileAvailability.Removed);
         Assert.Empty((await catalogue.GetPersonalLibraryAsync(
             seeded.FirstAccountId,
+            LibraryPipeline.ClientContext,
             TestContext.Current.CancellationToken)).Favourites);
 
         await SetAvailabilityAsync(scope, seeded.VideoFileId, VideoFileAvailability.Available);
         Assert.Single((await catalogue.GetPersonalLibraryAsync(
             seeded.FirstAccountId,
+            LibraryPipeline.ClientContext,
             TestContext.Current.CancellationToken)).Favourites);
     }
 

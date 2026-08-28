@@ -38,7 +38,7 @@ public sealed class VideoProjection(ViewerDbContext database, TimeProvider timeP
                 == IdentificationReviewStatus.ReviewNeeded ||
             IdentificationService.ReviewStatusOf(video, IdentificationDimension.SiteRecognition)
                 == IdentificationReviewStatus.ReviewNeeded;
-        video.Readiness = DiscoveryReadinessRule.ForVideo(
+        video.BestClassification = BestClassificationOf(
             available.Select(file => file.DirectPlayClassification));
         video.Availability = AvailabilityOf(files);
         video.SearchText = SearchTextOf(label, title, video.EstablishedSite, actors, files);
@@ -233,6 +233,36 @@ public sealed class VideoProjection(ViewerDbContext database, TimeProvider timeP
 
         return LibrarySearchRule.Normalize(string.Join(' ', facts));
     }
+
+    /// <summary>
+    /// The most playable classification among a Video's Available occurrences. One Unsupported
+    /// variant beside a playable one must not make the Video look unplayable, and a Video with no
+    /// Available occurrence claims nothing.
+    /// </summary>
+    private static DirectPlayClassification BestClassificationOf(
+        IEnumerable<DirectPlayClassification> available)
+    {
+        var best = DirectPlayClassification.Unsupported;
+
+        foreach (var classification in available)
+        {
+            if (Preference(classification) < Preference(best))
+            {
+                best = classification;
+            }
+        }
+
+        return best;
+    }
+
+    private static int Preference(DirectPlayClassification classification) =>
+        classification switch
+        {
+            DirectPlayClassification.BaselineCandidate => 0,
+            DirectPlayClassification.ClientDependent => 1,
+            DirectPlayClassification.Undetermined => 2,
+            _ => 3,
+        };
 
     public static VideoAvailability AvailabilityOf(IReadOnlyCollection<VideoFileRow> files)
     {

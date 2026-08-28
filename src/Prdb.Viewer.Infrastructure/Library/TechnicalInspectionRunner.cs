@@ -208,8 +208,8 @@ public sealed class TechnicalInspectionRunner(
                 RelativePath = candidate.RelativePath,
                 Sha256 = observation.Sha256,
                 PublicDeliveryId = Guid.NewGuid(),
-                ContainerFormat = facts.ContainerFormat,
-                VideoCodec = facts.VideoCodec,
+                ContainerFormat = facts.Media.ContainerFormat,
+                VideoCodec = facts.Media.VideoCodec,
             };
             database.Videos.Add(video);
             database.VideoFiles.Add(current);
@@ -219,16 +219,7 @@ public sealed class TechnicalInspectionRunner(
         current.Size = observation.Size;
         current.LastWriteTimeUtc = observation.LastWriteTimeUtc;
         current.Sha256 = observation.Sha256;
-        current.ContainerFormat = facts.ContainerFormat;
-        current.VideoCodec = facts.VideoCodec;
-        current.AudioCodec = facts.AudioCodec;
-        current.DurationMilliseconds = facts.DurationMilliseconds;
-        current.Width = facts.Width;
-        current.Height = facts.Height;
-        current.DirectPlayClassification = DirectPlayClassificationRule.Classify(
-            facts.ContainerFormat,
-            facts.VideoCodec,
-            facts.AudioCodec);
+        current.ApplyInspectedMedia(facts.Media, facts.DurationMilliseconds);
         current.Availability = VideoFileAvailability.Available;
         current.LastObservedScanId = candidate.LibraryScanId;
         current.ConsecutiveCompleteAbsences = 0;
@@ -251,7 +242,8 @@ public sealed class TechnicalInspectionRunner(
                 cancellationToken);
         }
 
-        if (current.DirectPlayClassification == DirectPlayClassification.BaselineCandidate)
+        if (current.DirectPlayClassification is DirectPlayClassification.BaselineCandidate or
+            DirectPlayClassification.ClientDependent)
         {
             var configuration = await database.InstallationConfigurations
                 .AsTracking()

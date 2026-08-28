@@ -36,7 +36,13 @@ public sealed class VideoRow
     /// </summary>
     public string SearchText { get; set; } = string.Empty;
 
-    public DiscoveryReadiness Readiness { get; set; } = DiscoveryReadiness.NotDirectlyPlayable;
+    /// <summary>
+    /// The most playable Direct-Play Classification among this Video's Available Video Files. It
+    /// is installation-wide and promises nothing about a client; discovery uses it only to skip
+    /// Videos no client could play before asking the per-client question.
+    /// </summary>
+    public DirectPlayClassification BestClassification { get; set; } =
+        DirectPlayClassification.Unsupported;
 
     public VideoAvailability Availability { get; set; } = VideoAvailability.Unavailable;
 

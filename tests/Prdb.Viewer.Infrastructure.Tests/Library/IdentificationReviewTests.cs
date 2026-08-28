@@ -446,7 +446,7 @@ public sealed class IdentificationReviewTests
             2,
             (await scope.ServiceProvider
                 .GetRequiredService<VideoCatalog>()
-                .GetAsync(Guid.CreateVersion7(), TestContext.Current.CancellationToken)).Count);
+                .GetAsync(Guid.CreateVersion7(), LibraryPipeline.ClientContext, TestContext.Current.CancellationToken)).Count);
     }
 
     [Fact]

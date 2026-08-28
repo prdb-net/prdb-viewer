@@ -14,7 +14,11 @@ import {
   type IdentificationConsequence,
   type IdentificationDecisionAction,
   type IdentificationQueueItem,
+  type ClientPlaybackAssessmentReport,
+  type PlaybackFailureCategory,
   type PlaybackReportRequest,
+  type PlaybackVariant,
+  type UnassessedPlaybackProfile,
   type SignInRequest,
   type LibraryFacets,
   type LibraryFilters,
@@ -37,6 +41,7 @@ const queryKeys = {
   videos: (filters: string, pages: number) => ['videos', filters, pages] as const,
   libraryFacets: ['library-facets'] as const,
   personalLibrary: ['personal-library'] as const,
+  playbackProfiles: ['playback-profiles'] as const,
 }
 
 export function App() {
@@ -223,6 +228,103 @@ function Library({ account }: { account: Account }) {
   )
 }
 
+/// Qualifies this browser against the media configurations the library actually holds.
+///
+/// Client Video Playability is per Account and per client, and the only one who can answer for a
+/// client is the client. This asks about configurations it has not answered for — including those
+/// of Videos it currently cannot see, which is exactly the set an unqualified client is missing —
+/// measures each with Media Capabilities where the inspected facts determine a full codec string,
+/// falls back to the coarser support test where they do not, and reports what it found.
+function useClientQualification(account: Account) {
+  const queryClient = useQueryClient()
+  const profiles = useQuery({
+    queryKey: queryKeys.playbackProfiles,
+    queryFn: api.unassessedPlaybackProfiles,
+    staleTime: 60_000,
+  })
+  const report = useMutation({
+    mutationFn: (assessments: ClientPlaybackAssessmentReport[]) =>
+      api.recordPlaybackAssessments(assessments, account.csrfToken),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['videos'] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personalLibrary })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.playbackProfiles })
+    },
+  })
+  const pending = report.isPending
+  const outstanding = profiles.data
+
+  useEffect(() => {
+    if (!outstanding || outstanding.length === 0 || pending) return
+    let cancelled = false
+    void Promise.all(outstanding.map(assessProfile)).then((assessments) => {
+      if (!cancelled && assessments.length > 0) {
+        report.mutate(assessments)
+      }
+    })
+    return () => { cancelled = true }
+    // The mutation is intentionally not a dependency: it changes identity on every render, and
+    // one round of qualification per set of outstanding profiles is what this owes the library.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [outstanding, pending])
+
+  return report.isError
+}
+
+/// What this browser makes of one media configuration.
+async function assessProfile(
+  profile: UnassessedPlaybackProfile,
+): Promise<ClientPlaybackAssessmentReport> {
+  const capabilities = navigator.mediaCapabilities
+
+  if (capabilities && profile.videoContentType) {
+    try {
+      const support = await capabilities.decodingInfo({
+        type: 'file',
+        video: {
+          contentType: profile.videoContentType,
+          width: Number(profile.width ?? 1280),
+          height: Number(profile.height ?? 720),
+          bitrate: Number(profile.bitrate ?? 2_000_000),
+          framerate: Number(profile.frameRate ?? 25),
+        },
+        ...(profile.audioContentType
+          ? {
+            audio: {
+              contentType: profile.audioContentType,
+              channels: String(profile.audioChannels ?? 2),
+              bitrate: Number(profile.audioBitrate ?? 128_000),
+              samplerate: Number(profile.audioSampleRate ?? 48_000),
+            },
+          }
+          : {}),
+      })
+
+      return {
+        profileKey: profile.profileKey,
+        verdict: support.supported ? 'Positive' : 'Negative',
+        smooth: support.smooth ?? null,
+        powerEfficient: support.powerEfficient ?? null,
+        method: 'MediaCapabilities',
+      }
+    } catch {
+      // A configuration this browser cannot even be asked about is not an answer either way.
+    }
+  }
+
+  const probe = document.createElement('video')
+  const answer = profile.basicContentType ? probe.canPlayType(profile.basicContentType) : ''
+
+  return {
+    profileKey: profile.profileKey,
+    // `maybe` is the browser declining to commit, which is indeterminate rather than a refusal.
+    verdict: answer === 'probably' ? 'Positive' : answer === 'maybe' ? 'Indeterminate' : 'Negative',
+    smooth: null,
+    powerEfficient: null,
+    method: 'CanPlayType',
+  }
+}
+
 function VideoLibrary({ account }: { account: Account }) {
   const [filters, setFilters] = useState<LibraryFilters>(emptyFilters)
   const [pages, setPages] = useState(1)
@@ -249,30 +351,54 @@ function VideoLibrary({ account }: { account: Account }) {
     queryFn: api.personalLibrary,
   })
   const queryClient = useQueryClient()
-  const [playing, setPlaying] = useState<{
-    video: VideoSummary
-    source: string
-    videoFileId: string
-    playbackAttemptId: string
-    resumePositionMilliseconds: number
-  }>()
+  const qualificationFailed = useClientQualification(account)
+  const [playing, setPlaying] = useState<PlaybackSession>()
+  const [failure, setFailure] = useState<TerminalPlaybackFailure>()
   const startPlayback = useMutation({
-    mutationFn: ({ video, source, videoFileId }: {
+    mutationFn: ({ video, variant, remaining, attempted }: {
       video: VideoSummary
-      source: string
-      videoFileId: string
-    }) => api.startPlaybackAttempt(video.id, videoFileId, account.csrfToken)
-      .then((result) => ({ result, video, source, videoFileId })),
-    onSuccess: ({ result, video, source, videoFileId }) => {
+      variant: PlaybackVariant
+      remaining: PlaybackVariant[]
+      attempted: PlaybackVariant[]
+    }) => api.startPlaybackAttempt(video.id, variant.videoFileId, account.csrfToken)
+      .then((result) => ({ result, video, variant, remaining, attempted })),
+    onSuccess: ({ result, video, variant, remaining, attempted }) => {
       if (result.verdict === 'Started' && result.playbackAttemptId) {
         setPlaying({
           video,
-          source,
-          videoFileId,
+          variant,
+          remaining,
+          attempted,
           playbackAttemptId: result.playbackAttemptId,
           resumePositionMilliseconds: Number(result.resumePositionMilliseconds ?? 0),
         })
+        return
       }
+
+      setFailure({
+        video,
+        attempted: [...attempted, variant],
+        category: 'Availability',
+        detail: 'The Video File could not be opened for playback.',
+      })
+    },
+  })
+  const recordOutcome = useMutation({
+    mutationFn: ({ videoFileId, outcome, category }: {
+      videoFileId: string
+      outcome: 'Succeeded' | 'Failed'
+      category: PlaybackFailureCategory | null
+    }) => api.recordPlaybackOutcome(videoFileId, outcome, category, account.csrfToken),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['videos'] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personalLibrary })
+    },
+  })
+  const forgetOutcomes = useMutation({
+    mutationFn: (videoId: string) => api.forgetPlaybackOutcomes(videoId, account.csrfToken),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['videos'] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.personalLibrary })
     },
   })
   const personalAction = useMutation({
@@ -299,10 +425,60 @@ function VideoLibrary({ account }: { account: Account }) {
     },
   })
 
-  const play = (video: VideoSummary) => {
-    const source = playableFile(video)
-    if (source) {
-      startPlayback.mutate({ video, source: source.deliveryUrl, videoFileId: source.id })
+  /// One deliberate play action. The server has already ordered the variants by the evidence this
+  /// client produced, so this follows that order and tries each Available occurrence at most once.
+  /// A variant the client has ruled out is attempted only when it was chosen explicitly.
+  const play = (video: VideoSummary, chosen?: PlaybackVariant) => {
+    const ordered = chosen
+      ? [chosen, ...video.videoFiles.filter((variant) => variant.videoFileId !== chosen.videoFileId)]
+      : video.videoFiles.filter((variant) => variant.selectionReason !== 'RuledOutHere')
+    const [first, ...remaining] = ordered
+    if (!first) return
+    setFailure(undefined)
+    startPlayback.mutate({ video, variant: first, remaining, attempted: [] })
+  }
+
+  /// What a failed attempt does next. Only a media failure says anything about the file, so only
+  /// that is remembered and only that falls back: a delivery or network failure would fail the same
+  /// way for every other variant, and trying them all would say nothing and cost everything.
+  const failed = (category: PlaybackFailureCategory) => {
+    const session = playing
+    if (!session) return
+    setPlaying(undefined)
+
+    if (category === 'Media') {
+      recordOutcome.mutate({
+        videoFileId: session.variant.videoFileId,
+        outcome: 'Failed',
+        category,
+      })
+    }
+
+    const attempted = [...session.attempted, session.variant]
+    const next = category === 'Media' ? session.remaining[0] : undefined
+
+    if (next) {
+      startPlayback.mutate({
+        video: session.video,
+        variant: next,
+        remaining: session.remaining.slice(1),
+        attempted,
+      })
+      return
+    }
+
+    setFailure({ video: session.video, attempted, category, detail: undefined })
+  }
+
+  /// A confirmed success is the strongest evidence there is for this Account on this client, and
+  /// the only one that is not a prediction.
+  const succeeded = () => {
+    if (playing) {
+      recordOutcome.mutate({
+        videoFileId: playing.variant.videoFileId,
+        outcome: 'Succeeded',
+        category: null,
+      })
     }
   }
   const act = (
@@ -330,7 +506,7 @@ function VideoLibrary({ account }: { account: Account }) {
     filters.actors.length > 0 ||
     filters.unknownSite ||
     filters.work.length > 0 ||
-    filters.readiness.length > 0 ||
+    filters.playability.length > 0 ||
     filters.availability.length > 0 ||
     filters.playState.length > 0
 
@@ -338,12 +514,34 @@ function VideoLibrary({ account }: { account: Account }) {
     <section className="video-library" aria-labelledby="videos-title">
       {playing && (
         <TrackedPlayer
-          {...playing}
+          video={playing.video}
+          source={playing.variant.deliveryUrl}
+          videoFileId={playing.variant.videoFileId}
+          playbackAttemptId={playing.playbackAttemptId}
+          resumePositionMilliseconds={playing.resumePositionMilliseconds}
           csrfToken={account.csrfToken}
           close={() => setPlaying(undefined)}
+          failed={failed}
+          succeeded={succeeded}
           refresh={() => {
             void queryClient.invalidateQueries({ queryKey: ['videos'] })
             void queryClient.invalidateQueries({ queryKey: queryKeys.personalLibrary })
+          }}
+        />
+      )}
+      {startPlayback.isPending && (startPlayback.variables?.attempted.length ?? 0) > 0 && (
+        <p className="fallback-notice" role="status">
+          That Video File did not play here. Trying{' '}
+          {fileFormat(startPlayback.variables!.variant)} instead…
+        </p>
+      )}
+      {failure && (
+        <TerminalFailure
+          failure={failure}
+          dismiss={() => setFailure(undefined)}
+          retry={() => {
+            forgetOutcomes.mutate(failure.video.id)
+            setFailure(undefined)
           }}
         />
       )}
@@ -380,7 +578,7 @@ function VideoLibrary({ account }: { account: Account }) {
       <HiddenMatches
         page={page}
         includeNotReady={() => includeNotReady.mutate(true)}
-        showUnavailable={() => narrow({ availability: ['Unavailable'], readiness: readinessValues })}
+        showUnavailable={() => narrow({ availability: ['Unavailable'], playability: playabilityValues })}
         pending={includeNotReady.isPending}
       />
       {page.hasMore && (
@@ -392,14 +590,33 @@ function VideoLibrary({ account }: { account: Account }) {
           {videos.isFetching ? 'Loading…' : 'Show more'}
         </button>
       )}
-      {(startPlayback.isError || personalAction.isError || includeNotReady.isError) && <RequestError />}
+      {(startPlayback.isError || personalAction.isError || includeNotReady.isError ||
+        qualificationFailed) && <RequestError />}
     </section>
   )
 }
 
 const pageSize = 60
 
-const readinessValues = ['ReadyForDirectPlay', 'CompatibilityUncertain', 'NotDirectlyPlayable']
+const playabilityValues = ['ReadyForDirectPlay', 'CompatibilityUncertain', 'NotDirectlyPlayable']
+
+/// One deliberate play action in progress: the variant being tried, the ones left to try, and the
+/// ones already attempted, so no occurrence is tried twice and the failure can name them all.
+type PlaybackSession = {
+  video: VideoSummary
+  variant: PlaybackVariant
+  remaining: PlaybackVariant[]
+  attempted: PlaybackVariant[]
+  playbackAttemptId: string
+  resumePositionMilliseconds: number
+}
+
+type TerminalPlaybackFailure = {
+  video: VideoSummary
+  attempted: PlaybackVariant[]
+  category: PlaybackFailureCategory
+  detail?: string
+}
 
 /// The search box, the two sort orders and the facets, which is the whole of the MVP's browsing.
 function LibraryControls({
@@ -468,8 +685,8 @@ function LibraryControls({
         />
         <FacetToggle
           label="Unsupported only"
-          selected={filters.readiness.includes('NotDirectlyPlayable')}
-          onToggle={(selected) => narrow({ readiness: selected ? ['NotDirectlyPlayable'] : [] })}
+          selected={filters.playability.includes('NotDirectlyPlayable')}
+          onToggle={(selected) => narrow({ playability: selected ? ['NotDirectlyPlayable'] : [] })}
         />
       </div>
       <div className="facet-row">
@@ -609,13 +826,15 @@ function VideoGrid({ videos, play, act, pending, dismissible = false }: {
 
 function VideoCard({ video, play, act, pending, dismissible }: {
   video: VideoSummary
-  play: () => void
+  play: (chosen?: PlaybackVariant) => void
   act: PersonalAction
   pending: boolean
   dismissible: boolean
 }) {
-  const source = playableFile(video)
+  const [showVariants, setShowVariants] = useState(false)
+  const source = video.videoFiles.find((variant) => variant.selectionReason !== 'RuledOutHere')
   const progress = Number(video.personalState.playbackProgressMilliseconds ?? 0)
+  const resume = progress > 0 && video.personalState.playState === 'InProgress'
   return (
     <article className="video-card">
       {video.previewUrl
@@ -633,9 +852,47 @@ function VideoCard({ video, play, act, pending, dismissible }: {
           <span>{Number(video.personalState.playCount)} plays</span>
         </div>
       )}
-      {source
-        ? <button className="primary-button" onClick={play} disabled={pending}>{progress > 0 && video.personalState.playState === 'InProgress' ? 'Resume' : 'Play'}</button>
-        : <span className="unsupported">{playbackUnavailableReason(video)}</span>}
+      {video.playability === 'ReadyForDirectPlay' && source && (
+        <button className="primary-button" onClick={() => play()} disabled={pending}>
+          {resume ? 'Resume' : 'Play'}
+        </button>
+      )}
+      {video.playability === 'CompatibilityUncertain' && source && (
+        <>
+          <button className="primary-button uncertain" onClick={() => play()} disabled={pending}>
+            Try Direct Play
+          </button>
+          <small className="uncertain-note">
+            This browser has not confirmed {fileFormat(source)}. Playback may fail; nothing is
+            converted.
+          </small>
+        </>
+      )}
+      {video.playability === 'NotDirectlyPlayable' && (
+        <span className="unsupported">{playbackUnavailableReason(video)}</span>
+      )}
+      {video.videoFiles.length > 0 && (
+        <button
+          className="quiet-button variant-toggle"
+          aria-expanded={showVariants}
+          onClick={() => setShowVariants((current) => !current)}
+        >{showVariants ? 'Hide variants' : `Variants (${video.videoFiles.length})`}</button>
+      )}
+      {showVariants && (
+        <ul className="variant-list">
+          {video.videoFiles.map((variant) => (
+            <li key={variant.videoFileId}>
+              <span>{fileFormat(variant)}</span>
+              <small>{variantReason(variant)}</small>
+              <button
+                className="quiet-button"
+                onClick={() => play(variant)}
+                disabled={pending}
+              >{variant.selectionReason === 'RuledOutHere' ? 'Try anyway' : 'Play this one'}</button>
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="personal-actions">
         <button
           className={video.personalState.favourite ? 'selected' : ''}
@@ -667,7 +924,7 @@ function VideoCard({ video, play, act, pending, dismissible }: {
   )
 }
 
-function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, resumePositionMilliseconds, csrfToken, close, refresh }: {
+function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, resumePositionMilliseconds, csrfToken, close, failed, succeeded, refresh }: {
   video: VideoSummary
   source: string
   videoFileId: string
@@ -675,6 +932,8 @@ function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, resumePo
   resumePositionMilliseconds: number
   csrfToken: string
   close: () => void
+  failed: (category: PlaybackFailureCategory) => void
+  succeeded: () => void
   refresh: () => void
 }) {
   const element = useRef<HTMLVideoElement>(null)
@@ -686,10 +945,20 @@ function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, resumePo
   const sending = useRef(false)
   const ended = useRef(false)
 
+  const confirmed = useRef(false)
+
   const resetEvidence = () => {
     const player = element.current
     lastMediaTime.current = player ? player.currentTime * 1_000 : undefined
     lastWallTime.current = performance.now()
+  }
+
+  /// Playback that actually advanced is the observation worth keeping, and it is recorded once.
+  const confirm = () => {
+    if (!confirmed.current) {
+      confirmed.current = true
+      succeeded()
+    }
   }
 
   const recordEvidence = () => {
@@ -784,7 +1053,6 @@ function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, resumePo
           }
           resetEvidence()
         }}
-        onPlaying={resetEvidence}
         onSeeking={resetEvidence}
         onTimeUpdate={() => {
           recordEvidence()
@@ -794,10 +1062,12 @@ function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, resumePo
           recordEvidence()
           void flush(false, false)
         }}
+        onPlaying={() => { resetEvidence(); confirm() }}
         onEnded={finish}
-        onError={() => {
+        onError={(event) => {
           ended.current = true
           void api.endPlaybackAttempt(playbackAttemptId, csrfToken).catch(() => undefined)
+          void classifyFailure(event.currentTarget.error, source).then(failed)
         }}
       >Your browser cannot play this Video File.</video>
     </div>
@@ -1051,36 +1321,113 @@ function IdentificationReview({ account }: { account: Account }) {
   )
 }
 
-/// What the card says about playback beneath the title. Direct-Play Classification describes a
-/// file and the supported browsers, never this browser, so nothing here promises that playback
-/// will work — it says what the file is.
-function playbackSupport(video: VideoSummary, source: VideoSummary['videoFiles'][number] | undefined) {
+/// What the card says about playback beneath the title: the file this client would play and how
+/// it knows. It states evidence rather than promising an outcome.
+function playbackSupport(video: VideoSummary, source: PlaybackVariant | undefined) {
   if (!source) return friendlyState(video.availability)
-  return source.directPlayClassification === 'ClientDependent'
-    ? `${fileFormat(source)} · may not play in every browser`
-    : fileFormat(source)
+  return `${fileFormat(source)} · ${variantReason(source)}`
 }
 
-/// Why an Unsupported Video is shown without a Play button. It is listed with its title and its
-/// preview so it stays understandable rather than merely absent.
+/// Why a Video has no Play action here. It distinguishes the installation-wide case — every
+/// occurrence is statically Unsupported — from this client having ruled them out, because those
+/// are different facts and only one of them is about the files.
 function playbackUnavailableReason(video: VideoSummary) {
   if (video.videoFiles.length === 0) {
     return 'No Video File of this Video is currently available.'
   }
   const formats = Array.from(new Set(video.videoFiles.map(fileFormat))).join(' or ')
-  return video.videoFiles.every((file) => file.directPlayClassification === 'Unsupported')
+  return video.isUnsupportedVideo
     ? `Not directly playable: ${formats} needs conversion, which this product deliberately does not do.`
-    : `Not offered for playback: browser support for ${formats} could not be established.`
+    : `This browser did not play ${formats}. Another browser or device may still play it.`
 }
 
-function fileFormat(file: VideoSummary['videoFiles'][number]) {
+/// Which kind of failure just happened. The browser says only that playback failed, so the same
+/// delivery URL is asked once more: a file the installation cannot serve, or a network that is not
+/// there, is not evidence that this browser cannot play the media. Only the media case rules a
+/// variant out, so this distinction decides what is remembered and whether anything falls back.
+async function classifyFailure(
+  error: MediaError | null,
+  source: string,
+): Promise<PlaybackFailureCategory> {
+  if (error?.code === MediaError.MEDIA_ERR_DECODE) return 'Media'
+
+  try {
+    const probe = await fetch(source, { method: 'HEAD', credentials: 'same-origin' })
+    if (probe.status === 404 || probe.status === 410) return 'Availability'
+    if (probe.status >= 500) return 'Delivery'
+    if (!probe.ok) return 'Delivery'
+  } catch {
+    return 'Network'
+  }
+
+  return error?.code === MediaError.MEDIA_ERR_NETWORK ? 'Network' : 'Media'
+}
+
+/// The end of one deliberate play action that never succeeded. It names what was attempted, says
+/// which kind of failure ended it, and offers only the actions that could change the outcome.
+function TerminalFailure({ failure, dismiss, retry }: {
+  failure: TerminalPlaybackFailure
+  dismiss: () => void
+  retry: () => void
+}) {
+  const attempted = failure.attempted.map(fileFormat).join(', ')
+
+  return (
+    <div className="terminal-failure" role="alert">
+      <strong>{failure.video.displayTitle} could not be played</strong>
+      <p>{failureExplanation(failure.category)}</p>
+      {failure.detail && <p>{failure.detail}</p>}
+      <small>
+        {failure.attempted.length === 1 ? 'Attempted variant' : 'Attempted variants'}: {attempted}
+      </small>
+      <div className="row-actions">
+        {failure.category === 'Media' && (
+          <button className="quiet-button" onClick={retry}>Forget this and try again</button>
+        )}
+        {failure.category !== 'Media' && (
+          <button className="quiet-button" onClick={dismiss}>Try again later</button>
+        )}
+        <button className="quiet-button" onClick={dismiss}>Close</button>
+      </div>
+    </div>
+  )
+}
+
+function failureExplanation(category: PlaybackFailureCategory) {
+  if (category === 'Media') {
+    return 'This browser could not decode the media in any Available Video File. Nothing is ' +
+      'converted, so another browser or device may still play it.'
+  }
+  if (category === 'Availability') {
+    return 'The Video File could not be read where the library expects it. This is a library ' +
+      'problem rather than a browser one, and the next scan will reconcile it.'
+  }
+  if (category === 'Delivery') {
+    return 'The installation answered the playback request incorrectly. Other Video Files would ' +
+      'fail the same way, so nothing else was attempted. An Administrator should check the ' +
+      'installation and any reverse proxy in front of it.'
+  }
+  return 'This browser could not reach the installation. Nothing about the Video File is known ' +
+    'from this attempt.'
+}
+
+/// How one variant came to its place in the order, in the User's words.
+function variantReason(variant: PlaybackVariant) {
+  if (variant.selectionReason === 'PreviouslyPlayedHere') return 'played here before'
+  if (variant.selectionReason === 'PositivelyAssessedAndSmooth') {
+    return variant.powerEfficient ? 'smooth and energy-efficient here' : 'expected to play smoothly here'
+  }
+  if (variant.selectionReason === 'PositivelyAssessed') return 'this browser accepts it'
+  if (variant.selectionReason === 'BaselineCandidate') return 'the cross-browser baseline'
+  if (variant.selectionReason === 'RuledOutHere') {
+    return variant.outcome === 'Failed' ? 'failed here before' : 'this browser rejects it'
+  }
+  return 'not assessed yet'
+}
+
+function fileFormat(file: PlaybackVariant) {
   const codecs = [file.videoCodec, file.audioCodec].filter(Boolean).join(' + ')
   return `${file.containerFormat} (${codecs})`
-}
-
-function playableFile(video: VideoSummary) {
-  return video.videoFiles.find((file) => file.directPlayClassification === 'BaselineCandidate') ??
-    video.videoFiles.find((file) => file.directPlayClassification === 'ClientDependent')
 }
 
 function formatDuration(milliseconds: number) {

@@ -51,6 +51,8 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IdentificationReviewService>();
         services.AddScoped<PreviewDeliveryService>();
         services.AddScoped<BackgroundWorkQuery>();
+        services.AddScoped<PlaybackPlanner>();
+        services.AddScoped<ClientPlaybackService>();
         services.AddScoped<VideoCatalog>();
         services.AddScoped<LibraryDiscovery>();
         services.AddScoped<LibraryPreferences>();

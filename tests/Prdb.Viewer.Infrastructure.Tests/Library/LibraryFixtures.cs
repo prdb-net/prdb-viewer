@@ -4,13 +4,44 @@ using Prdb.Viewer.Infrastructure.Library;
 
 namespace Prdb.Viewer.Infrastructure.Tests.Library;
 
+/// <summary>
+/// Inspects every file as the conservative cross-client baseline, so a test that is not about
+/// playability gets Videos an unqualified client can play.
+/// </summary>
 internal sealed class FixtureProbe(Func<string, bool>? accepts = null) : IMediaProbe
 {
+    public static readonly MediaConfiguration Baseline =
+        new("matroska,webm", "vp8", "vorbis")
+        {
+            Width = 1920,
+            Height = 1080,
+            FrameRate = 25,
+            BitDepth = 8,
+            VideoBitrate = 2_000_000,
+            AudioChannels = 2,
+            AudioSampleRate = 48_000,
+        };
+
+    /// <summary>Ordinary H.264/AAC in MP4: a broad candidate, and a client question.</summary>
+    public static readonly MediaConfiguration ClientDependent =
+        new("mov,mp4,m4a,3gp,3g2,mj2", "h264", "aac")
+        {
+            VideoProfile = "High",
+            VideoLevel = 40,
+            Width = 1920,
+            Height = 1080,
+            FrameRate = 25,
+            BitDepth = 8,
+            VideoBitrate = 4_000_000,
+            AudioChannels = 2,
+            AudioSampleRate = 48_000,
+        };
+
     public Task<MediaProbeFacts?> InspectAsync(
         string path,
         CancellationToken cancellationToken = default) =>
         Task.FromResult((accepts?.Invoke(path) ?? true)
-            ? new MediaProbeFacts("mp4", "h264", "aac", 12_345, 1920, 1080)
+            ? new MediaProbeFacts(Baseline, 12_345)
             : null);
 }
 

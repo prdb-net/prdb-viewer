@@ -9,6 +9,7 @@ using Prdb.Viewer.Core.Configuration;
 using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Core.Personal;
 using Prdb.Viewer.Infrastructure.Library;
+using Prdb.Viewer.Infrastructure.Tests.Library;
 using Prdb.Viewer.Infrastructure.Persistence;
 using Prdb.Viewer.Infrastructure.Personal;
 
@@ -82,6 +83,7 @@ public sealed class SqliteWorkloadBenchmark
                 .GetRequiredService<LibraryDiscovery>()
                 .GetAsync(
                     accounts[0],
+                    LibraryPipeline.ClientContext,
                     new LibraryDiscoveryRequest(),
                     TestContext.Current.CancellationToken)).Videos.Count));
         report.Add(await MeasureAsync("Library, deep page", store, async scope =>
@@ -89,6 +91,7 @@ public sealed class SqliteWorkloadBenchmark
                 .GetRequiredService<LibraryDiscovery>()
                 .GetAsync(
                     accounts[0],
+                    LibraryPipeline.ClientContext,
                     new LibraryDiscoveryRequest { Skip = videos - 100 },
                     TestContext.Current.CancellationToken)).Videos.Count));
         report.Add(await MeasureAsync("Library, search", store, async scope =>
@@ -96,6 +99,7 @@ public sealed class SqliteWorkloadBenchmark
                 .GetRequiredService<LibraryDiscovery>()
                 .GetAsync(
                     accounts[0],
+                    LibraryPipeline.ClientContext,
                     new LibraryDiscoveryRequest { Query = "benchmark work 1234" },
                     TestContext.Current.CancellationToken)).Videos.Count));
         report.Add(await MeasureAsync("Library, title order", store, async scope =>
@@ -103,6 +107,7 @@ public sealed class SqliteWorkloadBenchmark
                 .GetRequiredService<LibraryDiscovery>()
                 .GetAsync(
                     accounts[0],
+                    LibraryPipeline.ClientContext,
                     new LibraryDiscoveryRequest { Sort = LibrarySortOrder.TitleAscending },
                     TestContext.Current.CancellationToken)).Videos.Count));
         report.Add(await MeasureAsync("Library facets", store, async scope =>
@@ -112,7 +117,10 @@ public sealed class SqliteWorkloadBenchmark
         report.Add(await MeasureAsync("Personal library shelves", store, async scope =>
             (await scope.ServiceProvider
                 .GetRequiredService<VideoCatalog>()
-                .GetPersonalLibraryAsync(accounts[0], TestContext.Current.CancellationToken))
+                .GetPersonalLibraryAsync(
+                    accounts[0],
+                    LibraryPipeline.ClientContext,
+                    TestContext.Current.CancellationToken))
                 .ContinueWatching.Count));
         report.Add(await MeasureAsync("Background work status", store, async scope =>
             (await scope.ServiceProvider

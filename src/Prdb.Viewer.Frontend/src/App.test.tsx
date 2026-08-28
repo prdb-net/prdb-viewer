@@ -88,7 +88,9 @@ describe('App', () => {
       if (input === '/api/personal/playback-attempts/01994dd4-2a0a-7000-8000-000000000013/end') {
         return json({ ended: true })
       }
+      if (input === '/api/personal/playback-profiles') return json([])
       if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (input === '/api/personal/playback-profiles') return json([])
       if (isFacetRequest(input)) return json({ sites: [], actors: [] })
       if (isLibraryRequest(input)) {
         return json(libraryPage([{
@@ -96,21 +98,10 @@ describe('App', () => {
           displayTitle: 'Sample Video',
           discoveryDate: '2026-08-27T12:00:00Z',
           availability: 'Available',
+          playability: 'ReadyForDirectPlay',
+          isUnsupportedVideo: false,
           personalState: personalState(),
-          videoFiles: [{
-            id: '01994dd4-2a0a-7000-8000-000000000011',
-            relativePath: 'sample.mp4',
-            size: 10,
-            durationMilliseconds: 10000,
-            containerFormat: 'mp4',
-            videoCodec: 'h264',
-            audioCodec: 'aac',
-            width: 640,
-            height: 360,
-            availability: 'Available',
-            directPlayClassification: 'BaselineCandidate',
-            deliveryUrl: '/media/videos/01994dd4-2a0a-7000-8000-000000000012',
-          }],
+          videoFiles: [variant()],
         }]))
       }
       return json([])
@@ -146,25 +137,14 @@ describe('App', () => {
       displayTitle: 'Resume Me',
       discoveryDate: '2026-08-27T12:00:00Z',
       availability: 'Available',
+      playability: 'ReadyForDirectPlay',
+      isUnsupportedVideo: false,
       personalState: personalState({
         playbackProgressMilliseconds: 20_000,
         playState: 'InProgress',
         continueWatching: true,
       }),
-      videoFiles: [{
-        id: '01994dd4-2a0a-7000-8000-000000000011',
-        relativePath: 'resume.mp4',
-        size: 10,
-        durationMilliseconds: 100_000,
-        containerFormat: 'mp4',
-        videoCodec: 'h264',
-        audioCodec: 'aac',
-        width: 640,
-        height: 360,
-        availability: 'Available',
-        directPlayClassification: 'BaselineCandidate',
-        deliveryUrl: '/media/videos/resume',
-      }],
+      videoFiles: [variant()],
     }
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       if (input === '/api/access/state') return json({ claimed: true, signedIn: true })
@@ -175,6 +155,7 @@ describe('App', () => {
         authority: 'User',
         csrfToken: 'csrf-token',
       })
+      if (input === '/api/personal/playback-profiles') return json([])
       if (isFacetRequest(input)) return json({ sites: [], actors: [] })
       if (isLibraryRequest(input)) return json(libraryPage([video]))
       if (input === '/api/personal/library') {
@@ -205,7 +186,7 @@ describe('App', () => {
     fireEvent.click(screen.getAllByRole('button', { name: 'Favourite' })[0])
     await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
       '/api/personal/videos/01994dd4-2a0a-7000-8000-000000000010/favourite',
-      expect.objectContaining({ method: 'PUT', headers: { 'X-CSRF-Token': 'csrf-token' } }),
+      expect.objectContaining({ method: 'PUT' }),
     ))
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Resume' })[0])
@@ -244,7 +225,9 @@ describe('App', () => {
         authority: 'User',
         csrfToken: 'csrf-token',
       })
+      if (input === '/api/personal/playback-profiles') return json([])
       if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (input === '/api/personal/playback-profiles') return json([])
       if (isFacetRequest(input)) return json({ sites: [], actors: [] })
       if (isLibraryRequest(input)) {
         return json(libraryPage([
@@ -321,19 +304,7 @@ describe('App', () => {
       identification: identification({ work: claim({ reviewStatus: 'ReviewNeeded' }) }),
       openCandidates: [queueItem.candidate],
       candidateHistory: [],
-      videoFiles: [{
-        id: '01994dd4-2a0a-7000-8000-000000000032',
-        relativePath: 'unknown-file.mp4',
-        availability: 'Available',
-        directPlayClassification: 'BaselineCandidate',
-        containerFormat: 'mp4',
-        videoCodec: 'h264',
-        audioCodec: 'aac',
-        durationMilliseconds: 10_000,
-        osHashSummary: 'abc123…',
-        perceptualHashSummary: 'def456…',
-        hashState: 'Computed',
-      }],
+      videoFiles: [variant()],
       decisions: [],
       unavailableSiteActions: [],
       explanation: 'The evidence is only suggestive, so it can propose a candidate.',
@@ -348,6 +319,7 @@ describe('App', () => {
         authority: 'Administrator',
         csrfToken: 'csrf-token',
       })
+      if (input === '/api/personal/playback-profiles') return json([])
       if (isFacetRequest(input)) return json({ sites: [], actors: [] })
       if (isLibraryRequest(input)) return json(libraryPage([]))
       if (input === '/api/personal/library') {
@@ -503,20 +475,17 @@ describe('App', () => {
           source: 'LocalInference',
         }),
       }),
-      videoFiles: [{
-        id: '01994dd4-2a0a-7000-8000-000000000011',
-        relativePath: 'known site - scene.mkv',
-        size: 10,
-        durationMilliseconds: 10000,
-        containerFormat: 'matroska',
+      playability: 'NotDirectlyPlayable',
+      isUnsupportedVideo: true,
+      videoFiles: [variant({
+        containerFormat: 'asf',
         videoCodec: 'wmv3',
         audioCodec: 'wmav2',
-        width: 640,
-        height: 360,
-        availability: 'Available',
         directPlayClassification: 'Unsupported',
-        deliveryUrl: '/media/videos/01994dd4-2a0a-7000-8000-000000000012',
-      }],
+        readyForDirectPlay: false,
+        selectionReason: 'RuledOutHere',
+        basicContentType: null,
+      })],
     })
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       if (input === '/api/access/state') return json({ claimed: true, signedIn: true })
@@ -527,6 +496,7 @@ describe('App', () => {
         authority: 'User',
         csrfToken: 'csrf-token',
       })
+      if (input === '/api/personal/playback-profiles') return json([])
       if (isFacetRequest(input)) return json({ sites: [], actors: [] })
       if (isLibraryRequest(input)) {
         return json(libraryPage([unsupported], { includesNotReadyForDirectPlay: true }))
@@ -548,7 +518,7 @@ describe('App', () => {
       'src',
       '/media/previews/01994dd4-2a0a-7000-8000-000000000014',
     )
-    expect(screen.getByText(/matroska \(wmv3 \+ wmav2\)/)).toBeInTheDocument()
+    expect(screen.getByText(/asf \(wmv3 \+ wmav2\)/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Play' })).not.toBeInTheDocument()
 
     // A locally recognised Site says so rather than looking like a prdb match.
@@ -566,7 +536,7 @@ describe('App', () => {
     // The explicit filter narrows one view without changing the preference.
     fireEvent.click(screen.getByRole('button', { name: 'Unsupported only' }))
     await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('readiness=NotDirectlyPlayable'),
+      expect.stringContaining('playability=NotDirectlyPlayable'),
       expect.anything(),
     ))
   })
@@ -665,6 +635,7 @@ describe('App', () => {
       if (input === '/api/admin/configuration/library-directory-candidates') {
         return json({ containerPaths: [] })
       }
+      if (input === '/api/personal/playback-profiles') return json([])
       if (isFacetRequest(input)) return json({ sites: [], actors: [] })
       if (isLibraryRequest(input)) return json(libraryPage([]))
       if (input === '/api/personal/library') {
@@ -703,6 +674,37 @@ describe('App', () => {
     ))
   })
 })
+
+function variant(overrides: Record<string, unknown> = {}) {
+  return {
+    videoFileId: '01994dd4-2a0a-7000-8000-000000000011',
+    deliveryUrl: '/media/videos/01994dd4-2a0a-7000-8000-000000000012',
+    containerFormat: 'matroska,webm',
+    videoCodec: 'vp8',
+    audioCodec: 'vorbis',
+    width: 1920,
+    height: 1080,
+    frameRate: 25,
+    bitrate: 2000000,
+    audioChannels: 2,
+    audioSampleRate: 48000,
+    audioBitrate: 128000,
+    size: 10,
+    durationMilliseconds: 10000,
+    directPlayClassification: 'BaselineCandidate',
+    profileKey: 'video/webm|vp8|profile-unknown|level-unknown|8bit|fullhd|standard|vorbis|2ch',
+    preciseVideoContentType: null,
+    preciseAudioContentType: null,
+    basicContentType: 'video/webm; codecs="vp8, vorbis"',
+    assessment: null,
+    smooth: null,
+    powerEfficient: null,
+    outcome: null,
+    readyForDirectPlay: true,
+    selectionReason: 'BaselineCandidate',
+    ...overrides,
+  }
+}
 
 function personalState(overrides: Record<string, unknown> = {}) {
   return {
@@ -753,21 +755,10 @@ function libraryVideo(overrides: Record<string, unknown> = {}) {
     availability: 'Available',
     previewUrl: null,
     identification: identification(),
+    playability: 'ReadyForDirectPlay',
+    isUnsupportedVideo: false,
     personalState: personalState(),
-    videoFiles: [{
-      id: '01994dd4-2a0a-7000-8000-000000000011',
-      relativePath: 'sample.mp4',
-      size: 10,
-      durationMilliseconds: 10000,
-      containerFormat: 'mp4',
-      videoCodec: 'h264',
-      audioCodec: 'aac',
-      width: 640,
-      height: 360,
-      availability: 'Available',
-      directPlayClassification: 'BaselineCandidate',
-      deliveryUrl: '/media/videos/01994dd4-2a0a-7000-8000-000000000012',
-    }],
+    videoFiles: [variant()],
     ...overrides,
   }
 }

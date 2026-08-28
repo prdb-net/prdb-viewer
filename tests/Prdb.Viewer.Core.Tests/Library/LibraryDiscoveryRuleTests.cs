@@ -7,58 +7,19 @@ namespace Prdb.Viewer.Core.Tests.Library;
 public sealed class LibraryDiscoveryRuleTests
 {
     [Fact]
-    public void Readiness_follows_the_shared_classification_it_currently_approximates()
-    {
-        Assert.Equal(
-            DiscoveryReadiness.ReadyForDirectPlay,
-            DiscoveryReadinessRule.For(DirectPlayClassification.BaselineCandidate));
-        Assert.Equal(
-            DiscoveryReadiness.CompatibilityUncertain,
-            DiscoveryReadinessRule.For(DirectPlayClassification.ClientDependent));
-        Assert.Equal(
-            DiscoveryReadiness.NotDirectlyPlayable,
-            DiscoveryReadinessRule.For(DirectPlayClassification.Unsupported));
-        Assert.Equal(
-            DiscoveryReadiness.NotDirectlyPlayable,
-            DiscoveryReadinessRule.For(DirectPlayClassification.Undetermined));
-    }
-
-    [Fact]
-    public void A_video_is_as_ready_as_its_most_playable_occurrence()
-    {
-        Assert.Equal(
-            DiscoveryReadiness.ReadyForDirectPlay,
-            DiscoveryReadinessRule.ForVideo([
-                DirectPlayClassification.Unsupported,
-                DirectPlayClassification.BaselineCandidate,
-            ]));
-        Assert.Equal(
-            DiscoveryReadiness.CompatibilityUncertain,
-            DiscoveryReadinessRule.ForVideo([
-                DirectPlayClassification.Undetermined,
-                DirectPlayClassification.ClientDependent,
-            ]));
-
-        // A Video with no Available occurrence at all is not offered as playable.
-        Assert.Equal(
-            DiscoveryReadiness.NotDirectlyPlayable,
-            DiscoveryReadinessRule.ForVideo([]));
-    }
-
-    [Fact]
     public void Ordinary_discovery_admits_only_ready_videos_until_the_account_asks_for_more()
     {
-        Assert.True(DiscoveryReadinessRule.IsOrdinarilyDiscoverable(
-            DiscoveryReadiness.ReadyForDirectPlay,
+        Assert.True(LibraryAdmissionRule.IsOrdinarilyDiscoverable(
+            ClientVideoPlayability.ReadyForDirectPlay,
             includesNotReadyForDirectPlay: false));
-        Assert.False(DiscoveryReadinessRule.IsOrdinarilyDiscoverable(
-            DiscoveryReadiness.CompatibilityUncertain,
+        Assert.False(LibraryAdmissionRule.IsOrdinarilyDiscoverable(
+            ClientVideoPlayability.CompatibilityUncertain,
             includesNotReadyForDirectPlay: false));
-        Assert.True(DiscoveryReadinessRule.IsOrdinarilyDiscoverable(
-            DiscoveryReadiness.CompatibilityUncertain,
+        Assert.True(LibraryAdmissionRule.IsOrdinarilyDiscoverable(
+            ClientVideoPlayability.CompatibilityUncertain,
             includesNotReadyForDirectPlay: true));
-        Assert.True(DiscoveryReadinessRule.IsOrdinarilyDiscoverable(
-            DiscoveryReadiness.NotDirectlyPlayable,
+        Assert.True(LibraryAdmissionRule.IsOrdinarilyDiscoverable(
+            ClientVideoPlayability.NotDirectlyPlayable,
             includesNotReadyForDirectPlay: true));
     }
 

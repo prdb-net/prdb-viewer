@@ -58,6 +58,12 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<SiteDirectoryEntryRow> SiteDirectoryEntries => Set<SiteDirectoryEntryRow>();
 
+    public DbSet<ClientPlaybackAssessmentRow> ClientPlaybackAssessments =>
+        Set<ClientPlaybackAssessmentRow>();
+
+    public DbSet<ObservedPlaybackOutcomeRow> ObservedPlaybackOutcomes =>
+        Set<ObservedPlaybackOutcomeRow>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.Entity<AccountRow>(account =>
@@ -213,7 +219,7 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             video.ToTable("video");
             video.HasKey(row => row.Id);
             video.Property(row => row.Id).ValueGeneratedNever();
-            video.Property(row => row.Readiness).HasConversion<string>();
+            video.Property(row => row.BestClassification).HasConversion<string>();
             video.Property(row => row.Availability).HasConversion<string>();
             video.Property(row => row.DisplayLabel).IsRequired();
             video.Property(row => row.SearchText).IsRequired();
@@ -226,14 +232,14 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             {
                 row.SurvivingVideoId,
                 row.Availability,
-                row.Readiness,
+                row.BestClassification,
                 row.DiscoveryDate,
             });
             video.HasIndex(row => new
             {
                 row.SurvivingVideoId,
                 row.Availability,
-                row.Readiness,
+                row.BestClassification,
                 row.DisplayLabel,
             });
         });
@@ -341,6 +347,8 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Availability, row.PreviewState });
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.RelativePath });
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Sha256 });
+            videoFile.HasIndex(row => new { row.VideoId, row.Availability, row.DirectPlayClassification });
+            videoFile.HasIndex(row => row.ProfileKey);
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Availability, row.SiteRecognisedPath });
             videoFile.HasOne(row => row.Video)
                 .WithMany(row => row.VideoFiles)
@@ -350,6 +358,35 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
                 .WithMany()
                 .HasForeignKey(row => row.LibraryDirectoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<ClientPlaybackAssessmentRow>(assessment =>
+        {
+            assessment.ToTable("client_playback_assessment");
+            assessment.HasKey(row => new { row.AccountId, row.ClientContextKey, row.ProfileKey });
+            assessment.Property(row => row.Verdict).HasConversion<string>();
+            assessment.Property(row => row.Method).IsRequired();
+            assessment.HasOne(row => row.Account)
+                .WithMany()
+                .HasForeignKey(row => row.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ObservedPlaybackOutcomeRow>(outcome =>
+        {
+            outcome.ToTable("observed_playback_outcome");
+            outcome.HasKey(row => new { row.AccountId, row.ClientContextKey, row.VideoFileId });
+            outcome.Property(row => row.Outcome).HasConversion<string>();
+            outcome.Property(row => row.FailureCategory).HasConversion<string>();
+            outcome.Property(row => row.ContentSha256).IsRequired();
+            outcome.HasOne(row => row.Account)
+                .WithMany()
+                .HasForeignKey(row => row.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+            outcome.HasOne(row => row.VideoFile)
+                .WithMany()
+                .HasForeignKey(row => row.VideoFileId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<SiteDirectoryEntryRow>(site =>

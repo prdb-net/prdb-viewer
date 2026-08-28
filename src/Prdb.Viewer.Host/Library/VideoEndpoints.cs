@@ -22,13 +22,14 @@ public static class VideoEndpoints
             bool unknownSite = false,
             string? work = null,
             string? review = null,
-            string? readiness = null,
+            string? playability = null,
             string? availability = null,
             string? playState = null,
             int skip = 0,
             int take = LibraryPaging.DefaultPageSize) =>
             TypedResults.Ok(await discovery.GetAsync(
                 http.User.AccountId()!.Value,
+                http.ClientContextKey(),
                 new LibraryDiscoveryRequest
                 {
                     Query = query,
@@ -38,7 +39,7 @@ public static class VideoEndpoints
                     UnknownSite = unknownSite,
                     WorkIdentification = Parsed<IdentificationResolution>(work),
                     ReviewStatus = Parsed<IdentificationReviewStatus>(review),
-                    Readiness = Parsed<DiscoveryReadiness>(readiness),
+                    Playability = Parsed<ClientVideoPlayability>(playability),
                     Availability = Parsed<VideoAvailability>(availability),
                     PlayState = Parsed<PersonalPlayState>(playState),
                     Skip = skip,

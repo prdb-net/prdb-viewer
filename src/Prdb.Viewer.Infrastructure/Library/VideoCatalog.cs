@@ -6,20 +6,6 @@ using Prdb.Viewer.Infrastructure.Personal;
 
 namespace Prdb.Viewer.Infrastructure.Library;
 
-public sealed record VideoFileSummary(
-    Guid Id,
-    string RelativePath,
-    long Size,
-    long DurationMilliseconds,
-    string ContainerFormat,
-    string VideoCodec,
-    string? AudioCodec,
-    int? Width,
-    int? Height,
-    VideoFileAvailability Availability,
-    DirectPlayClassification DirectPlayClassification,
-    string DeliveryUrl);
-
 public sealed record VideoSummary(
     Guid Id,
     string DisplayTitle,
@@ -27,7 +13,12 @@ public sealed record VideoSummary(
     VideoAvailability Availability,
     string? PreviewUrl,
     IdentificationSummary Identification,
-    IReadOnlyList<VideoFileSummary> VideoFiles,
+    /// <summary>Whether this Account's current client can play the Video directly.</summary>
+    ClientVideoPlayability Playability,
+    /// <summary>Whether every Available occurrence is statically Unsupported, whatever the client.</summary>
+    bool IsUnsupportedVideo,
+    /// <summary>The Available occurrences, in the order one play action would try them.</summary>
+    IReadOnlyList<PlaybackVariantView> VideoFiles,
     PersonalVideoStateSummary PersonalState);
 
 public sealed record PersonalLibrarySummary(
@@ -35,10 +26,11 @@ public sealed record PersonalLibrarySummary(
     IReadOnlyList<VideoSummary> Favourites,
     IReadOnlyList<VideoSummary> WatchLater);
 
-public sealed class VideoCatalog(ViewerDbContext database)
+public sealed class VideoCatalog(ViewerDbContext database, PlaybackPlanner planner)
 {
     public async Task<IReadOnlyList<VideoSummary>> GetAsync(
         Guid accountId,
+        string clientContextKey,
         CancellationToken cancellationToken = default)
     {
         var videos = await QueryForAccount(accountId)
@@ -47,12 +39,14 @@ public sealed class VideoCatalog(ViewerDbContext database)
                                 file.Availability == VideoFileAvailability.Available))
             .OrderByDescending(video => video.DiscoveryDate)
             .ToListAsync(cancellationToken);
+        var plans = await planner.PlanAsync(accountId, clientContextKey, videos, cancellationToken);
 
-        return videos.Select(video => Map(video, accountId)).ToArray();
+        return videos.Select(video => Map(video, accountId, plans[video.Id])).ToArray();
     }
 
     public async Task<PersonalLibrarySummary> GetPersonalLibraryAsync(
         Guid accountId,
+        string clientContextKey,
         CancellationToken cancellationToken = default)
     {
         var videos = await QueryForAccount(accountId)
@@ -65,9 +59,10 @@ public sealed class VideoCatalog(ViewerDbContext database)
                      state.FavouriteAddedAt != null ||
                      state.WatchLaterAddedAt != null)))
             .ToListAsync(cancellationToken);
+        var plans = await planner.PlanAsync(accountId, clientContextKey, videos, cancellationToken);
         var entries = videos
             .Select(video => new PersonalEntry(
-                Map(video, accountId),
+                Map(video, accountId, plans[video.Id]),
                 video.PersonalStates.Single(state => state.AccountId == accountId)))
             .ToArray();
 
@@ -98,25 +93,9 @@ public sealed class VideoCatalog(ViewerDbContext database)
             .Include(video => video.IdentificationCandidates)
             .Include(video => video.PersonalStates.Where(state => state.AccountId == accountId));
 
-    internal static VideoSummary Map(VideoRow video, Guid accountId)
+    internal static VideoSummary Map(VideoRow video, Guid accountId, VideoPlaybackPlan plan)
     {
         var trackedFiles = video.VideoFiles.OrderBy(file => file.RelativePath).ToArray();
-        var availableFiles = trackedFiles
-            .Where(file => file.Availability == VideoFileAvailability.Available)
-            .Select(file => new VideoFileSummary(
-                file.Id,
-                file.RelativePath,
-                file.Size,
-                file.DurationMilliseconds,
-                file.ContainerFormat,
-                file.VideoCodec,
-                file.AudioCodec,
-                file.Width,
-                file.Height,
-                file.Availability,
-                file.DirectPlayClassification,
-                $"/media/videos/{file.PublicDeliveryId}"))
-            .ToArray();
         var state = video.PersonalStates.SingleOrDefault(candidate => candidate.AccountId == accountId);
         var progressDuration = state?.ProgressVideoFileId is null
             ? 0
@@ -131,7 +110,9 @@ public sealed class VideoCatalog(ViewerDbContext database)
             AvailabilityOf(trackedFiles),
             VideoPresentation.PreviewUrl(video),
             VideoPresentation.Summarize(video),
-            availableFiles,
+            plan.Playability,
+            plan.IsUnsupportedVideo,
+            plan.Variants,
             state is null
                 ? PersonalStateService.EmptySummary()
                 : PersonalStateService.ToSummary(state, progressDuration));

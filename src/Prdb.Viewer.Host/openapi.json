@@ -821,7 +821,7 @@
             }
           },
           {
-            "name": "readiness",
+            "name": "playability",
             "in": "query",
             "schema": {
               "type": "string"
@@ -942,6 +942,116 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PersonalLibrarySummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/playback-profiles": {
+      "get": {
+        "tags": [
+          "Personal State"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UnassessedPlaybackProfile"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/playback-assessments": {
+      "put": {
+        "tags": [
+          "Personal State"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientPlaybackAssessmentsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientPlaybackAssessmentsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/playback-outcomes": {
+      "post": {
+        "tags": [
+          "Personal State"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObservedPlaybackOutcomeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservedPlaybackOutcomeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/videos/{videoId}/playback-outcomes": {
+      "delete": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ObservedPlaybackOutcomeResponse"
                 }
               }
             }
@@ -1691,6 +1801,84 @@
             ]
           }
         }
+      },
+      "ClientPlaybackAssessmentReport": {
+        "required": [
+          "profileKey",
+          "verdict",
+          "smooth",
+          "powerEfficient",
+          "method"
+        ],
+        "type": "object",
+        "properties": {
+          "profileKey": {
+            "type": "string"
+          },
+          "verdict": {
+            "$ref": "#/components/schemas/ClientPlaybackAssessmentVerdict"
+          },
+          "smooth": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "powerEfficient": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "method": {
+            "type": "string"
+          }
+        }
+      },
+      "ClientPlaybackAssessmentsRequest": {
+        "required": [
+          "assessments"
+        ],
+        "type": "object",
+        "properties": {
+          "assessments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ClientPlaybackAssessmentReport"
+            }
+          }
+        }
+      },
+      "ClientPlaybackAssessmentsResponse": {
+        "required": [
+          "recorded"
+        ],
+        "type": "object",
+        "properties": {
+          "recorded": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "ClientPlaybackAssessmentVerdict": {
+        "enum": [
+          "Indeterminate",
+          "Positive",
+          "Negative",
+          null
+        ]
+      },
+      "ClientVideoPlayability": {
+        "enum": [
+          "ReadyForDirectPlay",
+          "CompatibilityUncertain",
+          "NotDirectlyPlayable"
+        ]
       },
       "DirectPlayClassification": {
         "enum": [
@@ -2735,6 +2923,51 @@
           "TitleAscending"
         ]
       },
+      "ObservedPlaybackOutcome": {
+        "enum": [
+          "Succeeded",
+          "Failed",
+          null
+        ]
+      },
+      "ObservedPlaybackOutcomeRequest": {
+        "required": [
+          "videoFileId",
+          "outcome",
+          "failureCategory"
+        ],
+        "type": "object",
+        "properties": {
+          "videoFileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "outcome": {
+            "$ref": "#/components/schemas/ObservedPlaybackOutcome"
+          },
+          "failureCategory": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlaybackFailureCategory"
+              }
+            ]
+          }
+        }
+      },
+      "ObservedPlaybackOutcomeResponse": {
+        "required": [
+          "recorded"
+        ],
+        "type": "object",
+        "properties": {
+          "recorded": {
+            "type": "boolean"
+          }
+        }
+      },
       "PersonalLibrarySummary": {
         "required": [
           "continueWatching",
@@ -2929,6 +3162,15 @@
           "VideoFileUnavailable"
         ]
       },
+      "PlaybackFailureCategory": {
+        "enum": [
+          "Media",
+          "Availability",
+          "Delivery",
+          "Network",
+          null
+        ]
+      },
       "PlaybackReportRequest": {
         "required": [
           "reportId",
@@ -3011,6 +3253,198 @@
           "AttemptEnded",
           "InvalidReport"
         ]
+      },
+      "PlaybackVariantView": {
+        "required": [
+          "videoFileId",
+          "deliveryUrl",
+          "containerFormat",
+          "videoCodec",
+          "audioCodec",
+          "width",
+          "height",
+          "frameRate",
+          "bitrate",
+          "audioChannels",
+          "audioSampleRate",
+          "audioBitrate",
+          "size",
+          "durationMilliseconds",
+          "directPlayClassification",
+          "profileKey",
+          "preciseVideoContentType",
+          "preciseAudioContentType",
+          "basicContentType",
+          "assessment",
+          "smooth",
+          "powerEfficient",
+          "outcome",
+          "readyForDirectPlay",
+          "selectionReason"
+        ],
+        "type": "object",
+        "properties": {
+          "videoFileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "deliveryUrl": {
+            "type": "string"
+          },
+          "containerFormat": {
+            "type": "string"
+          },
+          "videoCodec": {
+            "type": "string"
+          },
+          "audioCodec": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "width": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "height": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "frameRate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "bitrate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "audioChannels": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "audioSampleRate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "audioBitrate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "size": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "durationMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "directPlayClassification": {
+            "$ref": "#/components/schemas/DirectPlayClassification"
+          },
+          "profileKey": {
+            "type": "string"
+          },
+          "preciseVideoContentType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "preciseAudioContentType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "basicContentType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "assessment": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ClientPlaybackAssessmentVerdict"
+              }
+            ]
+          },
+          "smooth": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "powerEfficient": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "outcome": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ObservedPlaybackOutcome"
+              }
+            ]
+          },
+          "readyForDirectPlay": {
+            "type": "boolean"
+          },
+          "selectionReason": {
+            "$ref": "#/components/schemas/VariantSelectionReason"
+          }
+        }
       },
       "PrdbConnectionIssue": {
         "enum": [
@@ -3296,6 +3730,118 @@
           "Disabled"
         ]
       },
+      "UnassessedPlaybackProfile": {
+        "required": [
+          "profileKey",
+          "videoContentType",
+          "audioContentType",
+          "basicContentType",
+          "width",
+          "height",
+          "frameRate",
+          "bitrate",
+          "audioChannels",
+          "audioSampleRate",
+          "audioBitrate"
+        ],
+        "type": "object",
+        "properties": {
+          "profileKey": {
+            "type": "string"
+          },
+          "videoContentType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "audioContentType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "basicContentType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "width": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "height": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "frameRate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
+          },
+          "bitrate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "audioChannels": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "audioSampleRate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "audioBitrate": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          }
+        }
+      },
+      "VariantSelectionReason": {
+        "enum": [
+          "PreviouslyPlayedHere",
+          "PositivelyAssessedAndSmooth",
+          "PositivelyAssessed",
+          "BaselineCandidate",
+          "NotYetAssessed",
+          "RuledOutHere"
+        ]
+      },
       "VideoAvailability": {
         "enum": [
           "Available",
@@ -3320,87 +3866,6 @@
           "Failed"
         ]
       },
-      "VideoFileSummary": {
-        "required": [
-          "id",
-          "relativePath",
-          "size",
-          "durationMilliseconds",
-          "containerFormat",
-          "videoCodec",
-          "audioCodec",
-          "width",
-          "height",
-          "availability",
-          "directPlayClassification",
-          "deliveryUrl"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "relativePath": {
-            "type": "string"
-          },
-          "size": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "durationMilliseconds": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int64"
-          },
-          "containerFormat": {
-            "type": "string"
-          },
-          "videoCodec": {
-            "type": "string"
-          },
-          "audioCodec": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "width": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "height": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "availability": {
-            "$ref": "#/components/schemas/VideoFileAvailability"
-          },
-          "directPlayClassification": {
-            "$ref": "#/components/schemas/DirectPlayClassification"
-          },
-          "deliveryUrl": {
-            "type": "string"
-          }
-        }
-      },
       "VideoSummary": {
         "required": [
           "id",
@@ -3409,6 +3874,8 @@
           "availability",
           "previewUrl",
           "identification",
+          "playability",
+          "isUnsupportedVideo",
           "videoFiles",
           "personalState"
         ],
@@ -3437,10 +3904,16 @@
           "identification": {
             "$ref": "#/components/schemas/IdentificationSummary"
           },
+          "playability": {
+            "$ref": "#/components/schemas/ClientVideoPlayability"
+          },
+          "isUnsupportedVideo": {
+            "type": "boolean"
+          },
           "videoFiles": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/VideoFileSummary"
+              "$ref": "#/components/schemas/PlaybackVariantView"
             }
           },
           "personalState": {

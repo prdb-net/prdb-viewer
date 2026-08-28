@@ -23,10 +23,10 @@ public sealed record LibraryDiscoveryRequest
     public IReadOnlyList<IdentificationReviewStatus> ReviewStatus { get; init; } = [];
 
     /// <summary>
-    /// An explicit playability filter. It overrides the Account's preference for this view, which
-    /// is why it is a filter rather than another way of setting the preference.
+    /// An explicit Client Video Playability filter. It overrides the Account's preference for this
+    /// view, which is why it is a filter rather than another way of setting the preference.
     /// </summary>
-    public IReadOnlyList<DiscoveryReadiness> Readiness { get; init; } = [];
+    public IReadOnlyList<ClientVideoPlayability> Playability { get; init; } = [];
 
     public IReadOnlyList<VideoAvailability> Availability { get; init; } = [];
 
@@ -61,6 +61,32 @@ public sealed record LibraryPage(
     int HiddenUnavailable,
     bool HasMore,
     bool IncludesNotReadyForDirectPlay);
+
+/// <summary>
+/// One media configuration this Account's client has not answered for yet, with everything Media
+/// Capabilities needs to answer it. The Video Files carrying it are not named: the question is
+/// about the configuration, not about anyone's library.
+/// </summary>
+public sealed record UnassessedPlaybackProfile(
+    string ProfileKey,
+    string? VideoContentType,
+    string? AudioContentType,
+    string? BasicContentType,
+    int? Width,
+    int? Height,
+    double? FrameRate,
+    long? Bitrate,
+    int? AudioChannels,
+    int? AudioSampleRate,
+    long? AudioBitrate);
+
+/// <summary>What one client concluded about one media configuration.</summary>
+public sealed record ClientPlaybackAssessmentReport(
+    string ProfileKey,
+    ClientPlaybackAssessmentVerdict Verdict,
+    bool? Smooth,
+    bool? PowerEfficient,
+    string Method);
 
 /// <summary>The Established values an Account can currently filter or navigate by.</summary>
 public sealed record LibraryFacets(

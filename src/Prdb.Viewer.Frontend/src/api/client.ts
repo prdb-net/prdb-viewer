@@ -31,6 +31,11 @@ export type LibraryPage = components['schemas']['LibraryPage']
 export type LibraryFacets = components['schemas']['LibraryFacets']
 export type LibrarySortOrder = components['schemas']['LibrarySortOrder']
 export type LibraryPreferences = components['schemas']['LibraryPreferencesSummary']
+export type PlaybackVariant = components['schemas']['PlaybackVariantView']
+export type ClientVideoPlayability = components['schemas']['ClientVideoPlayability']
+export type UnassessedPlaybackProfile = components['schemas']['UnassessedPlaybackProfile']
+export type ClientPlaybackAssessmentReport = components['schemas']['ClientPlaybackAssessmentReport']
+export type PlaybackFailureCategory = components['schemas']['PlaybackFailureCategory']
 
 export type LibraryFilters = {
   query: string
@@ -40,7 +45,7 @@ export type LibraryFilters = {
   unknownSite: boolean
   work: string[]
   review: string[]
-  readiness: string[]
+  playability: string[]
   availability: string[]
   playState: string[]
 }
@@ -53,7 +58,7 @@ export const emptyFilters: LibraryFilters = {
   unknownSite: false,
   work: [],
   review: [],
-  readiness: [],
+  playability: [],
   availability: [],
   playState: [],
 }
@@ -67,7 +72,7 @@ function libraryQuery(filters: LibraryFilters, skip: number, take: number) {
   if (filters.unknownSite) parameters.set('unknownSite', 'true')
   if (filters.work.length) parameters.set('work', filters.work.join(','))
   if (filters.review.length) parameters.set('review', filters.review.join(','))
-  if (filters.readiness.length) parameters.set('readiness', filters.readiness.join(','))
+  if (filters.playability.length) parameters.set('playability', filters.playability.join(','))
   if (filters.availability.length) parameters.set('availability', filters.availability.join(','))
   if (filters.playState.length) parameters.set('playState', filters.playState.join(','))
   parameters.set('skip', String(skip))
@@ -88,12 +93,35 @@ export type IdentificationDecisionRequest = components['schemas']['Identificatio
 export type IdentificationDecisionResult = components['schemas']['IdentificationDecisionResult']
 export type IdentificationDecisionAction = components['schemas']['IdentificationDecisionAction']
 
+/// Which browser and device this is. Client Playback Assessments and Observed Playback Outcomes
+/// belong to one such context and expire when it materially changes, which is exactly what happens
+/// here: a browser update or a different device produces a different key, and the evidence gathered
+/// under the old one stops applying. It is derived rather than stored, so it survives no longer
+/// than the facts it describes and needs nothing kept on the device.
+export const clientContextKey = (() => {
+  if (typeof navigator === 'undefined') return 'unqualified'
+  const facts = [
+    navigator.userAgent,
+    // eslint-disable-next-line @typescript-eslint/no-deprecated
+    navigator.platform ?? '',
+    String(navigator.hardwareConcurrency ?? ''),
+    String((navigator as { deviceMemory?: number }).deviceMemory ?? ''),
+  ].join('|')
+  let hash = 0x811c9dc5
+  for (let index = 0; index < facts.length; index++) {
+    hash ^= facts.charCodeAt(index)
+    hash = Math.imul(hash, 0x01000193) >>> 0
+  }
+  return `c${hash.toString(16).padStart(8, '0')}`
+})()
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     credentials: 'same-origin',
     ...init,
     headers: {
       ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
+      'X-Client-Context': clientContextKey,
       ...init?.headers,
     },
   })
@@ -134,6 +162,33 @@ export const api = {
       { included },
     ),
   personalLibrary: () => request<PersonalLibrary>('/api/personal/library'),
+  unassessedPlaybackProfiles: () =>
+    request<UnassessedPlaybackProfile[]>('/api/personal/playback-profiles'),
+  recordPlaybackAssessments: (
+    assessments: ClientPlaybackAssessmentReport[],
+    csrfToken: string,
+  ) => mutate<{ recorded: number }>(
+    '/api/personal/playback-assessments',
+    'PUT',
+    csrfToken,
+    { assessments },
+  ),
+  recordPlaybackOutcome: (
+    videoFileId: string,
+    outcome: 'Succeeded' | 'Failed',
+    failureCategory: PlaybackFailureCategory | null,
+    csrfToken: string,
+  ) => post<{ recorded: boolean }>(
+    '/api/personal/playback-outcomes',
+    { videoFileId, outcome, failureCategory },
+    csrfToken,
+  ),
+  forgetPlaybackOutcomes: (videoId: string, csrfToken: string) =>
+    mutate<{ recorded: boolean }>(
+      `/api/personal/videos/${videoId}/playback-outcomes`,
+      'DELETE',
+      csrfToken,
+    ),
   startPlaybackAttempt: (videoId: string, videoFileId: string, csrfToken: string) =>
     post<PlaybackAttempt>(
       `/api/personal/videos/${videoId}/playback-attempts`,

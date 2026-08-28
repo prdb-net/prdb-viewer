@@ -28,6 +28,7 @@ public sealed class LibraryDiscoveryTests
         await using var scope = store.Scope();
         var page = await Discovery(scope).GetAsync(
             accountId,
+            LibraryPipeline.ClientContext,
             new LibraryDiscoveryRequest(),
             TestContext.Current.CancellationToken);
 
@@ -65,6 +66,7 @@ public sealed class LibraryDiscoveryTests
         await using var verification = store.Scope();
         var widened = await Discovery(verification).GetAsync(
             accountId,
+            LibraryPipeline.ClientContext,
             new LibraryDiscoveryRequest(),
             TestContext.Current.CancellationToken);
         Assert.Equal(2, widened.TotalMatches);
@@ -74,9 +76,10 @@ public sealed class LibraryDiscoveryTests
         // The explicit filter decides for this view even though the preference is on.
         var filtered = await Discovery(verification).GetAsync(
             accountId,
+            LibraryPipeline.ClientContext,
             new LibraryDiscoveryRequest
             {
-                Readiness = [DiscoveryReadiness.NotDirectlyPlayable],
+                Playability = [ClientVideoPlayability.NotDirectlyPlayable],
             },
             TestContext.Current.CancellationToken);
         Assert.Equal("uncertain", Assert.Single(filtered.Videos).DisplayTitle);
@@ -123,6 +126,7 @@ public sealed class LibraryDiscoveryTests
         await using var scope = store.Scope();
         var established = await Discovery(scope).GetAsync(
             accountId,
+            LibraryPipeline.ClientContext,
             new LibraryDiscoveryRequest
             {
                 WorkIdentification = [IdentificationResolution.Established],
@@ -132,6 +136,7 @@ public sealed class LibraryDiscoveryTests
 
         var unknown = await Discovery(scope).GetAsync(
             accountId,
+            LibraryPipeline.ClientContext,
             new LibraryDiscoveryRequest { UnknownSite = true },
             TestContext.Current.CancellationToken);
         Assert.Equal("unknown", Assert.Single(unknown.Videos).DisplayTitle);
@@ -139,6 +144,7 @@ public sealed class LibraryDiscoveryTests
         // Site AND Established work: both hold for one Video only.
         var both = await Discovery(scope).GetAsync(
             accountId,
+            LibraryPipeline.ClientContext,
             new LibraryDiscoveryRequest
             {
                 Sites = ["Example Site"],
@@ -150,6 +156,7 @@ public sealed class LibraryDiscoveryTests
         // Site AND Unknown work: nothing satisfies both.
         var neither = await Discovery(scope).GetAsync(
             accountId,
+            LibraryPipeline.ClientContext,
             new LibraryDiscoveryRequest
             {
                 Sites = ["Example Site"],
@@ -178,6 +185,7 @@ public sealed class LibraryDiscoveryTests
         await using var scope = store.Scope();
         var first = await Discovery(scope).GetAsync(
             accountId,
+            LibraryPipeline.ClientContext,
             new LibraryDiscoveryRequest { Take = 3, Sort = LibrarySortOrder.TitleAscending },
             TestContext.Current.CancellationToken);
 
@@ -187,6 +195,7 @@ public sealed class LibraryDiscoveryTests
 
         var last = await Discovery(scope).GetAsync(
             accountId,
+            LibraryPipeline.ClientContext,
             new LibraryDiscoveryRequest
             {
                 Take = 3,
@@ -222,6 +231,7 @@ public sealed class LibraryDiscoveryTests
         await using var scope = store.Scope();
         var ordinary = await Discovery(scope).GetAsync(
             accountId,
+            LibraryPipeline.ClientContext,
             new LibraryDiscoveryRequest(),
             TestContext.Current.CancellationToken);
         Assert.Equal("kept", Assert.Single(ordinary.Videos).DisplayTitle);
@@ -229,14 +239,15 @@ public sealed class LibraryDiscoveryTests
 
         var unavailable = await Discovery(scope).GetAsync(
             accountId,
+            LibraryPipeline.ClientContext,
             new LibraryDiscoveryRequest
             {
                 Availability = [VideoAvailability.Unavailable],
-                Readiness =
+                Playability =
                 [
-                    DiscoveryReadiness.ReadyForDirectPlay,
-                    DiscoveryReadiness.CompatibilityUncertain,
-                    DiscoveryReadiness.NotDirectlyPlayable,
+                    ClientVideoPlayability.ReadyForDirectPlay,
+                    ClientVideoPlayability.CompatibilityUncertain,
+                    ClientVideoPlayability.NotDirectlyPlayable,
                 ],
             },
             TestContext.Current.CancellationToken);
@@ -254,9 +265,10 @@ public sealed class LibraryDiscoveryTests
         await using var scope = store.Scope();
         var filtered = await Discovery(scope).GetAsync(
             accountId,
+            LibraryPipeline.ClientContext,
             new LibraryDiscoveryRequest
             {
-                Readiness = [DiscoveryReadiness.NotDirectlyPlayable],
+                Playability = [ClientVideoPlayability.NotDirectlyPlayable],
             },
             TestContext.Current.CancellationToken);
 
@@ -266,7 +278,7 @@ public sealed class LibraryDiscoveryTests
         Assert.Equal("Beach Day 2019", video.DisplayTitle);
         Assert.StartsWith("/media/previews/", video.PreviewUrl);
         var file = Assert.Single(video.VideoFiles);
-        Assert.Equal("matroska,webm", file.ContainerFormat);
+        Assert.Equal("matroska", file.ContainerFormat);
         Assert.NotEqual(DirectPlayClassification.BaselineCandidate, file.DirectPlayClassification);
     }
 
@@ -276,6 +288,7 @@ public sealed class LibraryDiscoveryTests
     private static Task<LibraryPage> Search(AsyncServiceScope scope, Guid accountId, string query) =>
         Discovery(scope).GetAsync(
             accountId,
+            LibraryPipeline.ClientContext,
             new LibraryDiscoveryRequest { Query = query },
             TestContext.Current.CancellationToken);
 
@@ -335,6 +348,8 @@ internal sealed class ContainerAwareProbe : IMediaProbe
         string path,
         CancellationToken cancellationToken = default) =>
         Task.FromResult<MediaProbeFacts?>(Path.GetExtension(path) == ".mkv"
-            ? new MediaProbeFacts("matroska,webm", "h264", "aac", 12_345, 1920, 1080)
-            : new MediaProbeFacts("mp4", "h264", "aac", 12_345, 1920, 1080));
+            ? new MediaProbeFacts(
+                FixtureProbe.Baseline with { ContainerFormat = "matroska", VideoCodec = "h264" },
+                12_345)
+            : new MediaProbeFacts(FixtureProbe.Baseline, 12_345));
 }

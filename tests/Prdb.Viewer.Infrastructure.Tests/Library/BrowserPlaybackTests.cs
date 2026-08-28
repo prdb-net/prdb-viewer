@@ -50,17 +50,37 @@ public sealed class BrowserPlaybackTests
             .ToListAsync(TestContext.Current.CancellationToken);
         Assert.Equal(3, files.Count);
 
+        // Ordinary H.264/AAC in MP4 is the broadest candidate there is and still a client
+        // question, so the client is given the exact codec string to ask about.
         var mp4 = files.Single(file => file.RelativePath == "baseline.mp4");
         Assert.Equal("h264", mp4.VideoCodec);
         Assert.Equal("aac", mp4.AudioCodec);
-        Assert.Equal(DirectPlayClassification.BaselineCandidate, mp4.DirectPlayClassification);
+        Assert.Equal(DirectPlayClassification.ClientDependent, mp4.DirectPlayClassification);
         Assert.InRange(mp4.DurationMilliseconds, 3_500, 4_500);
         Assert.Equal(320, mp4.Width);
         Assert.Equal(240, mp4.Height);
+        Assert.Equal(8, mp4.BitDepth);
+        Assert.Equal(15, mp4.FrameRate);
+        Assert.Equal("Constrained Baseline", mp4.VideoProfile);
+        // Profile and constraint flags come from the inspected profile name; the level digits are
+        // whatever the encoder chose for this clip.
+        Assert.StartsWith(
+            "video/mp4; codecs=\"avc1.42e0",
+            PlaybackProfileRule.PreciseVideoContentType(mp4.Media));
+        Assert.Equal(
+            "audio/mp4; codecs=\"mp4a.40.2\"",
+            PlaybackProfileRule.PreciseAudioContentType(mp4.Media));
+        Assert.NotEqual(string.Empty, mp4.ProfileKey);
 
         var webm = files.Single(file => file.RelativePath == "client-dependent.webm");
         Assert.Equal("vp9", webm.VideoCodec);
         Assert.Equal(DirectPlayClassification.ClientDependent, webm.DirectPlayClassification);
+
+        // WebM's own codec names are complete, so a client can be asked even where the numbered
+        // profile and level are not both established.
+        Assert.Equal(
+            "video/webm; codecs=\"vp9, opus\"",
+            PlaybackProfileRule.BasicContentType(webm.Media));
 
         var mpeg = files.Single(file => file.RelativePath == "unsupported.mpg");
         Assert.Equal(DirectPlayClassification.Unsupported, mpeg.DirectPlayClassification);

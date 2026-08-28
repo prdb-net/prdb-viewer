@@ -71,7 +71,7 @@ public sealed class IdentificationTests
 
         var summary = (await scope.ServiceProvider
             .GetRequiredService<VideoCatalog>()
-            .GetAsync(Guid.CreateVersion7(), TestContext.Current.CancellationToken))
+            .GetAsync(Guid.CreateVersion7(), LibraryPipeline.ClientContext, TestContext.Current.CancellationToken))
             .Single();
         Assert.Equal("A Known Work", summary.DisplayTitle);
         Assert.Equal($"/media/previews/{file.PublicPreviewId}", summary.PreviewUrl);
@@ -118,7 +118,7 @@ public sealed class IdentificationTests
             .ToListAsync(TestContext.Current.CancellationToken));
         Assert.Single(await scope.ServiceProvider
             .GetRequiredService<VideoCatalog>()
-            .GetAsync(Guid.CreateVersion7(), TestContext.Current.CancellationToken));
+            .GetAsync(Guid.CreateVersion7(), LibraryPipeline.ClientContext, TestContext.Current.CancellationToken));
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public sealed class IdentificationTests
 
         var summary = (await scope.ServiceProvider
             .GetRequiredService<VideoCatalog>()
-            .GetAsync(Guid.CreateVersion7(), TestContext.Current.CancellationToken))
+            .GetAsync(Guid.CreateVersion7(), LibraryPipeline.ClientContext, TestContext.Current.CancellationToken))
             .Single();
         Assert.Equal("first", summary.DisplayTitle);
         Assert.Equal(IdentificationResolution.Unknown, summary.Identification.Work.Resolution);
@@ -287,7 +287,7 @@ public sealed class IdentificationTests
             Assert.Equal(WorkIssueSeverity.ScopedIssue, issue.Severity);
             Assert.Single(await scope.ServiceProvider
                 .GetRequiredService<VideoCatalog>()
-                .GetAsync(Guid.CreateVersion7(), TestContext.Current.CancellationToken));
+                .GetAsync(Guid.CreateVersion7(), LibraryPipeline.ClientContext, TestContext.Current.CancellationToken));
         }
 
         prdb.Status = IdentificationBatchStatus.Identified;
@@ -355,7 +355,7 @@ public sealed class IdentificationTests
             2,
             (await scope.ServiceProvider
                 .GetRequiredService<VideoCatalog>()
-                .GetAsync(Guid.CreateVersion7(), TestContext.Current.CancellationToken)).Count);
+                .GetAsync(Guid.CreateVersion7(), LibraryPipeline.ClientContext, TestContext.Current.CancellationToken)).Count);
     }
 
     [Fact]

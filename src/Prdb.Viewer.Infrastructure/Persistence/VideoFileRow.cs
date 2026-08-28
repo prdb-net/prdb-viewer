@@ -36,6 +36,30 @@ public sealed class VideoFileRow
 
     public int? Height { get; set; }
 
+    /// <summary>The codec profile as the inspector names it, such as `High` or `Main 10`.</summary>
+    public string? VideoProfile { get; set; }
+
+    /// <summary>The codec level times ten, as `avc1` and `hvc1` encode it: 4.0 is 40.</summary>
+    public int? VideoLevel { get; set; }
+
+    public int? BitDepth { get; set; }
+
+    public double? FrameRate { get; set; }
+
+    public long? VideoBitrate { get; set; }
+
+    public int? AudioChannels { get; set; }
+
+    public int? AudioSampleRate { get; set; }
+
+    public long? AudioBitrate { get; set; }
+
+    /// <summary>
+    /// The question this file puts to a client, derived from the facts above. Two files that share
+    /// it are one question, so one Client Playback Assessment answers both.
+    /// </summary>
+    public string ProfileKey { get; set; } = string.Empty;
+
     public VideoFileAvailability Availability { get; set; }
 
     public DirectPlayClassification DirectPlayClassification { get; set; }
@@ -91,4 +115,46 @@ public sealed class VideoFileRow
     public DateTime? SiteRecognisedAt { get; set; }
 
     public ICollection<PlaybackAttemptVideoFileRow> PlaybackAttempts { get; set; } = [];
+
+    /// <summary>
+    /// The inspected media configuration this row carries, as the direct-play rules read it.
+    /// </summary>
+    public MediaConfiguration Media => new(ContainerFormat, VideoCodec, AudioCodec)
+    {
+        VideoProfile = VideoProfile,
+        VideoLevel = VideoLevel,
+        BitDepth = BitDepth,
+        Width = Width,
+        Height = Height,
+        FrameRate = FrameRate,
+        VideoBitrate = VideoBitrate,
+        AudioChannels = AudioChannels,
+        AudioSampleRate = AudioSampleRate,
+        AudioBitrate = AudioBitrate,
+    };
+
+    /// <summary>
+    /// Commits one inspection's facts, together with everything derived from them in the same
+    /// breath: the Direct-Play Classification and the Profile Key a client is asked about. They are
+    /// written here so no caller can store the facts and forget what they mean.
+    /// </summary>
+    public void ApplyInspectedMedia(MediaConfiguration media, long durationMilliseconds)
+    {
+        ContainerFormat = media.ContainerFormat;
+        VideoCodec = media.VideoCodec;
+        AudioCodec = media.AudioCodec;
+        VideoProfile = media.VideoProfile;
+        VideoLevel = media.VideoLevel;
+        BitDepth = media.BitDepth;
+        Width = media.Width;
+        Height = media.Height;
+        FrameRate = media.FrameRate;
+        VideoBitrate = media.VideoBitrate;
+        AudioChannels = media.AudioChannels;
+        AudioSampleRate = media.AudioSampleRate;
+        AudioBitrate = media.AudioBitrate;
+        DurationMilliseconds = durationMilliseconds;
+        DirectPlayClassification = DirectPlayClassificationRule.Classify(media);
+        ProfileKey = media.ProfileKey;
+    }
 }

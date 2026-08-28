@@ -22,11 +22,11 @@ public sealed class FfprobeOutputParserTests
         var facts = FfprobeOutputParser.Parse(output);
 
         Assert.NotNull(facts);
-        Assert.Equal("h264", facts.VideoCodec);
-        Assert.Equal("aac", facts.AudioCodec);
+        Assert.Equal("h264", facts.Media.VideoCodec);
+        Assert.Equal("aac", facts.Media.AudioCodec);
         Assert.Equal(12_345, facts.DurationMilliseconds);
-        Assert.Equal(1920, facts.Width);
-        Assert.Equal(1080, facts.Height);
+        Assert.Equal(1920, facts.Media.Width);
+        Assert.Equal(1080, facts.Media.Height);
     }
 
     [Theory]

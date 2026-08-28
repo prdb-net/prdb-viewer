@@ -16,6 +16,9 @@ namespace Prdb.Viewer.Infrastructure.Tests.Library;
 /// </summary>
 internal static class LibraryPipeline
 {
+    /// <summary>The client context a test speaks for when it does not care which one.</summary>
+    public const string ClientContext = "fixture-client";
+
     public static async Task<Guid> ActivateAsync(TestDatabase store, string path)
     {
         await using var scope = store.Scope();

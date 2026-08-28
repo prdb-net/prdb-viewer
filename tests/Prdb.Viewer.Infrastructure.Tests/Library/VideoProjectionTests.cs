@@ -34,7 +34,7 @@ public sealed class VideoProjectionTests
         await using var scope = store.Scope();
         var video = await Projected(scope);
         Assert.Equal("Beach Day 2019", video.DisplayLabel);
-        Assert.Equal(DiscoveryReadiness.ReadyForDirectPlay, video.Readiness);
+        Assert.Equal(DirectPlayClassification.BaselineCandidate, video.BestClassification);
         Assert.Equal(VideoAvailability.Available, video.Availability);
         Assert.False(video.HasEstablishedWork);
         Assert.Null(video.EstablishedSite);
@@ -97,9 +97,10 @@ public sealed class VideoProjectionTests
         await using var scope = store.Scope();
         var video = await Projected(scope);
 
-        // Unreachable is not Available, and nothing unavailable is ready for direct play.
+        // Unreachable is not Available, and a Video with no Available occurrence claims nothing
+        // about direct play.
         Assert.Equal(VideoAvailability.Unavailable, video.Availability);
-        Assert.Equal(DiscoveryReadiness.NotDirectlyPlayable, video.Readiness);
+        Assert.Equal(DirectPlayClassification.Unsupported, video.BestClassification);
 
         // The label survives the loss, because losing a file is not losing what it was called.
         Assert.Equal("gone", video.DisplayLabel);
