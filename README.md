@@ -330,16 +330,17 @@ the semantic version, and the project stays in `0.x` until its first stable
 release. The internal SQLite schema is migrated implementation and is not
 versioned separately.
 
-Released images are published as `prdbnet/prdb-viewer`. Every image built from
-`main` carries an immutable commit-SHA tag; a `v*` tag additionally publishes
-its semantic version, and a stable version also moves `latest`. The version and
+Released images are published as `prdbnet/prdb-viewer`. Every published image
+carries an immutable commit-SHA tag; a GitHub release additionally publishes its
+semantic version, and a stable release also moves `latest`. The version and
 commit are stamped into the assembly, the image labels, the startup log line,
 and every Operator Handoff, so any report can be traced to the exact build.
 
 To cut a release, move the `Unreleased` entries in
 [CHANGELOG.md](CHANGELOG.md) under the new version heading, set `VersionPrefix`
-in `Directory.Build.props`, and push a `vX.Y.Z` tag. Publication is skipped
-safely wherever registry credentials are unavailable; build, test, contract, and
+in `Directory.Build.props`, and publish a GitHub release tagged `vX.Y.Z`.
+Publication needs the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository
+secrets; without them it warns and skips, while build, test, contract, and
 container smoke verification still run.
 
 Database migrations are forward-only. Starting an older image against
