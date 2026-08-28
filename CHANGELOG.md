@@ -26,15 +26,22 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Add Account-private playback reporting, resume, watch duration, play count,
   completion and Personal Play State, plus Continue Watching, Favourites,
   Watch Later, and one-to-five Personal Ratings.
-- Add the encrypted, integrity-protected Backup Archive with independent
-  validation and Restore into an empty target through the container CLI, using
-  a passphrase that is never an argument, never logged, and never stored.
-- Add the observable operations surface: aggregated Work Issues with stable
-  references, severities, remediation owners and secret-free Operator Handoffs,
-  installation-wide Operational Attention, the durable Background Work pause,
-  cancellation of a bounded run, version-bound retry and recheck actions, and
-  playback-first throttling of the background lanes.
 - Add content hashing, prdb identification with explicit provenance, retained
   remote metadata, locally generated preview images, automatic association of
   Video Files that share one work identity, and an Administrator identification
   review queue with previewed, version-bound decisions.
+- Add the observable operations surface: aggregated Work Issues with stable
+  references, severities, remediation owners and secret-free Operator Handoffs,
+  installation-wide Operational Attention, the durable Background Work pause,
+  cancellation of a bounded run, version-bound retry and recheck actions,
+  playback-first throttling of the background lanes, and a refused prdb
+  credential identified by a one-way fingerprint rather than by its characters.
+- Add the encrypted, integrity-protected Backup Archive with independent
+  validation and Restore into an empty target through the container CLI, using
+  a passphrase that is never an argument, never logged, and never stored.
+- Honour `X-Forwarded-Proto` and `X-Forwarded-For` when
+  `VIEWER_BEHIND_REVERSE_PROXY=true`, so a TLS-terminating proxy keeps the
+  session cookie `Secure` and rate limiting sees the real client address.
+- Publish multi-architecture release images with commit-SHA, semantic-version,
+  and `latest` tags, and stamp the version and commit into every Operator
+  Handoff.

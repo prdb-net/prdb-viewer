@@ -10,7 +10,9 @@ using Xunit;
 
 namespace Prdb.Viewer.Host.Tests;
 
-internal sealed class ViewerApplication(IPrdbConnectionVerifier? prdbConnectionVerifier = null)
+internal sealed class ViewerApplication(
+    IPrdbConnectionVerifier? prdbConnectionVerifier = null,
+    bool behindReverseProxy = false)
     : WebApplicationFactory<Program>
 {
     private readonly string dataDirectory = Path.Combine(
@@ -26,6 +28,9 @@ internal sealed class ViewerApplication(IPrdbConnectionVerifier? prdbConnectionV
     {
         builder.UseSetting("VIEWER_DATA_DIRECTORY", dataDirectory);
         builder.UseSetting("VIEWER_BACKGROUND_WORK_ENABLED", "false");
+        builder.UseSetting(
+            "VIEWER_BEHIND_REVERSE_PROXY",
+            behindReverseProxy ? "true" : "false");
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<LibraryMountRoot>();

@@ -10,8 +10,8 @@ Account access, guided Installation Configuration, durable Library Scans, and
 technical inspection of discovered Video File Candidates, plus the first
 authenticated catalogue, direct browser playback path, Account-private playback
 and Personal State surfaces, prdb identification with local preview images
-and an Administrator review workflow, and the observable background-work
-operations surface. See
+and an Administrator review workflow, the observable background-work operations
+surface, and operator backup and restore. See
 [VISION.md](VISION.md) for the product contract.
 
 ## Prerequisites
@@ -34,6 +34,11 @@ npm test --prefix src/Prdb.Viewer.Frontend
 npm run lint --prefix src/Prdb.Viewer.Frontend
 npm run build --prefix src/Prdb.Viewer.Frontend
 ```
+
+The browser playback fixtures the tests classify are generated with `ffmpeg`
+during the run and skipped where it is unavailable, so nothing copyrighted or
+identifying is committed to the repository. The production-shaped SQLite
+workload benchmark is opt-in; see [docs/performance.md](docs/performance.md).
 
 Generate the committed OpenAPI document and TypeScript declarations after an
 HTTP contract change:
@@ -118,6 +123,26 @@ docker/smoke-test.sh prdb-viewer:local
 The smoke test verifies startup migration, the non-root process identity, the
 application-data owner, `ffprobe` and `ffmpeg`, read-only source media, and
 graceful shutdown.
+
+### Behind a reverse proxy
+
+A proxy that terminates TLS hides the client's scheme and address. The
+application does not trust `X-Forwarded-Proto` or `X-Forwarded-For` by default,
+because doing so lets anyone who can reach the container claim any address. Set
+`VIEWER_BEHIND_REVERSE_PROXY=true` once the container is reachable only through
+the proxy:
+
+```bash
+docker run --rm \
+  --env VIEWER_BEHIND_REVERSE_PROXY=true \
+  ... \
+  prdb-viewer:local
+```
+
+With it enabled, the session cookie keeps its `Secure` flag and anonymous rate
+limiting partitions by the real client address instead of the proxy. Video and
+preview delivery are anonymous by design, so rate limit them at the proxy if the
+installation is reachable from the internet.
 
 ## Configure the installation
 
@@ -296,6 +321,40 @@ and no committed result is lost.
 Ordinary Users never see Background Work, Work Issues, configuration, mounts, or
 operational diagnostics — only the neutral preparation and availability states
 their Videos carry.
+
+## Release and upgrade
+
+The product contract — configuration meanings, HTTP API behaviour, Backup
+Archive compatibility, container operation, and source-media safety — carries
+the semantic version, and the project stays in `0.x` until its first stable
+release. The internal SQLite schema is migrated implementation and is not
+versioned separately.
+
+Released images are published as `prdbnet/prdb-viewer`. Every image built from
+`main` carries an immutable commit-SHA tag; a `v*` tag additionally publishes
+its semantic version, and a stable version also moves `latest`. The version and
+commit are stamped into the assembly, the image labels, the startup log line,
+and every Operator Handoff, so any report can be traced to the exact build.
+
+To cut a release, move the `Unreleased` entries in
+[CHANGELOG.md](CHANGELOG.md) under the new version heading, set `VersionPrefix`
+in `Directory.Build.props`, and push a `vX.Y.Z` tag. Publication is skipped
+safely wherever registry credentials are unavailable; build, test, contract, and
+container smoke verification still run.
+
+Database migrations are forward-only. Starting an older image against
+application data that a newer version already migrated is unsupported and fails
+rather than attempting a downgrade. **Before upgrading, take a snapshot or copy
+of the application data directory if you might need to roll back.** A Backup
+Archive protects precious portable state, but it is not promised to recreate an
+older schema or every regenerable artefact.
+
+Two release documents record what the product was measured and reviewed against:
+
+- [docs/performance.md](docs/performance.md) — the production-shaped SQLite
+  workload, its numbers, and the library size the first release supports well.
+- [docs/security-review.md](docs/security-review.md) — the reviewed surface,
+  what changed as a result, and the risks the release knowingly carries.
 
 ## Back up and restore
 

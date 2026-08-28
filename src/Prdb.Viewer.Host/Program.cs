@@ -3,6 +3,7 @@ using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
@@ -40,6 +41,22 @@ builder.Services
         SessionAuthentication.Scheme,
         configureOptions: null);
 builder.Services.AddSingleton<IDataProtectionProvider>(new EphemeralDataProtectionProvider());
+
+// A TLS-terminating reverse proxy hides the client's scheme and address, which would otherwise
+// drop the Secure flag from the session cookie and collapse anonymous rate limiting onto the
+// proxy. Trusting those headers is only safe when nothing but the proxy can reach the container,
+// so it stays off until an operator says so.
+var behindReverseProxy = builder.Configuration.GetValue("VIEWER_BEHIND_REVERSE_PROXY", false);
+
+if (behindReverseProxy)
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor;
+        options.KnownIPNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
 builder.Services.AddAuthorizationBuilder()
     .SetFallbackPolicy(new AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build());
 builder.Services.ConfigureHttpJsonOptions(options =>
@@ -74,18 +91,10 @@ var app = builder.Build();
 
 if (!readingEndpoints)
 {
-    var version = Assembly.GetExecutingAssembly()
-        .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-        ?.InformationalVersion ?? "unknown";
-    var commit = Assembly.GetExecutingAssembly()
-        .GetCustomAttributes<AssemblyMetadataAttribute>()
-        .SingleOrDefault(attribute => attribute.Key == "Commit")
-        ?.Value ?? "unknown";
-
     app.Logger.LogInformation(
         "prdb-viewer {Version} ({Commit}) starting with data in {DataDirectory}.",
-        version,
-        commit,
+        Prdb.Viewer.Infrastructure.ProductBuild.Version,
+        Prdb.Viewer.Infrastructure.ProductBuild.Commit,
         dataDirectory);
 
     try
@@ -107,6 +116,11 @@ if (!readingEndpoints)
             Console.Out,
             Console.Error);
     }
+}
+
+if (behindReverseProxy)
+{
+    app.UseForwardedHeaders();
 }
 
 app.UseDefaultFiles();

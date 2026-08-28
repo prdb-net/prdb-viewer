@@ -1,3 +1,6 @@
+using System.Security.Cryptography;
+using System.Text;
+
 using Microsoft.EntityFrameworkCore;
 
 using Prdb.Viewer.Core.Configuration;
@@ -216,9 +219,14 @@ public sealed class IdentificationRunner(
     }
 
     /// <summary>
-    /// A credential is never shown, but a masked identifier lets an Administrator tell which key
-    /// prdb refused apart from the one they have since supplied.
+    /// Identifies which key prdb refused without disclosing any part of it. A one-way fingerprint
+    /// lets an Administrator tell a refused key apart from the replacement they supplied, while the
+    /// configuration surface keeps its promise that a stored credential is never shown again.
     /// </summary>
-    private static string Masked(string credential) =>
-        credential.Length <= 4 ? "····" : $"····{credential[^4..]}";
+    private static string Masked(string credential)
+    {
+        var fingerprint = SHA256.HashData(Encoding.UTF8.GetBytes(credential)).AsSpan(0, 4);
+
+        return $"fingerprint {Convert.ToHexString(fingerprint).ToLowerInvariant()}";
+    }
 }

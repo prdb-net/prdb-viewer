@@ -156,6 +156,7 @@ public sealed class BackgroundWorkQuery(ViewerDbContext database)
     private static string Handoff(WorkIssueRow row) =>
         OperatorHandoff.Compose(new OperatorHandoffFacts(
             row.Reference,
+            ProductBuild.Description,
             row.Severity,
             row.Cause,
             row.Category,

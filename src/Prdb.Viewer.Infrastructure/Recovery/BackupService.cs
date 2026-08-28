@@ -1,5 +1,3 @@
-using System.Reflection;
-
 using Microsoft.EntityFrameworkCore;
 
 using Prdb.Viewer.Core.Access;
@@ -52,10 +50,7 @@ public sealed class BackupService(
     LibraryWorkScheduler scheduler,
     TimeProvider timeProvider)
 {
-    public static string ProductVersion =>
-        typeof(BackupService).Assembly
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "unknown";
+    public static string ProductVersion => ProductBuild.Version;
 
     public async Task<BackupCreationResult> CreateAsync(
         string destinationPath,
