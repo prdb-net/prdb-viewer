@@ -26,6 +26,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Add Account-private playback reporting, resume, watch duration, play count,
   completion and Personal Play State, plus Continue Watching, Favourites,
   Watch Later, and one-to-five Personal Ratings.
+- Add the encrypted, integrity-protected Backup Archive with independent
+  validation and Restore into an empty target through the container CLI, using
+  a passphrase that is never an argument, never logged, and never stored.
 - Add the observable operations surface: aggregated Work Issues with stable
   references, severities, remediation owners and secret-free Operator Handoffs,
   installation-wide Operational Attention, the durable Background Work pause,
