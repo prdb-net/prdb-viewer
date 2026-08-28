@@ -15,12 +15,16 @@ public sealed class IdentificationRunner(
     ViewerDbContext database,
     IPrdbIdentificationClient client,
     IdentificationService identification,
-    TimeProvider timeProvider) : VideoFileWorkRunner(database, timeProvider)
+    WorkIssueRecorder issues,
+    TimeProvider timeProvider) : VideoFileWorkRunner(database, issues, timeProvider)
 {
+    private const string PrdbScope = "prdb.net";
+
     private static readonly TimeSpan AvailabilityRetry = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan AuthorityRetry = TimeSpan.FromMinutes(30);
 
     protected override BackgroundWorkCategory Category => BackgroundWorkCategory.Identification;
+
+    protected override string Phase => BackgroundWorkPhases.Identifying;
 
     protected override int BatchSize => 25;
 
@@ -61,19 +65,30 @@ public sealed class IdentificationRunner(
 
         if (string.IsNullOrEmpty(configuration.ActivePrdbCredential))
         {
-            await AddIssueOnceAsync(
+            await ReportAsync(
                 work,
-                "prdb connection",
-                WorkIssueCause.Configuration,
-                WorkIssueSeverity.OperationalBlocker,
-                RemediationOwner.Administrator,
-                "Videos cannot be identified because the installation has no verified prdb API key.",
-                "Verify a prdb API key in Installation Configuration.",
+                new WorkIssueReport(
+                    WorkIssueCause.Configuration,
+                    WorkIssueSeverity.OperationalBlocker,
+                    WorkIssueRetryDisposition.NoAutomaticRetry,
+                    PrdbScope,
+                    PrdbScope,
+                    Phase,
+                    WorkIssueMessages.NeedsConfiguration(),
+                    "Videos cannot be identified because the installation has no verified prdb " +
+                    "API key. Local inspection, previews, browsing, and playback continue, and " +
+                    "everything already established stays visible.",
+                    "No new prdb identification is attempted.",
+                    "Verify a prdb API key in Installation Configuration.",
+                    "The installation holds no active prdb credential.",
+                    "A verified prdb API key followed by a successful identification request.")
+                {
+                    AggregatesItems = false,
+                },
                 cancellationToken);
-            await WaitAsync(
+            await HoldAsync(
                 work,
                 "A verified prdb API key is required before Videos can be identified.",
-                AuthorityRetry,
                 cancellationToken);
             return;
         }
@@ -94,20 +109,32 @@ public sealed class IdentificationRunner(
                 configuration.PrdbConnectionStatus = PrdbConnectionStatus.Rejected;
                 configuration.LastConnectionIssue = PrdbConnectionIssue.ExternalAuthority;
                 configuration.LastConnectionAttemptAt = Now();
-                await AddIssueOnceAsync(
+                await ReportAsync(
                     work,
-                    "prdb connection",
-                    WorkIssueCause.ExternalAuthority,
-                    WorkIssueSeverity.OperationalBlocker,
-                    RemediationOwner.Administrator,
-                    "prdb refused the installation credential, so no new identifications are made. " +
-                    "Established knowledge and playback are unaffected.",
-                    "Replace the prdb API key in Installation Configuration.",
+                    new WorkIssueReport(
+                        WorkIssueCause.ExternalAuthority,
+                        WorkIssueSeverity.OperationalBlocker,
+                        WorkIssueRetryDisposition.NoAutomaticRetry,
+                        PrdbScope,
+                        PrdbScope,
+                        Phase,
+                        WorkIssueMessages.PrdbRejected(),
+                        "prdb refused the installation credential, so no request is repeated " +
+                        "against unchanged authority. Established knowledge, browsing, and " +
+                        "playback are unaffected, and local work continues.",
+                        "No new prdb identification is attempted.",
+                        "Replace the prdb API key in Installation Configuration.",
+                        $"{result.Detail ?? "prdb refused the request."} " +
+                        $"Credential {Masked(configuration.ActivePrdbCredential)}.",
+                        "A verified replacement credential followed by a successful " +
+                        "identification request.")
+                    {
+                        AggregatesItems = false,
+                    },
                     cancellationToken);
-                await WaitAsync(
+                await HoldAsync(
                     work,
                     "prdb refused the installation credential.",
-                    AuthorityRetry,
                     cancellationToken);
                 return;
 
@@ -119,14 +146,28 @@ public sealed class IdentificationRunner(
                     configuration.LastConnectionAttemptAt = Now();
                 }
 
-                await AddIssueOnceAsync(
+                var nextAttempt = Now() + AvailabilityRetry;
+                await ReportAsync(
                     work,
-                    "prdb connection",
-                    WorkIssueCause.ExternalAvailability,
-                    WorkIssueSeverity.ScopedIssue,
-                    RemediationOwner.AutomaticRecovery,
-                    $"prdb is temporarily unavailable, so identification is paused. {result.Detail}",
-                    "No action is required; the lane retries by itself.",
+                    new WorkIssueReport(
+                        WorkIssueCause.ExternalAvailability,
+                        WorkIssueSeverity.ScopedIssue,
+                        WorkIssueRetryDisposition.AutomaticRetryScheduled,
+                        PrdbScope,
+                        PrdbScope,
+                        Phase,
+                        WorkIssueMessages.PrdbUnavailable(),
+                        "Remote identification waits with backoff. Local inspection, previews, " +
+                        "browsing, and playback continue, and one message covers every waiting " +
+                        "file instead of one alert per Video.",
+                        "New identifications are delayed until prdb answers again.",
+                        "No action is required; the lane retries by itself.",
+                        result.Detail ?? "prdb did not answer the identification request.",
+                        "A successful identification request for the waiting files.")
+                    {
+                        NextAttemptAt = nextAttempt,
+                        AggregatesItems = false,
+                    },
                     cancellationToken);
                 await WaitAsync(
                     work,
@@ -143,9 +184,10 @@ public sealed class IdentificationRunner(
             configuration.LastConnectionVerifiedAt = Now();
         }
 
-        await ResolveIssuesAsync(work, WorkIssueCause.ExternalAvailability, cancellationToken);
-        await ResolveIssuesAsync(work, WorkIssueCause.ExternalAuthority, cancellationToken);
-        await ResolveIssuesAsync(work, WorkIssueCause.Configuration, cancellationToken);
+        const string evidence = "prdb answered an identification request for the waiting files.";
+        await ResolveAsync(work, WorkIssueCause.ExternalAvailability, evidence, cancellationToken);
+        await ResolveAsync(work, WorkIssueCause.ExternalAuthority, evidence, cancellationToken);
+        await ResolveAsync(work, WorkIssueCause.Configuration, evidence, cancellationToken);
 
         foreach (var identified in result.Results)
         {
@@ -172,4 +214,11 @@ public sealed class IdentificationRunner(
 
         work.CompletedItemCount += files.Count;
     }
+
+    /// <summary>
+    /// A credential is never shown, but a masked identifier lets an Administrator tell which key
+    /// prdb refused apart from the one they have since supplied.
+    /// </summary>
+    private static string Masked(string credential) =>
+        credential.Length <= 4 ? "····" : $"····{credential[^4..]}";
 }

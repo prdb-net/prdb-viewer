@@ -15,6 +15,8 @@ import {
   type PlaybackReportRequest,
   type SignInRequest,
   type VideoSummary,
+  type WorkIssueAction,
+  type WorkIssueSummary,
 } from './api/client'
 
 const queryKeys = {
@@ -24,6 +26,7 @@ const queryKeys = {
   configuration: ['configuration'] as const,
   libraryDirectoryCandidates: ['library-directory-candidates'] as const,
   backgroundWork: ['background-work'] as const,
+  workIssueItems: (workIssueId: string) => ['work-issue-items', workIssueId] as const,
   identificationQueue: ['identification-queue'] as const,
   identificationCase: (videoId: string) => ['identification-case', videoId] as const,
   videos: ['videos'] as const,
@@ -817,11 +820,24 @@ function BackgroundWorkPanel({ account }: { account: Account }) {
     refetchInterval: 2_000,
   })
   const queryClient = useQueryClient()
+  const refresh = () => void queryClient.invalidateQueries({ queryKey: queryKeys.backgroundWork })
+  const [owner, setOwner] = useState<string>('All')
   const scan = useMutation({
     mutationFn: (libraryDirectoryId: string) =>
       api.queueLibraryScan(libraryDirectoryId, account.csrfToken),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.backgroundWork }),
+    onSuccess: refresh,
   })
+  const pause = useMutation({
+    mutationFn: (paused: boolean) => api.pauseBackgroundWork(paused, account.csrfToken),
+    onSuccess: refresh,
+  })
+  const cancel = useMutation({
+    mutationFn: (workId: string) => api.cancelBackgroundWork(workId, account.csrfToken),
+    onSuccess: refresh,
+  })
+  const issues = (status.data?.issues ?? []).filter(
+    (issue) => owner === 'All' || issue.remediationOwner === owner,
+  )
 
   return (
     <section className="admin-panel" aria-labelledby="work-title">
@@ -829,8 +845,27 @@ function BackgroundWorkPanel({ account }: { account: Account }) {
         <div><span className="eyebrow">Administrator</span><h3 id="work-title">Background work</h3></div>
         {status.isFetching && <span className="muted">Refreshing…</span>}
       </div>
-      <p>Library Scans and technical inspection resume from durable checkpoints after a restart.</p>
+      {status.data?.operationalAttention && (
+        <p className="attention-banner" role="status">
+          <strong>Operational attention</strong>
+          <span>
+            {status.data.operationalAttentionCount} issue
+            {Number(status.data.operationalAttentionCount) === 1 ? '' : 's'} block work until someone acts.
+          </span>
+        </p>
+      )}
+      <p>
+        Library Scans and every derived lane resume from durable checkpoints after a restart.
+        {status.data?.paused && ' Background work is paused installation-wide.'}
+      </p>
       <div className="scan-actions">
+        <button
+          className={status.data?.paused ? 'primary-button inline-button' : 'quiet-button'}
+          onClick={() => pause.mutate(!status.data?.paused)}
+          disabled={pause.isPending || !status.data}
+        >
+          {status.data?.paused ? 'Resume background work' : 'Pause background work'}
+        </button>
         {configuration.data?.libraryDirectories.map((directory) => (
           <button
             className="quiet-button"
@@ -847,20 +882,135 @@ function BackgroundWorkPanel({ account }: { account: Account }) {
         <article className="work-row" key={work.id}>
           <div>
             <strong>{friendlyState(work.category)}</strong>
-            <small>{work.libraryDirectoryName} · {friendlyState(work.state)}</small>
+            <small>
+              {work.libraryDirectoryName} · {friendlyState(work.state)} · {work.phase}
+              {work.waitingReason ? ` · ${work.waitingReason}` : ''}
+            </small>
           </div>
-          <span>{work.completedItemCount}/{work.discoveredCandidateCount}</span>
+          <div className="row-actions">
+            <span>
+              {work.completedPercent === null || work.completedPercent === undefined
+                ? `${work.completedItemCount}/${work.discoveredCandidateCount}`
+                : `${work.completedPercent}%`}
+            </span>
+            {work.cancellable && (
+              <button
+                className="quiet-button"
+                onClick={() => cancel.mutate(work.id)}
+                disabled={cancel.isPending}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
         </article>
       ))}
-      {status.data?.issues.map((issue) => (
-        <div className="work-issue" key={issue.id}>
-          <strong>{friendlyState(issue.cause)} · {issue.affectedScope}</strong>
-          <p>{issue.impact} {issue.requiredAction}</p>
+      {(status.data?.issues.length ?? 0) > 0 && (
+        <div className="issue-filter">
+          <span className="muted">Remediation owner</span>
+          {['All', 'AutomaticRecovery', 'Administrator', 'InstallationOperator'].map((value) => (
+            <Tab key={value} active={owner === value} onClick={() => setOwner(value)}>
+              {friendlyState(value)}
+            </Tab>
+          ))}
         </div>
+      )}
+      {issues.map((issue) => (
+        <WorkIssueCard key={issue.id} issue={issue} account={account} refresh={refresh} />
       ))}
-      {(configuration.isError || status.isError || scan.isError) && <RequestError />}
+      {(configuration.isError || status.isError || scan.isError || pause.isError || cancel.isError) && (
+        <RequestError />
+      )}
     </section>
   )
+}
+
+function WorkIssueCard({ issue, account, refresh }: {
+  issue: WorkIssueSummary
+  account: Account
+  refresh: () => void
+}) {
+  const [showItems, setShowItems] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const items = useQuery({
+    queryKey: queryKeys.workIssueItems(issue.id),
+    queryFn: () => api.workIssueItems(issue.id),
+    enabled: showItems,
+  })
+  const advance = useMutation({
+    mutationFn: (action: WorkIssueAction) =>
+      api.advanceWorkIssue(issue.id, action, issue.version, account.csrfToken),
+    onSuccess: refresh,
+  })
+
+  return (
+    <div className={`work-issue severity-${issue.severity}`}>
+      <strong>{issue.summary}</strong>
+      <p>{issue.detail}</p>
+      <p className="muted">
+        {issue.reference} · {friendlyState(issue.cause)} · {friendlyState(issue.category)} ·{' '}
+        {issue.affectedScope}
+        {issue.containerPath ? ` · ${issue.containerPath}` : ''} · owner{' '}
+        {friendlyState(issue.remediationOwner)} · {issue.occurrenceCount} occurrence
+        {Number(issue.occurrenceCount) === 1 ? '' : 's'}
+        {Number(issue.affectedItemCount) > 1 ? ` across ${issue.affectedItemCount} items` : ''}
+      </p>
+      <p>{issue.impact} {issue.requiredAction}</p>
+      {advance.data?.verdict === 'Stale' && (
+        <p className="muted">This issue changed while it was displayed. The action was refused.</p>
+      )}
+      <div className="row-actions">
+        {issue.actions.map((action) => (
+          <button
+            key={action}
+            className="quiet-button"
+            disabled={advance.isPending}
+            onClick={() => {
+              if (action === 'ViewAffectedItems') {
+                setShowItems((shown) => !shown)
+                return
+              }
+
+              if (action === 'CopyOperatorHandoff') {
+                void navigator.clipboard?.writeText(issue.operatorHandoff ?? '')
+                setCopied(true)
+                return
+              }
+
+              if (action === 'OpenPrdbSettings' || action === 'OpenLibraryDirectory') {
+                document.getElementById('setup-title')?.scrollIntoView({ behavior: 'smooth' })
+                return
+              }
+
+              advance.mutate(action)
+            }}
+          >
+            {issueActionLabel(action)}
+          </button>
+        ))}
+      </div>
+      {copied && <p className="muted">The operator handoff was copied.</p>}
+      {showItems && (
+        <ul className="issue-items">
+          {items.data?.map((item) => (
+            <li key={item.scope}>{item.scope}</li>
+          ))}
+        </ul>
+      )}
+      {advance.isError && <RequestError />}
+    </div>
+  )
+}
+
+function issueActionLabel(action: WorkIssueAction) {
+  switch (action) {
+    case 'RetryNow': return 'Retry now'
+    case 'CheckAgain': return 'Check again'
+    case 'OpenPrdbSettings': return 'Open prdb settings'
+    case 'OpenLibraryDirectory': return 'Open library directory'
+    case 'ViewAffectedItems': return 'View affected items'
+    default: return 'Copy operator handoff'
+  }
 }
 
 function InstallationSetup({ account }: { account: Account }) {

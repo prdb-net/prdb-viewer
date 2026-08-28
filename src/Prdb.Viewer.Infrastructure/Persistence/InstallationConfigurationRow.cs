@@ -25,4 +25,12 @@ public sealed class InstallationConfigurationRow
     public DateTime? ConfiguredAt { get; set; }
 
     public DateTime? FirstPlayableVideoReachedAt { get; set; }
+
+    /// <summary>
+    /// The installation-wide Background Work pause. It is a deliberate administrative state rather
+    /// than a failure, survives restart, and is carried by a Backup Archive.
+    /// </summary>
+    public bool BackgroundWorkPaused { get; set; }
+
+    public DateTime? BackgroundWorkPausedAt { get; set; }
 }

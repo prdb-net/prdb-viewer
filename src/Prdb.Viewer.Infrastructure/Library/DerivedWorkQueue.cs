@@ -25,6 +25,7 @@ internal static class DerivedWorkQueue
         Guid libraryDirectoryId,
         int configurationGeneration,
         BackgroundWorkCategory category,
+        BackgroundWorkTrigger trigger,
         DateTime now,
         CancellationToken cancellationToken)
     {
@@ -57,6 +58,8 @@ internal static class DerivedWorkQueue
             Id = Guid.CreateVersion7(),
             Category = category,
             State = BackgroundWorkState.Queued,
+            Trigger = trigger,
+            Phase = BackgroundWorkPhases.Queued,
             LibraryDirectoryId = libraryDirectoryId,
             ConfigurationGeneration = configurationGeneration,
             RequestedAt = now,

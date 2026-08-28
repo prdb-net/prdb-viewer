@@ -33,7 +33,10 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<LibraryDirectoryInspector>();
         services.AddScoped<IPrdbConnectionVerifier, PrdbConnectionVerifier>();
         services.AddScoped<InstallationConfigurationService>();
+        services.AddScoped<WorkIssueRecorder>();
+        services.AddSingleton<PlaybackPressureMonitor>();
         services.AddScoped<LibraryWorkScheduler>();
+        services.AddScoped<BackgroundWorkOperations>();
         services.AddScoped<LibraryScanRunner>();
         services.AddScoped<TechnicalInspectionRunner>();
         services.AddSingleton<DerivedArtifactStore>();

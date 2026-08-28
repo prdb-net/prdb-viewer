@@ -19,6 +19,12 @@ export type LibraryDirectoryCandidates = components['schemas']['LibraryDirectory
 export type LibraryDirectoryStage = components['schemas']['LibraryDirectoryStageResult']
 export type LibraryDirectoryActivation = components['schemas']['LibraryDirectoryActivationResult']
 export type BackgroundWorkStatus = components['schemas']['BackgroundWorkStatus']
+export type BackgroundWorkSummary = components['schemas']['BackgroundWorkSummary']
+export type WorkIssueSummary = components['schemas']['WorkIssueSummary']
+export type WorkIssueAction = components['schemas']['WorkIssueAction']
+export type WorkIssueAffectedItem = components['schemas']['WorkIssueAffectedItem']
+export type BackgroundWorkActionResult = components['schemas']['BackgroundWorkActionResult']
+export type BackgroundWorkPauseResult = components['schemas']['BackgroundWorkPauseResult']
 export type QueueLibraryScanResult = components['schemas']['QueueLibraryScanResult']
 export type VideoSummary = components['schemas']['VideoSummary']
 export type PersonalLibrary = components['schemas']['PersonalLibrarySummary']
@@ -173,6 +179,32 @@ export const api = {
     csrfToken,
   ),
   backgroundWork: () => request<BackgroundWorkStatus>('/api/admin/background-work/'),
+  workIssueItems: (workIssueId: string) =>
+    request<WorkIssueAffectedItem[]>(
+      `/api/admin/background-work/issues/${workIssueId}/items`,
+    ),
+  advanceWorkIssue: (
+    workIssueId: string,
+    action: WorkIssueAction,
+    version: number | string,
+    csrfToken: string,
+  ) => post<BackgroundWorkActionResult>(
+    `/api/admin/background-work/issues/${workIssueId}/actions`,
+    { action, version },
+    csrfToken,
+  ),
+  pauseBackgroundWork: (paused: boolean, csrfToken: string) =>
+    post<BackgroundWorkPauseResult>(
+      '/api/admin/background-work/pause',
+      { paused },
+      csrfToken,
+    ),
+  cancelBackgroundWork: (workId: string, csrfToken: string) =>
+    post<BackgroundWorkActionResult>(
+      `/api/admin/background-work/${workId}/cancel`,
+      undefined,
+      csrfToken,
+    ),
   queueLibraryScan: (libraryDirectoryId: string, csrfToken: string) =>
     post<QueueLibraryScanResult>(
       `/api/admin/background-work/library-directories/${libraryDirectoryId}/scans`,

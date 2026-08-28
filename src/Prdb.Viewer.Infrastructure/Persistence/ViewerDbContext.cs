@@ -27,6 +27,8 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<WorkIssueRow> WorkIssues => Set<WorkIssueRow>();
 
+    public DbSet<WorkIssueItemRow> WorkIssueItems => Set<WorkIssueItemRow>();
+
     public DbSet<VideoRow> Videos => Set<VideoRow>();
 
     public DbSet<VideoFileRow> VideoFiles => Set<VideoFileRow>();
@@ -147,6 +149,8 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             work.Property(row => row.Id).ValueGeneratedNever();
             work.Property(row => row.Category).HasConversion<string>();
             work.Property(row => row.State).HasConversion<string>();
+            work.Property(row => row.StateBeforePause).HasConversion<string>();
+            work.Property(row => row.Trigger).HasConversion<string>();
             work.HasIndex(row => new { row.Category, row.State, row.RequestedAt });
             work.HasIndex(row => new
             {
@@ -168,10 +172,35 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             issue.Property(row => row.Severity).HasConversion<string>();
             issue.Property(row => row.Cause).HasConversion<string>();
             issue.Property(row => row.RemediationOwner).HasConversion<string>();
+            issue.Property(row => row.RetryDisposition).HasConversion<string>();
+            issue.Property(row => row.Category).HasConversion<string>();
+            issue.Property(row => row.Reference).IsRequired();
+            issue.Property(row => row.AggregationKey).IsRequired();
+            issue.Property(row => row.Summary).IsRequired();
+            issue.Property(row => row.Detail).IsRequired();
+            issue.Property(row => row.Phase).IsRequired();
+            issue.Property(row => row.SafeCause).IsRequired();
+            issue.Property(row => row.ExpectedResolutionEvidence).IsRequired();
             issue.HasIndex(row => new { row.BackgroundWorkId, row.ResolvedAt });
+            issue.HasIndex(row => new { row.AggregationKey, row.ResolvedAt });
+            issue.HasIndex(row => new { row.ResolvedAt, row.Severity, row.LastOccurredAt });
+            issue.HasIndex(row => row.Reference).IsUnique();
             issue.HasOne(row => row.BackgroundWork)
                 .WithMany()
                 .HasForeignKey(row => row.BackgroundWorkId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<WorkIssueItemRow>(item =>
+        {
+            item.ToTable("work_issue_item");
+            item.HasKey(row => row.Id);
+            item.Property(row => row.Id).ValueGeneratedNever();
+            item.Property(row => row.Scope).IsRequired();
+            item.HasIndex(row => new { row.WorkIssueId, row.Scope }).IsUnique();
+            item.HasOne(row => row.WorkIssue)
+                .WithMany()
+                .HasForeignKey(row => row.WorkIssueId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

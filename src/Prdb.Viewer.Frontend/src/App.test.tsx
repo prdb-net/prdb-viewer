@@ -401,6 +401,136 @@ describe('App', () => {
 
     expect(await screen.findByRole('status')).toHaveTextContent('Access begins only after approval.')
   })
+
+  it('shows operational attention, pauses work, and rechecks a blocked issue', async () => {
+    const issue = {
+      id: '01994dd4-2a0a-7000-8000-000000000030',
+      reference: 'WI-A1B2C3D4E5F6',
+      backgroundWorkId: '01994dd4-2a0a-7000-8000-000000000031',
+      category: 'LibraryScan',
+      libraryDirectoryId: '01994dd4-2a0a-7000-8000-000000000032',
+      severity: 'OperationalBlocker',
+      cause: 'SourceAccess',
+      remediationOwner: 'InstallationOperator',
+      retryDisposition: 'RetriesExhausted',
+      phase: 'Traversing directories',
+      summary: 'Library directory “Films” cannot be scanned',
+      detail: 'The Library Scan could not observe this part of the directory.',
+      affectedScope: 'Films',
+      containerPath: '/library/films',
+      impact: 'Nothing in this Library Directory can be discovered.',
+      requiredAction: 'Ask the Installation Operator to restore the mount.',
+      expectedResolutionEvidence: 'A scan that completes its traversal.',
+      occurrenceCount: 3,
+      affectedItemCount: 0,
+      version: 4,
+      actions: ['CheckAgain', 'OpenLibraryDirectory', 'CopyOperatorHandoff'],
+      operatorHandoff: 'prdb-viewer operator handoff\nReference: WI-A1B2C3D4E5F6',
+      videoId: null,
+      videoFileId: null,
+      nextAttemptAt: null,
+      firstOccurredAt: '2026-08-28T09:00:00Z',
+      lastOccurredAt: '2026-08-28T11:00:00Z',
+      resolvedAt: null,
+      resolutionEvidence: null,
+    }
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      if (input === '/api/access/state') return json({ claimed: true, signedIn: true })
+      if (input === '/api/access/me') return json({
+        id: '01994dd4-2a0a-7000-8000-000000000001',
+        username: 'administrator',
+        email: null,
+        authority: 'Administrator',
+        csrfToken: 'csrf-token',
+      })
+      if (input === '/api/admin/background-work/') {
+        return json({
+          work: [{
+            id: '01994dd4-2a0a-7000-8000-000000000031',
+            category: 'LibraryScan',
+            state: 'Running',
+            trigger: 'Administrator',
+            phase: 'Traversing directories',
+            libraryDirectoryId: '01994dd4-2a0a-7000-8000-000000000032',
+            libraryDirectoryName: 'Films',
+            discoveredCandidateCount: 12,
+            completedItemCount: 4,
+            issueCount: 1,
+            completedPercent: null,
+            waitingReason: null,
+            nextAttemptAt: null,
+            cancellationRequested: false,
+            cancellable: true,
+            requestedAt: '2026-08-28T09:00:00Z',
+            startedAt: '2026-08-28T09:00:01Z',
+            lastActivityAt: '2026-08-28T11:00:00Z',
+            finishedAt: null,
+          }],
+          issues: [issue],
+          recentlyResolvedIssues: [],
+          operationalAttention: true,
+          operationalAttentionCount: 1,
+          paused: false,
+          pausedAt: null,
+        })
+      }
+      if (input === '/api/admin/background-work/pause') {
+        return json({ paused: true, pausedAt: '2026-08-28T11:05:00Z' })
+      }
+      if (input === `/api/admin/background-work/issues/${issue.id}/actions`) {
+        return json({ verdict: 'Accepted', issue })
+      }
+      if (input === '/api/admin/configuration/') {
+        return json({
+          status: 'Configured',
+          prdbConnectionStatus: 'Verified',
+          hasPrdbCredential: true,
+          credentialReplacementPending: false,
+          lastConnectionAttemptAt: null,
+          lastConnectionVerifiedAt: null,
+          lastConnectionIssue: null,
+          libraryMountRoot: '/libraries',
+          libraryDirectories: [],
+        })
+      }
+      if (input === '/api/admin/configuration/library-directory-candidates') {
+        return json({ containerPaths: [] })
+      }
+      if (input === '/api/personal/library') {
+        return json({ continueWatching: [], favourites: [], watchLater: [] })
+      }
+      return json([])
+    })
+
+    renderApp()
+
+    expect(await screen.findByText('Operational attention')).toBeInTheDocument()
+    expect(screen.getByText('1 issue block work until someone acts.')).toBeInTheDocument()
+    expect(await screen.findByText('Library directory “Films” cannot be scanned')).toBeInTheDocument()
+    expect(screen.getByText(/WI-A1B2C3D4E5F6/)).toBeInTheDocument()
+    expect(screen.getByText(/\/library\/films/)).toBeInTheDocument()
+
+    // A Library Scan reports its counts rather than an invented percentage.
+    expect(screen.getByText('4/12')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Pause background work' }))
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/admin/background-work/pause',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({ 'X-CSRF-Token': 'csrf-token' }),
+      }),
+    ))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check again' }))
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      `/api/admin/background-work/issues/${issue.id}/actions`,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ action: 'CheckAgain', version: 4 }),
+      }),
+    ))
+  })
 })
 
 function personalState(overrides: Record<string, unknown> = {}) {

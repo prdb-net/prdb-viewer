@@ -24,6 +24,31 @@ public sealed class BackgroundWorkRow
 
     public bool FollowUpRequested { get; set; }
 
+    /// <summary>
+    /// Set by an Administrator who cancels this bounded run. The lane observes it at its next safe
+    /// durable boundary, so every trustworthy result committed so far is kept.
+    /// </summary>
+    public bool CancellationRequested { get; set; }
+
+    /// <summary>
+    /// How this run came to exist, so administrative status can say whether the installation, an
+    /// Administrator, or an earlier lane asked for it.
+    /// </summary>
+    public BackgroundWorkTrigger Trigger { get; set; }
+
+    /// <summary>The phase currently being advanced, reported instead of a fabricated percentage.</summary>
+    public string Phase { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The state this run had when an installation-wide pause stopped it, so resuming returns it to
+    /// exactly the lifecycle it was in rather than restarting it.
+    /// </summary>
+    public BackgroundWorkState? StateBeforePause { get; set; }
+
+    public int SkippedItemCount { get; set; }
+
+    public DateTime? LastActivityAt { get; set; }
+
     public int DiscoveredCandidateCount { get; set; }
 
     public int CompletedItemCount { get; set; }

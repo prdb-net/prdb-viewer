@@ -21,11 +21,13 @@ public sealed class LibraryWorkScheduler(ViewerDbContext database, TimeProvider 
     public void QueueInitialScan(LibraryDirectoryRow directory, DateTime now)
     {
         directory.InitialProcessingStartedAt ??= now;
-        database.BackgroundWork.Add(NewScan(directory, now));
+        database.BackgroundWork.Add(
+            NewScan(directory, BackgroundWorkTrigger.Activation, now));
     }
 
     public async Task<QueueLibraryScanResult> QueueScanAsync(
         Guid libraryDirectoryId,
+        BackgroundWorkTrigger trigger = BackgroundWorkTrigger.Administrator,
         CancellationToken cancellationToken = default)
     {
         var directory = await database.LibraryDirectories
@@ -55,14 +57,17 @@ public sealed class LibraryWorkScheduler(ViewerDbContext database, TimeProvider 
             return new QueueLibraryScanResult(QueueLibraryScanVerdict.Coalesced, current.Id);
         }
 
-        var scan = NewScan(directory, Now());
+        var scan = NewScan(directory, trigger, Now());
         directory.InitialProcessingStartedAt ??= scan.RequestedAt;
         database.BackgroundWork.Add(scan);
         await database.SaveChangesAsync(cancellationToken);
         return new QueueLibraryScanResult(QueueLibraryScanVerdict.Queued, scan.Id);
     }
 
-    private static BackgroundWorkRow NewScan(LibraryDirectoryRow directory, DateTime now)
+    private static BackgroundWorkRow NewScan(
+        LibraryDirectoryRow directory,
+        BackgroundWorkTrigger trigger,
+        DateTime now)
     {
         var id = Guid.CreateVersion7();
         return new BackgroundWorkRow
@@ -71,6 +76,8 @@ public sealed class LibraryWorkScheduler(ViewerDbContext database, TimeProvider 
             LibraryScanId = id,
             Category = BackgroundWorkCategory.LibraryScan,
             State = BackgroundWorkState.Queued,
+            Trigger = trigger,
+            Phase = BackgroundWorkPhases.Queued,
             LibraryDirectoryId = directory.Id,
             LibraryDirectory = directory,
             ConfigurationGeneration = directory.ConfigurationGeneration,

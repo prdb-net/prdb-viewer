@@ -9,8 +9,9 @@ The project is in active development. The current executable provides local
 Account access, guided Installation Configuration, durable Library Scans, and
 technical inspection of discovered Video File Candidates, plus the first
 authenticated catalogue, direct browser playback path, Account-private playback
-and Personal State surfaces, and prdb identification with local preview images
-and an Administrator review workflow. See
+and Personal State surfaces, prdb identification with local preview images
+and an Administrator review workflow, and the observable background-work
+operations surface. See
 [VISION.md](VISION.md) for the product contract.
 
 ## Prerequisites
@@ -238,3 +239,60 @@ Ordinary Users see the resulting provenance and a review indicator. Candidate
 contents, evidence, administrative attribution, and the queue itself remain
 Administrator-only, and no review action exposes another Account's Personal
 State.
+
+## Operate background work
+
+Every bounded run — Library Scan, technical inspection, hashing, preview
+generation, and identification — is visible to an Administrator with its
+trigger, state, current phase, observed counts, and the condition it is waiting
+for. A percentage appears only where a stable denominator exists; open-ended
+traversal reports concrete counts and phases instead of a fabricated estimate.
+
+Routine diagnosis never requires container logs. Every obstacle is a **Work
+Issue** with a stable reference, one of the eight Work Issue Causes, a severity,
+and exactly one current Remediation Owner:
+
+- A **Scoped Issue** affects one item or independent scope. Equivalent issues
+  aggregate by cause, work category, and shared scope, so thousands of
+  independent files report one message with a count and a complete affected-item
+  list rather than one alert each. They never establish Operational Attention by
+  themselves.
+- An **Operational Blocker** prevents a meaningful work area from advancing — an
+  unreadable mount root or subtree, a refused prdb credential, missing required
+  configuration.
+- A **Safety Stop** prevents further writes because continuing could endanger
+  durable state; unwritable application storage is the usual cause. It offers no
+  blind retry.
+
+Operational Blockers and Safety Stops establish **Operational Attention**, shown
+as a persistent administrative banner and count. It cannot be acknowledged or
+hidden away: it clears only when every establishing issue has Resolution
+Evidence — a new trustworthy observation followed by the blocked work actually
+continuing.
+
+Each issue offers only the actions that can advance it: `Retry now` for
+repeatable work, `Check again` after an external prerequisite may have changed,
+`View affected items`, and `Copy operator handoff`. The Operator Handoff is
+copyable, secret-free text naming the exact configured Library Directory, the
+exact container path, the safe cause, the retries already attempted, the
+requested operator action, and the evidence the application expects afterwards.
+The application never guesses a host path and never asks anyone to read
+container logs. Every action is bound to the Work Issue version that was
+displayed, so a stale retry is refused rather than committed against detail that
+a reconfiguration, another Administrator, or a restart has since changed.
+
+An Administrator can pause all Background Work installation-wide. The pause is
+durable, survives a restart, lets active units reach a safe boundary before
+stopping, and leaves browsing and playback untouched. Resuming continues from
+retained checkpoints instead of starting duplicate runs. One bounded run may
+also be cancelled: everything already committed is kept, and because a cancelled
+scan is not a complete observation of its unvisited scope, it can never advance
+a Video File towards Missing.
+
+Interactive playback takes priority over Background Work. While a Video is being
+delivered, the lanes reduce their own pressure between slices; throughput drops
+and no committed result is lost.
+
+Ordinary Users never see Background Work, Work Issues, configuration, mounts, or
+operational diagnostics — only the neutral preparation and availability states
+their Videos carry.

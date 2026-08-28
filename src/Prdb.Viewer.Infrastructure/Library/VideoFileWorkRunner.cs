@@ -9,16 +9,33 @@ namespace Prdb.Viewer.Infrastructure.Library;
 /// <summary>
 /// The shared shape of a derived lane that advances one Video File at a time: it claims its own
 /// durable run, retries earlier failures when a new run begins, commits after every file so a
-/// restart resumes where it stopped, and never writes beneath a Library Directory.
+/// restart resumes where it stopped, and never writes beneath a Library Directory. It also obeys
+/// the installation-wide pause and the cancellation of its own bounded run.
 /// </summary>
-public abstract class VideoFileWorkRunner(ViewerDbContext database, TimeProvider timeProvider)
+public abstract class VideoFileWorkRunner(
+    ViewerDbContext database,
+    WorkIssueRecorder issues,
+    TimeProvider timeProvider)
 {
     protected ViewerDbContext Database { get; } = database;
 
+    protected WorkIssueRecorder Issues { get; } = issues;
+
     protected abstract BackgroundWorkCategory Category { get; }
+
+    protected abstract string Phase { get; }
 
     public async Task<bool> RunNextSliceAsync(CancellationToken cancellationToken = default)
     {
+        if (await BackgroundWorkGate.IsPausedAsync(Database, cancellationToken))
+        {
+            return await BackgroundWorkGate.ParkAsync(
+                Database,
+                Category,
+                Now(),
+                cancellationToken);
+        }
+
         var now = Now();
         var work = await Database.BackgroundWork
             .AsTracking()
@@ -37,6 +54,12 @@ public abstract class VideoFileWorkRunner(ViewerDbContext database, TimeProvider
             return false;
         }
 
+        if (work.CancellationRequested)
+        {
+            await FinishAsync(work, BackgroundWorkState.Cancelled, cancellationToken);
+            return true;
+        }
+
         if (work.LibraryDirectory.State != LibraryDirectoryState.Active ||
             work.LibraryDirectory.ConfigurationGeneration != work.ConfigurationGeneration)
         {
@@ -50,6 +73,8 @@ public abstract class VideoFileWorkRunner(ViewerDbContext database, TimeProvider
             work.StartedAt ??= now;
             work.NextAttemptAt = null;
             work.WaitingReason = null;
+            work.Phase = Phase;
+            work.LastActivityAt = now;
             work.UpdatedAt = now;
             await RetryEarlierFailuresAsync(work.LibraryDirectoryId, cancellationToken);
             await Database.SaveChangesAsync(cancellationToken);
@@ -68,9 +93,7 @@ public abstract class VideoFileWorkRunner(ViewerDbContext database, TimeProvider
             await CompleteAsync(work, cancellationToken);
             await FinishAsync(
                 work,
-                work.IssueCount == 0
-                    ? BackgroundWorkState.Completed
-                    : BackgroundWorkState.CompletedWithIssues,
+                await SettledStateAsync(work, cancellationToken),
                 cancellationToken);
 
             if (followUp)
@@ -80,6 +103,7 @@ public abstract class VideoFileWorkRunner(ViewerDbContext database, TimeProvider
                     work.LibraryDirectoryId,
                     work.ConfigurationGeneration,
                     Category,
+                    BackgroundWorkTrigger.FollowUpWork,
                     Now(),
                     cancellationToken);
                 await Database.SaveChangesAsync(cancellationToken);
@@ -89,7 +113,8 @@ public abstract class VideoFileWorkRunner(ViewerDbContext database, TimeProvider
         }
 
         await AdvanceAsync(work, outstanding, cancellationToken);
-        work.UpdatedAt = Now();
+        work.LastActivityAt = Now();
+        work.UpdatedAt = work.LastActivityAt.Value;
         await Database.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -111,75 +136,53 @@ public abstract class VideoFileWorkRunner(ViewerDbContext database, TimeProvider
         BackgroundWorkRow work,
         CancellationToken cancellationToken) => Task.CompletedTask;
 
-    protected void AddIssue(
-        BackgroundWorkRow work,
-        string scope,
-        WorkIssueCause cause,
-        WorkIssueSeverity severity,
-        RemediationOwner owner,
-        string impact,
-        string requiredAction)
-    {
-        work.IssueCount++;
-        Database.WorkIssues.Add(new WorkIssueRow
-        {
-            Id = Guid.CreateVersion7(),
-            BackgroundWorkId = work.Id,
-            Severity = severity,
-            Cause = cause,
-            RemediationOwner = owner,
-            AffectedScope = scope,
-            Impact = impact,
-            RequiredAction = requiredAction,
-            CreatedAt = Now(),
-        });
-    }
-
     /// <summary>
-    /// Records a Work Issue unless this run already carries an unresolved one of the same cause,
-    /// so a repeatedly waiting lane reports one obstacle rather than a stream of duplicates.
+    /// A settled run reports Completed only when this Library Directory carries no unresolved
+    /// obstacle of its own category, so an item that is still explained does not vanish behind a
+    /// clean-looking outcome.
     /// </summary>
-    protected async Task AddIssueOnceAsync(
+    private async Task<BackgroundWorkState> SettledStateAsync(
         BackgroundWorkRow work,
-        string scope,
-        WorkIssueCause cause,
-        WorkIssueSeverity severity,
-        RemediationOwner owner,
-        string impact,
-        string requiredAction,
-        CancellationToken cancellationToken)
-    {
-        var open = await Database.WorkIssues.AnyAsync(
-            issue => issue.BackgroundWorkId == work.Id &&
-                     issue.Cause == cause &&
+        CancellationToken cancellationToken) =>
+        await Database.WorkIssues.AnyAsync(
+            issue => issue.LibraryDirectoryId == work.LibraryDirectoryId &&
+                     issue.Category == Category &&
                      issue.ResolvedAt == null,
+            cancellationToken)
+            ? BackgroundWorkState.CompletedWithIssues
+            : BackgroundWorkState.Completed;
+
+    protected Task ReportAsync(
+        BackgroundWorkRow work,
+        WorkIssueReport report,
+        CancellationToken cancellationToken) =>
+        Issues.RecordAsync(work, report, cancellationToken);
+
+    protected Task ResolveAsync(
+        BackgroundWorkRow work,
+        WorkIssueCause cause,
+        string evidence,
+        CancellationToken cancellationToken) =>
+        Issues.ResolveAsync(
+            work.LibraryDirectoryId,
+            Category,
+            cause,
+            evidence,
             cancellationToken);
 
-        if (!open)
-        {
-            AddIssue(work, scope, cause, severity, owner, impact, requiredAction);
-        }
-    }
-
-    /// <summary>
-    /// Closes the obstacles this run reported once work continued successfully, which is the
-    /// Resolution Evidence the operational model expects before an issue disappears.
-    /// </summary>
-    protected Task ResolveIssuesAsync(
+    protected Task ResolveItemAsync(
         BackgroundWorkRow work,
         WorkIssueCause cause,
-        CancellationToken cancellationToken)
-    {
-        var now = Now();
-
-        return Database.WorkIssues
-            .Where(issue => issue.BackgroundWorkId == work.Id &&
-                            issue.Cause == cause &&
-                            issue.ResolvedAt == null)
-            .ExecuteUpdateAsync(
-                update => update.SetProperty(issue => issue.ResolvedAt, now),
-                cancellationToken);
-    }
+        string scope,
+        string evidence,
+        CancellationToken cancellationToken) =>
+        Issues.ResolveItemAsync(
+            work.LibraryDirectoryId,
+            Category,
+            cause,
+            scope,
+            evidence,
+            cancellationToken);
 
     protected async Task WaitAsync(
         BackgroundWorkRow work,
@@ -195,6 +198,23 @@ public abstract class VideoFileWorkRunner(ViewerDbContext database, TimeProvider
         await Database.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// Leaves the run Waiting with its condition but without a scheduled attempt, so nothing
+    /// retries against an unchanged prerequisite until an Administrator explicitly asks.
+    /// </summary>
+    protected async Task HoldAsync(
+        BackgroundWorkRow work,
+        string reason,
+        CancellationToken cancellationToken)
+    {
+        var now = Now();
+        work.State = BackgroundWorkState.Waiting;
+        work.WaitingReason = reason;
+        work.NextAttemptAt = null;
+        work.UpdatedAt = now;
+        await Database.SaveChangesAsync(cancellationToken);
+    }
+
     protected async Task FinishAsync(
         BackgroundWorkRow work,
         BackgroundWorkState state,
@@ -202,6 +222,7 @@ public abstract class VideoFileWorkRunner(ViewerDbContext database, TimeProvider
     {
         var now = Now();
         work.State = state;
+        work.Phase = BackgroundWorkPhases.Settled;
         work.UpdatedAt = now;
         work.FinishedAt = now;
         work.FollowUpRequested = false;

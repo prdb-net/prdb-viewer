@@ -535,6 +535,141 @@
         }
       }
     },
+    "/api/admin/background-work/issues/{workIssueId}/items": {
+      "get": {
+        "tags": [
+          "Background Work"
+        ],
+        "parameters": [
+          {
+            "name": "workIssueId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/WorkIssueAffectedItem"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/admin/background-work/issues/{workIssueId}/actions": {
+      "post": {
+        "tags": [
+          "Background Work"
+        ],
+        "parameters": [
+          {
+            "name": "workIssueId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkIssueActionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundWorkActionResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/background-work/pause": {
+      "post": {
+        "tags": [
+          "Background Work"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BackgroundWorkPauseRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundWorkPauseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/background-work/{workId}/cancel": {
+      "post": {
+        "tags": [
+          "Background Work"
+        ],
+        "parameters": [
+          {
+            "name": "workId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BackgroundWorkActionResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/background-work/library-directories/{libraryDirectoryId}/scans": {
       "post": {
         "tags": [
@@ -1079,6 +1214,36 @@
           }
         }
       },
+      "BackgroundWorkActionResult": {
+        "required": [
+          "verdict"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/BackgroundWorkActionVerdict"
+          },
+          "issue": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkIssueSummary"
+              }
+            ]
+          }
+        }
+      },
+      "BackgroundWorkActionVerdict": {
+        "enum": [
+          "Accepted",
+          "NotFound",
+          "AlreadySettled",
+          "Stale",
+          "NotApplicable"
+        ]
+      },
       "BackgroundWorkCategory": {
         "enum": [
           "LibraryScan",
@@ -1087,6 +1252,36 @@
           "PreviewGeneration",
           "Identification"
         ]
+      },
+      "BackgroundWorkPauseRequest": {
+        "required": [
+          "paused"
+        ],
+        "type": "object",
+        "properties": {
+          "paused": {
+            "type": "boolean"
+          }
+        }
+      },
+      "BackgroundWorkPauseResult": {
+        "required": [
+          "paused",
+          "pausedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "paused": {
+            "type": "boolean"
+          },
+          "pausedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
       },
       "BackgroundWorkState": {
         "enum": [
@@ -1102,7 +1297,12 @@
       "BackgroundWorkStatus": {
         "required": [
           "work",
-          "issues"
+          "issues",
+          "recentlyResolvedIssues",
+          "operationalAttention",
+          "operationalAttentionCount",
+          "paused",
+          "pausedAt"
         ],
         "type": "object",
         "properties": {
@@ -1117,6 +1317,33 @@
             "items": {
               "$ref": "#/components/schemas/WorkIssueSummary"
             }
+          },
+          "recentlyResolvedIssues": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkIssueSummary"
+            }
+          },
+          "operationalAttention": {
+            "type": "boolean"
+          },
+          "operationalAttentionCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "pausedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -1125,13 +1352,21 @@
           "id",
           "category",
           "state",
+          "trigger",
+          "phase",
           "libraryDirectoryId",
           "libraryDirectoryName",
           "discoveredCandidateCount",
           "completedItemCount",
           "issueCount",
+          "completedPercent",
+          "waitingReason",
+          "nextAttemptAt",
+          "cancellationRequested",
+          "cancellable",
           "requestedAt",
           "startedAt",
+          "lastActivityAt",
           "finishedAt"
         ],
         "type": "object",
@@ -1145,6 +1380,12 @@
           },
           "state": {
             "$ref": "#/components/schemas/BackgroundWorkState"
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/BackgroundWorkTrigger"
+          },
+          "phase": {
+            "type": "string"
           },
           "libraryDirectoryId": {
             "type": "string",
@@ -1177,11 +1418,46 @@
             ],
             "format": "int32"
           },
+          "completedPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "waitingReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "nextAttemptAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "cancellationRequested": {
+            "type": "boolean"
+          },
+          "cancellable": {
+            "type": "boolean"
+          },
           "requestedAt": {
             "type": "string",
             "format": "date-time"
           },
           "startedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastActivityAt": {
             "type": [
               "null",
               "string"
@@ -1196,6 +1472,14 @@
             "format": "date-time"
           }
         }
+      },
+      "BackgroundWorkTrigger": {
+        "enum": [
+          "Activation",
+          "Administrator",
+          "FollowUpWork",
+          "IssueRetry"
+        ]
       },
       "BootstrapClaimVerdict": {
         "enum": [
@@ -2897,6 +3181,81 @@
           }
         }
       },
+      "WorkIssueAction": {
+        "enum": [
+          "RetryNow",
+          "CheckAgain",
+          "OpenPrdbSettings",
+          "OpenLibraryDirectory",
+          "ViewAffectedItems",
+          "CopyOperatorHandoff"
+        ]
+      },
+      "WorkIssueActionRequest": {
+        "required": [
+          "action",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/WorkIssueAction"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "WorkIssueAffectedItem": {
+        "required": [
+          "scope",
+          "containerPath",
+          "videoFileId",
+          "occurrenceCount",
+          "firstOccurredAt",
+          "lastOccurredAt"
+        ],
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string"
+          },
+          "containerPath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "videoFileId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "occurrenceCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "firstOccurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastOccurredAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
       "WorkIssueCause": {
         "enum": [
           "SourceAccess",
@@ -2909,6 +3268,13 @@
           "InternalConsistency"
         ]
       },
+      "WorkIssueRetryDisposition": {
+        "enum": [
+          "AutomaticRetryScheduled",
+          "RetriesExhausted",
+          "NoAutomaticRetry"
+        ]
+      },
       "WorkIssueSeverity": {
         "enum": [
           "ScopedIssue",
@@ -2919,14 +3285,34 @@
       "WorkIssueSummary": {
         "required": [
           "id",
+          "reference",
           "backgroundWorkId",
+          "category",
+          "libraryDirectoryId",
           "severity",
           "cause",
           "remediationOwner",
+          "retryDisposition",
+          "phase",
+          "summary",
+          "detail",
           "affectedScope",
+          "containerPath",
           "impact",
           "requiredAction",
-          "createdAt"
+          "expectedResolutionEvidence",
+          "occurrenceCount",
+          "affectedItemCount",
+          "version",
+          "actions",
+          "operatorHandoff",
+          "videoId",
+          "videoFileId",
+          "nextAttemptAt",
+          "firstOccurredAt",
+          "lastOccurredAt",
+          "resolvedAt",
+          "resolutionEvidence"
         ],
         "type": "object",
         "properties": {
@@ -2934,7 +3320,17 @@
             "type": "string",
             "format": "uuid"
           },
+          "reference": {
+            "type": "string"
+          },
           "backgroundWorkId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category": {
+            "$ref": "#/components/schemas/BackgroundWorkCategory"
+          },
+          "libraryDirectoryId": {
             "type": "string",
             "format": "uuid"
           },
@@ -2947,8 +3343,26 @@
           "remediationOwner": {
             "$ref": "#/components/schemas/RemediationOwner"
           },
+          "retryDisposition": {
+            "$ref": "#/components/schemas/WorkIssueRetryDisposition"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
           "affectedScope": {
             "type": "string"
+          },
+          "containerPath": {
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "impact": {
             "type": "string"
@@ -2956,9 +3370,86 @@
           "requiredAction": {
             "type": "string"
           },
-          "createdAt": {
+          "expectedResolutionEvidence": {
+            "type": "string"
+          },
+          "occurrenceCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "affectedItemCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "version": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "actions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkIssueAction"
+            }
+          },
+          "operatorHandoff": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "videoId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "videoFileId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "nextAttemptAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "firstOccurredAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "lastOccurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "resolutionEvidence": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       }

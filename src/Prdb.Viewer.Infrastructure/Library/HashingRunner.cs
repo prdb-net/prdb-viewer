@@ -12,9 +12,12 @@ namespace Prdb.Viewer.Infrastructure.Library;
 public sealed class HashingRunner(
     ViewerDbContext database,
     IVideoFileHasher hasher,
-    TimeProvider timeProvider) : VideoFileWorkRunner(database, timeProvider)
+    WorkIssueRecorder issues,
+    TimeProvider timeProvider) : VideoFileWorkRunner(database, issues, timeProvider)
 {
     protected override BackgroundWorkCategory Category => BackgroundWorkCategory.Hashing;
+
+    protected override string Phase => BackgroundWorkPhases.Hashing;
 
     protected override IQueryable<VideoFileRow> Outstanding(Guid libraryDirectoryId) =>
         Database.VideoFiles.Where(file =>
@@ -68,15 +71,62 @@ public sealed class HashingRunner(
 
         if (tracked.HashState == VideoFileHashState.Failed)
         {
-            AddIssue(
+            var changing = path is not null && !IsStable(path, file);
+            var cause = path is null
+                ? WorkIssueCause.SourceAccess
+                : changing
+                    ? WorkIssueCause.ChangingSource
+                    : WorkIssueCause.InvalidContent;
+            await ReportAsync(
                 work,
-                file.RelativePath,
-                path is null ? WorkIssueCause.SourceAccess : WorkIssueCause.InvalidContent,
-                WorkIssueSeverity.ScopedIssue,
-                RemediationOwner.Administrator,
-                $"No content hash could be computed, so this Video File can only be identified by " +
-                $"its name. {hashes.FailureReason}",
-                "Check the file, then request another Library Scan to retry hashing.");
+                new WorkIssueReport(
+                    cause,
+                    WorkIssueSeverity.ScopedIssue,
+                    changing
+                        ? WorkIssueRetryDisposition.AutomaticRetryScheduled
+                        : WorkIssueRetryDisposition.NoAutomaticRetry,
+                    file.RelativePath,
+                    work.LibraryDirectory.Name,
+                    Phase,
+                    changing
+                        ? WorkIssueMessages.FileIsStillChanging(Path.GetFileName(file.RelativePath))
+                        : WorkIssueMessages.CannotHash(Path.GetFileName(file.RelativePath)),
+                    changing
+                        ? "Stable content could not be observed, so no replacement or identity " +
+                          "decision was made. Browsing and playback of this Video File continue."
+                        : "The identification hashes could not be calculated from the inspected " +
+                          "content. Browsing and otherwise available playback remain possible, " +
+                          "while automatic identification for this file is delayed. Unrelated " +
+                          "files continue to be hashed.",
+                    "This Video File can currently only be identified by its name.",
+                    changing
+                        ? "No action is required while the source is still being written."
+                        : "Repair or replace the source file, then use Retry now.",
+                    hashes.FailureReason ?? "The hashing library returned no usable result.",
+                    "A stable read followed by a successfully computed identification hash.")
+                {
+                    ContainerPath = path,
+                    VideoId = file.VideoId,
+                    VideoFileId = file.Id,
+                },
+                cancellationToken);
+        }
+        else
+        {
+            foreach (var cause in new[]
+            {
+                WorkIssueCause.SourceAccess,
+                WorkIssueCause.ChangingSource,
+                WorkIssueCause.InvalidContent,
+            })
+            {
+                await ResolveItemAsync(
+                    work,
+                    cause,
+                    file.RelativePath,
+                    "An identification hash was computed from stable content.",
+                    cancellationToken);
+            }
         }
 
         work.CompletedItemCount++;
@@ -90,6 +140,7 @@ public sealed class HashingRunner(
             work.LibraryDirectoryId,
             work.ConfigurationGeneration,
             BackgroundWorkCategory.Identification,
+            BackgroundWorkTrigger.FollowUpWork,
             Now(),
             cancellationToken);
 }

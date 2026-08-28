@@ -8,12 +8,24 @@ using Prdb.Viewer.Infrastructure.Persistence;
 
 namespace Prdb.Viewer.Infrastructure.Library;
 
-public sealed class LibraryScanRunner(ViewerDbContext database, TimeProvider timeProvider)
+public sealed class LibraryScanRunner(
+    ViewerDbContext database,
+    WorkIssueRecorder issues,
+    TimeProvider timeProvider)
 {
     private const int DirectoriesPerSlice = 8;
 
     public async Task<bool> RunNextSliceAsync(CancellationToken cancellationToken = default)
     {
+        if (await BackgroundWorkGate.IsPausedAsync(database, cancellationToken))
+        {
+            return await BackgroundWorkGate.ParkAsync(
+                database,
+                BackgroundWorkCategory.LibraryScan,
+                Now(),
+                cancellationToken);
+        }
+
         var work = await database.BackgroundWork
             .AsTracking()
             .Include(row => row.LibraryDirectory)
@@ -28,10 +40,15 @@ public sealed class LibraryScanRunner(ViewerDbContext database, TimeProvider tim
             return false;
         }
 
-        if (work.LibraryDirectory.State != LibraryDirectoryState.Active ||
+        // A cancelled or superseded scan is not a complete observation of its unvisited scope, so
+        // it stops here and never reconciles absences.
+        if (work.CancellationRequested ||
+            work.LibraryDirectory.State != LibraryDirectoryState.Active ||
             work.LibraryDirectory.ConfigurationGeneration != work.ConfigurationGeneration)
         {
             work.State = BackgroundWorkState.Cancelled;
+            work.Phase = BackgroundWorkPhases.Settled;
+            work.CoverageComplete = false;
             work.FinishedAt = Now();
             work.UpdatedAt = work.FinishedAt.Value;
             await database.SaveChangesAsync(cancellationToken);
@@ -41,19 +58,27 @@ public sealed class LibraryScanRunner(ViewerDbContext database, TimeProvider tim
         var now = Now();
         work.CompletedItemCount = work.DiscoveredCandidateCount;
         work.State = BackgroundWorkState.Running;
+        work.Phase = BackgroundWorkPhases.Traversing;
         work.StartedAt ??= now;
+        work.LastActivityAt = now;
         work.UpdatedAt = now;
         var pending = Deserialize(work.PendingDirectoriesJson);
+        var reports = new List<WorkIssueReport>();
         var processed = 0;
 
         while (pending.Count > 0 && processed++ < DirectoriesPerSlice)
         {
             var relativeDirectory = pending[0];
             pending.RemoveAt(0);
-            ScanDirectory(work, relativeDirectory, pending);
+            ScanDirectory(work, relativeDirectory, pending, reports);
         }
 
         work.PendingDirectoriesJson = JsonSerializer.Serialize(pending);
+
+        foreach (var report in reports)
+        {
+            await issues.RecordAsync(work, report, cancellationToken);
+        }
 
         if (pending.Count == 0)
         {
@@ -67,7 +92,8 @@ public sealed class LibraryScanRunner(ViewerDbContext database, TimeProvider tim
     private void ScanDirectory(
         BackgroundWorkRow work,
         string relativeDirectory,
-        List<string> pending)
+        List<string> pending,
+        List<WorkIssueReport> reports)
     {
         var root = Path.TrimEndingDirectorySeparator(work.LibraryDirectory.ContainerPath);
         string path;
@@ -80,18 +106,22 @@ public sealed class LibraryScanRunner(ViewerDbContext database, TimeProvider tim
         }
         catch (Exception exception) when (exception is ArgumentException or UnauthorizedAccessException or IOException)
         {
-            AddIssue(work, relativeDirectory, WorkIssueCause.SourceAccess,
-                "A directory could not be traversed safely.",
-                "Restore the mount or permissions, then request another Library Scan.");
+            reports.Add(ScopeReport(
+                work,
+                relativeDirectory,
+                root,
+                "The directory path could not be resolved beneath the Library Directory."));
             work.CoverageComplete = false;
             return;
         }
 
         if (!IsWithin(root, path) || linked)
         {
-            AddIssue(work, relativeDirectory, WorkIssueCause.SourceAccess,
-                "A directory could not be traversed safely.",
-                "Ensure every mounted directory resolves beneath the configured Library Directory.");
+            reports.Add(ScopeReport(
+                work,
+                relativeDirectory,
+                root,
+                "The directory resolves outside the configured Library Directory."));
             work.CoverageComplete = false;
             return;
         }
@@ -106,9 +136,7 @@ public sealed class LibraryScanRunner(ViewerDbContext database, TimeProvider tim
         }
         catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
         {
-            AddIssue(work, relativeDirectory, WorkIssueCause.SourceAccess,
-                "This part of the Library Directory could not be read.",
-                "Restore the mount or permissions, then request another Library Scan.");
+            reports.Add(ScopeReport(work, relativeDirectory, root, SafeAccessCause(exception)));
             work.CoverageComplete = false;
             return;
         }
@@ -124,9 +152,13 @@ public sealed class LibraryScanRunner(ViewerDbContext database, TimeProvider tim
                 {
                     if (VideoFileCandidatePolicy.Recognizes(Path.GetExtension(entry)))
                     {
-                        AddIssue(work, relative, WorkIssueCause.SourceAccess,
-                            "A linked Video File Candidate was skipped.",
-                            "Mount the source beneath the Library Directory instead of linking outside it.");
+                        reports.Add(ItemReport(
+                            work,
+                            relative,
+                            entry,
+                            "The entry is a link that leaves the Library Directory.",
+                            "Mount the source beneath the Library Directory instead of linking " +
+                            "outside it, then use Check again."));
                     }
 
                     continue;
@@ -159,13 +191,93 @@ public sealed class LibraryScanRunner(ViewerDbContext database, TimeProvider tim
             catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
             {
                 work.CoverageComplete = false;
-                AddIssue(work, ToStoredPath(Path.GetRelativePath(root, entry)),
-                    WorkIssueCause.SourceAccess,
-                    "A filesystem entry could not be read.",
-                    "Restore the mount or permissions, then request another Library Scan.");
+                reports.Add(ItemReport(
+                    work,
+                    ToStoredPath(Path.GetRelativePath(root, entry)),
+                    entry,
+                    SafeAccessCause(exception),
+                    "Restore the mount or permissions, then use Check again."));
             }
         }
     }
+
+    /// <summary>
+    /// A root or subtree that cannot be read is a shared scope, so it blocks a meaningful work
+    /// area rather than describing one item.
+    /// </summary>
+    private static WorkIssueReport ScopeReport(
+        BackgroundWorkRow work,
+        string relativeDirectory,
+        string root,
+        string safeCause)
+    {
+        var isRoot = relativeDirectory.Length == 0;
+        var name = work.LibraryDirectory.Name;
+
+        return new WorkIssueReport(
+            WorkIssueCause.SourceAccess,
+            WorkIssueSeverity.OperationalBlocker,
+            WorkIssueRetryDisposition.RetriesExhausted,
+            isRoot ? name : relativeDirectory,
+            $"{name}:{(isRoot ? "root" : "partial")}",
+            BackgroundWorkPhases.Traversing,
+            isRoot
+                ? WorkIssueMessages.DirectoryCannotBeScanned(name)
+                : WorkIssueMessages.PartOfDirectoryCannotBeScanned(name),
+            "The Library Scan could not observe this part of the directory. Because the " +
+            "observation is incomplete, no Video File is advanced towards Missing and healthy " +
+            "sibling directories continue to be scanned.",
+            isRoot
+                ? "Nothing in this Library Directory can be discovered or reconciled."
+                : "Content beneath this path cannot be discovered or reconciled.",
+            "Ask the Installation Operator to restore the mount or its permissions, then use " +
+            "Check again.",
+            safeCause,
+            "Trustworthy access to the path followed by a Library Scan that completes its " +
+            "traversal.")
+        {
+            ContainerPath = isRoot
+                ? root
+                : Path.Combine(root, relativeDirectory.Replace('/', Path.DirectorySeparatorChar)),
+            AggregatesItems = false,
+        };
+    }
+
+    /// <summary>
+    /// One unreadable entry is independent: it stays a Scoped Issue and never establishes
+    /// Operational Attention by itself, however many equivalent entries aggregate with it.
+    /// </summary>
+    private static WorkIssueReport ItemReport(
+        BackgroundWorkRow work,
+        string relativePath,
+        string containerPath,
+        string safeCause,
+        string requiredAction) =>
+        new(WorkIssueCause.SourceAccess,
+            WorkIssueSeverity.ScopedIssue,
+            WorkIssueRetryDisposition.RetriesExhausted,
+            relativePath,
+            $"{work.LibraryDirectory.Name}:items",
+            BackgroundWorkPhases.Traversing,
+            WorkIssueMessages.CannotReadFile(Path.GetFileName(relativePath)),
+            "The entry could not be read where the library expects it. Unobserved content is not " +
+            "treated as Missing or Removed, and unrelated files continue to be discovered.",
+            "This file is not admitted to technical inspection.",
+            requiredAction,
+            safeCause,
+            "A readable entry at the same path followed by successful technical inspection.")
+        {
+            ContainerPath = containerPath,
+        };
+
+    /// <summary>The access class an operator may see, never a stack trace or host path.</summary>
+    private static string SafeAccessCause(Exception exception) => exception switch
+    {
+        UnauthorizedAccessException => "The container is not permitted to read the path.",
+        DirectoryNotFoundException => "The path does not exist in the container.",
+        FileNotFoundException => "The path does not exist in the container.",
+        _ => "The path could not be read from the mounted filesystem.",
+    };
 
     private async Task CompleteTraversalAsync(
         BackgroundWorkRow work,
@@ -173,6 +285,7 @@ public sealed class LibraryScanRunner(ViewerDbContext database, TimeProvider tim
     {
         if (work.CoverageComplete)
         {
+            work.Phase = BackgroundWorkPhases.Reconciling;
             var observedPaths = await database.VideoFileCandidates
                 .Where(candidate => candidate.LibraryScanId == work.LibraryScanId)
                 .Select(candidate => candidate.RelativePath)
@@ -191,12 +304,25 @@ public sealed class LibraryScanRunner(ViewerDbContext database, TimeProvider tim
                     ? VideoFileAvailability.Missing
                     : VideoFileAvailability.Unreachable;
             }
+
+            await issues.ResolveAsync(
+                work.LibraryDirectoryId,
+                BackgroundWorkCategory.LibraryScan,
+                WorkIssueCause.SourceAccess,
+                "A Library Scan completed its traversal of the whole Library Directory.",
+                cancellationToken);
         }
 
         var now = Now();
-        work.State = work.IssueCount == 0
-            ? BackgroundWorkState.Completed
-            : BackgroundWorkState.CompletedWithIssues;
+        var unresolved = await database.WorkIssues.AnyAsync(
+            issue => issue.LibraryDirectoryId == work.LibraryDirectoryId &&
+                     issue.Category == BackgroundWorkCategory.LibraryScan &&
+                     issue.ResolvedAt == null,
+            cancellationToken);
+        work.State = unresolved
+            ? BackgroundWorkState.CompletedWithIssues
+            : BackgroundWorkState.Completed;
+        work.Phase = BackgroundWorkPhases.Settled;
         work.FinishedAt = now;
         work.UpdatedAt = now;
         work.LibraryDirectory.Health = work.CoverageComplete
@@ -210,6 +336,8 @@ public sealed class LibraryScanRunner(ViewerDbContext database, TimeProvider tim
             Id = Guid.CreateVersion7(),
             Category = BackgroundWorkCategory.TechnicalInspection,
             State = BackgroundWorkState.Queued,
+            Trigger = BackgroundWorkTrigger.FollowUpWork,
+            Phase = BackgroundWorkPhases.Queued,
             LibraryDirectoryId = work.LibraryDirectoryId,
             ConfigurationGeneration = work.ConfigurationGeneration,
             LibraryScanId = work.LibraryScanId,
@@ -227,6 +355,8 @@ public sealed class LibraryScanRunner(ViewerDbContext database, TimeProvider tim
                 LibraryScanId = followUp,
                 Category = BackgroundWorkCategory.LibraryScan,
                 State = BackgroundWorkState.Queued,
+                Trigger = BackgroundWorkTrigger.FollowUpWork,
+                Phase = BackgroundWorkPhases.Queued,
                 LibraryDirectoryId = work.LibraryDirectoryId,
                 ConfigurationGeneration = work.ConfigurationGeneration,
                 PendingDirectoriesJson = JsonSerializer.Serialize(new[] { string.Empty }),
@@ -235,30 +365,6 @@ public sealed class LibraryScanRunner(ViewerDbContext database, TimeProvider tim
                 UpdatedAt = now,
             });
         }
-    }
-
-    private void AddIssue(
-        BackgroundWorkRow work,
-        string scope,
-        WorkIssueCause cause,
-        string impact,
-        string requiredAction)
-    {
-        work.IssueCount++;
-        database.WorkIssues.Add(new WorkIssueRow
-        {
-            Id = Guid.CreateVersion7(),
-            BackgroundWorkId = work.Id,
-            Severity = string.IsNullOrEmpty(scope)
-                ? WorkIssueSeverity.OperationalBlocker
-                : WorkIssueSeverity.ScopedIssue,
-            Cause = cause,
-            RemediationOwner = RemediationOwner.InstallationOperator,
-            AffectedScope = string.IsNullOrEmpty(scope) ? "." : scope,
-            Impact = impact,
-            RequiredAction = requiredAction,
-            CreatedAt = Now(),
-        });
     }
 
     private static List<string> Deserialize(string? json) =>
