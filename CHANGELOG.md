@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-28
+
+Playability becomes a fact about your browser rather than a guess for everyone,
+and the two remaining MVP points — local site recognition and visible
+unsupported Videos — are built.
+
 ### Added
 
 - Decide direct playability for each Account on each browser rather than
@@ -61,7 +67,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 ## [0.2.0] - 2026-08-28
 
 Library discovery: the library is now searchable, filterable, sortable, and
-loaded a page at a time.
+loaded a page at a time. No image was published under this version; its changes
+ship in 0.3.0.
 
 ### Added
 
