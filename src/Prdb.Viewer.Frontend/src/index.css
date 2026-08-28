@@ -136,6 +136,8 @@ p { color: #bdb8c7; line-height: 1.6; }
 .facet { padding: .4rem .7rem; border: 1px solid rgb(255 255 255 / 12%); border-radius: 999px; color: #cfc9d6; background: transparent; font: inherit; font-size: .78rem; cursor: pointer; }
 .facet:hover { border-color: rgb(205 183 255 / 45%); }
 .facet.selected { border-color: transparent; color: #1a1820; background: #cdb7ff; font-weight: 700; }
+.preference { display: inline-flex; align-items: center; gap: .45rem; color: #cfc9d6; font-size: .78rem; cursor: pointer; }
+.preference input { accent-color: #cdb7ff; }
 .hidden-matches { margin-top: 1.2rem; padding: .9rem 1rem; border: 1px dashed rgb(255 255 255 / 15%); border-radius: .8rem; }
 .hidden-matches p { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin: 0; color: #cfc9d6; font-size: .85rem; }
 .hidden-matches p + p { margin-top: .5rem; }

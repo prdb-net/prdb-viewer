@@ -10,6 +10,7 @@ import {
   type LibraryDirectoryStage,
   type RecoverRequest,
   type RegistrationRequest,
+  type IdentificationCase,
   type IdentificationConsequence,
   type IdentificationDecisionAction,
   type IdentificationQueueItem,
@@ -363,6 +364,9 @@ function VideoLibrary({ account }: { account: Account }) {
         narrow={narrow}
         clear={() => { setPages(1); setFilters(emptyFilters) }}
         narrowed={narrowed}
+        includesNotReady={page.includesNotReadyForDirectPlay === true}
+        setIncludesNotReady={(included) => includeNotReady.mutate(included)}
+        preferencePending={includeNotReady.isPending}
       />
       {page.videos.length === 0 && (
         <div className="empty-library">
@@ -398,12 +402,24 @@ const pageSize = 60
 const readinessValues = ['ReadyForDirectPlay', 'CompatibilityUncertain', 'NotDirectlyPlayable']
 
 /// The search box, the two sort orders and the facets, which is the whole of the MVP's browsing.
-function LibraryControls({ filters, facets, narrow, clear, narrowed }: {
+function LibraryControls({
+  filters,
+  facets,
+  narrow,
+  clear,
+  narrowed,
+  includesNotReady,
+  setIncludesNotReady,
+  preferencePending,
+}: {
   filters: LibraryFilters
   facets?: LibraryFacets
   narrow: (change: Partial<LibraryFilters>) => void
   clear: () => void
   narrowed: boolean
+  includesNotReady: boolean
+  setIncludesNotReady: (included: boolean) => void
+  preferencePending: boolean
 }) {
   return (
     <div className="library-controls">
@@ -450,6 +466,22 @@ function LibraryControls({ filters, facets, narrow, clear, narrowed }: {
           selected={filters.playState.includes('Unplayed')}
           onToggle={(selected) => narrow({ playState: selected ? ['Unplayed'] : [] })}
         />
+        <FacetToggle
+          label="Unsupported only"
+          selected={filters.readiness.includes('NotDirectlyPlayable')}
+          onToggle={(selected) => narrow({ readiness: selected ? ['NotDirectlyPlayable'] : [] })}
+        />
+      </div>
+      <div className="facet-row">
+        <label className="preference">
+          <input
+            type="checkbox"
+            checked={includesNotReady}
+            disabled={preferencePending}
+            onChange={(event) => setIncludesNotReady(event.target.checked)}
+          />
+          <span>Show unsupported Videos in ordinary results</span>
+        </label>
       </div>
       {facets?.sites?.length ? (
         <div className="facet-row" aria-label="Sites">
@@ -591,7 +623,7 @@ function VideoCard({ video, play, act, pending, dismissible }: {
         : <div className="video-placeholder" aria-hidden="true">▶</div>}
       <div>
         <strong>{video.displayTitle}</strong>
-        <small>{source ? friendlyState(source.directPlayClassification) : friendlyState(video.availability)}</small>
+        <small>{playbackSupport(video, source)}</small>
         <Provenance identification={video.identification} />
       </div>
       {video.personalState.playState !== 'Unplayed' && (
@@ -603,7 +635,7 @@ function VideoCard({ video, play, act, pending, dismissible }: {
       )}
       {source
         ? <button className="primary-button" onClick={play} disabled={pending}>{progress > 0 && video.personalState.playState === 'InProgress' ? 'Resume' : 'Play'}</button>
-        : <span className="unsupported">No direct-play candidate</span>}
+        : <span className="unsupported">{playbackUnavailableReason(video)}</span>}
       <div className="personal-actions">
         <button
           className={video.personalState.favourite ? 'selected' : ''}
@@ -782,12 +814,33 @@ function Provenance({ identification }: { identification?: VideoSummary['identif
         {work.resolution === 'Established' ? provenanceLabel(work.source) : 'Unknown Video'}
       </span>
       {site.resolution === 'Established' && site.targetTitle && (
-        <span className="badge site">{site.targetTitle}</span>
+        <span className="badge site">{site.targetTitle} · {siteProvenanceLabel(site.source)}</span>
       )}
       {review && <span className="badge review">Review needed</span>}
       {identification.actors.length > 0 && <small>{identification.actors.join(', ')}</small>}
     </div>
   )
+}
+
+/// A recognised Site says where it came from, because a name read out of a file's own path is not
+/// the same knowledge as one prdb established.
+function siteProvenanceLabel(source: string | null | undefined) {
+  if (source === 'PrdbIdentification') return 'from prdb'
+  if (source === 'AdministratorDecision') return 'set by an Administrator'
+  if (source === 'LocalInference') return 'recognised locally'
+  return 'established'
+}
+
+/// The claim the open case is actually about. Reviewing a proposed Site next to the current Work
+/// Identification would compare two different questions.
+function reviewedClaim(open: IdentificationCase, dimension: string) {
+  return dimension === 'SiteRecognition' ? open.identification.site : open.identification.work
+}
+
+/// Where a proposal came from, in the queue's own line, so an Administrator can tell a remote
+/// proposal from one read out of a file's path before opening the case.
+function candidateOrigin(source: string | null | undefined) {
+  return source === 'LocalInference' ? 'from the file’s own path' : 'from prdb'
 }
 
 function provenanceLabel(source: string | null | undefined) {
@@ -894,6 +947,7 @@ function IdentificationReview({ account }: { account: Account }) {
               <strong>{item.displayLabel}</strong>
               <small>
                 {friendlyState(item.dimension)} · {friendlyState(item.candidate.evidenceClass)} ·
+                {' '}{candidateOrigin(item.candidate.source)} ·
                 {' '}proposes “{item.candidate.targetTitle}”
               </small>
               <small>{item.reason}</small>
@@ -917,8 +971,8 @@ function IdentificationReview({ account }: { account: Account }) {
             <div>
               <span className="eyebrow">Current</span>
               <p>
-                {openCase.data.identification.work.resolution === 'Established'
-                  ? `Established “${openCase.data.identification.work.targetTitle}” · ${provenanceLabel(openCase.data.identification.work.source)}`
+                {reviewedClaim(openCase.data, selected.dimension).resolution === 'Established'
+                  ? `Established “${reviewedClaim(openCase.data, selected.dimension).targetTitle}” · ${provenanceLabel(reviewedClaim(openCase.data, selected.dimension).source)}`
                   : 'Unknown'}
               </p>
               <small>{openCase.data.videoFiles.length} Video File(s)</small>
@@ -995,6 +1049,33 @@ function IdentificationReview({ account }: { account: Account }) {
       {(queue.isError || openCase.isError || decide.isError) && <RequestError />}
     </section>
   )
+}
+
+/// What the card says about playback beneath the title. Direct-Play Classification describes a
+/// file and the supported browsers, never this browser, so nothing here promises that playback
+/// will work — it says what the file is.
+function playbackSupport(video: VideoSummary, source: VideoSummary['videoFiles'][number] | undefined) {
+  if (!source) return friendlyState(video.availability)
+  return source.directPlayClassification === 'ClientDependent'
+    ? `${fileFormat(source)} · may not play in every browser`
+    : fileFormat(source)
+}
+
+/// Why an Unsupported Video is shown without a Play button. It is listed with its title and its
+/// preview so it stays understandable rather than merely absent.
+function playbackUnavailableReason(video: VideoSummary) {
+  if (video.videoFiles.length === 0) {
+    return 'No Video File of this Video is currently available.'
+  }
+  const formats = Array.from(new Set(video.videoFiles.map(fileFormat))).join(' or ')
+  return video.videoFiles.every((file) => file.directPlayClassification === 'Unsupported')
+    ? `Not directly playable: ${formats} needs conversion, which this product deliberately does not do.`
+    : `Not offered for playback: browser support for ${formats} could not be established.`
+}
+
+function fileFormat(file: VideoSummary['videoFiles'][number]) {
+  const codecs = [file.videoCodec, file.audioCodec].filter(Boolean).join(' + ')
+  return `${file.containerFormat} (${codecs})`
 }
 
 function playableFile(video: VideoSummary) {

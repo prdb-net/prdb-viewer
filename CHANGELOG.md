@@ -7,6 +7,32 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Recognise a Video's originating site from the Video File's own path when prdb
+  cannot match it, against a Site Directory fetched from prdb at most once a day
+  and joined with every Site the installation has already established. A path
+  that names exactly one known site establishes a Site Recognition sourced as
+  local inference; a path that names several, or names one only through a short
+  word, proposes a reviewable Identification Candidate instead.
+- Show where a Site came from wherever it appears — from prdb, recognised
+  locally, or set by an Administrator — in browsing and in the identification
+  review, so a local reading is never mistaken for an established prdb match.
+- Show unsupported Videos with their title, preview, provenance and Personal
+  State, stating the container and codecs that cannot be played directly in
+  place of a Play button. The per-Account preference is now a standing control
+  that can be turned off again, and `Unsupported only` narrows one view without
+  changing it.
+
+### Changed
+
+- A locally recognised Site gives way, without review, to the canonical Site of
+  a work prdb later identifies, and the reading it replaces is retained as
+  history. An Administrator's decision is never replaced this way.
+- The identification review names the origin of each proposal and compares the
+  claim it is actually about, rather than always showing the Work
+  Identification beside a proposed Site.
+
 ## [0.2.0] - 2026-08-28
 
 Library discovery: the library is now searchable, filterable, sortable, and

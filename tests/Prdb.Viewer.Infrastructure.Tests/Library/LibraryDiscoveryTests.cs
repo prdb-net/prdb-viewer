@@ -243,6 +243,33 @@ public sealed class LibraryDiscoveryTests
         Assert.Equal("lost", Assert.Single(unavailable.Videos).DisplayTitle);
     }
 
+    [Fact]
+    public async Task An_unsupported_video_carries_its_title_and_preview_when_it_is_asked_for()
+    {
+        await using var store = await CreateAsync();
+        var accountId = await AccountAsync(store);
+        await SourceAsync(store, ("Beach Day 2019.mkv", "matroska"));
+        await LibraryPipeline.DrainAsync(store);
+
+        await using var scope = store.Scope();
+        var filtered = await Discovery(scope).GetAsync(
+            accountId,
+            new LibraryDiscoveryRequest
+            {
+                Readiness = [DiscoveryReadiness.NotDirectlyPlayable],
+            },
+            TestContext.Current.CancellationToken);
+
+        // An Unsupported Video is understandable rather than merely absent: it keeps its local
+        // label, its generated preview, and the file facts that say why it cannot be played.
+        var video = Assert.Single(filtered.Videos);
+        Assert.Equal("Beach Day 2019", video.DisplayTitle);
+        Assert.StartsWith("/media/previews/", video.PreviewUrl);
+        var file = Assert.Single(video.VideoFiles);
+        Assert.Equal("matroska,webm", file.ContainerFormat);
+        Assert.NotEqual(DirectPlayClassification.BaselineCandidate, file.DirectPlayClassification);
+    }
+
     private static LibraryDiscovery Discovery(AsyncServiceScope scope) =>
         scope.ServiceProvider.GetRequiredService<LibraryDiscovery>();
 

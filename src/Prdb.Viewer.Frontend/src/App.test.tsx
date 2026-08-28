@@ -281,7 +281,7 @@ describe('App', () => {
       '/media/previews/01994dd4-2a0a-7000-8000-000000000021',
     )
     expect(screen.getByText('prdb match')).toBeInTheDocument()
-    expect(screen.getByText('Known Site')).toBeInTheDocument()
+    expect(screen.getByText('Known Site · from prdb')).toBeInTheDocument()
     expect(screen.getByText('Alex Doe')).toBeInTheDocument()
     expect(screen.getByText('Unknown Video')).toBeInTheDocument()
     expect(screen.getByText('Review needed')).toBeInTheDocument()
@@ -488,6 +488,86 @@ describe('App', () => {
     await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
       '/api/library/preferences/include-not-ready',
       expect.objectContaining({ method: 'PUT' }),
+    ))
+  })
+
+  it('shows unsupported Videos with their title, preview, and the reason playback is unavailable', async () => {
+    const unsupported = libraryVideo({
+      displayTitle: 'An Unsupported Video',
+      previewUrl: '/media/previews/01994dd4-2a0a-7000-8000-000000000014',
+      identification: identification({
+        site: claim({
+          dimension: 'SiteRecognition',
+          resolution: 'Established',
+          targetTitle: 'Known Site',
+          source: 'LocalInference',
+        }),
+      }),
+      videoFiles: [{
+        id: '01994dd4-2a0a-7000-8000-000000000011',
+        relativePath: 'known site - scene.mkv',
+        size: 10,
+        durationMilliseconds: 10000,
+        containerFormat: 'matroska',
+        videoCodec: 'wmv3',
+        audioCodec: 'wmav2',
+        width: 640,
+        height: 360,
+        availability: 'Available',
+        directPlayClassification: 'Unsupported',
+        deliveryUrl: '/media/videos/01994dd4-2a0a-7000-8000-000000000012',
+      }],
+    })
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      if (input === '/api/access/state') return json({ claimed: true, signedIn: true })
+      if (input === '/api/access/me') return json({
+        id: '01994dd4-2a0a-7000-8000-000000000001',
+        username: 'viewer',
+        email: null,
+        authority: 'User',
+        csrfToken: 'csrf-token',
+      })
+      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isLibraryRequest(input)) {
+        return json(libraryPage([unsupported], { includesNotReadyForDirectPlay: true }))
+      }
+      if (input === '/api/library/preferences/include-not-ready') {
+        return json({ includesNotReadyForDirectPlay: false })
+      }
+      if (input === '/api/personal/library') {
+        return json({ continueWatching: [], favourites: [], watchLater: [] })
+      }
+      return json([])
+    })
+
+    renderApp()
+
+    // Title and preview are there; the entry explains itself instead of offering playback.
+    expect(await screen.findByText('An Unsupported Video')).toBeInTheDocument()
+    expect(document.querySelector('img.video-preview')).toHaveAttribute(
+      'src',
+      '/media/previews/01994dd4-2a0a-7000-8000-000000000014',
+    )
+    expect(screen.getByText(/matroska \(wmv3 \+ wmav2\)/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Play' })).not.toBeInTheDocument()
+
+    // A locally recognised Site says so rather than looking like a prdb match.
+    expect(screen.getByText('Known Site · recognised locally')).toBeInTheDocument()
+
+    // The standing preference is visible and can be turned off again.
+    const preference = screen.getByLabelText('Show unsupported Videos in ordinary results')
+    expect(preference).toBeChecked()
+    fireEvent.click(preference)
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/library/preferences/include-not-ready',
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ included: false }) }),
+    ))
+
+    // The explicit filter narrows one view without changing the preference.
+    fireEvent.click(screen.getByRole('button', { name: 'Unsupported only' }))
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('readiness=NotDirectlyPlayable'),
+      expect.anything(),
     ))
   })
 

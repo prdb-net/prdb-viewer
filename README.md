@@ -10,8 +10,9 @@ Account access, guided Installation Configuration, durable Library Scans, and
 technical inspection of discovered Video File Candidates, plus the first
 authenticated catalogue, direct browser playback path, Account-private playback
 and Personal State surfaces, a searchable and filterable library, prdb identification with
-local preview images and an Administrator review workflow, the observable
-background-work operations surface, and operator backup and restore. See
+local preview images, local site recognition and an Administrator review
+workflow, the observable background-work operations surface, and operator backup
+and restore. See
 [VISION.md](VISION.md) for the product contract.
 
 ## Prerequisites
@@ -225,6 +226,12 @@ the control that reveals them rather than dropping them silently: a per-Account
 preference widens results to Videos that are not ready for direct play, and an
 explicit playability filter overrides that preference for one view.
 
+An unsupported Video is shown, not summarised away. It carries its title, its
+locally generated preview, its provenance, and its Personal State like any other
+entry, and in place of a Play button it states the container and codecs that
+cannot be played directly. The preference is a standing checkbox that can be
+turned off again, and `Unsupported only` narrows one view without changing it.
+
 **One honest limit.** Readiness is currently the installation-wide Direct-Play
 Classification rather than a per-Account, per-client assessment, because the
 account-and-client layers of the direct-play contract are not built yet. A Video
@@ -261,7 +268,7 @@ they remain dormant only while their Video is removed from the active Library.
 
 ## Identify Videos and generate previews
 
-After technical inspection admits a Video File, three further bounded lanes run
+After technical inspection admits a Video File, four further bounded lanes run
 on their own durable schedule and never write beneath a Library Directory:
 
 1. **Hashing** computes the `osHash` and `pHash` of the inspected content with
@@ -276,6 +283,10 @@ on their own durable schedule and never write beneath a Library Directory:
    bounded batches through `Prdb.Sdk`. A missing credential, a refused key, or
    an outage leaves the lane visibly waiting with the condition it needs;
    browsing, playback, and everything already known locally continue unchanged.
+4. **Site recognition** reads the path of every file prdb has answered about
+   against the retained Site Directory, so a Video the remote ladder could not
+   match can still show where it comes from. It reads no content and needs no
+   service to decide; only its once-a-day refresh of the site list does.
 
 Every result carries its provenance. A definitive match on the inspected
 content is Conclusive evidence and may establish an Unknown claim by itself;
@@ -285,6 +296,29 @@ independent, and no candidate ever supplies a title, a site, or artwork to
 ordinary browsing. Video Files whose established work identity is the same are
 associated into one Video, keeping the earliest Discovery Date, both
 identification histories, and each Account's private viewing state.
+
+## Recognise sites locally
+
+A Video File whose path names exactly one known site — through the site's name,
+the same name written as one word, or the distinctive label of its web address —
+gets an Established Site Recognition of its own, sourced as local inference and
+labelled as such wherever a Site is shown. The match is whole words of the path,
+so a folder called `midnightowl` never names the site `Night Owl`, and the
+longest name a path gives wins, so `Harbour Nights` is not read as `Harbour`.
+
+A path that names several known sites, or names one only through a word short
+enough to be an ordinary word, proposes an Identification Candidate instead and
+establishes nothing. A locally recognised Site never replaces one prdb
+established or an Administrator set; it does give way, without review, to the
+canonical Site of a work prdb later identifies, and the reading it replaces is
+kept as history.
+
+The vocabulary is the Site Directory: the list prdb publishes, fetched at most
+once a day and retained locally, together with every Site this installation has
+already established. Recognition therefore keeps working while prdb is
+unreachable. An installation that has never been able to fetch the list
+recognises nothing and says so once, as a Scoped Issue. See
+[ADR 0014](docs/adr/0014-recognise-sites-from-a-retained-site-directory.md).
 
 ## Review identifications
 
@@ -311,7 +345,8 @@ State.
 ## Operate background work
 
 Every bounded run — Library Scan, technical inspection, hashing, preview
-generation, and identification — is visible to an Administrator with its
+generation, identification, and site recognition — is visible to an
+Administrator with its
 trigger, state, current phase, observed counts, and the condition it is waiting
 for. A percentage appears only where a stable denominator exists; open-ended
 traversal reports concrete counts and phases instead of a fabricated estimate.
