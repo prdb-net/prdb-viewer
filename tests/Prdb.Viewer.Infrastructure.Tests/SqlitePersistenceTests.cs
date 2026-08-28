@@ -111,6 +111,63 @@ public sealed class SqlitePersistenceTests
                 TestContext.Current.CancellationToken)).FirstPlayableVideoReachedAt);
     }
 
+    [Fact]
+    public async Task The_diagnostics_migration_drops_work_issues_it_cannot_describe()
+    {
+        await using var database = await TestDatabase.CreateAsync(
+            targetMigration: "20260828112033_AddIdentificationAndPreviews");
+        var directoryId = Guid.CreateVersion7();
+        var workId = Guid.CreateVersion7();
+        var timestamp = DateTime.SpecifyKind(new DateTime(2026, 8, 28, 9, 0, 0), DateTimeKind.Utc);
+
+        await using (var scope = database.Scope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+            await context.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO library_directory
+                    (Id, Name, ContainerPath, State, Health, ConfigurationGeneration,
+                     CreatedAt, ActivatedAt, RemovedAt, InitialProcessingStartedAt)
+                VALUES
+                    ({directoryId}, {"Main"}, {"/libraries/main"}, {"Active"}, {"Healthy"},
+                     {1}, {timestamp}, {timestamp}, NULL, {timestamp});
+                INSERT INTO background_work
+                    (Id, Category, State, LibraryDirectoryId, ConfigurationGeneration,
+                     LibraryScanId, PendingDirectoriesJson, CoverageComplete, FollowUpRequested,
+                     DiscoveredCandidateCount, CompletedItemCount, IssueCount, NextAttemptAt,
+                     WaitingReason, RequestedAt, StartedAt, UpdatedAt, FinishedAt)
+                VALUES
+                    ({workId}, {"LibraryScan"}, {"CompletedWithIssues"}, {directoryId}, {1},
+                     {workId}, {"[]"}, {1}, {0}, {2}, {2}, {2}, NULL, NULL,
+                     {timestamp}, {timestamp}, {timestamp}, {timestamp});
+                INSERT INTO work_issue
+                    (Id, BackgroundWorkId, Severity, Cause, RemediationOwner, AffectedScope,
+                     Impact, RequiredAction, CreatedAt, ResolvedAt)
+                VALUES
+                    ({Guid.CreateVersion7()}, {workId}, {"ScopedIssue"}, {"InvalidContent"},
+                     {"Administrator"}, {"broken.mp4"}, {"No video."}, {"Replace it."},
+                     {timestamp}, NULL),
+                    ({Guid.CreateVersion7()}, {workId}, {"ScopedIssue"}, {"SourceAccess"},
+                     {"InstallationOperator"}, {"locked.mp4"}, {"Unreadable."}, {"Fix it."},
+                     {timestamp}, NULL);
+                """, TestContext.Current.CancellationToken);
+        }
+
+        await database.MigrateAsync();
+
+        // The old rows cannot supply a reference, an aggregation key, or a message contract, so
+        // they are dropped rather than filled with placeholders; the lanes re-derive whichever
+        // obstacles still apply, and the durable work they described is untouched.
+        await using var scope2 = database.Scope();
+        var verification = scope2.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        Assert.Empty(await verification.WorkIssues.ToListAsync(TestContext.Current.CancellationToken));
+        var work = await verification.BackgroundWork.SingleAsync(
+            TestContext.Current.CancellationToken);
+        Assert.Equal(BackgroundWorkState.CompletedWithIssues, work.State);
+        Assert.False(work.CancellationRequested);
+        Assert.False((await verification.InstallationConfigurations.SingleAsync(
+            TestContext.Current.CancellationToken)).BackgroundWorkPaused);
+    }
+
     private static async Task<object?> ScalarAsync(ViewerDbContext context, string sql)
     {
         await using var command = context.Database.GetDbConnection().CreateCommand();

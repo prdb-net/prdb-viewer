@@ -77,7 +77,9 @@ public sealed class BackupService(
 
         if (!validation.Valid)
         {
-            return new BackupCreationResult(false, Reason: validation.Reason);
+            return new BackupCreationResult(
+                false,
+                Reason: $"The installation cannot be backed up yet. {validation.Reason}");
         }
 
         var staged = $"{destination}.partial";
