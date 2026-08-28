@@ -74,41 +74,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/library/videos": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["VideoSummary"][];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/media/videos/{deliveryId}": {
         parameters: {
             query?: never;
@@ -1113,6 +1078,128 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/library/videos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    query?: string;
+                    sort?: components["schemas"]["LibrarySortOrder"];
+                    sites?: string;
+                    actors?: string;
+                    unknownSite?: boolean;
+                    work?: string;
+                    review?: string;
+                    readiness?: string;
+                    availability?: string;
+                    playState?: string;
+                    skip?: number | string;
+                    take?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LibraryPage"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/library/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LibraryFacets"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/library/preferences/include-not-ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["IncludeNotReadyRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LibraryPreferencesSummary"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/personal/library": {
         parameters: {
             query?: never;
@@ -1705,7 +1792,7 @@ export interface components {
         /** @enum {unknown} */
         IdentificationDimension: "WorkIdentification" | "SiteRecognition";
         /** @enum {unknown} */
-        IdentificationEvidenceClass: "Insufficient" | "Suggestive" | "Conclusive" | null;
+        IdentificationEvidenceClass: "Insufficient" | "Suggestive" | "Conclusive";
         IdentificationQueueItem: {
             /** Format: uuid */
             videoId: string;
@@ -1735,6 +1822,9 @@ export interface components {
             actors: string[];
             /** Format: date-time */
             metadataFetchedAt: null | string;
+        };
+        IncludeNotReadyRequest: {
+            included: boolean;
         };
         /** @enum {unknown} */
         InstallationConfigurationStatus: "Unclaimed" | "ConfigurationRequired" | "ConfigurationPending" | "AttentionRequired" | "Configured";
@@ -1796,6 +1886,31 @@ export interface components {
             activatedAt: string;
             initialProcessingStarted: boolean;
         };
+        LibraryFacets: {
+            sites: components["schemas"]["LibraryFacetValue"][];
+            actors: components["schemas"]["LibraryFacetValue"][];
+        };
+        LibraryFacetValue: {
+            value: string;
+            /** Format: int32 */
+            count: number | string;
+        };
+        LibraryPage: {
+            videos: components["schemas"]["VideoSummary"][];
+            /** Format: int32 */
+            totalMatches: number | string;
+            /** Format: int32 */
+            hiddenNotReadyForDirectPlay: number | string;
+            /** Format: int32 */
+            hiddenUnavailable: number | string;
+            hasMore: boolean;
+            includesNotReadyForDirectPlay: boolean;
+        };
+        LibraryPreferencesSummary: {
+            includesNotReadyForDirectPlay: boolean;
+        };
+        /** @enum {unknown} */
+        LibrarySortOrder: "Newest" | "TitleAscending";
         PersonalLibrarySummary: {
             continueWatching: components["schemas"]["VideoSummary"][];
             favourites: components["schemas"]["VideoSummary"][];

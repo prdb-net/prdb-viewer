@@ -1,14 +1,13 @@
 # Production-shaped SQLite workload
 
-This is the performance evidence the first release requires. It is a
-measurement, not a promise about anyone's hardware: the numbers below say how
-the shipped queries behave on a library far larger than a first installation,
-and where they stop being fast.
+This is the performance evidence the release carries. It is a measurement, not a
+promise about anyone's hardware: the numbers below say how the shipped queries
+behave on a library far larger than a first installation.
 
 ## How to reproduce
 
-The benchmark lives with the tests and is opt-in, because it takes about half a
-minute and is a measurement rather than an assertion:
+The benchmark lives with the tests and is opt-in, because it is a measurement
+rather than an assertion:
 
 ```bash
 dotnet build
@@ -27,7 +26,7 @@ exactly the way the Host opens it.
 ## Result
 
 Measured on 2026-08-28 with .NET 10.0.111 on Ubuntu 26.04, an Intel Core 5 210H
-(12 threads) and 15 GiB of memory, against product version 0.1.0.
+(12 threads) and 15 GiB of memory.
 
 ### 2,000 Videos
 
@@ -35,23 +34,31 @@ Measured on 2026-08-28 with .NET 10.0.111 on Ubuntu 26.04, an Intel Core 5 210H
 
 | Operation | Median | Slowest |
 | --- | --- | --- |
-| Catalogue for one Account | 139 ms | 486 ms |
-| Personal library shelves | 5 ms | 65 ms |
-| Background work status | 1 ms | 35 ms |
-| Identification review queue | 2 ms | 37 ms |
-| Outstanding hashing lane query | 1 ms | 14 ms |
-| Playback report write | 1 ms | 57 ms |
+| Library, first page | 7 ms | 168 ms |
+| Library, deep page | 7 ms | 9 ms |
+| Library, search | 3 ms | 15 ms |
+| Library, title order | 7 ms | 10 ms |
+| Library facets | 1 ms | 25 ms |
+| Personal library shelves | 8 ms | 68 ms |
+| Background work status | 1 ms | 31 ms |
+| Identification review queue | 2 ms | 38 ms |
+| Outstanding hashing lane query | 1 ms | 5 ms |
+| Playback report write | 2 ms | 48 ms |
 
 ### 20,000 Videos
 
-22,000 Video Files · 25 Accounts · 39 MiB database
+22,000 Video Files · 25 Accounts · 44 MiB database
 
 | Operation | Median | Slowest |
 | --- | --- | --- |
-| Catalogue for one Account | 917 ms | 946 ms |
-| Personal library shelves | 50 ms | 55 ms |
-| Background work status | 1 ms | 2 ms |
-| Identification review queue | 11 ms | 13 ms |
+| Library, first page | 6 ms | 9 ms |
+| Library, deep page | 15 ms | 16 ms |
+| Library, search | 17 ms | 18 ms |
+| Library, title order | 6 ms | 7 ms |
+| Library facets | 3 ms | 4 ms |
+| Personal library shelves | 52 ms | 58 ms |
+| Background work status | 1 ms | 1 ms |
+| Identification review queue | 12 ms | 15 ms |
 | Outstanding hashing lane query | 6 ms | 7 ms |
 | Playback report write | 1 ms | 1 ms |
 
@@ -60,31 +67,34 @@ compilation and connection setup — rather than a property of the data.
 
 ## What this says
 
+- **Opening the library no longer costs the library.** A page is a page: 6 ms at
+  20,000 Videos against 6 ms at 2,000. Search, title order, and the facet lists
+  behave the same way. This is what the discovery projection in
+  [ADR 0013](adr/0013-maintain-a-discovery-projection-for-each-video.md) buys,
+  and it is the reason the projection exists rather than a convenience on top
+  of it.
 - SQLite is comfortably the right database for this product. Background Work
   queries, the identification queue, and every Personal State write stay in
   single-digit milliseconds at both scales, and the lanes never pay a
   library-sized cost to find their next item.
-- Personal State scales with what one Account has actually touched rather than
-  with the library, which is what the shelves are supposed to cost.
-- **The catalogue is the one operation that scales with the whole library.**
-  `GET /api/library/videos` returns every Available Video in one response, so at
-  20,000 Videos it costs roughly a second on the server and a payload of several
-  megabytes in the browser.
+- Paging deeper costs a little more, because SQLite still walks the rows it
+  skips. At 20,000 Videos the last page of the library costs 15 ms, which is not
+  worth trading for a cursor the ordering rules would have to encode.
+- Search costs more than browsing and still less than 20 ms, because every term
+  is a substring test against one projected column rather than a join across
+  claims, metadata and file names.
 
-## The limit the first release carries
+## What has not been measured
 
-The MVP browses the library as one list. That is honest and fast up to a few
-thousand Videos, and it is the size the first release is documented to support
-well. Beyond roughly 5,000 Videos the catalogue response becomes the dominant
-cost of opening the application, and no amount of indexing fixes it, because the
-work is returning the whole library rather than finding it.
+Personal library shelves scale with what one Account has touched rather than
+with the library, which is what they are supposed to cost. At 52 ms for 400
+retained entries they are the slowest read here, and an Account with many
+thousands of Favourites would want the same paging treatment the library now
+has. No such Account exists yet, so the number is recorded rather than acted on.
 
-This is an unfinished part of the MVP rather than a deliberate boundary.
-`VISION.md` lists search and the core filters among the MVP's own contents, and
-the library discovery model — search, sorting, facets, and incremental loading —
-is fully specified. It is the implementation that is missing. Building it is
-what removes this limit; until then, the catalogue's cost is proportional to the
-library and an installation much larger than a few thousand Videos will feel it
-when the page is opened.
+## History
 
-Nothing else in the measurement degrades with library size.
+Before library discovery existed, `GET /api/library/videos` returned every
+Available Video in one response. That cost **917 ms** and several megabytes at
+20,000 Videos, and the first release documented it as the size it supported
+well. Building discovery removed it.

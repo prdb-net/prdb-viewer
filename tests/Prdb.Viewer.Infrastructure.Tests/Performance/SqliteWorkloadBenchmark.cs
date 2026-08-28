@@ -77,10 +77,38 @@ public sealed class SqliteWorkloadBenchmark
             string.Empty,
         };
 
-        report.Add(await MeasureAsync("Catalogue for one Account", store, async scope =>
+        report.Add(await MeasureAsync("Library, first page", store, async scope =>
             (await scope.ServiceProvider
-                .GetRequiredService<VideoCatalog>()
-                .GetAsync(accounts[0], TestContext.Current.CancellationToken)).Count));
+                .GetRequiredService<LibraryDiscovery>()
+                .GetAsync(
+                    accounts[0],
+                    new LibraryDiscoveryRequest(),
+                    TestContext.Current.CancellationToken)).Videos.Count));
+        report.Add(await MeasureAsync("Library, deep page", store, async scope =>
+            (await scope.ServiceProvider
+                .GetRequiredService<LibraryDiscovery>()
+                .GetAsync(
+                    accounts[0],
+                    new LibraryDiscoveryRequest { Skip = videos - 100 },
+                    TestContext.Current.CancellationToken)).Videos.Count));
+        report.Add(await MeasureAsync("Library, search", store, async scope =>
+            (await scope.ServiceProvider
+                .GetRequiredService<LibraryDiscovery>()
+                .GetAsync(
+                    accounts[0],
+                    new LibraryDiscoveryRequest { Query = "benchmark work 1234" },
+                    TestContext.Current.CancellationToken)).Videos.Count));
+        report.Add(await MeasureAsync("Library, title order", store, async scope =>
+            (await scope.ServiceProvider
+                .GetRequiredService<LibraryDiscovery>()
+                .GetAsync(
+                    accounts[0],
+                    new LibraryDiscoveryRequest { Sort = LibrarySortOrder.TitleAscending },
+                    TestContext.Current.CancellationToken)).Videos.Count));
+        report.Add(await MeasureAsync("Library facets", store, async scope =>
+            (await scope.ServiceProvider
+                .GetRequiredService<LibraryDiscovery>()
+                .GetFacetsAsync(accounts[0], TestContext.Current.CancellationToken)).Sites.Count));
         report.Add(await MeasureAsync("Personal library shelves", store, async scope =>
             (await scope.ServiceProvider
                 .GetRequiredService<VideoCatalog>()
@@ -237,6 +265,16 @@ public sealed class SqliteWorkloadBenchmark
             }
 
             await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        // Discovery reads the projection, so a benchmark that skipped it would measure an empty
+        // library. This is the same work the startup backfill does after an upgrade.
+        var projection = scope.ServiceProvider.GetRequiredService<VideoProjection>();
+
+        while (await projection.RefreshOutstandingAsync(
+                   cancellationToken: TestContext.Current.CancellationToken))
+        {
+            database.ChangeTracker.Clear();
         }
 
         return accounts.Select(account => account.Id).ToArray();

@@ -7,6 +7,40 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-28
+
+Library discovery: the library is now searchable, filterable, sortable, and
+loaded a page at a time.
+
+### Added
+
+- Search the library by Established title, Site and Actor, and by the local
+  display label and file names of Unknown Videos. It ignores case, diacritics
+  and ordinary punctuation, requires every term to match somewhere, and ranks an
+  exact title or label above other titles, then Sites and Actors, then file
+  names.
+- Filter by Site, Actor, Work Identification, review status, playability,
+  availability and the Account's own Personal Play State. Values inside one
+  facet combine with OR and the facets combine with AND, with explicit values
+  for Unknown Work Identification, Unknown Site and Review Needed.
+- Sort by Newest or Title A-Z. Newest is Discovery Date descending, so later
+  enrichment never makes an old Video look newly added.
+- Report the matches the current rules keep out — not ready for direct play, or
+  currently unavailable — with the control that reveals them, instead of
+  dropping them silently.
+- Add a per-Account preference that includes Videos which are not ready for
+  direct play in ordinary results; an explicit playability filter overrides it
+  for one view.
+- Maintain a discovery projection for each Video and project Established Actors
+  as their own rows, so the library filters and orders in the database.
+
+### Changed
+
+- `GET /api/library/videos` returns a page rather than the whole library, with
+  the total, the hidden-match counts and whether more follows. It takes the
+  search, facet, sort and paging parameters. Opening a 20,000-Video library
+  costs 6 ms instead of 917 ms; see [docs/performance.md](docs/performance.md).
+
 ## [0.1.2] - 2026-08-28
 
 ### Fixed

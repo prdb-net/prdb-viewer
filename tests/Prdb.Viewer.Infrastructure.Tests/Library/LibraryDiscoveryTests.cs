@@ -1,0 +1,313 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+
+using Prdb.Viewer.Core.Access;
+using Prdb.Viewer.Core.Library;
+using Prdb.Viewer.Core.Personal;
+using Prdb.Viewer.Infrastructure.Library;
+using Prdb.Viewer.Infrastructure.Persistence;
+
+using Xunit;
+
+namespace Prdb.Viewer.Infrastructure.Tests.Library;
+
+public sealed class LibraryDiscoveryTests
+{
+    private const string WorkId = "6f1a2c34-0000-4000-8000-000000000001";
+
+    [Fact]
+    public async Task Ordinary_discovery_shows_ready_videos_newest_first_and_counts_what_it_hides()
+    {
+        await using var store = await CreateAsync(new FixtureIdentificationClient()
+            .Conclusive("second.mp4", WorkId, "A Known Work", new RemoteSite("s1", "Example Site", null)));
+        var accountId = await AccountAsync(store);
+        await SourceAsync(store, ("first.mp4", "mp4"), ("second.mp4", "mp4"), ("third.mkv", "matroska"));
+        await LibraryPipeline.SetCredentialAsync(store, "installation-key");
+        await LibraryPipeline.DrainAsync(store);
+
+        await using var scope = store.Scope();
+        var page = await Discovery(scope).GetAsync(
+            accountId,
+            new LibraryDiscoveryRequest(),
+            TestContext.Current.CancellationToken);
+
+        // The matroska file is Undetermined, so it is not ready and stays out until asked for.
+        Assert.Equal(2, page.TotalMatches);
+        Assert.Equal(1, page.HiddenNotReadyForDirectPlay);
+        Assert.Equal(0, page.HiddenUnavailable);
+        Assert.False(page.IncludesNotReadyForDirectPlay);
+        Assert.False(page.HasMore);
+
+        // Newest first: the later Discovery Date leads.
+        Assert.Equal(
+            ["A Known Work", "first"],
+            page.Videos.Select(video => video.DisplayTitle));
+    }
+
+    [Fact]
+    public async Task The_personal_preference_widens_results_and_an_explicit_filter_overrides_it()
+    {
+        await using var store = await CreateAsync();
+        var accountId = await AccountAsync(store);
+        await SourceAsync(store, ("ready.mp4", "mp4"), ("uncertain.mkv", "matroska"));
+        await LibraryPipeline.DrainAsync(store);
+
+        await using (var scope = store.Scope())
+        {
+            await scope.ServiceProvider
+                .GetRequiredService<LibraryPreferences>()
+                .SetIncludesNotReadyForDirectPlayAsync(
+                    accountId,
+                    true,
+                    TestContext.Current.CancellationToken);
+        }
+
+        await using var verification = store.Scope();
+        var widened = await Discovery(verification).GetAsync(
+            accountId,
+            new LibraryDiscoveryRequest(),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(2, widened.TotalMatches);
+        Assert.True(widened.IncludesNotReadyForDirectPlay);
+        Assert.Equal(0, widened.HiddenNotReadyForDirectPlay);
+
+        // The explicit filter decides for this view even though the preference is on.
+        var filtered = await Discovery(verification).GetAsync(
+            accountId,
+            new LibraryDiscoveryRequest
+            {
+                Readiness = [DiscoveryReadiness.NotDirectlyPlayable],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal("uncertain", Assert.Single(filtered.Videos).DisplayTitle);
+    }
+
+    [Fact]
+    public async Task Search_finds_established_and_local_facts_and_ignores_how_they_are_written()
+    {
+        await using var store = await CreateAsync(new FixtureIdentificationClient()
+            .Conclusive("known.mp4", WorkId, "A Känown Work", new RemoteSite("s1", "Example Site", null)));
+        var accountId = await AccountAsync(store);
+        await SourceAsync(store, ("known.mp4", "mp4"), ("Beach Day 2019.mp4", "mp4"));
+        await LibraryPipeline.SetCredentialAsync(store, "installation-key");
+        await LibraryPipeline.DrainAsync(store);
+
+        await using var scope = store.Scope();
+
+        // Diacritics and case do not matter, and the Established Actor is searchable.
+        Assert.Equal("A Känown Work", Assert.Single(
+            (await Search(scope, accountId, "kanown")).Videos).DisplayTitle);
+        Assert.Equal("A Känown Work", Assert.Single(
+            (await Search(scope, accountId, "alex doe")).Videos).DisplayTitle);
+        Assert.Equal("A Känown Work", Assert.Single(
+            (await Search(scope, accountId, "example site")).Videos).DisplayTitle);
+
+        // An Unknown Video is found by its local label.
+        Assert.Equal("Beach Day 2019", Assert.Single(
+            (await Search(scope, accountId, "beach 2019")).Videos).DisplayTitle);
+
+        // Every term has to match somewhere.
+        Assert.Empty((await Search(scope, accountId, "beach nonsense")).Videos);
+    }
+
+    [Fact]
+    public async Task Facets_combine_with_or_inside_and_and_across()
+    {
+        await using var store = await CreateAsync(new FixtureIdentificationClient()
+            .Conclusive("known.mp4", WorkId, "A Known Work", new RemoteSite("s1", "Example Site", null)));
+        var accountId = await AccountAsync(store);
+        await SourceAsync(store, ("known.mp4", "mp4"), ("unknown.mp4", "mp4"));
+        await LibraryPipeline.SetCredentialAsync(store, "installation-key");
+        await LibraryPipeline.DrainAsync(store);
+
+        await using var scope = store.Scope();
+        var established = await Discovery(scope).GetAsync(
+            accountId,
+            new LibraryDiscoveryRequest
+            {
+                WorkIdentification = [IdentificationResolution.Established],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal("A Known Work", Assert.Single(established.Videos).DisplayTitle);
+
+        var unknown = await Discovery(scope).GetAsync(
+            accountId,
+            new LibraryDiscoveryRequest { UnknownSite = true },
+            TestContext.Current.CancellationToken);
+        Assert.Equal("unknown", Assert.Single(unknown.Videos).DisplayTitle);
+
+        // Site AND Established work: both hold for one Video only.
+        var both = await Discovery(scope).GetAsync(
+            accountId,
+            new LibraryDiscoveryRequest
+            {
+                Sites = ["Example Site"],
+                WorkIdentification = [IdentificationResolution.Established],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Single(both.Videos);
+
+        // Site AND Unknown work: nothing satisfies both.
+        var neither = await Discovery(scope).GetAsync(
+            accountId,
+            new LibraryDiscoveryRequest
+            {
+                Sites = ["Example Site"],
+                WorkIdentification = [IdentificationResolution.Unknown],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Empty(neither.Videos);
+
+        var facets = await Discovery(scope).GetFacetsAsync(
+            accountId,
+            TestContext.Current.CancellationToken);
+        Assert.Equal("Example Site", Assert.Single(facets.Sites).Value);
+        Assert.Equal("Alex Doe", Assert.Single(facets.Actors).Value);
+    }
+
+    [Fact]
+    public async Task A_page_costs_a_page_and_says_whether_more_follows()
+    {
+        await using var store = await CreateAsync();
+        var accountId = await AccountAsync(store);
+        await SourceAsync(store, Enumerable.Range(0, 7)
+            .Select(index => ($"video-{index:00}.mp4", "mp4"))
+            .ToArray());
+        await LibraryPipeline.DrainAsync(store);
+
+        await using var scope = store.Scope();
+        var first = await Discovery(scope).GetAsync(
+            accountId,
+            new LibraryDiscoveryRequest { Take = 3, Sort = LibrarySortOrder.TitleAscending },
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(7, first.TotalMatches);
+        Assert.True(first.HasMore);
+        Assert.Equal(["video-00", "video-01", "video-02"], first.Videos.Select(v => v.DisplayTitle));
+
+        var last = await Discovery(scope).GetAsync(
+            accountId,
+            new LibraryDiscoveryRequest
+            {
+                Take = 3,
+                Skip = 6,
+                Sort = LibrarySortOrder.TitleAscending,
+            },
+            TestContext.Current.CancellationToken);
+        Assert.False(last.HasMore);
+        Assert.Equal(["video-06"], last.Videos.Select(v => v.DisplayTitle));
+    }
+
+    [Fact]
+    public async Task An_unavailable_video_leaves_ordinary_results_and_is_counted_and_findable()
+    {
+        await using var store = await CreateAsync();
+        var accountId = await AccountAsync(store);
+        var source = await SourceAsync(store, ("kept.mp4", "mp4"), ("lost.mp4", "mp4"));
+        await LibraryPipeline.DrainAsync(store);
+        Guid directoryId;
+
+        await using (var setup = store.Scope())
+        {
+            directoryId = await setup.ServiceProvider
+                .GetRequiredService<ViewerDbContext>()
+                .LibraryDirectories
+                .Select(directory => directory.Id)
+                .SingleAsync(TestContext.Current.CancellationToken);
+        }
+
+        File.Delete(Path.Combine(source, "lost.mp4"));
+        await LibraryPipeline.RescanAsync(store, directoryId);
+
+        await using var scope = store.Scope();
+        var ordinary = await Discovery(scope).GetAsync(
+            accountId,
+            new LibraryDiscoveryRequest(),
+            TestContext.Current.CancellationToken);
+        Assert.Equal("kept", Assert.Single(ordinary.Videos).DisplayTitle);
+        Assert.Equal(1, ordinary.HiddenUnavailable);
+
+        var unavailable = await Discovery(scope).GetAsync(
+            accountId,
+            new LibraryDiscoveryRequest
+            {
+                Availability = [VideoAvailability.Unavailable],
+                Readiness =
+                [
+                    DiscoveryReadiness.ReadyForDirectPlay,
+                    DiscoveryReadiness.CompatibilityUncertain,
+                    DiscoveryReadiness.NotDirectlyPlayable,
+                ],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal("lost", Assert.Single(unavailable.Videos).DisplayTitle);
+    }
+
+    private static LibraryDiscovery Discovery(AsyncServiceScope scope) =>
+        scope.ServiceProvider.GetRequiredService<LibraryDiscovery>();
+
+    private static Task<LibraryPage> Search(AsyncServiceScope scope, Guid accountId, string query) =>
+        Discovery(scope).GetAsync(
+            accountId,
+            new LibraryDiscoveryRequest { Query = query },
+            TestContext.Current.CancellationToken);
+
+    private static async Task<Guid> AccountAsync(TestDatabase store)
+    {
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var account = new AccountRow
+        {
+            Id = Guid.CreateVersion7(),
+            Username = "viewer",
+            NormalizedUsername = "viewer",
+            PasswordHash = new string('h', 84),
+            Authority = AccountAuthority.User,
+            State = AccountState.Approved,
+            RegisteredAt = DateTime.SpecifyKind(new DateTime(2026, 8, 1), DateTimeKind.Utc),
+        };
+        database.Accounts.Add(account);
+        await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return account.Id;
+    }
+
+    private static async Task<string> SourceAsync(
+        TestDatabase store,
+        params (string Name, string Container)[] files)
+    {
+        var source = Path.Combine(store.LibraryMountRoot.Path, "source");
+        Directory.CreateDirectory(source);
+
+        foreach (var file in files)
+        {
+            await File.WriteAllBytesAsync(
+                Path.Combine(source, file.Name),
+                [(byte)file.Name.Length, 1, 2, 3],
+                TestContext.Current.CancellationToken);
+        }
+
+        await LibraryPipeline.ActivateAsync(store, source);
+        return source;
+    }
+
+    private static Task<TestDatabase> CreateAsync(FixtureIdentificationClient? prdb = null) =>
+        TestDatabase.CreateAsync(
+            mediaProbe: new ContainerAwareProbe(),
+            hasher: new FixtureHasher(),
+            previewGenerator: new FixturePreviewGenerator(),
+            identificationClient: prdb ?? new FixtureIdentificationClient());
+}
+
+/// <summary>
+/// A probe that reports the container the file name implies, so a test can produce a Video that
+/// is genuinely not ready for direct play instead of asserting against a forced value.
+/// </summary>
+internal sealed class ContainerAwareProbe : IMediaProbe
+{
+    public Task<MediaProbeFacts?> InspectAsync(
+        string path,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<MediaProbeFacts?>(Path.GetExtension(path) == ".mkv"
+            ? new MediaProbeFacts("matroska,webm", "h264", "aac", 12_345, 1920, 1080)
+            : new MediaProbeFacts("mp4", "h264", "aac", 12_345, 1920, 1080));
+}

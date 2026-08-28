@@ -50,6 +50,8 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<PreviewDeliveryService>();
         services.AddScoped<BackgroundWorkQuery>();
         services.AddScoped<VideoCatalog>();
+        services.AddScoped<LibraryDiscovery>();
+        services.AddScoped<LibraryPreferences>();
         services.AddScoped<VideoDeliveryService>();
         services.AddScoped<PersonalStateService>();
         services.AddSingleton<IMediaProbe, FfprobeMediaProbe>();
