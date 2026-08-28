@@ -22,7 +22,13 @@ public enum PrdbConnectionUpdateVerdict
 public enum LibraryDirectoryStageVerdict
 {
     Staged,
-    InvalidInput,
+
+    /// <summary>The display name is missing, too long, or carries a control character.</summary>
+    InvalidName,
+
+    /// <summary>The container path is not an absolute path the container could resolve.</summary>
+    InvalidPath,
+
     OutsideMountArea,
     Missing,
     Unreadable,

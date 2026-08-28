@@ -11,6 +11,52 @@ namespace Prdb.Viewer.Infrastructure.Tests.Configuration;
 
 public sealed class InstallationConfigurationServiceTests
 {
+    [Theory]
+    [InlineData("  /libraries/main  ")]
+    [InlineData("/libraries/main/")]
+    public async Task A_pasted_container_path_is_accepted_despite_its_surroundings(string typed)
+    {
+        await using var store = await TestDatabase.CreateAsync();
+        var mounted = Path.Combine(store.LibraryMountRoot.Path, "main");
+        Directory.CreateDirectory(mounted);
+        await using var scope = store.Scope();
+
+        var staged = await scope.ServiceProvider
+            .GetRequiredService<InstallationConfigurationService>()
+            .StageLibraryDirectoryAsync(
+                "Main Library",
+                typed.Replace("/libraries/main", mounted, StringComparison.Ordinal),
+                TestContext.Current.CancellationToken);
+
+        Assert.Equal(LibraryDirectoryStageVerdict.Staged, staged.Verdict);
+        Assert.Equal(mounted, staged.ContainerPath);
+    }
+
+    [Fact]
+    public async Task An_unusable_name_and_an_unusable_path_are_reported_apart()
+    {
+        await using var store = await TestDatabase.CreateAsync();
+        var mounted = Path.Combine(store.LibraryMountRoot.Path, "main");
+        Directory.CreateDirectory(mounted);
+        await using var scope = store.Scope();
+        var configuration = scope.ServiceProvider
+            .GetRequiredService<InstallationConfigurationService>();
+
+        // Which field to correct is the whole point of the message, so the two are not collapsed.
+        Assert.Equal(
+            LibraryDirectoryStageVerdict.InvalidName,
+            (await configuration.StageLibraryDirectoryAsync(
+                "   ",
+                mounted,
+                TestContext.Current.CancellationToken)).Verdict);
+        Assert.Equal(
+            LibraryDirectoryStageVerdict.InvalidPath,
+            (await configuration.StageLibraryDirectoryAsync(
+                "Main Library",
+                "libraries/main",
+                TestContext.Current.CancellationToken)).Verdict);
+    }
+
     [Fact]
     public async Task Verified_connection_and_validated_directory_are_staged_before_activation()
     {

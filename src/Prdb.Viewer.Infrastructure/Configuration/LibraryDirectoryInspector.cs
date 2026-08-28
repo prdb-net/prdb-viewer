@@ -4,20 +4,24 @@ public sealed class LibraryDirectoryInspector(LibraryMountRoot mountRoot)
 {
     public LibraryDirectoryInspection Inspect(string requestedPath)
     {
-        if (string.IsNullOrWhiteSpace(requestedPath) || !Path.IsPathFullyQualified(requestedPath))
+        // A path is pasted far more often than it is typed, so surrounding whitespace says
+        // nothing about what the Administrator meant and is removed rather than rejected.
+        var requested = requestedPath?.Trim() ?? string.Empty;
+
+        if (requested.Length == 0 || !Path.IsPathFullyQualified(requested))
         {
-            return new LibraryDirectoryInspection(LibraryDirectoryStageVerdict.InvalidInput);
+            return new LibraryDirectoryInspection(LibraryDirectoryStageVerdict.InvalidPath);
         }
 
         string candidate;
 
         try
         {
-            candidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(requestedPath));
+            candidate = Path.TrimEndingDirectorySeparator(Path.GetFullPath(requested));
         }
         catch (Exception exception) when (exception is ArgumentException or NotSupportedException or PathTooLongException)
         {
-            return new LibraryDirectoryInspection(LibraryDirectoryStageVerdict.InvalidInput);
+            return new LibraryDirectoryInspection(LibraryDirectoryStageVerdict.InvalidPath);
         }
 
         var root = Path.TrimEndingDirectorySeparator(mountRoot.Path);

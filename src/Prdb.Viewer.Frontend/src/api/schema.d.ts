@@ -1780,7 +1780,7 @@ export interface components {
             expiresAt?: null | string;
         };
         /** @enum {unknown} */
-        LibraryDirectoryStageVerdict: "Staged" | "InvalidInput" | "OutsideMountArea" | "Missing" | "Unreadable" | "AlreadyConfigured";
+        LibraryDirectoryStageVerdict: "Staged" | "InvalidName" | "InvalidPath" | "OutsideMountArea" | "Missing" | "Unreadable" | "AlreadyConfigured";
         /** @enum {unknown} */
         LibraryDirectoryState: "Active" | "Removed";
         LibraryDirectorySummary: {

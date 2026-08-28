@@ -2409,7 +2409,8 @@
       "LibraryDirectoryStageVerdict": {
         "enum": [
           "Staged",
-          "InvalidInput",
+          "InvalidName",
+          "InvalidPath",
           "OutsideMountArea",
           "Missing",
           "Unreadable",

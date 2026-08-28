@@ -102,7 +102,7 @@ public sealed class InstallationConfigurationService(
     {
         if (!LibraryDirectoryNameRule.IsValid(name))
         {
-            return new LibraryDirectoryStageResult(LibraryDirectoryStageVerdict.InvalidInput);
+            return new LibraryDirectoryStageResult(LibraryDirectoryStageVerdict.InvalidName);
         }
 
         var inspection = directories.Inspect(requestedPath);
