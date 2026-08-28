@@ -14,6 +14,7 @@ namespace Prdb.Viewer.Infrastructure.Library;
 public sealed class IdentificationReviewService(
     ViewerDbContext database,
     IdentificationService identification,
+    VideoProjection projection,
     PersonalStateService personalState,
     TimeProvider timeProvider)
 {
@@ -176,6 +177,11 @@ public sealed class IdentificationReviewService(
             Note = note,
             CreatedAt = Now(),
         });
+
+        // A decision can move a claim, a Video's files, or both Videos of a merge or split. The
+        // projection follows whatever this unit of work actually changed rather than a list this
+        // method has to remember to keep correct.
+        await projection.RefreshTrackedAsync(cancellationToken);
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 

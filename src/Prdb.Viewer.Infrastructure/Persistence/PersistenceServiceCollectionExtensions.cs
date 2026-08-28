@@ -34,6 +34,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IPrdbConnectionVerifier, PrdbConnectionVerifier>();
         services.AddScoped<InstallationConfigurationService>();
         services.AddScoped<WorkIssueRecorder>();
+        services.AddScoped<VideoProjection>();
         services.AddSingleton<PlaybackPressureMonitor>();
         services.AddScoped<LibraryWorkScheduler>();
         services.AddScoped<BackgroundWorkOperations>();

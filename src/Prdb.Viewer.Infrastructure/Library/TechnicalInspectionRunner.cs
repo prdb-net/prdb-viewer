@@ -12,6 +12,7 @@ public sealed class TechnicalInspectionRunner(
     ViewerDbContext database,
     IMediaProbe mediaProbe,
     WorkIssueRecorder issues,
+    VideoProjection projection,
     TimeProvider timeProvider)
 {
     public async Task<bool> RunNextSliceAsync(CancellationToken cancellationToken = default)
@@ -151,6 +152,7 @@ public sealed class TechnicalInspectionRunner(
         work.CompletedItemCount++;
         work.LastActivityAt = Now();
         work.UpdatedAt = work.LastActivityAt.Value;
+        await projection.RefreshTrackedAsync(cancellationToken);
         await database.SaveChangesAsync(cancellationToken);
         return true;
     }
