@@ -9,9 +9,9 @@ The project is in active development. The current executable provides local
 Account access, guided Installation Configuration, durable Library Scans, and
 technical inspection of discovered Video File Candidates, plus the first
 authenticated catalogue, direct browser playback path, Account-private playback
-and Personal State surfaces, prdb identification with local preview images
-and an Administrator review workflow, the observable background-work operations
-surface, and operator backup and restore. See
+and Personal State surfaces, a searchable and filterable library, prdb identification with
+local preview images and an Administrator review workflow, the observable
+background-work operations surface, and operator backup and restore. See
 [VISION.md](VISION.md) for the product contract.
 
 ## Prerequisites
@@ -197,6 +197,44 @@ intentionally outside the authentication boundary defined by the product
 contract and uses a random, non-enumerable public identifier rather than a
 filesystem path or sequential database key. Treat a copied delivery URL as a
 direct link to that source Video File.
+
+## Discover the library
+
+The library is one searchable, filterable list, loaded a page at a time.
+
+Search covers Established titles, Sites and Actors, plus the local display label
+and current file names of Unknown Videos. It ignores case, diacritics and
+ordinary punctuation, and every term must match somewhere — though not
+necessarily in the same fact, so `known alex` finds a Video whose title matches
+one term and whose Actor matches the other. An exact title or label ranks above
+other titles, then Sites and Actors, then file names. There is deliberately no
+stemming, typo correction or semantic matching.
+
+Filters cover Site, Actor, Work Identification, review status, playability,
+availability and the Account's own Personal Play State. Values inside one facet
+combine with OR and the facets combine with AND, and Unknown Work Identification,
+Unknown Site and Review Needed are explicit values rather than the absence of
+one. Established Sites and Actors are offered with their counts.
+
+The default order is Discovery Date descending, so later enrichment never makes
+an old Video look newly added; Title A-Z is the one alternative.
+
+Ordinary results contain a Video while it is Available and ready for direct
+play. When the current rules keep matches out, the view says how many and offers
+the control that reveals them rather than dropping them silently: a per-Account
+preference widens results to Videos that are not ready for direct play, and an
+explicit playability filter overrides that preference for one view.
+
+**One honest limit.** Readiness is currently the installation-wide Direct-Play
+Classification rather than a per-Account, per-client assessment, because the
+account-and-client layers of the direct-play contract are not built yet. A Video
+your browser cannot in fact play can therefore still appear. Nothing claims
+otherwise, and the player says so plainly if playback fails.
+
+Filtering and ordering happen in the database over a projection each Video
+maintains, so the cost of a page is the page. See
+[ADR 0013](docs/adr/0013-maintain-a-discovery-projection-for-each-video.md) and
+[docs/performance.md](docs/performance.md).
 
 ## Track playback and Personal State
 

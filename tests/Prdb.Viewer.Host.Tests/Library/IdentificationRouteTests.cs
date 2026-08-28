@@ -85,10 +85,10 @@ public sealed class IdentificationRouteTests
             applied.GetProperty("case").GetProperty("identification")
                 .GetProperty("work").GetProperty("resolution").GetString());
 
-        var catalogue = await user.GetFromJsonAsync<JsonElement[]>(
+        var catalogue = await user.GetFromJsonAsync<JsonElement>(
             "/api/library/videos",
             TestContext.Current.CancellationToken);
-        var video = Assert.Single(catalogue!);
+        var video = Assert.Single(catalogue.GetProperty("videos").EnumerateArray());
         Assert.Equal("A Guessed Work", video.GetProperty("displayTitle").GetString());
         Assert.Equal($"/media/previews/{fixture.PreviewId}", video.GetProperty("previewUrl").GetString());
         Assert.Equal(
@@ -201,6 +201,11 @@ public sealed class IdentificationRouteTests
             SupportingVideoFileId = videoFileId,
             CreatedAt = file.LastWriteTimeUtc,
         });
+        // A fixture that writes rows directly is a write path like any other: without the
+        // discovery projection the Video exists but nothing can find it (ADR 0013).
+        await scope.ServiceProvider
+            .GetRequiredService<VideoProjection>()
+            .RefreshTrackedAsync(TestContext.Current.CancellationToken);
         await database.SaveChangesAsync(TestContext.Current.CancellationToken);
         return new Fixture(videoId, previewId);
     }

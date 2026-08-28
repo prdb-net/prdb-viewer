@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
   api,
+  emptyFilters,
   type Account,
   type AccountSummary,
   type BootstrapRequest,
@@ -14,6 +15,9 @@ import {
   type IdentificationQueueItem,
   type PlaybackReportRequest,
   type SignInRequest,
+  type LibraryFacets,
+  type LibraryFilters,
+  type LibraryPage,
   type VideoSummary,
   type WorkIssueAction,
   type WorkIssueSummary,
@@ -29,7 +33,8 @@ const queryKeys = {
   workIssueItems: (workIssueId: string) => ['work-issue-items', workIssueId] as const,
   identificationQueue: ['identification-queue'] as const,
   identificationCase: (videoId: string) => ['identification-case', videoId] as const,
-  videos: ['videos'] as const,
+  videos: (filters: string, pages: number) => ['videos', filters, pages] as const,
+  libraryFacets: ['library-facets'] as const,
   personalLibrary: ['personal-library'] as const,
 }
 
@@ -218,10 +223,25 @@ function Library({ account }: { account: Account }) {
 }
 
 function VideoLibrary({ account }: { account: Account }) {
+  const [filters, setFilters] = useState<LibraryFilters>(emptyFilters)
+  const [pages, setPages] = useState(1)
+  const facets = useQuery({ queryKey: queryKeys.libraryFacets, queryFn: api.libraryFacets })
   const videos = useQuery({
-    queryKey: queryKeys.videos,
-    queryFn: api.videos,
+    queryKey: queryKeys.videos(JSON.stringify(filters), pages),
+    queryFn: () => api.videos(filters, 0, pageSize * pages),
     refetchInterval: 5_000,
+    placeholderData: (previous) => previous,
+  })
+  const narrow = (change: Partial<LibraryFilters>) => {
+    setPages(1)
+    setFilters((current) => ({ ...current, ...change }))
+  }
+  const includeNotReady = useMutation({
+    mutationFn: (included: boolean) => api.setIncludeNotReady(included, account.csrfToken),
+    onSuccess: () => {
+      setPages(1)
+      void queryClient.invalidateQueries({ queryKey: ['videos'] })
+    },
   })
   const personalLibrary = useQuery({
     queryKey: queryKeys.personalLibrary,
@@ -273,7 +293,7 @@ function VideoLibrary({ account }: { account: Account }) {
       return api.dismissContinueWatching(video.id, account.csrfToken)
     },
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: queryKeys.videos })
+      void queryClient.invalidateQueries({ queryKey: ['videos'] })
       void queryClient.invalidateQueries({ queryKey: queryKeys.personalLibrary })
     },
   })
@@ -303,9 +323,15 @@ function VideoLibrary({ account }: { account: Account }) {
     return <RequestError />
   }
 
-  if (videos.data.length === 0) {
-    return <div className="empty-library"><strong>No Videos yet</strong><p>Videos appear here as technical inspection completes.</p></div>
-  }
+  const page = videos.data
+  const narrowed = filters.query.trim().length > 0 ||
+    filters.sites.length > 0 ||
+    filters.actors.length > 0 ||
+    filters.unknownSite ||
+    filters.work.length > 0 ||
+    filters.readiness.length > 0 ||
+    filters.availability.length > 0 ||
+    filters.playState.length > 0
 
   return (
     <section className="video-library" aria-labelledby="videos-title">
@@ -315,7 +341,7 @@ function VideoLibrary({ account }: { account: Account }) {
           csrfToken={account.csrfToken}
           close={() => setPlaying(undefined)}
           refresh={() => {
-            void queryClient.invalidateQueries({ queryKey: queryKeys.videos })
+            void queryClient.invalidateQueries({ queryKey: ['videos'] })
             void queryClient.invalidateQueries({ queryKey: queryKeys.personalLibrary })
           }}
         />
@@ -327,10 +353,179 @@ function VideoLibrary({ account }: { account: Account }) {
           <VideoShelf title="Watch Later" videos={personalLibrary.data.watchLater} kind="watch-later" play={play} act={act} pending={personalAction.isPending || startPlayback.isPending || playing !== undefined} />
         </div>
       )}
-      <div className="section-heading"><h3 id="videos-title">Videos</h3><span className="muted">{videos.data.length} available</span></div>
-      <VideoGrid videos={videos.data} play={play} act={act} pending={personalAction.isPending || startPlayback.isPending || playing !== undefined} />
-      {(startPlayback.isError || personalAction.isError) && <RequestError />}
+      <div className="section-heading">
+        <h3 id="videos-title">Videos</h3>
+        <span className="muted">{page.totalMatches} {narrowed ? 'matching' : 'available'}</span>
+      </div>
+      <LibraryControls
+        filters={filters}
+        facets={facets.data}
+        narrow={narrow}
+        clear={() => { setPages(1); setFilters(emptyFilters) }}
+        narrowed={narrowed}
+      />
+      {page.videos.length === 0 && (
+        <div className="empty-library">
+          <strong>{narrowed ? 'Nothing matches' : 'No Videos yet'}</strong>
+          <p>{narrowed
+            ? 'Adjust the search or the filters.'
+            : 'Videos appear here as technical inspection completes.'}</p>
+        </div>
+      )}
+      <VideoGrid videos={page.videos} play={play} act={act} pending={personalAction.isPending || startPlayback.isPending || playing !== undefined} />
+      <HiddenMatches
+        page={page}
+        includeNotReady={() => includeNotReady.mutate(true)}
+        showUnavailable={() => narrow({ availability: ['Unavailable'], readiness: readinessValues })}
+        pending={includeNotReady.isPending}
+      />
+      {page.hasMore && (
+        <button
+          className="quiet-button load-more"
+          onClick={() => setPages((current) => current + 1)}
+          disabled={videos.isFetching}
+        >
+          {videos.isFetching ? 'Loading…' : 'Show more'}
+        </button>
+      )}
+      {(startPlayback.isError || personalAction.isError || includeNotReady.isError) && <RequestError />}
     </section>
+  )
+}
+
+const pageSize = 60
+
+const readinessValues = ['ReadyForDirectPlay', 'CompatibilityUncertain', 'NotDirectlyPlayable']
+
+/// The search box, the two sort orders and the facets, which is the whole of the MVP's browsing.
+function LibraryControls({ filters, facets, narrow, clear, narrowed }: {
+  filters: LibraryFilters
+  facets?: LibraryFacets
+  narrow: (change: Partial<LibraryFilters>) => void
+  clear: () => void
+  narrowed: boolean
+}) {
+  return (
+    <div className="library-controls">
+      <div className="library-search">
+        <label className="field">
+          <span>Search</span>
+          <input
+            type="search"
+            value={filters.query}
+            placeholder="Title, site, actor or file name"
+            onChange={(event) => narrow({ query: event.target.value })}
+          />
+        </label>
+        <label className="field">
+          <span>Sort</span>
+          <select
+            value={filters.sort}
+            onChange={(event) => narrow({ sort: event.target.value as LibraryFilters['sort'] })}
+          >
+            <option value="Newest">Newest</option>
+            <option value="TitleAscending">Title A–Z</option>
+          </select>
+        </label>
+        {narrowed && <button className="quiet-button" onClick={clear}>Clear</button>}
+      </div>
+      <div className="facet-row">
+        <FacetToggle
+          label="Unknown work"
+          selected={filters.work.includes('Unknown')}
+          onToggle={(selected) => narrow({ work: selected ? ['Unknown'] : [] })}
+        />
+        <FacetToggle
+          label="Unknown site"
+          selected={filters.unknownSite}
+          onToggle={(selected) => narrow({ unknownSite: selected })}
+        />
+        <FacetToggle
+          label="Needs review"
+          selected={filters.review.includes('ReviewNeeded')}
+          onToggle={(selected) => narrow({ review: selected ? ['ReviewNeeded'] : [] })}
+        />
+        <FacetToggle
+          label="Unplayed"
+          selected={filters.playState.includes('Unplayed')}
+          onToggle={(selected) => narrow({ playState: selected ? ['Unplayed'] : [] })}
+        />
+      </div>
+      {facets?.sites?.length ? (
+        <div className="facet-row" aria-label="Sites">
+          {facets.sites.map((site) => (
+            <FacetToggle
+              key={site.value}
+              label={`${site.value} (${site.count})`}
+              selected={filters.sites.includes(site.value)}
+              onToggle={(selected) => narrow({ sites: selected ? [site.value] : [] })}
+            />
+          ))}
+        </div>
+      ) : null}
+      {facets?.actors?.length ? (
+        <div className="facet-row" aria-label="Actors">
+          {facets.actors.map((actor) => (
+            <FacetToggle
+              key={actor.value}
+              label={`${actor.value} (${actor.count})`}
+              selected={filters.actors.includes(actor.value)}
+              onToggle={(selected) => narrow({ actors: selected ? [actor.value] : [] })}
+            />
+          ))}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function FacetToggle({ label, selected, onToggle }: {
+  label: string
+  selected: boolean
+  onToggle: (selected: boolean) => void
+}) {
+  return (
+    <button
+      className={selected ? 'facet selected' : 'facet'}
+      aria-pressed={selected}
+      onClick={() => onToggle(!selected)}
+    >
+      {label}
+    </button>
+  )
+}
+
+/// Matches the current rules keep out are reported rather than silently dropped, together with
+/// the control that reveals them.
+function HiddenMatches({ page, includeNotReady, showUnavailable, pending }: {
+  page: LibraryPage
+  includeNotReady: () => void
+  showUnavailable: () => void
+  pending: boolean
+}) {
+  if (Number(page.hiddenNotReadyForDirectPlay) === 0 && Number(page.hiddenUnavailable) === 0) {
+    return null
+  }
+
+  return (
+    <div className="hidden-matches" role="status">
+      {Number(page.hiddenNotReadyForDirectPlay) > 0 && (
+        <p>
+          {page.hiddenNotReadyForDirectPlay} match
+          {Number(page.hiddenNotReadyForDirectPlay) === 1 ? '' : 'es'} not ready for direct play.
+          <button className="quiet-button" onClick={includeNotReady} disabled={pending}>
+            Include them
+          </button>
+        </p>
+      )}
+      {Number(page.hiddenUnavailable) > 0 && (
+        <p>
+          {page.hiddenUnavailable} match
+          {Number(page.hiddenUnavailable) === 1 ? '' : 'es'} currently unavailable.
+          <button className="quiet-button" onClick={showUnavailable}>Show them</button>
+        </p>
+      )}
+    </div>
   )
 }
 
@@ -660,7 +855,7 @@ function IdentificationReview({ account }: { account: Account }) {
         setSelected(undefined)
         reset()
         void queryClient.invalidateQueries({ queryKey: queryKeys.identificationQueue })
-        void queryClient.invalidateQueries({ queryKey: queryKeys.videos })
+        void queryClient.invalidateQueries({ queryKey: ['videos'] })
         return
       }
       if (result.verdict === 'Stale') {

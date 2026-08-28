@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Prdb.Viewer.Core.Configuration;
 using Prdb.Viewer.Core.Library;
+using Prdb.Viewer.Infrastructure.Library;
 using Prdb.Viewer.Infrastructure.Persistence;
 
 using Xunit;
@@ -49,10 +50,13 @@ public sealed class VideoRouteTests
             TestContext.Current.CancellationToken);
         claim.EnsureSuccessStatusCode();
 
-        var catalogue = await client.GetFromJsonAsync<JsonElement[]>(
+        var catalogue = await client.GetFromJsonAsync<JsonElement>(
             "/api/library/videos",
             TestContext.Current.CancellationToken);
-        var video = Assert.Single(catalogue!);
+        Assert.Equal(1, catalogue.GetProperty("totalMatches").GetInt32());
+        Assert.False(catalogue.GetProperty("hasMore").GetBoolean());
+        Assert.Equal(0, catalogue.GetProperty("hiddenNotReadyForDirectPlay").GetInt32());
+        var video = Assert.Single(catalogue.GetProperty("videos").EnumerateArray());
         Assert.Equal("sample", video.GetProperty("displayTitle").GetString());
         var videoFile = Assert.Single(video.GetProperty("videoFiles").EnumerateArray());
         Assert.Equal("BaselineCandidate", videoFile.GetProperty("directPlayClassification").GetString());
@@ -115,6 +119,11 @@ public sealed class VideoRouteTests
             LastObservedScanId = Guid.CreateVersion7(),
             InspectedAt = file.LastWriteTimeUtc,
         });
+        // A fixture that writes rows directly is a write path like any other: without the
+        // discovery projection the Video exists but nothing can find it (ADR 0013).
+        await scope.ServiceProvider
+            .GetRequiredService<VideoProjection>()
+            .RefreshTrackedAsync(TestContext.Current.CancellationToken);
         await database.SaveChangesAsync(TestContext.Current.CancellationToken);
         return deliveryId;
     }

@@ -98,7 +98,7 @@ public sealed class VideoCatalog(ViewerDbContext database)
             .Include(video => video.IdentificationCandidates)
             .Include(video => video.PersonalStates.Where(state => state.AccountId == accountId));
 
-    private static VideoSummary Map(VideoRow video, Guid accountId)
+    internal static VideoSummary Map(VideoRow video, Guid accountId)
     {
         var trackedFiles = video.VideoFiles.OrderBy(file => file.RelativePath).ToArray();
         var availableFiles = trackedFiles

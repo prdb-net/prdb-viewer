@@ -27,6 +27,53 @@ export type BackgroundWorkActionResult = components['schemas']['BackgroundWorkAc
 export type BackgroundWorkPauseResult = components['schemas']['BackgroundWorkPauseResult']
 export type QueueLibraryScanResult = components['schemas']['QueueLibraryScanResult']
 export type VideoSummary = components['schemas']['VideoSummary']
+export type LibraryPage = components['schemas']['LibraryPage']
+export type LibraryFacets = components['schemas']['LibraryFacets']
+export type LibrarySortOrder = components['schemas']['LibrarySortOrder']
+export type LibraryPreferences = components['schemas']['LibraryPreferencesSummary']
+
+export type LibraryFilters = {
+  query: string
+  sort: LibrarySortOrder
+  sites: string[]
+  actors: string[]
+  unknownSite: boolean
+  work: string[]
+  review: string[]
+  readiness: string[]
+  availability: string[]
+  playState: string[]
+}
+
+export const emptyFilters: LibraryFilters = {
+  query: '',
+  sort: 'Newest',
+  sites: [],
+  actors: [],
+  unknownSite: false,
+  work: [],
+  review: [],
+  readiness: [],
+  availability: [],
+  playState: [],
+}
+
+function libraryQuery(filters: LibraryFilters, skip: number, take: number) {
+  const parameters = new URLSearchParams()
+  if (filters.query.trim()) parameters.set('query', filters.query.trim())
+  parameters.set('sort', filters.sort)
+  if (filters.sites.length) parameters.set('sites', filters.sites.join(','))
+  if (filters.actors.length) parameters.set('actors', filters.actors.join(','))
+  if (filters.unknownSite) parameters.set('unknownSite', 'true')
+  if (filters.work.length) parameters.set('work', filters.work.join(','))
+  if (filters.review.length) parameters.set('review', filters.review.join(','))
+  if (filters.readiness.length) parameters.set('readiness', filters.readiness.join(','))
+  if (filters.availability.length) parameters.set('availability', filters.availability.join(','))
+  if (filters.playState.length) parameters.set('playState', filters.playState.join(','))
+  parameters.set('skip', String(skip))
+  parameters.set('take', String(take))
+  return parameters.toString()
+}
 export type PersonalLibrary = components['schemas']['PersonalLibrarySummary']
 export type PersonalVideoState = components['schemas']['PersonalVideoStateSummary']
 export type PlaybackAttempt = components['schemas']['PlaybackAttemptResult']
@@ -76,7 +123,16 @@ function mutate<T>(path: string, method: 'PUT' | 'DELETE', csrfToken: string, bo
 
 export const api = {
   state: () => request<AccessState>('/api/access/state'),
-  videos: () => request<VideoSummary[]>('/api/library/videos'),
+  videos: (filters: LibraryFilters, skip = 0, take = 60) =>
+    request<LibraryPage>(`/api/library/videos?${libraryQuery(filters, skip, take)}`),
+  libraryFacets: () => request<LibraryFacets>('/api/library/facets'),
+  setIncludeNotReady: (included: boolean, csrfToken: string) =>
+    mutate<LibraryPreferences>(
+      '/api/library/preferences/include-not-ready',
+      'PUT',
+      csrfToken,
+      { included },
+    ),
   personalLibrary: () => request<PersonalLibrary>('/api/personal/library'),
   startPlaybackAttempt: (videoId: string, videoFileId: string, csrfToken: string) =>
     post<PlaybackAttempt>(

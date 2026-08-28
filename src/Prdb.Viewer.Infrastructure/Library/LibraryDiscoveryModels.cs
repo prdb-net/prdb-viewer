@@ -1,0 +1,70 @@
+using Prdb.Viewer.Core.Library;
+using Prdb.Viewer.Core.Personal;
+
+namespace Prdb.Viewer.Infrastructure.Library;
+
+/// <summary>
+/// What one Account asked the Library for. Every facet is a list: values inside one facet combine
+/// with OR, and the facets combine with AND.
+/// </summary>
+public sealed record LibraryDiscoveryRequest
+{
+    public string? Query { get; init; }
+
+    public LibrarySortOrder Sort { get; init; } = LibrarySortOrder.Newest;
+
+    public IReadOnlyList<string> Sites { get; init; } = [];
+
+    public IReadOnlyList<string> Actors { get; init; } = [];
+
+    /// <summary>Whether Work Identification is Established or still Unknown.</summary>
+    public IReadOnlyList<IdentificationResolution> WorkIdentification { get; init; } = [];
+
+    public IReadOnlyList<IdentificationReviewStatus> ReviewStatus { get; init; } = [];
+
+    /// <summary>
+    /// An explicit playability filter. It overrides the Account's preference for this view, which
+    /// is why it is a filter rather than another way of setting the preference.
+    /// </summary>
+    public IReadOnlyList<DiscoveryReadiness> Readiness { get; init; } = [];
+
+    public IReadOnlyList<VideoAvailability> Availability { get; init; } = [];
+
+    public IReadOnlyList<PersonalPlayState> PlayState { get; init; } = [];
+
+    /// <summary>True selects Videos with no Established Site, which is its own facet value.</summary>
+    public bool UnknownSite { get; init; }
+
+    public int Skip { get; init; }
+
+    public int Take { get; init; } = LibraryPaging.DefaultPageSize;
+}
+
+public static class LibraryPaging
+{
+    public const int DefaultPageSize = 60;
+
+    public const int MaximumPageSize = 120;
+
+    public static int Clamp(int take) =>
+        take <= 0 ? DefaultPageSize : Math.Min(take, MaximumPageSize);
+}
+
+/// <summary>
+/// One page of the Library, plus what the current rules kept out of it. The hidden counts exist so
+/// the view can offer the control that reveals those matches instead of silently losing them.
+/// </summary>
+public sealed record LibraryPage(
+    IReadOnlyList<VideoSummary> Videos,
+    int TotalMatches,
+    int HiddenNotReadyForDirectPlay,
+    int HiddenUnavailable,
+    bool HasMore,
+    bool IncludesNotReadyForDirectPlay);
+
+/// <summary>The Established values an Account can currently filter or navigate by.</summary>
+public sealed record LibraryFacets(
+    IReadOnlyList<LibraryFacetValue> Sites,
+    IReadOnlyList<LibraryFacetValue> Actors);
+
+public sealed record LibraryFacetValue(string Value, int Count);

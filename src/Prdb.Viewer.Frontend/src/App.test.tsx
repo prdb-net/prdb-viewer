@@ -8,6 +8,26 @@ function renderApp() {
   return render(<QueryClientProvider client={queryClient}><App /></QueryClientProvider>)
 }
 
+function libraryPage(videos: unknown[], overrides: Record<string, unknown> = {}) {
+  return {
+    videos,
+    totalMatches: videos.length,
+    hiddenNotReadyForDirectPlay: 0,
+    hiddenUnavailable: 0,
+    hasMore: false,
+    includesNotReadyForDirectPlay: false,
+    ...overrides,
+  }
+}
+
+function isFacetRequest(input: unknown) {
+  return input === '/api/library/facets'
+}
+
+function isLibraryRequest(input: unknown) {
+  return typeof input === 'string' && input.startsWith('/api/library/videos')
+}
+
 function json(body: unknown) {
   return Promise.resolve(new Response(JSON.stringify(body), {
     status: 200,
@@ -68,8 +88,10 @@ describe('App', () => {
       if (input === '/api/personal/playback-attempts/01994dd4-2a0a-7000-8000-000000000013/end') {
         return json({ ended: true })
       }
-      if (input === '/api/library/videos') {
-        return json([{
+      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isLibraryRequest(input)) {
+        return json(libraryPage([{
           id: '01994dd4-2a0a-7000-8000-000000000010',
           displayTitle: 'Sample Video',
           discoveryDate: '2026-08-27T12:00:00Z',
@@ -89,7 +111,7 @@ describe('App', () => {
             directPlayClassification: 'BaselineCandidate',
             deliveryUrl: '/media/videos/01994dd4-2a0a-7000-8000-000000000012',
           }],
-        }])
+        }]))
       }
       return json([])
     })
@@ -153,7 +175,8 @@ describe('App', () => {
         authority: 'User',
         csrfToken: 'csrf-token',
       })
-      if (input === '/api/library/videos') return json([video])
+      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isLibraryRequest(input)) return json(libraryPage([video]))
       if (input === '/api/personal/library') {
         return json({ continueWatching: [video], favourites: [], watchLater: [] })
       }
@@ -221,8 +244,10 @@ describe('App', () => {
         authority: 'User',
         csrfToken: 'csrf-token',
       })
-      if (input === '/api/library/videos') {
-        return json([
+      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isLibraryRequest(input)) {
+        return json(libraryPage([
           libraryVideo({
             id: '01994dd4-2a0a-7000-8000-000000000020',
             displayTitle: 'A Known Work',
@@ -240,7 +265,7 @@ describe('App', () => {
               work: claim({ reviewStatus: 'ReviewNeeded' }),
             }),
           }),
-        ])
+        ]))
       }
       if (input === '/api/personal/library') {
         return json({ continueWatching: [], favourites: [], watchLater: [] })
@@ -323,7 +348,8 @@ describe('App', () => {
         authority: 'Administrator',
         csrfToken: 'csrf-token',
       })
-      if (input === '/api/library/videos') return json([])
+      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isLibraryRequest(input)) return json(libraryPage([]))
       if (input === '/api/personal/library') {
         return json({ continueWatching: [], favourites: [], watchLater: [] })
       }
@@ -400,6 +426,69 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Submit request' }))
 
     expect(await screen.findByRole('status')).toHaveTextContent('Access begins only after approval.')
+  })
+
+  it('searches, narrows by facet, and offers the matches the rules keep out', async () => {
+    const shown = libraryVideo({ displayTitle: 'A Known Work' })
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      if (input === '/api/access/state') return json({ claimed: true, signedIn: true })
+      if (input === '/api/access/me') return json({
+        id: '01994dd4-2a0a-7000-8000-000000000001',
+        username: 'viewer',
+        email: null,
+        authority: 'User',
+        csrfToken: 'csrf-token',
+      })
+      if (isFacetRequest(input)) {
+        return json({ sites: [{ value: 'Known Site', count: 3 }], actors: [] })
+      }
+      if (isLibraryRequest(input)) {
+        return json(libraryPage([shown], {
+          totalMatches: 1,
+          hiddenNotReadyForDirectPlay: 2,
+          hiddenUnavailable: 1,
+        }))
+      }
+      if (input === '/api/library/preferences/include-not-ready') {
+        return json({ includesNotReadyForDirectPlay: true })
+      }
+      if (input === '/api/personal/library') {
+        return json({ continueWatching: [], favourites: [], watchLater: [] })
+      }
+      return json([])
+    })
+
+    renderApp()
+    expect(await screen.findByText('A Known Work')).toBeInTheDocument()
+
+    // What the current rules keep out is reported rather than silently dropped.
+    expect(screen.getByText(/2 matches not ready for direct play/)).toBeInTheDocument()
+    expect(screen.getByText(/1 match currently unavailable/)).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'known' } })
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('query=known'),
+      expect.anything(),
+    ))
+
+    fireEvent.change(screen.getByLabelText('Sort'), { target: { value: 'TitleAscending' } })
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('sort=TitleAscending'),
+      expect.anything(),
+    ))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Known Site (3)' }))
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('sites=Known+Site'),
+      expect.anything(),
+    ))
+
+    // The control that reveals the hidden matches sets the Account's own preference.
+    fireEvent.click(screen.getByRole('button', { name: 'Include them' }))
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/library/preferences/include-not-ready',
+      expect.objectContaining({ method: 'PUT' }),
+    ))
   })
 
   it('shows operational attention, pauses work, and rechecks a blocked issue', async () => {
@@ -496,6 +585,8 @@ describe('App', () => {
       if (input === '/api/admin/configuration/library-directory-candidates') {
         return json({ containerPaths: [] })
       }
+      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isLibraryRequest(input)) return json(libraryPage([]))
       if (input === '/api/personal/library') {
         return json({ continueWatching: [], favourites: [], watchLater: [] })
       }

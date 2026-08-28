@@ -48,28 +48,6 @@
         }
       }
     },
-    "/api/library/videos": {
-      "get": {
-        "tags": [
-          "Library"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/VideoSummary"
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/media/videos/{deliveryId}": {
       "get": {
         "tags": [
@@ -778,6 +756,173 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/IdentificationDecisionResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/library/videos": {
+      "get": {
+        "tags": [
+          "Library"
+        ],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "default": "Newest",
+              "$ref": "#/components/schemas/LibrarySortOrder"
+            }
+          },
+          {
+            "name": "sites",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actors",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "unknownSite",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "work",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "review",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "readiness",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "availability",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "playState",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 60
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/library/facets": {
+      "get": {
+        "tags": [
+          "Library"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryFacets"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/library/preferences/include-not-ready": {
+      "put": {
+        "tags": [
+          "Library"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IncludeNotReadyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryPreferencesSummary"
                 }
               }
             }
@@ -2085,8 +2230,7 @@
         "enum": [
           "Insufficient",
           "Suggestive",
-          "Conclusive",
-          null
+          "Conclusive"
         ]
       },
       "IdentificationQueueItem": {
@@ -2208,6 +2352,17 @@
               "string"
             ],
             "format": "date-time"
+          }
+        }
+      },
+      "IncludeNotReadyRequest": {
+        "required": [
+          "included"
+        ],
+        "type": "object",
+        "properties": {
+          "included": {
+            "type": "boolean"
           }
         }
       },
@@ -2468,6 +2623,113 @@
             "type": "boolean"
           }
         }
+      },
+      "LibraryFacets": {
+        "required": [
+          "sites",
+          "actors"
+        ],
+        "type": "object",
+        "properties": {
+          "sites": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryFacetValue"
+            }
+          },
+          "actors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryFacetValue"
+            }
+          }
+        }
+      },
+      "LibraryFacetValue": {
+        "required": [
+          "value",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "LibraryPage": {
+        "required": [
+          "videos",
+          "totalMatches",
+          "hiddenNotReadyForDirectPlay",
+          "hiddenUnavailable",
+          "hasMore",
+          "includesNotReadyForDirectPlay"
+        ],
+        "type": "object",
+        "properties": {
+          "videos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VideoSummary"
+            }
+          },
+          "totalMatches": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hiddenNotReadyForDirectPlay": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hiddenUnavailable": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "includesNotReadyForDirectPlay": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LibraryPreferencesSummary": {
+        "required": [
+          "includesNotReadyForDirectPlay"
+        ],
+        "type": "object",
+        "properties": {
+          "includesNotReadyForDirectPlay": {
+            "type": "boolean"
+          }
+        }
+      },
+      "LibrarySortOrder": {
+        "enum": [
+          "Newest",
+          "TitleAscending"
+        ]
       },
       "PersonalLibrarySummary": {
         "required": [
@@ -3464,9 +3726,6 @@
       "name": "Preview Delivery"
     },
     {
-      "name": "Library"
-    },
-    {
       "name": "Video Delivery"
     },
     {
@@ -3483,6 +3742,9 @@
     },
     {
       "name": "Identification Review"
+    },
+    {
+      "name": "Library"
     },
     {
       "name": "Personal State"
