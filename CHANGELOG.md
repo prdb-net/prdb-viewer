@@ -26,3 +26,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Add Account-private playback reporting, resume, watch duration, play count,
   completion and Personal Play State, plus Continue Watching, Favourites,
   Watch Later, and one-to-five Personal Ratings.
+- Add content hashing, prdb identification with explicit provenance, retained
+  remote metadata, locally generated preview images, automatic association of
+  Video Files that share one work identity, and an Administrator identification
+  review queue with previewed, version-bound decisions.

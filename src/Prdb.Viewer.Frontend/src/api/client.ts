@@ -27,6 +27,13 @@ export type PlaybackAttempt = components['schemas']['PlaybackAttemptResult']
 export type PlaybackReportRequest = components['schemas']['PlaybackReportRequest']
 export type PlaybackReport = components['schemas']['PlaybackReportResult']
 export type PersonalStateMutation = components['schemas']['PersonalStateMutationResult']
+export type IdentificationSummary = components['schemas']['IdentificationSummary']
+export type IdentificationQueueItem = components['schemas']['IdentificationQueueItem']
+export type IdentificationCase = components['schemas']['IdentificationCase']
+export type IdentificationConsequence = components['schemas']['IdentificationConsequence']
+export type IdentificationDecisionRequest = components['schemas']['IdentificationDecisionRequest']
+export type IdentificationDecisionResult = components['schemas']['IdentificationDecisionResult']
+export type IdentificationDecisionAction = components['schemas']['IdentificationDecisionAction']
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
@@ -152,6 +159,19 @@ export const api = {
       undefined,
       csrfToken,
     ),
+  identificationQueue: () =>
+    request<IdentificationQueueItem[]>('/api/admin/identification/queue'),
+  identificationCase: (videoId: string) =>
+    request<IdentificationCase>(`/api/admin/identification/videos/${videoId}`),
+  decideIdentification: (
+    videoId: string,
+    decision: IdentificationDecisionRequest,
+    csrfToken: string,
+  ) => post<IdentificationDecisionResult>(
+    `/api/admin/identification/videos/${videoId}/decisions`,
+    decision,
+    csrfToken,
+  ),
   backgroundWork: () => request<BackgroundWorkStatus>('/api/admin/background-work/'),
   queueLibraryScan: (libraryDirectoryId: string, csrfToken: string) =>
     post<QueueLibraryScanResult>(

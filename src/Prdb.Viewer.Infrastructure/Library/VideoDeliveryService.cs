@@ -30,7 +30,7 @@ public sealed class VideoDeliveryService(ViewerDbContext database)
             return null;
         }
 
-        var path = SafePath(videoFile.LibraryDirectory.ContainerPath, videoFile.RelativePath);
+        var path = SourceFile.Resolve(videoFile.LibraryDirectory.ContainerPath, videoFile.RelativePath);
 
         if (path is null)
         {
@@ -60,30 +60,6 @@ public sealed class VideoDeliveryService(ViewerDbContext database)
                 Path.GetFileName(videoFile.RelativePath));
         }
         catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
-        {
-            return null;
-        }
-    }
-
-    private static string? SafePath(string root, string relativePath)
-    {
-        try
-        {
-            var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
-            var path = Path.GetFullPath(Path.Combine(
-                normalizedRoot,
-                relativePath.Replace('/', Path.DirectorySeparatorChar)));
-            var comparison = OperatingSystem.IsWindows()
-                ? StringComparison.OrdinalIgnoreCase
-                : StringComparison.Ordinal;
-
-            return path.StartsWith($"{normalizedRoot}{Path.DirectorySeparatorChar}", comparison) &&
-                   File.Exists(path) &&
-                   (File.GetAttributes(path) & FileAttributes.ReparsePoint) == 0
-                ? path
-                : null;
-        }
-        catch (Exception exception) when (exception is ArgumentException or UnauthorizedAccessException or IOException)
         {
             return null;
         }

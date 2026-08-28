@@ -353,6 +353,289 @@ public sealed class PersonalStateService(
         return ToSummary(state, duration);
     }
 
+    /// <summary>
+    /// Preserves both Videos' private viewing history when their identities merge. Play Counts
+    /// sum, overlapping Active Watching is counted once, completion history remains true, and the
+    /// most recent authoritative activity supplies the current resume state. Nothing about it is
+    /// exposed to the Administrator whose decision caused the merge.
+    /// </summary>
+    internal async Task ReconcileMergedVideoAsync(
+        Guid survivingVideoId,
+        Guid mergedVideoId,
+        CancellationToken cancellationToken = default)
+    {
+        var merged = await database.PersonalVideoStates
+            .AsTracking()
+            .Where(state => state.VideoId == mergedVideoId)
+            .ToListAsync(cancellationToken);
+        var surviving = await database.PersonalVideoStates
+            .AsTracking()
+            .Where(state => state.VideoId == survivingVideoId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var state in merged)
+        {
+            var target = surviving.SingleOrDefault(candidate => candidate.AccountId == state.AccountId);
+
+            if (target is null)
+            {
+                database.PersonalVideoStates.Add(new PersonalVideoStateRow
+                {
+                    AccountId = state.AccountId,
+                    VideoId = survivingVideoId,
+                    PlaybackProgressMilliseconds = state.PlaybackProgressMilliseconds,
+                    ProgressVideoFileId = state.ProgressVideoFileId,
+                    AccumulatedWatchDurationMilliseconds = state.AccumulatedWatchDurationMilliseconds,
+                    PlayCount = state.PlayCount,
+                    HasViewingCompletion = state.HasViewingCompletion,
+                    LastCompletedAt = state.LastCompletedAt,
+                    PlayState = state.PlayState,
+                    PlayStateChangedAt = state.PlayStateChangedAt,
+                    LastQualifiedActivityAt = state.LastQualifiedActivityAt,
+                    ContinueWatchingDismissedAt = state.ContinueWatchingDismissedAt,
+                    FavouriteAddedAt = state.FavouriteAddedAt,
+                    WatchLaterAddedAt = state.WatchLaterAddedAt,
+                    PersonalRating = state.PersonalRating,
+                    UpdatedAt = state.UpdatedAt,
+                });
+            }
+            else
+            {
+                Combine(target, state);
+            }
+
+            database.PersonalVideoStates.Remove(state);
+        }
+
+        await database.SaveChangesAsync(cancellationToken);
+
+        foreach (var state in await database.PersonalVideoStates
+                     .AsTracking()
+                     .Where(candidate => candidate.VideoId == survivingVideoId)
+                     .ToListAsync(cancellationToken))
+        {
+            state.AccumulatedWatchDurationMilliseconds = await GetConfirmedDurationAsync(
+                state.AccountId,
+                survivingVideoId,
+                cancellationToken);
+        }
+
+        await database.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Redistributes private viewing state when one Video splits into two. Activity attributable
+    /// to a separated Video File follows it and is derived again for both identities, while
+    /// ambiguous Video-level state — organisation, ratings, and dismissals — stays with the
+    /// explicitly chosen continuing Video. Nothing is exposed to the deciding Administrator.
+    /// </summary>
+    internal async Task SeparateSplitVideoAsync(
+        Guid continuingVideoId,
+        Guid separatedVideoId,
+        IReadOnlyCollection<Guid> separatedVideoFileIds,
+        CancellationToken cancellationToken = default)
+    {
+        var attempts = await database.PlaybackAttempts
+            .AsTracking()
+            .Include(attempt => attempt.VideoFiles)
+            .Where(attempt => attempt.VideoId == continuingVideoId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var attempt in attempts.Where(attempt =>
+                     attempt.VideoFiles.Count > 0 &&
+                     attempt.VideoFiles.All(participation =>
+                         separatedVideoFileIds.Contains(participation.VideoFileId))))
+        {
+            attempt.VideoId = separatedVideoId;
+        }
+
+        await database.SaveChangesAsync(cancellationToken);
+
+        foreach (var accountId in attempts.Select(attempt => attempt.AccountId).Distinct())
+        {
+            await DeriveStateAsync(accountId, continuingVideoId, cancellationToken);
+            await DeriveStateAsync(accountId, separatedVideoId, cancellationToken);
+        }
+
+        await database.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Moves the Video-level state that no Video File can claim — organisation, rating, and a
+    /// Continue Watching dismissal — to the Video the Administrator chose to carry it.
+    /// </summary>
+    internal async Task TransferAmbiguousStateAsync(
+        Guid fromVideoId,
+        Guid toVideoId,
+        CancellationToken cancellationToken = default)
+    {
+        var sources = await database.PersonalVideoStates
+            .AsTracking()
+            .Where(state => state.VideoId == fromVideoId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var source in sources.Where(state =>
+                     state.FavouriteAddedAt is not null ||
+                     state.WatchLaterAddedAt is not null ||
+                     state.PersonalRating is not null ||
+                     state.ContinueWatchingDismissedAt is not null))
+        {
+            var target = await GetOrCreateStateAsync(
+                source.AccountId,
+                toVideoId,
+                source.UpdatedAt,
+                cancellationToken);
+            target.FavouriteAddedAt = source.FavouriteAddedAt;
+            target.WatchLaterAddedAt = source.WatchLaterAddedAt;
+            target.PersonalRating = source.PersonalRating;
+            target.ContinueWatchingDismissedAt = source.ContinueWatchingDismissedAt;
+            source.FavouriteAddedAt = null;
+            source.WatchLaterAddedAt = null;
+            source.PersonalRating = null;
+            source.ContinueWatchingDismissedAt = null;
+        }
+
+        await database.SaveChangesAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// Rebuilds the derived playback facts of one Account and Video from its retained Playback
+    /// Attempts. Explicitly maintained references and preferences are never derived.
+    /// </summary>
+    private async Task DeriveStateAsync(
+        Guid accountId,
+        Guid videoId,
+        CancellationToken cancellationToken)
+    {
+        var attempts = await database.PlaybackAttempts
+            .AsNoTracking()
+            .Where(attempt => attempt.AccountId == accountId && attempt.VideoId == videoId)
+            .OrderBy(attempt => attempt.AttemptedAt)
+            .ToListAsync(cancellationToken);
+        var state = await database.PersonalVideoStates
+            .AsTracking()
+            .SingleOrDefaultAsync(
+                candidate => candidate.AccountId == accountId && candidate.VideoId == videoId,
+                cancellationToken);
+
+        if (attempts.Count == 0)
+        {
+            if (state is not null)
+            {
+                state.PlayCount = 0;
+                state.AccumulatedWatchDurationMilliseconds = 0;
+                state.PlaybackProgressMilliseconds = null;
+                state.ProgressVideoFileId = null;
+                state.HasViewingCompletion = false;
+                state.PlayState = PersonalPlayState.Unplayed;
+                state.PlayStateChangedAt = null;
+                state.LastQualifiedActivityAt = null;
+            }
+
+            return;
+        }
+
+        if (state is null)
+        {
+            state = new PersonalVideoStateRow
+            {
+                AccountId = accountId,
+                VideoId = videoId,
+                PlayState = PersonalPlayState.Unplayed,
+                UpdatedAt = attempts[^1].AttemptedAt,
+            };
+            database.PersonalVideoStates.Add(state);
+        }
+
+        var authoritative = attempts
+            .Where(attempt => attempt.LastActivityAt is not null)
+            .OrderByDescending(attempt => attempt.LastActivityAt)
+            .FirstOrDefault();
+        state.PlayCount = attempts.Count(attempt => attempt.Qualified);
+        state.HasViewingCompletion = attempts.Any(attempt => attempt.CompletionRecorded);
+        state.AccumulatedWatchDurationMilliseconds = await GetConfirmedDurationAsync(
+            accountId,
+            videoId,
+            cancellationToken);
+        state.PlaybackProgressMilliseconds = authoritative?.LastPositionMilliseconds;
+        state.ProgressVideoFileId = authoritative is null
+            ? null
+            : await database.PlaybackAttemptVideoFiles
+                .Where(participation => participation.PlaybackAttemptId == authoritative.Id)
+                .Select(participation => (Guid?)participation.VideoFileId)
+                .FirstOrDefaultAsync(cancellationToken);
+        state.PlayState = authoritative switch
+        {
+            null => PersonalPlayState.Unplayed,
+            { CompletionRecorded: true } => PersonalPlayState.Completed,
+            { Qualified: true } => PersonalPlayState.InProgress,
+            _ => state.HasViewingCompletion
+                ? PersonalPlayState.Completed
+                : PersonalPlayState.Unplayed,
+        };
+        state.PlayStateChangedAt = authoritative?.AttemptedAt;
+        state.LastQualifiedActivityAt = state.PlayState == PersonalPlayState.InProgress
+            ? authoritative?.LastActivityAt
+            : null;
+    }
+
+    private static void Combine(PersonalVideoStateRow target, PersonalVideoStateRow merged)
+    {
+        target.PlayCount += merged.PlayCount;
+        target.HasViewingCompletion |= merged.HasViewingCompletion;
+        target.LastCompletedAt = Later(target.LastCompletedAt, merged.LastCompletedAt);
+        target.ContinueWatchingDismissedAt = Later(
+            target.ContinueWatchingDismissedAt,
+            merged.ContinueWatchingDismissedAt);
+        target.FavouriteAddedAt = Earlier(target.FavouriteAddedAt, merged.FavouriteAddedAt);
+        target.WatchLaterAddedAt = Earlier(target.WatchLaterAddedAt, merged.WatchLaterAddedAt);
+
+        if (AuthoritativeAt(merged) > AuthoritativeAt(target))
+        {
+            target.PlaybackProgressMilliseconds = merged.PlaybackProgressMilliseconds;
+            target.ProgressVideoFileId = merged.ProgressVideoFileId;
+            target.PlayState = merged.PlayState;
+            target.PlayStateChangedAt = merged.PlayStateChangedAt;
+            target.LastQualifiedActivityAt = merged.LastQualifiedActivityAt;
+            target.PersonalRating = merged.PersonalRating ?? target.PersonalRating;
+        }
+        else
+        {
+            target.PersonalRating ??= merged.PersonalRating;
+        }
+
+        target.UpdatedAt = Later(target.UpdatedAt, merged.UpdatedAt) ?? target.UpdatedAt;
+    }
+
+    private static DateTime AuthoritativeAt(PersonalVideoStateRow state) =>
+        state.LastQualifiedActivityAt ?? state.PlayStateChangedAt ?? state.UpdatedAt;
+
+    private static DateTime? Later(DateTime? left, DateTime? right) =>
+        left is null || (right is not null && right > left) ? right ?? left : left;
+
+    private static DateTime? Earlier(DateTime? left, DateTime? right) =>
+        left is null || (right is not null && right < left) ? right ?? left : left;
+
+    private async Task<long> GetConfirmedDurationAsync(
+        Guid accountId,
+        Guid videoId,
+        CancellationToken cancellationToken)
+    {
+        var intervals = await database.PlaybackReports
+            .AsNoTracking()
+            .Where(report =>
+                report.PlaybackAttempt.AccountId == accountId &&
+                report.PlaybackAttempt.VideoId == videoId &&
+                report.ActivityStartedAt != null &&
+                report.ActivityEndedAt != null)
+            .Select(report => new ActivityInterval(
+                report.ActivityStartedAt!.Value,
+                report.ActivityEndedAt!.Value))
+            .ToListAsync(cancellationToken);
+
+        return UnionLengthMilliseconds(intervals);
+    }
+
     private async Task<PersonalStateMutationResult> MutateAsync(
         Guid accountId,
         Guid videoId,

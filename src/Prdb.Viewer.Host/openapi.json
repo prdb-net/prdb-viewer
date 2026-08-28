@@ -25,6 +25,29 @@
         }
       }
     },
+    "/media/previews/{previewId}": {
+      "get": {
+        "tags": [
+          "Preview Delivery"
+        ],
+        "parameters": [
+          {
+            "name": "previewId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/library/videos": {
       "get": {
         "tags": [
@@ -542,6 +565,91 @@
         }
       }
     },
+    "/api/admin/identification/queue": {
+      "get": {
+        "tags": [
+          "Identification Review"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IdentificationQueueItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/identification/videos/{videoId}": {
+      "get": {
+        "tags": [
+          "Identification Review"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/admin/identification/videos/{videoId}/decisions": {
+      "post": {
+        "tags": [
+          "Identification Review"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentificationDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentificationDecisionResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/personal/library": {
       "get": {
         "tags": [
@@ -974,7 +1082,10 @@
       "BackgroundWorkCategory": {
         "enum": [
           "LibraryScan",
-          "TechnicalInspection"
+          "TechnicalInspection",
+          "Hashing",
+          "PreviewGeneration",
+          "Identification"
         ]
       },
       "BackgroundWorkState": {
@@ -1178,6 +1289,641 @@
         "properties": {
           "status": {
             "type": "string"
+          }
+        }
+      },
+      "IdentificationCandidateStatus": {
+        "enum": [
+          "Pending",
+          "Rejected",
+          "Superseded"
+        ]
+      },
+      "IdentificationCandidateView": {
+        "required": [
+          "id",
+          "dimension",
+          "status",
+          "targetTitle",
+          "targetUrl",
+          "evidenceClass",
+          "reason",
+          "evidenceSummary",
+          "supportingVideoFileId",
+          "createdAt",
+          "resolvedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/IdentificationDimension"
+          },
+          "status": {
+            "$ref": "#/components/schemas/IdentificationCandidateStatus"
+          },
+          "targetTitle": {
+            "type": "string"
+          },
+          "targetUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "evidenceClass": {
+            "$ref": "#/components/schemas/IdentificationEvidenceClass"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/IdentificationReviewReason"
+          },
+          "evidenceSummary": {
+            "type": "string"
+          },
+          "supportingVideoFileId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "IdentificationCase": {
+        "required": [
+          "videoId",
+          "caseVersion",
+          "displayLabel",
+          "previewUrl",
+          "identification",
+          "openCandidates",
+          "candidateHistory",
+          "videoFiles",
+          "decisions",
+          "unavailableSiteActions",
+          "explanation"
+        ],
+        "type": "object",
+        "properties": {
+          "videoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "displayLabel": {
+            "type": "string"
+          },
+          "previewUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "identification": {
+            "$ref": "#/components/schemas/IdentificationSummary"
+          },
+          "openCandidates": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationCandidateView"
+            }
+          },
+          "candidateHistory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationCandidateView"
+            }
+          },
+          "videoFiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationCaseFile"
+            }
+          },
+          "decisions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationDecisionView"
+            }
+          },
+          "unavailableSiteActions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationDecisionAction"
+            }
+          },
+          "explanation": {
+            "type": "string"
+          }
+        }
+      },
+      "IdentificationCaseFile": {
+        "required": [
+          "id",
+          "relativePath",
+          "availability",
+          "directPlayClassification",
+          "containerFormat",
+          "videoCodec",
+          "audioCodec",
+          "durationMilliseconds",
+          "osHashSummary",
+          "perceptualHashSummary",
+          "hashState"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "relativePath": {
+            "type": "string"
+          },
+          "availability": {
+            "$ref": "#/components/schemas/VideoFileAvailability"
+          },
+          "directPlayClassification": {
+            "$ref": "#/components/schemas/DirectPlayClassification"
+          },
+          "containerFormat": {
+            "type": "string"
+          },
+          "videoCodec": {
+            "type": "string"
+          },
+          "audioCodec": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durationMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "osHashSummary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "perceptualHashSummary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "hashState": {
+            "$ref": "#/components/schemas/VideoFileHashState"
+          }
+        }
+      },
+      "IdentificationClaimView": {
+        "required": [
+          "dimension",
+          "resolution",
+          "reviewStatus",
+          "targetTitle",
+          "targetUrl",
+          "source",
+          "evidenceClass",
+          "administrativeOverride",
+          "establishedAt",
+          "lastConfirmedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "dimension": {
+            "$ref": "#/components/schemas/IdentificationDimension"
+          },
+          "resolution": {
+            "$ref": "#/components/schemas/IdentificationResolution"
+          },
+          "reviewStatus": {
+            "$ref": "#/components/schemas/IdentificationReviewStatus"
+          },
+          "targetTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "source": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IdentificationSource"
+              }
+            ]
+          },
+          "evidenceClass": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IdentificationEvidenceClass"
+              }
+            ]
+          },
+          "administrativeOverride": {
+            "type": "boolean"
+          },
+          "establishedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastConfirmedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "IdentificationConsequence": {
+        "required": [
+          "claimTransition",
+          "candidateTransition",
+          "affectedVideoFileCount",
+          "resultingReviewStatus",
+          "mergesAnotherVideo",
+          "mergeSummary",
+          "requiresNote"
+        ],
+        "type": "object",
+        "properties": {
+          "claimTransition": {
+            "type": "string"
+          },
+          "candidateTransition": {
+            "type": "string"
+          },
+          "affectedVideoFileCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "resultingReviewStatus": {
+            "$ref": "#/components/schemas/IdentificationReviewStatus"
+          },
+          "mergesAnotherVideo": {
+            "type": "boolean"
+          },
+          "mergeSummary": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requiresNote": {
+            "type": "boolean"
+          }
+        }
+      },
+      "IdentificationDecisionAction": {
+        "enum": [
+          "AcceptCandidate",
+          "AssignDirectly",
+          "ReplaceClaim",
+          "RejectCandidate",
+          "RevokeClaim",
+          "SplitVideo"
+        ]
+      },
+      "IdentificationDecisionRequest": {
+        "required": [
+          "action",
+          "dimension",
+          "caseVersion",
+          "confirm"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/IdentificationDecisionAction"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/IdentificationDimension"
+          },
+          "caseVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "confirm": {
+            "type": "boolean"
+          },
+          "candidateId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "targetKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "separatedVideoFileIds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "retainPersonalStateWithContinuing": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "IdentificationDecisionResult": {
+        "required": [
+          "verdict"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/IdentificationDecisionVerdict"
+          },
+          "consequence": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IdentificationConsequence"
+              }
+            ]
+          },
+          "case": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IdentificationCase"
+              }
+            ]
+          }
+        }
+      },
+      "IdentificationDecisionVerdict": {
+        "enum": [
+          "Applied",
+          "Preview",
+          "Stale",
+          "NotFound",
+          "NoteRequired",
+          "InvalidTarget",
+          "ActionUnavailable"
+        ]
+      },
+      "IdentificationDecisionView": {
+        "required": [
+          "id",
+          "dimension",
+          "action",
+          "priorState",
+          "resultingState",
+          "mergedAnotherVideo",
+          "note",
+          "createdAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/IdentificationDimension"
+          },
+          "action": {
+            "$ref": "#/components/schemas/IdentificationDecisionAction"
+          },
+          "priorState": {
+            "type": "string"
+          },
+          "resultingState": {
+            "type": "string"
+          },
+          "mergedAnotherVideo": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "IdentificationDimension": {
+        "enum": [
+          "WorkIdentification",
+          "SiteRecognition"
+        ]
+      },
+      "IdentificationEvidenceClass": {
+        "enum": [
+          "Insufficient",
+          "Suggestive",
+          "Conclusive",
+          null
+        ]
+      },
+      "IdentificationQueueItem": {
+        "required": [
+          "videoId",
+          "caseVersion",
+          "displayLabel",
+          "previewUrl",
+          "dimension",
+          "currentResolution",
+          "currentTargetTitle",
+          "candidate",
+          "affectedVideoFileCount",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "videoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "displayLabel": {
+            "type": "string"
+          },
+          "previewUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/IdentificationDimension"
+          },
+          "currentResolution": {
+            "$ref": "#/components/schemas/IdentificationResolution"
+          },
+          "currentTargetTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "candidate": {
+            "$ref": "#/components/schemas/IdentificationCandidateView"
+          },
+          "affectedVideoFileCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "IdentificationResolution": {
+        "enum": [
+          "Unknown",
+          "Established"
+        ]
+      },
+      "IdentificationReviewReason": {
+        "enum": [
+          "SuggestiveEvidence",
+          "ConflictingConclusiveEvidence",
+          "ConflictsWithAdministrativeOverride",
+          "RemoteIdentityChanged"
+        ]
+      },
+      "IdentificationReviewStatus": {
+        "enum": [
+          "Clear",
+          "ReviewNeeded"
+        ]
+      },
+      "IdentificationSource": {
+        "enum": [
+          "PrdbIdentification",
+          "LocalInference",
+          "AdministratorDecision",
+          null
+        ]
+      },
+      "IdentificationSummary": {
+        "required": [
+          "work",
+          "site",
+          "actors",
+          "metadataFetchedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "work": {
+            "$ref": "#/components/schemas/IdentificationClaimView"
+          },
+          "site": {
+            "$ref": "#/components/schemas/IdentificationClaimView"
+          },
+          "actors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "metadataFetchedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -2015,6 +2761,14 @@
           "Removed"
         ]
       },
+      "VideoFileHashState": {
+        "enum": [
+          "Pending",
+          "Computed",
+          "Incomplete",
+          "Failed"
+        ]
+      },
       "VideoFileSummary": {
         "required": [
           "id",
@@ -2102,6 +2856,8 @@
           "displayTitle",
           "discoveryDate",
           "availability",
+          "previewUrl",
+          "identification",
           "videoFiles",
           "personalState"
         ],
@@ -2120,6 +2876,15 @@
           },
           "availability": {
             "$ref": "#/components/schemas/VideoAvailability"
+          },
+          "previewUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "identification": {
+            "$ref": "#/components/schemas/IdentificationSummary"
           },
           "videoFiles": {
             "type": "array",
@@ -2204,6 +2969,9 @@
       "name": "Health"
     },
     {
+      "name": "Preview Delivery"
+    },
+    {
       "name": "Library"
     },
     {
@@ -2220,6 +2988,9 @@
     },
     {
       "name": "Background Work"
+    },
+    {
+      "name": "Identification Review"
     },
     {
       "name": "Personal State"

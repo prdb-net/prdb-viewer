@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 
 using Prdb.Viewer.Core.Access;
 using Prdb.Viewer.Core.Configuration;
+using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Infrastructure.Library;
 using Prdb.Viewer.Infrastructure.Persistence;
 
@@ -219,6 +220,23 @@ public sealed class InstallationConfigurationService(
             Summary(directory));
     }
 
+    /// <summary>
+    /// Lets identification continue as soon as a usable credential exists. A lane that stopped for
+    /// a missing or refused key carries exactly that condition, so a newly verified key is the
+    /// Resolution Evidence it was waiting for.
+    /// </summary>
+    private Task ResumeIdentificationAsync(DateTime now, CancellationToken cancellationToken) =>
+        database.BackgroundWork
+            .Where(row => row.Category == BackgroundWorkCategory.Identification &&
+                          row.State == BackgroundWorkState.Waiting)
+            .ExecuteUpdateAsync(
+                update => update
+                    .SetProperty(row => row.State, BackgroundWorkState.Queued)
+                    .SetProperty(row => row.NextAttemptAt, (DateTime?)null)
+                    .SetProperty(row => row.WaitingReason, (string?)null)
+                    .SetProperty(row => row.UpdatedAt, now),
+                cancellationToken);
+
     private async Task<PrdbConnectionUpdateResult> CompleteCredentialVerificationAsync(
         Guid revision,
         PrdbVerificationOutcome outcome,
@@ -255,6 +273,7 @@ public sealed class InstallationConfigurationService(
                     configuration.ConfiguredAt ??= now;
                 }
 
+                await ResumeIdentificationAsync(now, cancellationToken);
                 await database.SaveChangesAsync(cancellationToken);
                 return new PrdbConnectionUpdateResult(PrdbConnectionUpdateVerdict.Verified);
 

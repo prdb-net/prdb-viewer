@@ -190,14 +190,4 @@ public sealed class LibraryProcessingTests
             }
         }
     }
-
-    private sealed class FixtureProbe(Func<string, bool>? accepts = null) : IMediaProbe
-    {
-        public Task<MediaProbeFacts?> InspectAsync(
-            string path,
-            CancellationToken cancellationToken = default) =>
-            Task.FromResult((accepts?.Invoke(path) ?? true)
-                ? new MediaProbeFacts("mp4", "h264", "aac", 12_345, 1920, 1080)
-                : null);
-    }
 }

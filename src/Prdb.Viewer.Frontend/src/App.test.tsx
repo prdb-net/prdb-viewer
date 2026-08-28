@@ -211,6 +211,182 @@ describe('App', () => {
     await vi.waitFor(() => expect(rendered.container.querySelector('video')).toBeNull())
   })
 
+  it('shows preview art and provenance without letting a candidate look established', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+      if (input === '/api/access/state') return json({ claimed: true, signedIn: true })
+      if (input === '/api/access/me') return json({
+        id: '01994dd4-2a0a-7000-8000-000000000001',
+        username: 'viewer',
+        email: null,
+        authority: 'User',
+        csrfToken: 'csrf-token',
+      })
+      if (input === '/api/library/videos') {
+        return json([
+          libraryVideo({
+            id: '01994dd4-2a0a-7000-8000-000000000020',
+            displayTitle: 'A Known Work',
+            previewUrl: '/media/previews/01994dd4-2a0a-7000-8000-000000000021',
+            identification: identification({
+              work: claim({ resolution: 'Established', targetTitle: 'A Known Work' }),
+              site: claim({ resolution: 'Established', targetTitle: 'Known Site' }),
+              actors: ['Alex Doe'],
+            }),
+          }),
+          libraryVideo({
+            id: '01994dd4-2a0a-7000-8000-000000000030',
+            displayTitle: 'unknown-file',
+            identification: identification({
+              work: claim({ reviewStatus: 'ReviewNeeded' }),
+            }),
+          }),
+        ])
+      }
+      if (input === '/api/personal/library') {
+        return json({ continueWatching: [], favourites: [], watchLater: [] })
+      }
+      return json([])
+    })
+
+    const rendered = renderApp()
+
+    expect(await screen.findByText('A Known Work')).toBeInTheDocument()
+    expect(rendered.container.querySelector('img.video-preview')).toHaveAttribute(
+      'src',
+      '/media/previews/01994dd4-2a0a-7000-8000-000000000021',
+    )
+    expect(screen.getByText('prdb match')).toBeInTheDocument()
+    expect(screen.getByText('Known Site')).toBeInTheDocument()
+    expect(screen.getByText('Alex Doe')).toBeInTheDocument()
+    expect(screen.getByText('Unknown Video')).toBeInTheDocument()
+    expect(screen.getByText('Review needed')).toBeInTheDocument()
+    expect(screen.queryByText('A Guessed Work')).not.toBeInTheDocument()
+  })
+
+  it('lets an Administrator preview and confirm an identification decision', async () => {
+    const queueItem = {
+      videoId: '01994dd4-2a0a-7000-8000-000000000030',
+      caseVersion: 3,
+      displayLabel: 'unknown-file',
+      previewUrl: null,
+      dimension: 'WorkIdentification',
+      currentResolution: 'Unknown',
+      currentTargetTitle: null,
+      candidate: {
+        id: '01994dd4-2a0a-7000-8000-000000000031',
+        dimension: 'WorkIdentification',
+        status: 'Pending',
+        targetTitle: 'A Guessed Work',
+        targetUrl: null,
+        evidenceClass: 'Suggestive',
+        reason: 'SuggestiveEvidence',
+        evidenceSummary: 'Suggestive evidence, matched by Filename',
+        supportingVideoFileId: '01994dd4-2a0a-7000-8000-000000000032',
+        createdAt: '2026-08-28T10:00:00Z',
+        resolvedAt: null,
+      },
+      affectedVideoFileCount: 1,
+      reason: 'The evidence is only suggestive.',
+    }
+    const openCase = {
+      videoId: queueItem.videoId,
+      caseVersion: 3,
+      displayLabel: 'unknown-file',
+      previewUrl: null,
+      identification: identification({ work: claim({ reviewStatus: 'ReviewNeeded' }) }),
+      openCandidates: [queueItem.candidate],
+      candidateHistory: [],
+      videoFiles: [{
+        id: '01994dd4-2a0a-7000-8000-000000000032',
+        relativePath: 'unknown-file.mp4',
+        availability: 'Available',
+        directPlayClassification: 'BaselineCandidate',
+        containerFormat: 'mp4',
+        videoCodec: 'h264',
+        audioCodec: 'aac',
+        durationMilliseconds: 10_000,
+        osHashSummary: 'abc123…',
+        perceptualHashSummary: 'def456…',
+        hashState: 'Computed',
+      }],
+      decisions: [],
+      unavailableSiteActions: [],
+      explanation: 'The evidence is only suggestive, so it can propose a candidate.',
+    }
+    const decisions: string[] = []
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      if (input === '/api/access/state') return json({ claimed: true, signedIn: true })
+      if (input === '/api/access/me') return json({
+        id: '01994dd4-2a0a-7000-8000-000000000001',
+        username: 'administrator',
+        email: null,
+        authority: 'Administrator',
+        csrfToken: 'csrf-token',
+      })
+      if (input === '/api/library/videos') return json([])
+      if (input === '/api/personal/library') {
+        return json({ continueWatching: [], favourites: [], watchLater: [] })
+      }
+      if (input === '/api/admin/identification/queue') {
+        return json(decisions.length > 0 ? [] : [queueItem])
+      }
+      if (input === `/api/admin/identification/videos/${queueItem.videoId}`) return json(openCase)
+      if (input === `/api/admin/identification/videos/${queueItem.videoId}/decisions`) {
+        const body = JSON.parse(init!.body!.toString())
+        if (!body.confirm) {
+          return json({
+            verdict: 'Preview',
+            consequence: {
+              claimTransition: 'Work Identification: Unknown becomes Established "A Guessed Work" as an Administrative Override.',
+              candidateTransition: 'The open candidate becomes Superseded.',
+              affectedVideoFileCount: 1,
+              resultingReviewStatus: 'Clear',
+              mergesAnotherVideo: false,
+              mergeSummary: null,
+              requiresNote: false,
+            },
+            case: openCase,
+          })
+        }
+        decisions.push(body.action)
+        return json({ verdict: 'Applied', consequence: null, case: openCase })
+      }
+      if (input === '/api/admin/configuration/') {
+        return json({
+          status: 'Configured',
+          prdbConnectionStatus: 'Verified',
+          hasPrdbCredential: true,
+          credentialReplacementPending: false,
+          lastConnectionAttemptAt: null,
+          lastConnectionVerifiedAt: null,
+          lastConnectionIssue: null,
+          libraryMountRoot: '/libraries',
+          libraryDirectories: [],
+        })
+      }
+      if (input === '/api/admin/configuration/library-directory-candidates') {
+        return json({ containerPaths: [] })
+      }
+      if (input === '/api/admin/background-work/') return json({ work: [], issues: [] })
+      return json([])
+    })
+
+    renderApp()
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Review' }))
+    expect(await screen.findByText('The evidence is only suggestive, so it can propose a candidate.'))
+      .toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Accept candidate' }))
+
+    const preview = await screen.findByRole('group', { name: 'Consequence preview' })
+    expect(preview).toHaveTextContent('Administrative Override')
+    expect(decisions).toHaveLength(0)
+
+    fireEvent.click(screen.getByRole('button', { name: /^Confirm/ }))
+    await vi.waitFor(() => expect(decisions).toEqual(['AcceptCandidate']))
+    expect(await screen.findByText('Accept Candidate applied.')).toBeInTheDocument()
+  })
+
   it('offers sign-in and an approval-gated registration request', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       if (input === '/api/access/state') return json({ claimed: true, signedIn: false })
@@ -238,6 +414,59 @@ function personalState(overrides: Record<string, unknown> = {}) {
     favourite: false,
     watchLater: false,
     personalRating: null,
+    ...overrides,
+  }
+}
+
+function claim(overrides: Record<string, unknown> = {}) {
+  return {
+    dimension: 'WorkIdentification',
+    resolution: 'Unknown',
+    reviewStatus: 'Clear',
+    targetTitle: null,
+    targetUrl: null,
+    source: 'PrdbIdentification',
+    evidenceClass: 'Conclusive',
+    administrativeOverride: false,
+    establishedAt: null,
+    lastConfirmedAt: null,
+    ...overrides,
+  }
+}
+
+function identification(overrides: Record<string, unknown> = {}) {
+  return {
+    work: claim(),
+    site: claim({ dimension: 'SiteRecognition' }),
+    actors: [],
+    metadataFetchedAt: null,
+    ...overrides,
+  }
+}
+
+function libraryVideo(overrides: Record<string, unknown> = {}) {
+  return {
+    id: '01994dd4-2a0a-7000-8000-000000000010',
+    displayTitle: 'Sample Video',
+    discoveryDate: '2026-08-27T12:00:00Z',
+    availability: 'Available',
+    previewUrl: null,
+    identification: identification(),
+    personalState: personalState(),
+    videoFiles: [{
+      id: '01994dd4-2a0a-7000-8000-000000000011',
+      relativePath: 'sample.mp4',
+      size: 10,
+      durationMilliseconds: 10000,
+      containerFormat: 'mp4',
+      videoCodec: 'h264',
+      audioCodec: 'aac',
+      width: 640,
+      height: 360,
+      availability: 'Available',
+      directPlayClassification: 'BaselineCandidate',
+      deliveryUrl: '/media/videos/01994dd4-2a0a-7000-8000-000000000012',
+    }],
     ...overrides,
   }
 }

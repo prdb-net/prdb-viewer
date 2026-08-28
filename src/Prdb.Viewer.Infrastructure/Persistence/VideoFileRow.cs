@@ -46,5 +46,41 @@ public sealed class VideoFileRow
 
     public DateTime InspectedAt { get; set; }
 
+    /// <summary>
+    /// The Video identity this occurrence carried before a merge moved it. It lets a later split
+    /// reactivate the historical identity instead of inventing a new one.
+    /// </summary>
+    public Guid? PreviousVideoId { get; set; }
+
+    public string? OsHash { get; set; }
+
+    public string? PerceptualHash { get; set; }
+
+    /// <summary>
+    /// The observed content the hashes belong to. Content that no longer matches is hashed again
+    /// rather than identified against values taken from different bytes.
+    /// </summary>
+    public string? HashedSha256 { get; set; }
+
+    public DateTime? HashedAt { get; set; }
+
+    public VideoFileHashState HashState { get; set; }
+
+    public string? HashFailureReason { get; set; }
+
+    public Guid? PublicPreviewId { get; set; }
+
+    public string? PreviewRelativePath { get; set; }
+
+    public string? PreviewSha256 { get; set; }
+
+    public DateTime? PreviewGeneratedAt { get; set; }
+
+    public VideoFilePreviewState PreviewState { get; set; }
+
+    public string? IdentifiedSha256 { get; set; }
+
+    public DateTime? IdentifiedAt { get; set; }
+
     public ICollection<PlaybackAttemptVideoFileRow> PlaybackAttempts { get; set; } = [];
 }

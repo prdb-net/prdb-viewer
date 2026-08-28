@@ -26,6 +26,9 @@ if (builder.Configuration.GetValue("VIEWER_BACKGROUND_WORK_ENABLED", true))
 {
     builder.Services.AddHostedService<LibraryScanWorker>();
     builder.Services.AddHostedService<TechnicalInspectionWorker>();
+    builder.Services.AddHostedService<HashingWorker>();
+    builder.Services.AddHostedService<PreviewGenerationWorker>();
+    builder.Services.AddHostedService<IdentificationWorker>();
 }
 builder.Services
     .AddAuthentication(SessionAuthentication.Scheme)
@@ -117,6 +120,7 @@ app.MapGet("/api/health", () => TypedResults.Ok(new HealthResponse("ok")))
 app.MapAccess();
 app.MapConfiguration();
 app.MapBackgroundWork();
+app.MapIdentification();
 app.MapVideos();
 app.MapPersonalState();
 

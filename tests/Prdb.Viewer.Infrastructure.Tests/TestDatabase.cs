@@ -30,6 +30,9 @@ internal sealed class TestDatabase : IAsyncDisposable
         TimeProvider? timeProvider = null,
         IPrdbConnectionVerifier? prdbConnectionVerifier = null,
         IMediaProbe? mediaProbe = null,
+        IVideoFileHasher? hasher = null,
+        IPreviewImageGenerator? previewGenerator = null,
+        IPrdbIdentificationClient? identificationClient = null,
         string? targetMigration = null)
     {
         var directory = Path.Combine(Path.GetTempPath(), $"prdb-viewer-{Guid.NewGuid():n}");
@@ -49,6 +52,24 @@ internal sealed class TestDatabase : IAsyncDisposable
         {
             services.RemoveAll<IMediaProbe>();
             services.AddSingleton(mediaProbe);
+        }
+
+        if (hasher is not null)
+        {
+            services.RemoveAll<IVideoFileHasher>();
+            services.AddSingleton(hasher);
+        }
+
+        if (previewGenerator is not null)
+        {
+            services.RemoveAll<IPreviewImageGenerator>();
+            services.AddSingleton(previewGenerator);
+        }
+
+        if (identificationClient is not null)
+        {
+            services.RemoveAll<IPrdbIdentificationClient>();
+            services.AddSingleton(identificationClient);
         }
 
         var database = new TestDatabase(directory, services.BuildServiceProvider());

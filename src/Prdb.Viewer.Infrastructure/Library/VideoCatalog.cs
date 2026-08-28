@@ -25,6 +25,8 @@ public sealed record VideoSummary(
     string DisplayTitle,
     DateTimeOffset DiscoveryDate,
     VideoAvailability Availability,
+    string? PreviewUrl,
+    IdentificationSummary Identification,
     IReadOnlyList<VideoFileSummary> VideoFiles,
     PersonalVideoStateSummary PersonalState);
 
@@ -40,8 +42,9 @@ public sealed class VideoCatalog(ViewerDbContext database)
         CancellationToken cancellationToken = default)
     {
         var videos = await QueryForAccount(accountId)
-            .Where(video => video.VideoFiles.Any(file =>
-                file.Availability == VideoFileAvailability.Available))
+            .Where(video => video.SurvivingVideoId == null &&
+                            video.VideoFiles.Any(file =>
+                                file.Availability == VideoFileAvailability.Available))
             .OrderByDescending(video => video.DiscoveryDate)
             .ToListAsync(cancellationToken);
 
@@ -54,6 +57,7 @@ public sealed class VideoCatalog(ViewerDbContext database)
     {
         var videos = await QueryForAccount(accountId)
             .Where(video =>
+                video.SurvivingVideoId == null &&
                 video.VideoFiles.Any(file => file.Availability != VideoFileAvailability.Removed) &&
                 video.PersonalStates.Any(state =>
                     state.AccountId == accountId &&
@@ -88,7 +92,10 @@ public sealed class VideoCatalog(ViewerDbContext database)
     private IQueryable<VideoRow> QueryForAccount(Guid accountId) =>
         database.Videos
             .AsNoTracking()
+            .Include(video => video.Metadata)
             .Include(video => video.VideoFiles)
+            .Include(video => video.IdentificationClaims)
+            .Include(video => video.IdentificationCandidates)
             .Include(video => video.PersonalStates.Where(state => state.AccountId == accountId));
 
     private static VideoSummary Map(VideoRow video, Guid accountId)
@@ -110,7 +117,6 @@ public sealed class VideoCatalog(ViewerDbContext database)
                 file.DirectPlayClassification,
                 $"/media/videos/{file.PublicDeliveryId}"))
             .ToArray();
-        var title = Path.GetFileNameWithoutExtension(trackedFiles[0].RelativePath);
         var state = video.PersonalStates.SingleOrDefault(candidate => candidate.AccountId == accountId);
         var progressDuration = state?.ProgressVideoFileId is null
             ? 0
@@ -120,9 +126,11 @@ public sealed class VideoCatalog(ViewerDbContext database)
 
         return new VideoSummary(
             video.Id,
-            string.IsNullOrWhiteSpace(title) ? "Unknown Video" : title,
+            VideoPresentation.DisplayLabel(video),
             AsOffset(video.DiscoveryDate),
             AvailabilityOf(trackedFiles),
+            VideoPresentation.PreviewUrl(video),
+            VideoPresentation.Summarize(video),
             availableFiles,
             state is null
                 ? PersonalStateService.EmptySummary()

@@ -8,15 +8,16 @@ private to their Account.
 The project is in active development. The current executable provides local
 Account access, guided Installation Configuration, durable Library Scans, and
 technical inspection of discovered Video File Candidates, plus the first
-authenticated catalogue, direct browser playback path, and Account-private
-playback and Personal State surfaces. See
+authenticated catalogue, direct browser playback path, Account-private playback
+and Personal State surfaces, and prdb identification with local preview images
+and an Administrator review workflow. See
 [VISION.md](VISION.md) for the product contract.
 
 ## Prerequisites
 
 - .NET 10 SDK
 - Node.js 24 and npm
-- FFmpeg (`ffprobe`) when running the Host outside the container
+- FFmpeg (`ffprobe` and `ffmpeg`) when running the Host outside the container
 - Docker for the supported container workflow
 
 ## Build and test
@@ -188,3 +189,52 @@ session and requires CSRF protection for changes. No request accepts another
 Account identifier, and Administrator authority does not grant access to a
 User's Personal State. Personal references survive temporary unavailability;
 they remain dormant only while their Video is removed from the active Library.
+
+## Identify Videos and generate previews
+
+After technical inspection admits a Video File, three further bounded lanes run
+on their own durable schedule and never write beneath a Library Directory:
+
+1. **Hashing** computes the `osHash` and `pHash` of the inspected content with
+   the official `Prdb.Hashing` package, so both values match what the prdb
+   Public API stores. A file that yields neither hash stays in the library and
+   remains identifiable by its name.
+2. **Preview generation** writes one still frame per Video File with `ffmpeg`
+   into the application's own data directory. Previews are regenerable
+   artefacts rather than identity, and a failed one is a visible Work Issue that
+   the next Library Scan retries.
+3. **Identification** offers hashed files to the documented public prdb API in
+   bounded batches through `Prdb.Sdk`. A missing credential, a refused key, or
+   an outage leaves the lane visibly waiting with the condition it needs;
+   browsing, playback, and everything already known locally continue unchanged.
+
+Every result carries its provenance. A definitive match on the inspected
+content is Conclusive evidence and may establish an Unknown claim by itself;
+name-derived, ambiguous, or contradictory results are only ever a reviewable
+Identification Candidate. Work Identification and Site Recognition stay
+independent, and no candidate ever supplies a title, a site, or artwork to
+ordinary browsing. Video Files whose established work identity is the same are
+associated into one Video, keeping the earliest Discovery Date, both
+identification histories, and each Account's private viewing state.
+
+## Review identifications
+
+Administrators resolve open identification work in a queue-first review:
+conflicting conclusive evidence first, then suggestive candidates. Selecting an
+item opens one focused case that compares current and proposed knowledge side by
+side and explains why automation stopped.
+
+Every action — accept, assign, replace, reject, revoke, and split — shows its
+consequence before Shared Library Knowledge changes, and the confirmation is
+bound to the case version that was displayed, so a decision taken against
+knowledge another Administrator or a scan has since changed is refused rather
+than applied. Replacing, revoking, splitting, and any decision that merges
+another Video require a decision note. Accepting or assigning establishes an
+Administrative Override that automation may report against but never replaces.
+Rejecting a candidate suppresses the same material evidence until materially
+stronger evidence appears.
+
+Ordinary Users see the resulting provenance and a review indicator. Candidate
+contents, evidence, administrative attribution, and the queue itself remain
+Administrator-only, and no review action exposes another Account's Personal
+State.

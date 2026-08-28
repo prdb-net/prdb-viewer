@@ -54,6 +54,7 @@ public sealed class TechnicalInspectionRunner(
             await database.VideoFileCandidates
                 .Where(row => row.LibraryScanId == work.LibraryScanId)
                 .ExecuteDeleteAsync(cancellationToken);
+            await QueueDerivedWorkAsync(work, cancellationToken);
             await FinishAsync(
                 work,
                 work.IssueCount == 0
@@ -71,7 +72,7 @@ public sealed class TechnicalInspectionRunner(
         candidate.AttemptCount++;
         await database.SaveChangesAsync(cancellationToken);
 
-        var path = SafePath(work.LibraryDirectory.ContainerPath, candidate.RelativePath);
+        var path = SourceFile.Resolve(work.LibraryDirectory.ContainerPath, candidate.RelativePath);
         FileObservation? observation = null;
         MediaProbeFacts? facts = null;
 
@@ -273,6 +274,33 @@ public sealed class TechnicalInspectionRunner(
         });
     }
 
+    /// <summary>
+    /// Hands the admitted Video Files to the lanes that derive knowledge from them. Hashing and
+    /// preview generation are independent of each other, and identification follows hashing so
+    /// that content evidence is offered before a name is.
+    /// </summary>
+    private async Task QueueDerivedWorkAsync(
+        BackgroundWorkRow work,
+        CancellationToken cancellationToken)
+    {
+        var now = Now();
+
+        foreach (var category in new[]
+        {
+            BackgroundWorkCategory.Hashing,
+            BackgroundWorkCategory.PreviewGeneration,
+        })
+        {
+            await DerivedWorkQueue.QueueAsync(
+                database,
+                work.LibraryDirectoryId,
+                work.ConfigurationGeneration,
+                category,
+                now,
+                cancellationToken);
+        }
+    }
+
     private async Task FinishAsync(
         BackgroundWorkRow work,
         BackgroundWorkState state,
@@ -300,33 +328,6 @@ public sealed class TechnicalInspectionRunner(
             FileOptions.Asynchronous | FileOptions.SequentialScan);
         var hash = await SHA256.HashDataAsync(stream, cancellationToken);
         return new FileObservation(size, modified, Convert.ToHexString(hash));
-    }
-
-    private static string? SafePath(string root, string relativePath)
-    {
-        try
-        {
-            var normalizedRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
-            var path = Path.GetFullPath(Path.Combine(
-                normalizedRoot,
-                relativePath.Replace('/', Path.DirectorySeparatorChar)));
-            var comparison = OperatingSystem.IsWindows()
-                ? StringComparison.OrdinalIgnoreCase
-                : StringComparison.Ordinal;
-
-            if (!path.StartsWith($"{normalizedRoot}{Path.DirectorySeparatorChar}", comparison) ||
-                !File.Exists(path) ||
-                (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
-            {
-                return null;
-            }
-
-            return path;
-        }
-        catch (Exception exception) when (exception is ArgumentException or UnauthorizedAccessException or IOException)
-        {
-            return null;
-        }
     }
 
     private DateTime Now() => timeProvider.GetUtcNow().UtcDateTime;

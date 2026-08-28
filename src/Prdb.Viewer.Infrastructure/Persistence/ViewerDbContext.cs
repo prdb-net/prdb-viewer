@@ -33,6 +33,16 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<VideoFileCandidateRow> VideoFileCandidates => Set<VideoFileCandidateRow>();
 
+    public DbSet<VideoMetadataRow> VideoMetadata => Set<VideoMetadataRow>();
+
+    public DbSet<IdentificationClaimRow> IdentificationClaims => Set<IdentificationClaimRow>();
+
+    public DbSet<IdentificationCandidateRow> IdentificationCandidates =>
+        Set<IdentificationCandidateRow>();
+
+    public DbSet<IdentificationDecisionRow> IdentificationDecisions =>
+        Set<IdentificationDecisionRow>();
+
     public DbSet<PersonalVideoStateRow> PersonalVideoStates => Set<PersonalVideoStateRow>();
 
     public DbSet<PlaybackAttemptRow> PlaybackAttempts => Set<PlaybackAttemptRow>();
@@ -171,6 +181,79 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             video.HasKey(row => row.Id);
             video.Property(row => row.Id).ValueGeneratedNever();
             video.HasIndex(row => row.DiscoveryDate);
+            video.HasIndex(row => row.SurvivingVideoId);
+        });
+
+        builder.Entity<VideoMetadataRow>(metadata =>
+        {
+            metadata.ToTable("video_metadata");
+            metadata.HasKey(row => row.VideoId);
+            metadata.Property(row => row.VideoId).ValueGeneratedNever();
+            metadata.Property(row => row.PrdbVideoId).IsRequired();
+            metadata.Property(row => row.Title).IsRequired();
+            metadata.HasIndex(row => row.PrdbVideoId);
+            metadata.HasOne(row => row.Video)
+                .WithOne(row => row.Metadata)
+                .HasForeignKey<VideoMetadataRow>(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<IdentificationClaimRow>(claim =>
+        {
+            claim.ToTable("identification_claim");
+            claim.HasKey(row => row.Id);
+            claim.Property(row => row.Id).ValueGeneratedNever();
+            claim.Property(row => row.Dimension).HasConversion<string>();
+            claim.Property(row => row.Status).HasConversion<string>();
+            claim.Property(row => row.Source).HasConversion<string>();
+            claim.Property(row => row.EvidenceClass).HasConversion<string>();
+            claim.Property(row => row.TargetKey).IsRequired();
+            claim.Property(row => row.TargetTitle).IsRequired();
+            claim.HasIndex(row => new { row.VideoId, row.Dimension, row.Status });
+            claim.HasIndex(row => new { row.Dimension, row.TargetKey, row.Status });
+            claim.HasOne(row => row.Video)
+                .WithMany(row => row.IdentificationClaims)
+                .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<IdentificationCandidateRow>(candidate =>
+        {
+            candidate.ToTable("identification_candidate");
+            candidate.HasKey(row => row.Id);
+            candidate.Property(row => row.Id).ValueGeneratedNever();
+            candidate.Property(row => row.Dimension).HasConversion<string>();
+            candidate.Property(row => row.Status).HasConversion<string>();
+            candidate.Property(row => row.EvidenceClass).HasConversion<string>();
+            candidate.Property(row => row.Reason).HasConversion<string>();
+            candidate.Property(row => row.TargetKey).IsRequired();
+            candidate.Property(row => row.TargetTitle).IsRequired();
+            candidate.Property(row => row.EvidenceKey).IsRequired();
+            candidate.HasIndex(row => new { row.VideoId, row.Dimension, row.Status });
+            candidate.HasIndex(row => new
+            {
+                row.VideoId,
+                row.Dimension,
+                row.TargetKey,
+                row.EvidenceKey,
+            });
+            candidate.HasIndex(row => new { row.Status, row.EvidenceClass, row.CreatedAt });
+            candidate.HasOne(row => row.Video)
+                .WithMany(row => row.IdentificationCandidates)
+                .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<IdentificationDecisionRow>(decision =>
+        {
+            decision.ToTable("identification_decision");
+            decision.HasKey(row => row.Id);
+            decision.Property(row => row.Id).ValueGeneratedNever();
+            decision.Property(row => row.Dimension).HasConversion<string>();
+            decision.Property(row => row.Action).HasConversion<string>();
+            decision.Property(row => row.PriorState).IsRequired();
+            decision.Property(row => row.ResultingState).IsRequired();
+            decision.HasIndex(row => new { row.VideoId, row.CreatedAt });
         });
 
         builder.Entity<VideoFileRow>(videoFile =>
@@ -180,7 +263,12 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             videoFile.Property(row => row.Id).ValueGeneratedNever();
             videoFile.Property(row => row.Availability).HasConversion<string>();
             videoFile.Property(row => row.DirectPlayClassification).HasConversion<string>();
+            videoFile.Property(row => row.HashState).HasConversion<string>();
+            videoFile.Property(row => row.PreviewState).HasConversion<string>();
             videoFile.HasIndex(row => row.PublicDeliveryId).IsUnique();
+            videoFile.HasIndex(row => row.PublicPreviewId).IsUnique();
+            videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Availability, row.HashState });
+            videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Availability, row.PreviewState });
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.RelativePath });
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Sha256 });
             videoFile.HasOne(row => row.Video)

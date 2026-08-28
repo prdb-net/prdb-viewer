@@ -36,11 +36,21 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<LibraryWorkScheduler>();
         services.AddScoped<LibraryScanRunner>();
         services.AddScoped<TechnicalInspectionRunner>();
+        services.AddSingleton<DerivedArtifactStore>();
+        services.AddScoped<HashingRunner>();
+        services.AddScoped<PreviewGenerationRunner>();
+        services.AddScoped<IdentificationRunner>();
+        services.AddScoped<IdentificationService>();
+        services.AddScoped<IdentificationReviewService>();
+        services.AddScoped<PreviewDeliveryService>();
         services.AddScoped<BackgroundWorkQuery>();
         services.AddScoped<VideoCatalog>();
         services.AddScoped<VideoDeliveryService>();
         services.AddScoped<PersonalStateService>();
         services.AddSingleton<IMediaProbe, FfprobeMediaProbe>();
+        services.AddSingleton<IVideoFileHasher, PrdbVideoFileHasher>();
+        services.AddSingleton<IPreviewImageGenerator, FfmpegPreviewImageGenerator>();
+        services.AddScoped<IPrdbIdentificationClient, PrdbIdentificationClient>();
         services.AddTransient<ProductUserAgentHandler>();
         services.AddHttpClient(PrdbConnectionVerifier.TransportName)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler

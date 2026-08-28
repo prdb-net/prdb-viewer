@@ -10,6 +10,7 @@
     <PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" />
     <PackageReference Include="Microsoft.Extensions.Identity.Core" />
     <PackageReference Include="Prdb.Sdk" />
+    <PackageReference Include="Prdb.Hashing" />
   </ItemGroup>
 
 </Project>

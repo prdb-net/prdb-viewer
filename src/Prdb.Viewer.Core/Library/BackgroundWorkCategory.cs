@@ -4,4 +4,7 @@ public enum BackgroundWorkCategory
 {
     LibraryScan,
     TechnicalInspection,
+    Hashing,
+    PreviewGeneration,
+    Identification,
 }

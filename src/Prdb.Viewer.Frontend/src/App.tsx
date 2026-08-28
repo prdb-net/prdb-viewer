@@ -9,6 +9,9 @@ import {
   type LibraryDirectoryStage,
   type RecoverRequest,
   type RegistrationRequest,
+  type IdentificationConsequence,
+  type IdentificationDecisionAction,
+  type IdentificationQueueItem,
   type PlaybackReportRequest,
   type SignInRequest,
   type VideoSummary,
@@ -21,6 +24,8 @@ const queryKeys = {
   configuration: ['configuration'] as const,
   libraryDirectoryCandidates: ['library-directory-candidates'] as const,
   backgroundWork: ['background-work'] as const,
+  identificationQueue: ['identification-queue'] as const,
+  identificationCase: (videoId: string) => ['identification-case', videoId] as const,
   videos: ['videos'] as const,
   personalLibrary: ['personal-library'] as const,
 }
@@ -199,6 +204,7 @@ function Library({ account }: { account: Account }) {
         {account.authority === 'Administrator' && (
           <>
             <InstallationSetup account={account} />
+            <IdentificationReview account={account} />
             <BackgroundWorkPanel account={account} />
             <AccountAdministration account={account} />
           </>
@@ -382,10 +388,13 @@ function VideoCard({ video, play, act, pending, dismissible }: {
   const progress = Number(video.personalState.playbackProgressMilliseconds ?? 0)
   return (
     <article className="video-card">
-      <div className="video-placeholder" aria-hidden="true">▶</div>
+      {video.previewUrl
+        ? <img className="video-preview" src={video.previewUrl} alt="" loading="lazy" />
+        : <div className="video-placeholder" aria-hidden="true">▶</div>}
       <div>
         <strong>{video.displayTitle}</strong>
         <small>{source ? friendlyState(source.directPlayClassification) : friendlyState(video.availability)}</small>
+        <Provenance identification={video.identification} />
       </div>
       {video.personalState.playState !== 'Unplayed' && (
         <div className="play-state">
@@ -562,6 +571,231 @@ function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, resumePo
         }}
       >Your browser cannot play this Video File.</video>
     </div>
+  )
+}
+
+function Provenance({ identification }: { identification?: VideoSummary['identification'] }) {
+  if (!identification) return null
+  const { work, site } = identification
+  const review = work.reviewStatus === 'ReviewNeeded' || site.reviewStatus === 'ReviewNeeded'
+  return (
+    <div className="provenance">
+      <span className={work.resolution === 'Established' ? 'badge established' : 'badge unknown'}>
+        {work.resolution === 'Established' ? provenanceLabel(work.source) : 'Unknown Video'}
+      </span>
+      {site.resolution === 'Established' && site.targetTitle && (
+        <span className="badge site">{site.targetTitle}</span>
+      )}
+      {review && <span className="badge review">Review needed</span>}
+      {identification.actors.length > 0 && <small>{identification.actors.join(', ')}</small>}
+    </div>
+  )
+}
+
+function provenanceLabel(source: string | null | undefined) {
+  if (source === 'PrdbIdentification') return 'prdb match'
+  if (source === 'AdministratorDecision') return 'Administrator assignment'
+  if (source === 'LocalInference') return 'Local inference'
+  return 'Established'
+}
+
+function IdentificationReview({ account }: { account: Account }) {
+  const queryClient = useQueryClient()
+  const queue = useQuery({
+    queryKey: queryKeys.identificationQueue,
+    queryFn: api.identificationQueue,
+    refetchInterval: 15_000,
+  })
+  const [selected, setSelected] = useState<IdentificationQueueItem>()
+  const [pending, setPending] = useState<IdentificationDecisionAction>()
+  const [consequence, setConsequence] = useState<IdentificationConsequence>()
+  const [note, setNote] = useState('')
+  const [target, setTarget] = useState({ key: '', title: '' })
+  const [separated, setSeparated] = useState<string[]>([])
+  const [outcome, setOutcome] = useState<string>()
+  const openCase = useQuery({
+    queryKey: queryKeys.identificationCase(selected?.videoId ?? 'none'),
+    queryFn: () => api.identificationCase(selected!.videoId),
+    enabled: selected !== undefined,
+  })
+
+  const reset = () => {
+    setPending(undefined)
+    setConsequence(undefined)
+    setNote('')
+    setSeparated([])
+  }
+
+  const decide = useMutation({
+    mutationFn: ({ action, confirm }: { action: IdentificationDecisionAction; confirm: boolean }) =>
+      api.decideIdentification(
+        selected!.videoId,
+        {
+          action,
+          dimension: selected!.dimension,
+          caseVersion: openCase.data?.caseVersion ?? selected!.caseVersion,
+          confirm,
+          candidateId: action === 'AcceptCandidate' || action === 'RejectCandidate'
+            ? selected!.candidate.id
+            : null,
+          targetKey: target.key || null,
+          targetTitle: target.title || null,
+          note: note || null,
+          separatedVideoFileIds: separated.length > 0 ? separated : null,
+          retainPersonalStateWithContinuing: true,
+        },
+        account.csrfToken,
+      ),
+    onSuccess: (result, variables) => {
+      setConsequence(result.consequence ?? undefined)
+      if (result.verdict === 'Preview') {
+        setPending(variables.action)
+        return
+      }
+      if (result.verdict === 'Applied') {
+        setOutcome(`${friendlyState(variables.action)} applied.`)
+        setSelected(undefined)
+        reset()
+        void queryClient.invalidateQueries({ queryKey: queryKeys.identificationQueue })
+        void queryClient.invalidateQueries({ queryKey: queryKeys.videos })
+        return
+      }
+      if (result.verdict === 'Stale') {
+        setOutcome('The case changed while it was open. Review the refreshed comparison.')
+        reset()
+        void queryClient.invalidateQueries({ queryKey: queryKeys.identificationQueue })
+        void openCase.refetch()
+      }
+      if (result.verdict === 'NoteRequired') setOutcome('This decision needs a note.')
+      if (result.verdict === 'ActionUnavailable') {
+        setOutcome('Correct the Work Identification instead of creating a second site truth.')
+      }
+      if (result.verdict === 'InvalidTarget') setOutcome('Provide a valid target for this decision.')
+    },
+  })
+
+  const act = (action: IdentificationDecisionAction, confirm: boolean) =>
+    decide.mutate({ action, confirm })
+
+  return (
+    <section className="admin-panel" aria-labelledby="identification-title">
+      <div className="section-heading">
+        <div>
+          <span className="eyebrow">Administrator</span>
+          <h3 id="identification-title">Identification review</h3>
+        </div>
+        <span className="muted">{queue.data?.length ?? 0} open</span>
+      </div>
+      <p>Candidates and conflicts wait here. Nothing under review reaches ordinary browsing.</p>
+      {outcome && <Notice kind="success">{outcome}</Notice>}
+      {queue.data?.length === 0 && <p className="muted">No identification decision is waiting.</p>}
+      <div className="review-queue">
+        {queue.data?.map((item) => (
+          <article className="review-item" key={item.candidate.id}>
+            <div>
+              <strong>{item.displayLabel}</strong>
+              <small>
+                {friendlyState(item.dimension)} · {friendlyState(item.candidate.evidenceClass)} ·
+                {' '}proposes “{item.candidate.targetTitle}”
+              </small>
+              <small>{item.reason}</small>
+            </div>
+            <button
+              className="quiet-button"
+              onClick={() => { setSelected(item); reset(); setOutcome(undefined) }}
+            >Review</button>
+          </article>
+        ))}
+      </div>
+
+      {selected && openCase.data && (
+        <div className="review-case">
+          <div className="section-heading">
+            <strong>{openCase.data.displayLabel}</strong>
+            <button className="quiet-button" onClick={() => { setSelected(undefined); reset() }}>Back to queue</button>
+          </div>
+          <p>{openCase.data.explanation}</p>
+          <div className="comparison">
+            <div>
+              <span className="eyebrow">Current</span>
+              <p>
+                {openCase.data.identification.work.resolution === 'Established'
+                  ? `Established “${openCase.data.identification.work.targetTitle}” · ${provenanceLabel(openCase.data.identification.work.source)}`
+                  : 'Unknown'}
+              </p>
+              <small>{openCase.data.videoFiles.length} Video File(s)</small>
+            </div>
+            <div>
+              <span className="eyebrow">Proposed</span>
+              <p>{selected.candidate.targetTitle}</p>
+              <small>{selected.candidate.evidenceSummary}</small>
+            </div>
+          </div>
+          <ul className="case-files">
+            {openCase.data.videoFiles.map((file) => (
+              <li key={file.id}>
+                {openCase.data!.videoFiles.length > 1 && (
+                  <label>
+                    <input
+                      type="checkbox"
+                      aria-label={`Separate ${file.relativePath}`}
+                      checked={separated.includes(file.id)}
+                      onChange={(event) => setSeparated((current) => event.target.checked
+                        ? [...current, file.id]
+                        : current.filter((id) => id !== file.id))}
+                    />
+                    <code>{file.relativePath}</code>
+                  </label>
+                )}
+                {openCase.data!.videoFiles.length === 1 && <code>{file.relativePath}</code>}
+                <small>
+                  {file.containerFormat} · {file.videoCodec} · {friendlyState(file.hashState)}
+                  {file.osHashSummary ? ` · osHash ${file.osHashSummary}` : ''}
+                </small>
+              </li>
+            ))}
+          </ul>
+          <div className="assign-target">
+            <Field name="targetKey" label="Target identifier" value={target.key} onChange={(event) => setTarget((current) => ({ ...current, key: event.target.value }))} />
+            <Field name="targetTitle" label="Target title" value={target.title} onChange={(event) => setTarget((current) => ({ ...current, title: event.target.value }))} />
+          </div>
+          <div className="row-actions">
+            <button onClick={() => act('AcceptCandidate', false)} disabled={decide.isPending}>Accept candidate</button>
+            <button onClick={() => act('RejectCandidate', false)} disabled={decide.isPending}>Reject candidate</button>
+            <button onClick={() => act('AssignDirectly', false)} disabled={decide.isPending}>Assign directly</button>
+            <button onClick={() => act('ReplaceClaim', false)} disabled={decide.isPending}>Replace claim</button>
+            <button onClick={() => act('RevokeClaim', false)} disabled={decide.isPending}>Revoke claim</button>
+            {openCase.data.videoFiles.length > 1 && (
+              <button onClick={() => act('SplitVideo', false)} disabled={decide.isPending}>Split Video</button>
+            )}
+          </div>
+
+          {pending && consequence && (
+            <div className="confirmation" role="group" aria-label="Consequence preview">
+              <p>{consequence.claimTransition}</p>
+              <p>{consequence.candidateTransition}</p>
+              {consequence.mergeSummary && <p>{consequence.mergeSummary}</p>}
+              <small>
+                Affects {consequence.affectedVideoFileCount} Video File(s) · review becomes{' '}
+                {friendlyState(consequence.resultingReviewStatus)}
+              </small>
+              {consequence.requiresNote && (
+                <label className="field">
+                  <span>Decision note</span>
+                  <textarea value={note} onChange={(event) => setNote(event.target.value)} required />
+                </label>
+              )}
+              <button
+                className="primary-button"
+                onClick={() => act(pending, true)}
+                disabled={decide.isPending || (consequence.requiresNote && note.trim().length === 0)}
+              >Confirm {friendlyState(pending).toLowerCase()}</button>
+            </div>
+          )}
+        </div>
+      )}
+      {(queue.isError || openCase.isError || decide.isError) && <RequestError />}
+    </section>
   )
 }
 
@@ -840,8 +1074,8 @@ function signInMessage(verdict: string) {
   return 'The username or password is incorrect.'
 }
 
-function friendlyState(state: string) {
-  return state.replace(/([a-z])([A-Z])/g, '$1 $2')
+function friendlyState(state: string | null | undefined) {
+  return (state ?? '').replace(/([a-z])([A-Z])/g, '$1 $2')
 }
 
 function directoryStageMessage(verdict: string) {

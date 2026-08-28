@@ -30,6 +30,17 @@ public sealed class BackgroundWorkRow
 
     public int IssueCount { get; set; }
 
+    /// <summary>
+    /// When a Waiting run may be attempted again. It always accompanies a waiting condition so the
+    /// run continues by itself once the condition can change.
+    /// </summary>
+    public DateTime? NextAttemptAt { get; set; }
+
+    /// <summary>
+    /// The condition a Waiting run needs before it can continue.
+    /// </summary>
+    public string? WaitingReason { get; set; }
+
     public DateTime RequestedAt { get; set; }
 
     public DateTime? StartedAt { get; set; }

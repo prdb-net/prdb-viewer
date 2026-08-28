@@ -39,6 +39,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/media/previews/{previewId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    previewId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/library/videos": {
         parameters: {
             query?: never;
@@ -806,6 +841,117 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/identification/queue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdentificationQueueItem"][];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/identification/videos/{videoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/identification/videos/{videoId}/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["IdentificationDecisionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdentificationDecisionResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/personal/library": {
         parameters: {
             query?: never;
@@ -1203,7 +1349,7 @@ export interface components {
             registeredAt: string;
         };
         /** @enum {unknown} */
-        BackgroundWorkCategory: "LibraryScan" | "TechnicalInspection";
+        BackgroundWorkCategory: "LibraryScan" | "TechnicalInspection" | "Hashing" | "PreviewGeneration" | "Identification";
         /** @enum {unknown} */
         BackgroundWorkState: "Queued" | "Running" | "Waiting" | "Paused" | "Completed" | "CompletedWithIssues" | "Cancelled";
         BackgroundWorkStatus: {
@@ -1250,6 +1396,150 @@ export interface components {
         };
         HealthResponse: {
             status: string;
+        };
+        /** @enum {unknown} */
+        IdentificationCandidateStatus: "Pending" | "Rejected" | "Superseded";
+        IdentificationCandidateView: {
+            /** Format: uuid */
+            id: string;
+            dimension: components["schemas"]["IdentificationDimension"];
+            status: components["schemas"]["IdentificationCandidateStatus"];
+            targetTitle: string;
+            targetUrl: null | string;
+            evidenceClass: components["schemas"]["IdentificationEvidenceClass"];
+            reason: components["schemas"]["IdentificationReviewReason"];
+            evidenceSummary: string;
+            /** Format: uuid */
+            supportingVideoFileId: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            resolvedAt: null | string;
+        };
+        IdentificationCase: {
+            /** Format: uuid */
+            videoId: string;
+            /** Format: int32 */
+            caseVersion: number | string;
+            displayLabel: string;
+            previewUrl: null | string;
+            identification: components["schemas"]["IdentificationSummary"];
+            openCandidates: components["schemas"]["IdentificationCandidateView"][];
+            candidateHistory: components["schemas"]["IdentificationCandidateView"][];
+            videoFiles: components["schemas"]["IdentificationCaseFile"][];
+            decisions: components["schemas"]["IdentificationDecisionView"][];
+            unavailableSiteActions: components["schemas"]["IdentificationDecisionAction"][];
+            explanation: string;
+        };
+        IdentificationCaseFile: {
+            /** Format: uuid */
+            id: string;
+            relativePath: string;
+            availability: components["schemas"]["VideoFileAvailability"];
+            directPlayClassification: components["schemas"]["DirectPlayClassification"];
+            containerFormat: string;
+            videoCodec: string;
+            audioCodec: null | string;
+            /** Format: int64 */
+            durationMilliseconds: number | string;
+            osHashSummary: null | string;
+            perceptualHashSummary: null | string;
+            hashState: components["schemas"]["VideoFileHashState"];
+        };
+        IdentificationClaimView: {
+            dimension: components["schemas"]["IdentificationDimension"];
+            resolution: components["schemas"]["IdentificationResolution"];
+            reviewStatus: components["schemas"]["IdentificationReviewStatus"];
+            targetTitle: null | string;
+            targetUrl: null | string;
+            source: null | components["schemas"]["IdentificationSource"];
+            evidenceClass: null | components["schemas"]["IdentificationEvidenceClass"];
+            administrativeOverride: boolean;
+            /** Format: date-time */
+            establishedAt: null | string;
+            /** Format: date-time */
+            lastConfirmedAt: null | string;
+        };
+        IdentificationConsequence: {
+            claimTransition: string;
+            candidateTransition: string;
+            /** Format: int32 */
+            affectedVideoFileCount: number | string;
+            resultingReviewStatus: components["schemas"]["IdentificationReviewStatus"];
+            mergesAnotherVideo: boolean;
+            mergeSummary: null | string;
+            requiresNote: boolean;
+        };
+        /** @enum {unknown} */
+        IdentificationDecisionAction: "AcceptCandidate" | "AssignDirectly" | "ReplaceClaim" | "RejectCandidate" | "RevokeClaim" | "SplitVideo";
+        IdentificationDecisionRequest: {
+            action: components["schemas"]["IdentificationDecisionAction"];
+            dimension: components["schemas"]["IdentificationDimension"];
+            /** Format: int32 */
+            caseVersion: number | string;
+            confirm: boolean;
+            /** Format: uuid */
+            candidateId?: null | string;
+            targetKey?: null | string;
+            targetTitle?: null | string;
+            targetUrl?: null | string;
+            note?: null | string;
+            separatedVideoFileIds?: null | string[];
+            /** @default true */
+            retainPersonalStateWithContinuing: boolean;
+        };
+        IdentificationDecisionResult: {
+            verdict: components["schemas"]["IdentificationDecisionVerdict"];
+            consequence?: null | components["schemas"]["IdentificationConsequence"];
+            case?: null | components["schemas"]["IdentificationCase"];
+        };
+        /** @enum {unknown} */
+        IdentificationDecisionVerdict: "Applied" | "Preview" | "Stale" | "NotFound" | "NoteRequired" | "InvalidTarget" | "ActionUnavailable";
+        IdentificationDecisionView: {
+            /** Format: uuid */
+            id: string;
+            dimension: components["schemas"]["IdentificationDimension"];
+            action: components["schemas"]["IdentificationDecisionAction"];
+            priorState: string;
+            resultingState: string;
+            mergedAnotherVideo: boolean;
+            note: null | string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** @enum {unknown} */
+        IdentificationDimension: "WorkIdentification" | "SiteRecognition";
+        /** @enum {unknown} */
+        IdentificationEvidenceClass: "Insufficient" | "Suggestive" | "Conclusive" | null;
+        IdentificationQueueItem: {
+            /** Format: uuid */
+            videoId: string;
+            /** Format: int32 */
+            caseVersion: number | string;
+            displayLabel: string;
+            previewUrl: null | string;
+            dimension: components["schemas"]["IdentificationDimension"];
+            currentResolution: components["schemas"]["IdentificationResolution"];
+            currentTargetTitle: null | string;
+            candidate: components["schemas"]["IdentificationCandidateView"];
+            /** Format: int32 */
+            affectedVideoFileCount: number | string;
+            reason: string;
+        };
+        /** @enum {unknown} */
+        IdentificationResolution: "Unknown" | "Established";
+        /** @enum {unknown} */
+        IdentificationReviewReason: "SuggestiveEvidence" | "ConflictingConclusiveEvidence" | "ConflictsWithAdministrativeOverride" | "RemoteIdentityChanged";
+        /** @enum {unknown} */
+        IdentificationReviewStatus: "Clear" | "ReviewNeeded";
+        /** @enum {unknown} */
+        IdentificationSource: "PrdbIdentification" | "LocalInference" | "AdministratorDecision" | null;
+        IdentificationSummary: {
+            work: components["schemas"]["IdentificationClaimView"];
+            site: components["schemas"]["IdentificationClaimView"];
+            actors: string[];
+            /** Format: date-time */
+            metadataFetchedAt: null | string;
         };
         /** @enum {unknown} */
         InstallationConfigurationStatus: "Unclaimed" | "ConfigurationRequired" | "ConfigurationPending" | "AttentionRequired" | "Configured";
@@ -1445,6 +1735,8 @@ export interface components {
         VideoAvailability: "Available" | "Unavailable" | "Removed";
         /** @enum {unknown} */
         VideoFileAvailability: "Available" | "Unreachable" | "Missing" | "Replaced" | "Removed";
+        /** @enum {unknown} */
+        VideoFileHashState: "Pending" | "Computed" | "Incomplete" | "Failed";
         VideoFileSummary: {
             /** Format: uuid */
             id: string;
@@ -1471,6 +1763,8 @@ export interface components {
             /** Format: date-time */
             discoveryDate: string;
             availability: components["schemas"]["VideoAvailability"];
+            previewUrl: null | string;
+            identification: components["schemas"]["IdentificationSummary"];
             videoFiles: components["schemas"]["VideoFileSummary"][];
             personalState: components["schemas"]["PersonalVideoStateSummary"];
         };

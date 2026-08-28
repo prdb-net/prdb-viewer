@@ -26,6 +26,42 @@ public sealed class TechnicalInspectionWorker(
             stoppingToken);
 }
 
+public sealed class HashingWorker(
+    IServiceScopeFactory scopes,
+    ILogger<HashingWorker> logger) : BackgroundService
+{
+    protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
+        WorkerLoop.RunAsync<HashingRunner>(
+            scopes,
+            logger,
+            (runner, cancellationToken) => runner.RunNextSliceAsync(cancellationToken),
+            stoppingToken);
+}
+
+public sealed class PreviewGenerationWorker(
+    IServiceScopeFactory scopes,
+    ILogger<PreviewGenerationWorker> logger) : BackgroundService
+{
+    protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
+        WorkerLoop.RunAsync<PreviewGenerationRunner>(
+            scopes,
+            logger,
+            (runner, cancellationToken) => runner.RunNextSliceAsync(cancellationToken),
+            stoppingToken);
+}
+
+public sealed class IdentificationWorker(
+    IServiceScopeFactory scopes,
+    ILogger<IdentificationWorker> logger) : BackgroundService
+{
+    protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
+        WorkerLoop.RunAsync<IdentificationRunner>(
+            scopes,
+            logger,
+            (runner, cancellationToken) => runner.RunNextSliceAsync(cancellationToken),
+            stoppingToken);
+}
+
 internal static class WorkerLoop
 {
     private static readonly TimeSpan IdleDelay = TimeSpan.FromMilliseconds(500);
