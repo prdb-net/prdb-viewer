@@ -15,6 +15,10 @@ using Prdb.Viewer.Host.Personal;
 using Prdb.Viewer.Infrastructure.Persistence;
 
 var operatorCommand = OperatorCommands.Matches(args);
+
+// The OpenAPI document generator loads this application only to read its endpoints. It never
+// prepares the database, so the background-work lanes must not start and report an unopenable one.
+var readingEndpoints = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
 var builder = WebApplication.CreateBuilder(operatorCommand ? [] : args);
 
 var dataDirectory = builder.Configuration["VIEWER_DATA_DIRECTORY"]
@@ -22,7 +26,7 @@ var dataDirectory = builder.Configuration["VIEWER_DATA_DIRECTORY"]
 
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddViewerPersistence(dataDirectory);
-if (builder.Configuration.GetValue("VIEWER_BACKGROUND_WORK_ENABLED", true))
+if (!readingEndpoints && builder.Configuration.GetValue("VIEWER_BACKGROUND_WORK_ENABLED", true))
 {
     builder.Services.AddHostedService<LibraryScanWorker>();
     builder.Services.AddHostedService<TechnicalInspectionWorker>();
@@ -67,8 +71,6 @@ builder.Services.AddOpenApi(options => options.AddDocumentTransformer((document,
 }));
 
 var app = builder.Build();
-
-var readingEndpoints = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
 
 if (!readingEndpoints)
 {
