@@ -111,6 +111,7 @@ public sealed class WorkIssueRuleTests
     {
         var handoff = OperatorHandoff.Compose(new OperatorHandoffFacts(
             "WI-0A1B2C3D",
+            "0.1.0+local (abc1234)",
             WorkIssueSeverity.OperationalBlocker,
             WorkIssueCause.SourceAccess,
             BackgroundWorkCategory.LibraryScan,
@@ -126,6 +127,7 @@ public sealed class WorkIssueRuleTests
             "Trustworthy access followed by a completed traversal."));
 
         Assert.Contains("WI-0A1B2C3D", handoff);
+        Assert.Contains("0.1.0+local (abc1234)", handoff);
         Assert.Contains("/library/films/2019", handoff);
         Assert.Contains("2026-08-28 09:00:00 UTC", handoff);
         Assert.Contains("automatic retries: 3", handoff);

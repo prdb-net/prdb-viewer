@@ -4,8 +4,9 @@ using PrdbVideoPerceptualHasher = Prdb.Hashing.VideoPerceptualHasher;
 namespace Prdb.Viewer.Infrastructure.Library;
 
 /// <summary>
-/// The content hashes prdb identifies a file by. Either value may be absent: a short file has no
-/// OS hash, and a container ffmpeg cannot sample produces no perceptual hash.
+/// The content hashes prdb identifies a file by. Either value may be absent: a short file and a
+/// container the hashing library does not index have no OS hash, and a container ffmpeg cannot
+/// sample produces no perceptual hash. One usable hash is enough to be identified by content.
 /// </summary>
 public sealed record VideoFileHashes(
     string? OsHash,

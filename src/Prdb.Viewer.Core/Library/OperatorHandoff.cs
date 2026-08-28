@@ -10,6 +10,7 @@ namespace Prdb.Viewer.Core.Library;
 /// </summary>
 public sealed record OperatorHandoffFacts(
     string Reference,
+    string ProductBuild,
     WorkIssueSeverity Severity,
     WorkIssueCause Cause,
     BackgroundWorkCategory Category,
@@ -36,6 +37,7 @@ public static class OperatorHandoff
         var text = new StringBuilder();
         text.AppendLine("prdb-viewer operator handoff");
         text.AppendLine($"Reference: {facts.Reference}");
+        text.AppendLine($"Product: {facts.ProductBuild}");
         text.AppendLine($"Severity: {Readable(facts.Severity.ToString())}");
         text.AppendLine($"Cause: {Readable(facts.Cause.ToString())}");
         text.AppendLine($"Work: {Readable(facts.Category.ToString())} · {facts.Phase}");
