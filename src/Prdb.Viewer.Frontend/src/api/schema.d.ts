@@ -804,6 +804,167 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/background-work/issues/{workIssueId}/items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    workIssueId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["WorkIssueAffectedItem"][];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/background-work/issues/{workIssueId}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    workIssueId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["WorkIssueActionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BackgroundWorkActionResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/background-work/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["BackgroundWorkPauseRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BackgroundWorkPauseResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/background-work/{workId}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    workId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["BackgroundWorkActionResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/background-work/library-directories/{libraryDirectoryId}/scans": {
         parameters: {
             query?: never;
@@ -1348,19 +1509,42 @@ export interface components {
             /** Format: date-time */
             registeredAt: string;
         };
+        BackgroundWorkActionResult: {
+            verdict: components["schemas"]["BackgroundWorkActionVerdict"];
+            issue?: null | components["schemas"]["WorkIssueSummary"];
+        };
+        /** @enum {unknown} */
+        BackgroundWorkActionVerdict: "Accepted" | "NotFound" | "AlreadySettled" | "Stale" | "NotApplicable";
         /** @enum {unknown} */
         BackgroundWorkCategory: "LibraryScan" | "TechnicalInspection" | "Hashing" | "PreviewGeneration" | "Identification";
+        BackgroundWorkPauseRequest: {
+            paused: boolean;
+        };
+        BackgroundWorkPauseResult: {
+            paused: boolean;
+            /** Format: date-time */
+            pausedAt: null | string;
+        };
         /** @enum {unknown} */
         BackgroundWorkState: "Queued" | "Running" | "Waiting" | "Paused" | "Completed" | "CompletedWithIssues" | "Cancelled";
         BackgroundWorkStatus: {
             work: components["schemas"]["BackgroundWorkSummary"][];
             issues: components["schemas"]["WorkIssueSummary"][];
+            recentlyResolvedIssues: components["schemas"]["WorkIssueSummary"][];
+            operationalAttention: boolean;
+            /** Format: int32 */
+            operationalAttentionCount: number | string;
+            paused: boolean;
+            /** Format: date-time */
+            pausedAt: null | string;
         };
         BackgroundWorkSummary: {
             /** Format: uuid */
             id: string;
             category: components["schemas"]["BackgroundWorkCategory"];
             state: components["schemas"]["BackgroundWorkState"];
+            trigger: components["schemas"]["BackgroundWorkTrigger"];
+            phase: string;
             /** Format: uuid */
             libraryDirectoryId: string;
             libraryDirectoryName: string;
@@ -1370,13 +1554,24 @@ export interface components {
             completedItemCount: number | string;
             /** Format: int32 */
             issueCount: number | string;
+            /** Format: int32 */
+            completedPercent: null | number | string;
+            waitingReason: null | string;
+            /** Format: date-time */
+            nextAttemptAt: null | string;
+            cancellationRequested: boolean;
+            cancellable: boolean;
             /** Format: date-time */
             requestedAt: string;
             /** Format: date-time */
             startedAt: null | string;
             /** Format: date-time */
+            lastActivityAt: null | string;
+            /** Format: date-time */
             finishedAt: null | string;
         };
+        /** @enum {unknown} */
+        BackgroundWorkTrigger: "Activation" | "Administrator" | "FollowUpWork" | "IssueRetry";
         /** @enum {unknown} */
         BootstrapClaimVerdict: "Created" | "InvalidInput" | "InvalidAuthorization" | "AlreadyClaimed";
         BootstrapRequest: {
@@ -1769,22 +1964,72 @@ export interface components {
             personalState: components["schemas"]["PersonalVideoStateSummary"];
         };
         /** @enum {unknown} */
+        WorkIssueAction: "RetryNow" | "CheckAgain" | "OpenPrdbSettings" | "OpenLibraryDirectory" | "ViewAffectedItems" | "CopyOperatorHandoff";
+        WorkIssueActionRequest: {
+            action: components["schemas"]["WorkIssueAction"];
+            /** Format: int32 */
+            version: number | string;
+        };
+        WorkIssueAffectedItem: {
+            scope: string;
+            containerPath: null | string;
+            /** Format: uuid */
+            videoFileId: null | string;
+            /** Format: int32 */
+            occurrenceCount: number | string;
+            /** Format: date-time */
+            firstOccurredAt: string;
+            /** Format: date-time */
+            lastOccurredAt: string;
+        };
+        /** @enum {unknown} */
         WorkIssueCause: "SourceAccess" | "ChangingSource" | "InvalidContent" | "Capacity" | "ExternalAvailability" | "ExternalAuthority" | "Configuration" | "InternalConsistency";
+        /** @enum {unknown} */
+        WorkIssueRetryDisposition: "AutomaticRetryScheduled" | "RetriesExhausted" | "NoAutomaticRetry";
         /** @enum {unknown} */
         WorkIssueSeverity: "ScopedIssue" | "OperationalBlocker" | "SafetyStop";
         WorkIssueSummary: {
             /** Format: uuid */
             id: string;
+            reference: string;
             /** Format: uuid */
             backgroundWorkId: string;
+            category: components["schemas"]["BackgroundWorkCategory"];
+            /** Format: uuid */
+            libraryDirectoryId: string;
             severity: components["schemas"]["WorkIssueSeverity"];
             cause: components["schemas"]["WorkIssueCause"];
             remediationOwner: components["schemas"]["RemediationOwner"];
+            retryDisposition: components["schemas"]["WorkIssueRetryDisposition"];
+            phase: string;
+            summary: string;
+            detail: string;
             affectedScope: string;
+            containerPath: null | string;
             impact: string;
             requiredAction: string;
+            expectedResolutionEvidence: string;
+            /** Format: int32 */
+            occurrenceCount: number | string;
+            /** Format: int32 */
+            affectedItemCount: number | string;
+            /** Format: int32 */
+            version: number | string;
+            actions: components["schemas"]["WorkIssueAction"][];
+            operatorHandoff: null | string;
+            /** Format: uuid */
+            videoId: null | string;
+            /** Format: uuid */
+            videoFileId: null | string;
             /** Format: date-time */
-            createdAt: string;
+            nextAttemptAt: null | string;
+            /** Format: date-time */
+            firstOccurredAt: string;
+            /** Format: date-time */
+            lastOccurredAt: string;
+            /** Format: date-time */
+            resolvedAt: null | string;
+            resolutionEvidence: null | string;
         };
     };
     responses: never;

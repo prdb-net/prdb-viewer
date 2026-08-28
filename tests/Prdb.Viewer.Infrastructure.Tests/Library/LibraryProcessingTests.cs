@@ -149,7 +149,10 @@ public sealed class LibraryProcessingTests
         {
             var result = await scope.ServiceProvider
                 .GetRequiredService<LibraryWorkScheduler>()
-                .QueueScanAsync(directoryId, TestContext.Current.CancellationToken);
+                .QueueScanAsync(
+                    directoryId,
+                    BackgroundWorkTrigger.Administrator,
+                    TestContext.Current.CancellationToken);
             Assert.Equal(QueueLibraryScanVerdict.Queued, result.Verdict);
         }
 

@@ -11,10 +11,20 @@ namespace Prdb.Viewer.Infrastructure.Library;
 public sealed class TechnicalInspectionRunner(
     ViewerDbContext database,
     IMediaProbe mediaProbe,
+    WorkIssueRecorder issues,
     TimeProvider timeProvider)
 {
     public async Task<bool> RunNextSliceAsync(CancellationToken cancellationToken = default)
     {
+        if (await BackgroundWorkGate.IsPausedAsync(database, cancellationToken))
+        {
+            return await BackgroundWorkGate.ParkAsync(
+                database,
+                BackgroundWorkCategory.TechnicalInspection,
+                Now(),
+                cancellationToken);
+        }
+
         var work = await database.BackgroundWork
             .AsTracking()
             .Include(row => row.LibraryDirectory)
@@ -29,7 +39,8 @@ public sealed class TechnicalInspectionRunner(
             return false;
         }
 
-        if (work.LibraryDirectory.State != LibraryDirectoryState.Active ||
+        if (work.CancellationRequested ||
+            work.LibraryDirectory.State != LibraryDirectoryState.Active ||
             work.LibraryDirectory.ConfigurationGeneration != work.ConfigurationGeneration)
         {
             await FinishAsync(work, BackgroundWorkState.Cancelled, cancellationToken);
@@ -55,18 +66,25 @@ public sealed class TechnicalInspectionRunner(
                 .Where(row => row.LibraryScanId == work.LibraryScanId)
                 .ExecuteDeleteAsync(cancellationToken);
             await QueueDerivedWorkAsync(work, cancellationToken);
+            var unresolved = await database.WorkIssues.AnyAsync(
+                issue => issue.LibraryDirectoryId == work.LibraryDirectoryId &&
+                         issue.Category == BackgroundWorkCategory.TechnicalInspection &&
+                         issue.ResolvedAt == null,
+                cancellationToken);
             await FinishAsync(
                 work,
-                work.IssueCount == 0
-                    ? BackgroundWorkState.Completed
-                    : BackgroundWorkState.CompletedWithIssues,
+                unresolved
+                    ? BackgroundWorkState.CompletedWithIssues
+                    : BackgroundWorkState.Completed,
                 cancellationToken);
             return true;
         }
 
         var now = Now();
         work.State = BackgroundWorkState.Running;
+        work.Phase = BackgroundWorkPhases.Inspecting;
         work.StartedAt ??= now;
+        work.LastActivityAt = now;
         work.UpdatedAt = now;
         candidate.State = VideoFileCandidateState.Inspecting;
         candidate.AttemptCount++;
@@ -118,18 +136,12 @@ public sealed class TechnicalInspectionRunner(
 
         if (observation is null)
         {
-            Reject(work, candidate, WorkIssueCause.ChangingSource,
-                "The Video File Candidate changed or became unreadable during inspection.",
-                RemediationOwner.AutomaticRecovery,
-                "Request another Library Scan after the source has stabilised.");
+            await RejectAsync(work, candidate, path, Changing(work, candidate, path), cancellationToken);
         }
         else if (facts is null)
         {
             await MarkReplacedIfDifferentAsync(work, candidate, observation.Sha256, cancellationToken);
-            Reject(work, candidate, WorkIssueCause.InvalidContent,
-                "Technical inspection did not establish audiovisual content.",
-                RemediationOwner.Administrator,
-                "Review the file and remove or replace invalid content if appropriate.");
+            await RejectAsync(work, candidate, path, Invalid(work, candidate, path), cancellationToken);
         }
         else
         {
@@ -137,7 +149,8 @@ public sealed class TechnicalInspectionRunner(
         }
 
         work.CompletedItemCount++;
-        work.UpdatedAt = Now();
+        work.LastActivityAt = Now();
+        work.UpdatedAt = work.LastActivityAt.Value;
         await database.SaveChangesAsync(cancellationToken);
         return true;
     }
@@ -220,6 +233,22 @@ public sealed class TechnicalInspectionRunner(
         current.InspectedAt = Now();
         candidate.State = VideoFileCandidateState.Accepted;
 
+        foreach (var cause in new[]
+        {
+            WorkIssueCause.SourceAccess,
+            WorkIssueCause.ChangingSource,
+            WorkIssueCause.InvalidContent,
+        })
+        {
+            await issues.ResolveItemAsync(
+                work.LibraryDirectoryId,
+                BackgroundWorkCategory.TechnicalInspection,
+                cause,
+                candidate.RelativePath,
+                "Technical inspection established audiovisual content from stable source data.",
+                cancellationToken);
+        }
+
         if (current.DirectPlayClassification == DirectPlayClassification.BaselineCandidate)
         {
             var configuration = await database.InstallationConfigurations
@@ -250,29 +279,67 @@ public sealed class TechnicalInspectionRunner(
         }
     }
 
-    private void Reject(
+    private async Task RejectAsync(
         BackgroundWorkRow work,
         VideoFileCandidateRow candidate,
-        WorkIssueCause cause,
-        string impact,
-        RemediationOwner owner,
-        string requiredAction)
+        string? path,
+        WorkIssueReport report,
+        CancellationToken cancellationToken)
     {
         candidate.State = VideoFileCandidateState.Rejected;
-        work.IssueCount++;
-        database.WorkIssues.Add(new WorkIssueRow
-        {
-            Id = Guid.CreateVersion7(),
-            BackgroundWorkId = work.Id,
-            Severity = WorkIssueSeverity.ScopedIssue,
-            Cause = cause,
-            RemediationOwner = owner,
-            AffectedScope = candidate.RelativePath,
-            Impact = impact,
-            RequiredAction = requiredAction,
-            CreatedAt = Now(),
-        });
+        await issues.RecordAsync(work, report with { ContainerPath = path }, cancellationToken);
     }
+
+    /// <summary>
+    /// A candidate that is still being written receives bounded backoff and no identity decision:
+    /// stable content was never observed, so nothing may be concluded about a replacement.
+    /// </summary>
+    private static WorkIssueReport Changing(
+        BackgroundWorkRow work,
+        VideoFileCandidateRow candidate,
+        string? path) =>
+        new(path is null ? WorkIssueCause.SourceAccess : WorkIssueCause.ChangingSource,
+            WorkIssueSeverity.ScopedIssue,
+            WorkIssueRetryDisposition.AutomaticRetryScheduled,
+            candidate.RelativePath,
+            $"{work.LibraryDirectory.Name}:inspection",
+            BackgroundWorkPhases.Inspecting,
+            path is null
+                ? WorkIssueMessages.CannotInspect(Path.GetFileName(candidate.RelativePath))
+                : WorkIssueMessages.FileIsStillChanging(Path.GetFileName(candidate.RelativePath)),
+            "Stable content could not be observed, so no replacement or identity decision was " +
+            "made. No speculative Video was created and unrelated candidates continue to be " +
+            "inspected.",
+            "This candidate has not been admitted to the library yet.",
+            "No action is required while the source is still being written; the next Library Scan " +
+            "inspects it again.",
+            path is null
+                ? "The container path could not be resolved beneath the Library Directory."
+                : "The observed size or modification time changed during inspection.",
+            "A stable observation followed by successful technical inspection.");
+
+    /// <summary>
+    /// Recognisable content that cannot be parsed is a deterministic outcome, so it settles as a
+    /// visible Scoped Issue without a time-based retry.
+    /// </summary>
+    private static WorkIssueReport Invalid(
+        BackgroundWorkRow work,
+        VideoFileCandidateRow candidate,
+        string? path) =>
+        new(WorkIssueCause.InvalidContent,
+            WorkIssueSeverity.ScopedIssue,
+            WorkIssueRetryDisposition.NoAutomaticRetry,
+            candidate.RelativePath,
+            $"{work.LibraryDirectory.Name}:inspection",
+            BackgroundWorkPhases.Inspecting,
+            WorkIssueMessages.CannotInspect(Path.GetFileName(candidate.RelativePath)),
+            "Technical inspection did not establish audiovisual content, so no Video was created " +
+            "for it. Independent files continue to be inspected.",
+            "This candidate is not part of the library.",
+            "Repair, replace, or externally remove the source file, then use Retry now.",
+            "The media inspector reported no audiovisual stream.",
+            "A successful technical inspection of the same path, or proof that the candidate no " +
+            "longer applies.");
 
     /// <summary>
     /// Hands the admitted Video Files to the lanes that derive knowledge from them. Hashing and
@@ -296,6 +363,7 @@ public sealed class TechnicalInspectionRunner(
                 work.LibraryDirectoryId,
                 work.ConfigurationGeneration,
                 category,
+                BackgroundWorkTrigger.FollowUpWork,
                 now,
                 cancellationToken);
         }
@@ -307,6 +375,7 @@ public sealed class TechnicalInspectionRunner(
         CancellationToken cancellationToken)
     {
         work.State = state;
+        work.Phase = BackgroundWorkPhases.Settled;
         work.UpdatedAt = Now();
         work.FinishedAt = work.UpdatedAt;
         await database.SaveChangesAsync(cancellationToken);

@@ -223,11 +223,15 @@ public sealed class IdentificationTests
                 TestContext.Current.CancellationToken);
             Assert.Equal(BackgroundWorkState.Waiting, work.State);
             Assert.NotNull(work.WaitingReason);
-            Assert.NotNull(work.NextAttemptAt);
+
+            // Nothing is retried against unchanged configuration, so the lane waits without a
+            // scheduled attempt until an Administrator supplies a key.
+            Assert.Null(work.NextAttemptAt);
             var issue = await database.WorkIssues.SingleAsync(TestContext.Current.CancellationToken);
             Assert.Equal(WorkIssueCause.Configuration, issue.Cause);
             Assert.Equal(WorkIssueSeverity.OperationalBlocker, issue.Severity);
             Assert.Equal(RemediationOwner.Administrator, issue.RemediationOwner);
+            Assert.Equal(WorkIssueRetryDisposition.NoAutomaticRetry, issue.RetryDisposition);
             Assert.Equal(0, prdb.Calls);
         }
 
@@ -250,7 +254,11 @@ public sealed class IdentificationTests
                 .ToListAsync(TestContext.Current.CancellationToken));
             Assert.All(
                 await database.WorkIssues.ToListAsync(TestContext.Current.CancellationToken),
-                issue => Assert.NotNull(issue.ResolvedAt));
+                issue =>
+                {
+                    Assert.NotNull(issue.ResolvedAt);
+                    Assert.NotNull(issue.ResolutionEvidence);
+                });
         }
     }
 

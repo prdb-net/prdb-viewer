@@ -118,3 +118,12 @@ p { color: #bdb8c7; line-height: 1.6; }
 .case-files small { display: block; color: #928c9b; }
 .assign-target { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
 .review-case textarea { width: 100%; min-height: 4rem; padding: .5rem; border: 1px solid rgb(255 255 255 / 14%); border-radius: .6rem; color: inherit; background: rgb(255 255 255 / 5%); font: inherit; }
+.attention-banner { display: flex; align-items: baseline; gap: .6rem; flex-wrap: wrap; margin: 1rem 0 0; padding: .9rem 1rem; border: 1px solid rgb(240 91 92 / 35%); border-radius: .8rem; color: #ffd9da; background: rgb(240 91 92 / 12%); }
+.attention-banner span { color: #d7bdc1; font-size: .85rem; }
+.issue-filter { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; margin-top: 1.4rem; }
+.work-issue.severity-SafetyStop { border-left: 3px solid #f05b5c; }
+.work-issue.severity-OperationalBlocker { border-left: 3px solid #ebab3d; }
+.work-issue.severity-ScopedIssue { color: #efe6f5; background: rgb(255 255 255 / 5%); }
+.work-issue .row-actions { justify-content: flex-start; margin-top: .7rem; }
+.work-issue button { padding: .5rem .7rem; font-size: .78rem; }
+.issue-items { margin: .7rem 0 0; padding-left: 1.1rem; color: #d7bdc1; font-size: .8rem; }

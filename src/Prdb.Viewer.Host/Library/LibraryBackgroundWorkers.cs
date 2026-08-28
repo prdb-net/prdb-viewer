@@ -66,6 +66,12 @@ internal static class WorkerLoop
 {
     private static readonly TimeSpan IdleDelay = TimeSpan.FromMilliseconds(500);
 
+    /// <summary>
+    /// The pause a lane takes between slices while a Video is playing. Throughput drops but no
+    /// committed result is lost, which is the promise interactive use is given.
+    /// </summary>
+    private static readonly TimeSpan PlaybackDelay = TimeSpan.FromSeconds(2);
+
     public static async Task RunAsync<TRunner>(
         IServiceScopeFactory scopes,
         ILogger logger,
@@ -85,6 +91,12 @@ internal static class WorkerLoop
                 if (!handled)
                 {
                     await Task.Delay(IdleDelay, stoppingToken);
+                }
+                else if (scope.ServiceProvider
+                    .GetRequiredService<PlaybackPressureMonitor>()
+                    .PlaybackIsActive)
+                {
+                    await Task.Delay(PlaybackDelay, stoppingToken);
                 }
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)

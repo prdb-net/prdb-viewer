@@ -85,7 +85,10 @@ internal static class LibraryPipeline
         {
             await scope.ServiceProvider
                 .GetRequiredService<LibraryWorkScheduler>()
-                .QueueScanAsync(directoryId, TestContext.Current.CancellationToken);
+                .QueueScanAsync(
+                    directoryId,
+                    BackgroundWorkTrigger.Administrator,
+                    TestContext.Current.CancellationToken);
         }
 
         await DrainAsync(store);

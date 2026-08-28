@@ -316,6 +316,7 @@ public sealed class IdentificationReviewService(
                 directory.Id,
                 directory.ConfigurationGeneration,
                 BackgroundWorkCategory.Identification,
+                BackgroundWorkTrigger.FollowUpWork,
                 now,
                 cancellationToken);
         }
@@ -387,6 +388,7 @@ public sealed class IdentificationReviewService(
                 directory.Id,
                 directory.ConfigurationGeneration,
                 BackgroundWorkCategory.Identification,
+                BackgroundWorkTrigger.FollowUpWork,
                 Now(),
                 cancellationToken);
         }

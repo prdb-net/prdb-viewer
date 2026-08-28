@@ -19,8 +19,12 @@ public static class VideoEndpoints
         routes.MapGet("/media/videos/{deliveryId:guid}", async (
             Guid deliveryId,
             VideoDeliveryService delivery,
+            PlaybackPressureMonitor playback,
             CancellationToken cancellationToken) =>
         {
+            // Interactive playback takes priority over Background Work, so every delivered range
+            // tells the lanes to reduce their pressure while a Video is being watched.
+            playback.NoteDelivery();
             var opened = await delivery.OpenAsync(deliveryId, cancellationToken);
 
             return opened is null
