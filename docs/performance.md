@@ -79,10 +79,12 @@ well. Beyond roughly 5,000 Videos the catalogue response becomes the dominant
 cost of opening the application, and no amount of indexing fixes it, because the
 work is returning the whole library rather than finding it.
 
-This is a known scope boundary rather than a defect: the library discovery model
-— search, sorting, facets, and incremental loading — is specified but not part
-of the MVP implementation. Adding it is what removes this limit; until then, the
-catalogue's cost is proportional to the library and an installation much larger
-than a few thousand Videos will feel it when the page is opened.
+This is an unfinished part of the MVP rather than a deliberate boundary.
+`VISION.md` lists search and the core filters among the MVP's own contents, and
+the library discovery model — search, sorting, facets, and incremental loading —
+is fully specified. It is the implementation that is missing. Building it is
+what removes this limit; until then, the catalogue's cost is proportional to the
+library and an installation much larger than a few thousand Videos will feel it
+when the page is opened.
 
 Nothing else in the measurement degrades with library size.
