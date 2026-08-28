@@ -11,6 +11,7 @@ namespace Prdb.Viewer.Infrastructure.Library;
 public sealed class LibraryScanRunner(
     ViewerDbContext database,
     WorkIssueRecorder issues,
+    VideoProjection projection,
     TimeProvider timeProvider)
 {
     private const int DirectoriesPerSlice = 8;
@@ -85,6 +86,8 @@ public sealed class LibraryScanRunner(
             await CompleteTraversalAsync(work, cancellationToken);
         }
 
+        // Reconciling an absence changes Video File Availability, which is a projected fact.
+        await projection.RefreshTrackedAsync(cancellationToken);
         await database.SaveChangesAsync(cancellationToken);
         return true;
     }

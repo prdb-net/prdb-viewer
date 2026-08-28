@@ -1,3 +1,5 @@
+using Prdb.Viewer.Core.Library;
+
 namespace Prdb.Viewer.Infrastructure.Persistence;
 
 public sealed class VideoRow
@@ -20,6 +22,38 @@ public sealed class VideoRow
     /// against superseded knowledge is refused rather than silently applied.
     /// </summary>
     public int CaseVersion { get; set; }
+
+    /// <summary>
+    /// The label ordinary browsing shows. Established knowledge supplies it when there is any;
+    /// otherwise it is the file name of the oldest active occurrence. Projected per ADR 0013.
+    /// </summary>
+    public string DisplayLabel { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Every searchable fact of this Video, normalised for comparison: the display label, the
+    /// Established title, the Established Site, the Established Actors, and the current file names.
+    /// A Pending Identification Candidate never reaches it.
+    /// </summary>
+    public string SearchText { get; set; } = string.Empty;
+
+    public DiscoveryReadiness Readiness { get; set; } = DiscoveryReadiness.NotDirectlyPlayable;
+
+    public VideoAvailability Availability { get; set; } = VideoAvailability.Unavailable;
+
+    public bool HasEstablishedWork { get; set; }
+
+    /// <summary>The Established Site as a facet value, or null while Site Recognition is Unknown.</summary>
+    public string? EstablishedSite { get; set; }
+
+    public bool ReviewNeeded { get; set; }
+
+    /// <summary>
+    /// When the projection was last computed. A row that has never been projected, or was
+    /// projected before a rule changed, is found and rebuilt through this rather than guessed at.
+    /// </summary>
+    public DateTime? ProjectedAt { get; set; }
+
+    public ICollection<VideoActorRow> ProjectedActors { get; set; } = [];
 
     public VideoMetadataRow? Metadata { get; set; }
 

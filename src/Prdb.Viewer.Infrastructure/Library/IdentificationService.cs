@@ -16,6 +16,7 @@ namespace Prdb.Viewer.Infrastructure.Library;
 public sealed class IdentificationService(
     ViewerDbContext database,
     PersonalStateService personalState,
+    VideoProjection projection,
     TimeProvider timeProvider)
 {
     public sealed record Target(string Key, string Title, string? Url);
@@ -84,6 +85,10 @@ public sealed class IdentificationService(
         RetainMetadata(video, result);
         file.IdentifiedSha256 = file.Sha256;
         file.IdentifiedAt = Now();
+
+        // The claim, the retained metadata and the file's own association have all just moved, so
+        // the discovery projection is rebuilt inside the same transaction (ADR 0013).
+        await projection.RefreshTrackedAsync(cancellationToken);
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
     }

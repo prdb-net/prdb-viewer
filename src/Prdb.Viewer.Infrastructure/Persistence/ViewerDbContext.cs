@@ -31,6 +31,8 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<VideoRow> Videos => Set<VideoRow>();
 
+    public DbSet<VideoActorRow> VideoActors => Set<VideoActorRow>();
+
     public DbSet<VideoFileRow> VideoFiles => Set<VideoFileRow>();
 
     public DbSet<VideoFileCandidateRow> VideoFileCandidates => Set<VideoFileCandidateRow>();
@@ -209,8 +211,44 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             video.ToTable("video");
             video.HasKey(row => row.Id);
             video.Property(row => row.Id).ValueGeneratedNever();
+            video.Property(row => row.Readiness).HasConversion<string>();
+            video.Property(row => row.Availability).HasConversion<string>();
+            video.Property(row => row.DisplayLabel).IsRequired();
+            video.Property(row => row.SearchText).IsRequired();
             video.HasIndex(row => row.DiscoveryDate);
             video.HasIndex(row => row.SurvivingVideoId);
+            video.HasIndex(row => row.ProjectedAt);
+
+            // The two orders discovery offers, each narrowed first by what admits a Video to it.
+            video.HasIndex(row => new
+            {
+                row.SurvivingVideoId,
+                row.Availability,
+                row.Readiness,
+                row.DiscoveryDate,
+            });
+            video.HasIndex(row => new
+            {
+                row.SurvivingVideoId,
+                row.Availability,
+                row.Readiness,
+                row.DisplayLabel,
+            });
+        });
+
+        builder.Entity<VideoActorRow>(actor =>
+        {
+            actor.ToTable("video_actor");
+            actor.HasKey(row => row.Id);
+            actor.Property(row => row.Id).ValueGeneratedNever();
+            actor.Property(row => row.Name).IsRequired();
+            actor.Property(row => row.NormalizedName).IsRequired();
+            actor.HasIndex(row => new { row.VideoId, row.NormalizedName }).IsUnique();
+            actor.HasIndex(row => row.NormalizedName);
+            actor.HasOne(row => row.Video)
+                .WithMany(row => row.ProjectedActors)
+                .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<VideoMetadataRow>(metadata =>
