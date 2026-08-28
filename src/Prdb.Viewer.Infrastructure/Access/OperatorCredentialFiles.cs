@@ -1,10 +1,14 @@
 using System.Text;
 
+using Microsoft.Extensions.Logging;
+
 using Prdb.Viewer.Infrastructure.Persistence;
 
 namespace Prdb.Viewer.Infrastructure.Access;
 
-public sealed class OperatorCredentialFiles(ViewerDatabaseLocation location)
+public sealed class OperatorCredentialFiles(
+    ViewerDatabaseLocation location,
+    ILogger<OperatorCredentialFiles> logger)
 {
     private const UnixFileMode OwnerReadWrite = UnixFileMode.UserRead | UnixFileMode.UserWrite;
 
@@ -36,6 +40,12 @@ public sealed class OperatorCredentialFiles(ViewerDatabaseLocation location)
         }
     }
 
+    /// <summary>
+    /// Removes a spent single-use credential file. This is cleanup after the durable work already
+    /// committed, so a file the application cannot remove — one an Operator generated as another
+    /// identity, most often — is reported rather than allowed to undo a completed Account action.
+    /// The credential it held is already spent: its record is gone, so the file cannot be redeemed.
+    /// </summary>
     public void Delete(string? path)
     {
         if (path is null)
@@ -46,14 +56,28 @@ public sealed class OperatorCredentialFiles(ViewerDatabaseLocation location)
         var operatorDirectory = Path.GetFullPath(Path.Combine(location.DataDirectory, "operator"));
         var fullPath = Path.GetFullPath(path);
 
+        // A path outside application data is a broken invariant rather than a condition of the
+        // host, so it still stops the application rather than being reported and passed over.
         if (!fullPath.StartsWith($"{operatorDirectory}{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
         {
             throw new InvalidOperationException("An operator credential path escaped application data.");
         }
 
-        if (File.Exists(fullPath))
+        try
         {
-            File.Delete(fullPath);
+            if (File.Exists(fullPath))
+            {
+                File.Delete(fullPath);
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(
+                "The spent operator credential at {Path} could not be removed. It can no longer be " +
+                "redeemed, but delete it. It was most likely created by a different identity than " +
+                "the one the application runs as; restarting the container restores ownership of " +
+                "the application data directory.",
+                fullPath);
         }
     }
 

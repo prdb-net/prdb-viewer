@@ -69,6 +69,11 @@ VIEWER_DATA_DIRECTORY="$PWD/.data" \
 cat .data/operator/bootstrap-authorization.txt
 ```
 
+Run every operator command as the identity the application itself runs as. In
+the container that means `docker compose exec --user "$PUID:$PGID"`: a command
+run as root leaves credential files the application cannot clean up afterwards,
+and it warns about each one it had to leave behind.
+
 The command prints only the credential file location. The browser consumes and
 deletes the credential when it creates the first Administrator. User
 registration requests do not grant access until an Administrator approves
