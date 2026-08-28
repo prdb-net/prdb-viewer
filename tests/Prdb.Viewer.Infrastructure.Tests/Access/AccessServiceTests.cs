@@ -13,6 +13,61 @@ public sealed class AccessServiceTests
     private const string AdministratorPassword = "administrator password";
 
     [Fact]
+    public async Task A_credential_file_it_cannot_remove_does_not_undo_a_completed_claim()
+    {
+        Assert.SkipWhen(
+            OperatingSystem.IsWindows() || Environment.IsPrivilegedProcess,
+            "The test needs an unprivileged process on a Unix-like filesystem.");
+
+        if (!OperatingSystem.IsWindows())
+        {
+            await ClaimSurvivesAnUndeletableCredentialAsync();
+        }
+    }
+
+    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    private static async Task ClaimSurvivesAnUndeletableCredentialAsync()
+    {
+        await using var database = await TestDatabase.CreateAsync();
+        await using var scope = database.Scope();
+        var access = scope.ServiceProvider.GetRequiredService<AccessService>();
+        var authorization = await access.CreateBootstrapAuthorizationAsync(
+            TestContext.Current.CancellationToken);
+        var value = (await File.ReadAllTextAsync(
+            authorization.DeliveryPath!,
+            TestContext.Current.CancellationToken)).Trim();
+
+        // An Operator who generated the credential as a different identity leaves a directory
+        // this process cannot delete from — exactly what a `docker exec` as root produces.
+        var operatorDirectory = Path.GetDirectoryName(authorization.DeliveryPath!)!;
+        File.SetUnixFileMode(
+            operatorDirectory,
+            UnixFileMode.UserRead | UnixFileMode.UserExecute);
+
+        try
+        {
+            var claimed = await access.ClaimAsync(
+                value,
+                "administrator",
+                AdministratorPassword,
+                email: null,
+                TestContext.Current.CancellationToken);
+
+            // Removing the spent file is cleanup after the durable work committed. The Account
+            // exists, so failing the claim over it would report a lie and leave the Operator
+            // retrying something that can only answer AlreadyClaimed.
+            Assert.Equal(BootstrapClaimVerdict.Created, claimed.Verdict);
+            Assert.True(await access.IsClaimedAsync(TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            File.SetUnixFileMode(
+                operatorDirectory,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    [Fact]
     public async Task Bootstrap_authorization_is_delivered_once_and_claims_the_first_administrator()
     {
         await using var database = await TestDatabase.CreateAsync();
