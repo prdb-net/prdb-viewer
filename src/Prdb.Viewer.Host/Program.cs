@@ -22,6 +22,13 @@ var operatorCommand = OperatorCommands.Matches(args);
 var readingEndpoints = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
 var builder = WebApplication.CreateBuilder(operatorCommand ? [] : args);
 
+// An operator command's result is its output. Routine startup and query logging would bury it, so
+// only warnings and worse reach the console.
+if (operatorCommand)
+{
+    builder.Logging.SetMinimumLevel(LogLevel.Warning);
+}
+
 var dataDirectory = builder.Configuration["VIEWER_DATA_DIRECTORY"]
     ?? Path.Combine(AppContext.BaseDirectory, "data");
 
