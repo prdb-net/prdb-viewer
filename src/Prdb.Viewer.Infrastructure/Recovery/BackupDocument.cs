@@ -8,9 +8,9 @@ namespace Prdb.Viewer.Infrastructure.Recovery;
 
 /// <summary>
 /// Everything a Backup Archive carries: every durable fact that cannot be reconstructed without
-/// loss. Source Video Files, generated previews, cached artwork, active sessions, Bootstrap
-/// Authorizations, Recovery Codes, and executable Background Work checkpoints are deliberately
-/// absent — they are either externally authoritative or regenerable.
+/// loss. Source Video Files, generated previews, cached artwork, the retained Site Directory,
+/// active sessions, Bootstrap Authorizations, Recovery Codes, and executable Background Work
+/// checkpoints are deliberately absent — they are either externally authoritative or regenerable.
 /// </summary>
 public sealed class BackupDocument
 {

@@ -168,6 +168,10 @@ _Avoid_: Site Recognition, Video identity
 An Identification Claim that associates a Video with a particular originating site without necessarily identifying the audiovisual work. It is independent of Work Identification.
 _Avoid_: Work Identification, site metadata
 
+**Site Directory**:
+The locally retained list of sites the installation knows, obtained from prdb and joined with every Site the installation has already established. It is the vocabulary local Site Recognition reads a Video File's path against, and it is regenerable rather than authoritative.
+_Avoid_: site list, Site Recognition
+
 **Identification Evidence**:
 Evidence supporting an Identification Claim, classified as Conclusive, Suggestive, or Insufficient. Conclusive evidence may establish a claim automatically; Suggestive evidence may only produce a reviewable candidate; Insufficient evidence produces neither.
 _Avoid_: confidence score, Identification Claim

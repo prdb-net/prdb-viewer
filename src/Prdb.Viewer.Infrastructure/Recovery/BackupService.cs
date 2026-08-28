@@ -334,6 +334,10 @@ public sealed class BackupService(
             ? PrdbConnectionStatus.Missing
             : PrdbConnectionStatus.VerificationPending;
         configuration.LastConnectionIssue = null;
+
+        // The Site Directory itself is regenerable and therefore not carried, so the target must
+        // fetch it again rather than believe the source installation's last refresh.
+        configuration.SiteDirectoryFetchedAt = null;
         database.InstallationConfigurations
             .Where(row => row.Id == InstallationConfigurationRow.TheOnlyRow)
             .ExecuteDelete();

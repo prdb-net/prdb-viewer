@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using Prdb.Viewer.Infrastructure.Persistence;
 using Prdb.Viewer.Infrastructure.Configuration;
 using Prdb.Viewer.Infrastructure.Library;
+using Prdb.Viewer.Infrastructure.Tests.Library;
 
 using Xunit;
 
@@ -33,6 +34,7 @@ internal sealed class TestDatabase : IAsyncDisposable
         IVideoFileHasher? hasher = null,
         IPreviewImageGenerator? previewGenerator = null,
         IPrdbIdentificationClient? identificationClient = null,
+        IPrdbSiteDirectoryClient? siteDirectoryClient = null,
         string? targetMigration = null)
     {
         var directory = Path.Combine(Path.GetTempPath(), $"prdb-viewer-{Guid.NewGuid():n}");
@@ -71,6 +73,11 @@ internal sealed class TestDatabase : IAsyncDisposable
             services.RemoveAll<IPrdbIdentificationClient>();
             services.AddSingleton(identificationClient);
         }
+
+        // No test ever reaches prdb.net: a test that says nothing about the Site Directory gets an
+        // installation whose directory is simply empty.
+        services.RemoveAll<IPrdbSiteDirectoryClient>();
+        services.AddSingleton(siteDirectoryClient ?? new FixtureSiteDirectoryClient());
 
         var database = new TestDatabase(directory, services.BuildServiceProvider());
         if (targetMigration is null)

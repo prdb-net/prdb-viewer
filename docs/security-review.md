@@ -159,3 +159,14 @@ The trust boundaries this product actually has:
   a file name can never become an argument or a command.
 - The frontend has no runtime dependency that is not bundled at build time, and
   the served application makes no third-party network request.
+
+## Since this review
+
+- Local site recognition, added after 0.1.0, makes one further outbound request:
+  `GET /sites` at most once a day, over the same transport with the same
+  redacted `X-Api-Key` header and the same cross-origin redirect protection. It
+  sends the installation credential and nothing about the library — no path, no
+  file name, and no hash — and it reads the answer into a regenerable local
+  copy that no Backup Archive carries. A refusal or an outage leaves the
+  existing copy in place and is reported as a Scoped Issue rather than retried
+  per file.

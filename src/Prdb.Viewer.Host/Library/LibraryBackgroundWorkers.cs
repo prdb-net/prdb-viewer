@@ -62,6 +62,18 @@ public sealed class IdentificationWorker(
             stoppingToken);
 }
 
+public sealed class SiteRecognitionWorker(
+    IServiceScopeFactory scopes,
+    ILogger<SiteRecognitionWorker> logger) : BackgroundService
+{
+    protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
+        WorkerLoop.RunAsync<SiteRecognitionRunner>(
+            scopes,
+            logger,
+            (runner, cancellationToken) => runner.RunNextSliceAsync(cancellationToken),
+            stoppingToken);
+}
+
 internal static class WorkerLoop
 {
     private static readonly TimeSpan IdleDelay = TimeSpan.FromMilliseconds(500);

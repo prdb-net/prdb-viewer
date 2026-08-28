@@ -673,16 +673,27 @@ public sealed class IdentificationReviewService(
             candidate.TargetUrl,
             candidate.EvidenceClass,
             candidate.Reason,
+            candidate.Source,
             EvidenceSummary(candidate),
             candidate.SupportingVideoFileId,
             VideoPresentation.AsOffset(candidate.CreatedAt)!.Value,
             VideoPresentation.AsOffset(candidate.ResolvedAt));
 
-    private static string EvidenceSummary(IdentificationCandidateRow candidate) =>
-        candidate.MatchedBy is null
-            ? $"{candidate.EvidenceClass} evidence"
-            : $"{candidate.EvidenceClass} evidence, matched by {candidate.MatchedBy}" +
+    /// <summary>
+    /// What an Administrator is told the proposal rests on. A locally derived proposal says so,
+    /// because reading a name out of a path is not the same evidence as a remote match.
+    /// </summary>
+    private static string EvidenceSummary(IdentificationCandidateRow candidate)
+    {
+        var origin = candidate.Source == IdentificationSource.LocalInference
+            ? "Local"
+            : "prdb";
+
+        return candidate.MatchedBy is null
+            ? $"{origin}: {candidate.EvidenceClass} evidence"
+            : $"{origin}: {candidate.EvidenceClass} evidence, matched by {candidate.MatchedBy}" +
               (candidate.Confidence is null ? "" : $" with {candidate.Confidence} confidence");
+    }
 
     private static string StateOf(VideoRow video, IdentificationDimension dimension)
     {

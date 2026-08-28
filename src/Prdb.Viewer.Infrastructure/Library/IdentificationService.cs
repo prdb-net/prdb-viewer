@@ -21,6 +21,9 @@ public sealed class IdentificationService(
 {
     public sealed record Target(string Key, string Title, string? Url);
 
+    /// <summary>How a locally recognised Site was matched, as the review surfaces name it.</summary>
+    public const string LocalSiteMatchedBy = "the file's own path";
+
     public async Task ApplyRemoteIdentificationAsync(
         RemoteIdentification result,
         CancellationToken cancellationToken = default)
@@ -94,6 +97,85 @@ public sealed class IdentificationService(
     }
 
     /// <summary>
+    /// Turns what a Video File's own path says about its originating site into Shared Library
+    /// Knowledge. A path that maps uniquely to one known site may establish an Unknown Site
+    /// Recognition; an ambiguous or weak reading only proposes. Neither replaces an Established
+    /// claim, so a prdb-established Site keeps its place and a disagreement goes to review.
+    /// </summary>
+    public async Task ApplyLocalSiteRecognitionAsync(
+        Guid videoFileId,
+        LocalSiteRecognition recognition,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var file = await database.VideoFiles
+            .AsTracking()
+            .SingleOrDefaultAsync(row => row.Id == videoFileId, cancellationToken);
+
+        if (file is null)
+        {
+            return;
+        }
+
+        var video = await LoadAsync(file.VideoId, cancellationToken);
+
+        switch (recognition.Evidence)
+        {
+            case IdentificationEvidenceClass.Conclusive:
+                var match = recognition.Matches[0];
+                await EstablishOrConflictAsync(
+                    video,
+                    IdentificationDimension.SiteRecognition,
+                    SiteTarget(match),
+                    IdentificationSource.LocalInference,
+                    IdentificationEvidenceClass.Conclusive,
+                    result: null,
+                    file,
+                    LocalEvidenceKey(match),
+                    cancellationToken,
+                    LocalSiteMatchedBy);
+                break;
+
+            case IdentificationEvidenceClass.Suggestive:
+                foreach (var proposal in recognition.Matches.DistinctBy(
+                             candidate => candidate.Site.Key,
+                             StringComparer.OrdinalIgnoreCase))
+                {
+                    Propose(
+                        video,
+                        IdentificationDimension.SiteRecognition,
+                        SiteTarget(proposal),
+                        IdentificationEvidenceClass.Suggestive,
+                        result: null,
+                        file,
+                        LocalEvidenceKey(proposal),
+                        IdentificationSource.LocalInference,
+                        LocalSiteMatchedBy);
+                }
+
+                break;
+        }
+
+        // The path has been read as it stands now, whatever it produced. A later rename is a
+        // different path and is read again; an unchanged one is not read twice.
+        file.SiteRecognisedPath = file.RelativePath;
+        file.SiteRecognisedAt = Now();
+
+        await projection.RefreshTrackedAsync(cancellationToken);
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// The material evidence behind a local proposal is the name the path actually used. Rejecting
+    /// it suppresses that name for that site; a differently named path is new evidence.
+    /// </summary>
+    private static string LocalEvidenceKey(LocalSiteMatch match) => $"LocalSiteName:{match.Alias}";
+
+    private static IdentificationService.Target SiteTarget(LocalSiteMatch match) =>
+        new(match.Site.Key, match.Site.Title, match.Site.Url);
+
+    /// <summary>
     /// Establishes an Unknown claim from one applicable Conclusive result, confirms a claim that
     /// still holds, or records a reviewable conflict. It never replaces a current claim silently.
     /// </summary>
@@ -106,7 +188,8 @@ public sealed class IdentificationService(
         RemoteIdentification? result,
         VideoFileRow? file,
         string evidenceKey,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        string? matchedBy = null)
     {
         var current = Current(video, dimension);
 
@@ -120,7 +203,21 @@ public sealed class IdentificationService(
                 return video;
             }
 
-            Propose(video, dimension, target, evidence, result, file, evidenceKey);
+            if (IdentificationEvidenceRule.SupersedesAutomatically(
+                    current.Source,
+                    current.IsAdministrativeOverride,
+                    source,
+                    evidence))
+            {
+                current.Status = IdentificationClaimStatus.Superseded;
+                current.EndedAt = Now();
+                AddClaim(video, dimension, target, source, evidence,
+                    matchedBy ?? result?.MatchedBy?.ToString(), file?.Id,
+                    administrativeOverride: false, decidedBy: null, note: null);
+                return video;
+            }
+
+            Propose(video, dimension, target, evidence, result, file, evidenceKey, source, matchedBy);
             return video;
         }
 
@@ -144,7 +241,8 @@ public sealed class IdentificationService(
             }
         }
 
-        AddClaim(video, dimension, target, source, evidence, result?.MatchedBy?.ToString(), file?.Id,
+        AddClaim(video, dimension, target, source, evidence,
+            matchedBy ?? result?.MatchedBy?.ToString(), file?.Id,
             administrativeOverride: false, decidedBy: null, note: null);
         return video;
     }
@@ -293,7 +391,9 @@ public sealed class IdentificationService(
         IdentificationEvidenceClass evidence,
         RemoteIdentification? result,
         VideoFileRow? file,
-        string evidenceKey)
+        string evidenceKey,
+        IdentificationSource source = IdentificationSource.PrdbIdentification,
+        string? matchedBy = null)
     {
         var current = Current(video, dimension);
         var reason = current is null
@@ -339,7 +439,8 @@ public sealed class IdentificationService(
             TargetUrl = target.Url,
             EvidenceClass = evidence,
             Reason = reason,
-            MatchedBy = result?.MatchedBy?.ToString(),
+            Source = source,
+            MatchedBy = matchedBy ?? result?.MatchedBy?.ToString(),
             Confidence = result?.Confidence.ToString(),
             EvidenceKey = evidenceKey,
             SupportingVideoFileId = file?.Id,

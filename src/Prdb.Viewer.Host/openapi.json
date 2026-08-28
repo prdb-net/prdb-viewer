@@ -1395,7 +1395,8 @@
           "TechnicalInspection",
           "Hashing",
           "PreviewGeneration",
-          "Identification"
+          "Identification",
+          "SiteRecognition"
         ]
       },
       "BackgroundWorkPauseRequest": {
@@ -1737,6 +1738,7 @@
           "targetUrl",
           "evidenceClass",
           "reason",
+          "source",
           "evidenceSummary",
           "supportingVideoFileId",
           "createdAt",
@@ -1768,6 +1770,9 @@
           },
           "reason": {
             "$ref": "#/components/schemas/IdentificationReviewReason"
+          },
+          "source": {
+            "$ref": "#/components/schemas/IdentificationSource"
           },
           "evidenceSummary": {
             "type": "string"
@@ -2321,8 +2326,7 @@
         "enum": [
           "PrdbIdentification",
           "LocalInference",
-          "AdministratorDecision",
-          null
+          "AdministratorDecision"
         ]
       },
       "IdentificationSummary": {

@@ -43,6 +43,9 @@ public static class WorkIssueMessages
 
     public static string NeedsConfiguration() => "Background work needs configuration";
 
+    public static string SiteDirectoryMissing() =>
+        "Sites cannot be recognised without the prdb list of sites";
+
     public static string StoppedToProtectLibraryState() =>
         "Background work stopped to protect library state";
 

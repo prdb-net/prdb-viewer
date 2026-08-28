@@ -24,6 +24,13 @@ public sealed class IdentificationCandidateRow
 
     public IdentificationReviewReason Reason { get; set; }
 
+    /// <summary>
+    /// Where the proposal came from. A candidate derived from a Video File's own path is not the
+    /// same kind of evidence as one the remote catalogue offered, and an Administrator reviewing it
+    /// has to be able to tell them apart.
+    /// </summary>
+    public IdentificationSource Source { get; set; }
+
     public string? MatchedBy { get; set; }
 
     public string? Confidence { get; set; }

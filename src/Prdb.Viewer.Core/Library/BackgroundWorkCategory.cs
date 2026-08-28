@@ -7,4 +7,5 @@ public enum BackgroundWorkCategory
     Hashing,
     PreviewGeneration,
     Identification,
+    SiteRecognition,
 }

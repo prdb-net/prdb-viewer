@@ -56,6 +56,8 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
     public DbSet<PlaybackAttemptVideoFileRow> PlaybackAttemptVideoFiles =>
         Set<PlaybackAttemptVideoFileRow>();
 
+    public DbSet<SiteDirectoryEntryRow> SiteDirectoryEntries => Set<SiteDirectoryEntryRow>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         builder.Entity<AccountRow>(account =>
@@ -293,6 +295,7 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             candidate.Property(row => row.Status).HasConversion<string>();
             candidate.Property(row => row.EvidenceClass).HasConversion<string>();
             candidate.Property(row => row.Reason).HasConversion<string>();
+            candidate.Property(row => row.Source).HasConversion<string>();
             candidate.Property(row => row.TargetKey).IsRequired();
             candidate.Property(row => row.TargetTitle).IsRequired();
             candidate.Property(row => row.EvidenceKey).IsRequired();
@@ -338,6 +341,7 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Availability, row.PreviewState });
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.RelativePath });
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Sha256 });
+            videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Availability, row.SiteRecognisedPath });
             videoFile.HasOne(row => row.Video)
                 .WithMany(row => row.VideoFiles)
                 .HasForeignKey(row => row.VideoId)
@@ -346,6 +350,14 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
                 .WithMany()
                 .HasForeignKey(row => row.LibraryDirectoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<SiteDirectoryEntryRow>(site =>
+        {
+            site.ToTable("site_directory_entry");
+            site.HasKey(row => row.SiteKey);
+            site.Property(row => row.SiteKey).ValueGeneratedNever();
+            site.Property(row => row.Title).IsRequired();
         });
 
         builder.Entity<VideoFileCandidateRow>(candidate =>

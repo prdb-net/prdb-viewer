@@ -77,6 +77,7 @@ public sealed record IdentificationCandidateView(
     string? TargetUrl,
     IdentificationEvidenceClass EvidenceClass,
     IdentificationReviewReason Reason,
+    IdentificationSource Source,
     string EvidenceSummary,
     Guid? SupportingVideoFileId,
     DateTimeOffset CreatedAt,

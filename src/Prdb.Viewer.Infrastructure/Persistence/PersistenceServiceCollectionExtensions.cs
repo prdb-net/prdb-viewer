@@ -45,6 +45,8 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<HashingRunner>();
         services.AddScoped<PreviewGenerationRunner>();
         services.AddScoped<IdentificationRunner>();
+        services.AddScoped<SiteDirectory>();
+        services.AddScoped<SiteRecognitionRunner>();
         services.AddScoped<IdentificationService>();
         services.AddScoped<IdentificationReviewService>();
         services.AddScoped<PreviewDeliveryService>();
@@ -58,6 +60,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<IVideoFileHasher, PrdbVideoFileHasher>();
         services.AddSingleton<IPreviewImageGenerator, FfmpegPreviewImageGenerator>();
         services.AddScoped<IPrdbIdentificationClient, PrdbIdentificationClient>();
+        services.AddScoped<IPrdbSiteDirectoryClient, PrdbSiteDirectoryClient>();
         services.AddTransient<ProductUserAgentHandler>();
         services.AddHttpClient(PrdbConnectionVerifier.TransportName)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler

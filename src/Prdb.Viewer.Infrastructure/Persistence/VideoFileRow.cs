@@ -82,5 +82,13 @@ public sealed class VideoFileRow
 
     public DateTime? IdentifiedAt { get; set; }
 
+    /// <summary>
+    /// The path local Site Recognition last read, and when. Site Recognition reads the path rather
+    /// than the content, so a renamed file is read again while an unchanged one is not.
+    /// </summary>
+    public string? SiteRecognisedPath { get; set; }
+
+    public DateTime? SiteRecognisedAt { get; set; }
+
     public ICollection<PlaybackAttemptVideoFileRow> PlaybackAttempts { get; set; } = [];
 }

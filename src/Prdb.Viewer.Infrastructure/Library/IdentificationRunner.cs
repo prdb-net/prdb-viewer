@@ -219,6 +219,23 @@ public sealed class IdentificationRunner(
     }
 
     /// <summary>
+    /// Hands the answered files to local Site Recognition. It follows this lane because it exists
+    /// for the files the remote ladder could not fully match, and it re-reads the paths of Videos
+    /// whose Site is still Unknown whenever it runs again.
+    /// </summary>
+    protected override Task CompleteAsync(
+        BackgroundWorkRow work,
+        CancellationToken cancellationToken) =>
+        DerivedWorkQueue.QueueAsync(
+            Database,
+            work.LibraryDirectoryId,
+            work.ConfigurationGeneration,
+            BackgroundWorkCategory.SiteRecognition,
+            BackgroundWorkTrigger.FollowUpWork,
+            Now(),
+            cancellationToken);
+
+    /// <summary>
     /// Identifies which key prdb refused without disclosing any part of it. A one-way fingerprint
     /// lets an Administrator tell a refused key apart from the replacement they supplied, while the
     /// configuration surface keeps its promise that a stored credential is never shown again.

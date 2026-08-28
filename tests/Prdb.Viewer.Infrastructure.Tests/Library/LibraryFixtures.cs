@@ -136,6 +136,28 @@ internal sealed class FixtureIdentificationClient : IPrdbIdentificationClient
     }
 }
 
+/// <summary>
+/// A stand-in for the published prdb list of sites, so a test can give an installation a Site
+/// Directory without a credential or a network.
+/// </summary>
+internal sealed class FixtureSiteDirectoryClient(params RemoteSite[] sites) : IPrdbSiteDirectoryClient
+{
+    public SiteDirectoryFetchStatus Status { get; set; } = SiteDirectoryFetchStatus.Fetched;
+
+    public int Calls { get; private set; }
+
+    public Task<SiteDirectoryFetchResult> FetchAsync(
+        string credential,
+        CancellationToken cancellationToken = default)
+    {
+        Calls++;
+
+        return Task.FromResult(Status == SiteDirectoryFetchStatus.Fetched
+            ? new SiteDirectoryFetchResult(SiteDirectoryFetchStatus.Fetched, sites)
+            : new SiteDirectoryFetchResult(Status, [], "fixture"));
+    }
+}
+
 internal sealed class FixtureConnectionVerifier(
     PrdbVerificationOutcome outcome = PrdbVerificationOutcome.Verified) : IPrdbConnectionVerifier
 {

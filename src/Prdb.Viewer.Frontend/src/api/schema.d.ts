@@ -1603,7 +1603,7 @@ export interface components {
         /** @enum {unknown} */
         BackgroundWorkActionVerdict: "Accepted" | "NotFound" | "AlreadySettled" | "Stale" | "NotApplicable";
         /** @enum {unknown} */
-        BackgroundWorkCategory: "LibraryScan" | "TechnicalInspection" | "Hashing" | "PreviewGeneration" | "Identification";
+        BackgroundWorkCategory: "LibraryScan" | "TechnicalInspection" | "Hashing" | "PreviewGeneration" | "Identification" | "SiteRecognition";
         BackgroundWorkPauseRequest: {
             paused: boolean;
         };
@@ -1690,6 +1690,7 @@ export interface components {
             targetUrl: null | string;
             evidenceClass: components["schemas"]["IdentificationEvidenceClass"];
             reason: components["schemas"]["IdentificationReviewReason"];
+            source: components["schemas"]["IdentificationSource"];
             evidenceSummary: string;
             /** Format: uuid */
             supportingVideoFileId: null | string;
@@ -1815,7 +1816,7 @@ export interface components {
         /** @enum {unknown} */
         IdentificationReviewStatus: "Clear" | "ReviewNeeded";
         /** @enum {unknown} */
-        IdentificationSource: "PrdbIdentification" | "LocalInference" | "AdministratorDecision" | null;
+        IdentificationSource: "PrdbIdentification" | "LocalInference" | "AdministratorDecision";
         IdentificationSummary: {
             work: components["schemas"]["IdentificationClaimView"];
             site: components["schemas"]["IdentificationClaimView"];
