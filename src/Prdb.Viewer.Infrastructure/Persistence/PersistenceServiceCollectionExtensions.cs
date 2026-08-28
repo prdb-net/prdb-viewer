@@ -37,6 +37,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<PlaybackPressureMonitor>();
         services.AddScoped<LibraryWorkScheduler>();
         services.AddScoped<BackgroundWorkOperations>();
+        services.AddScoped<Recovery.BackupService>();
         services.AddScoped<LibraryScanRunner>();
         services.AddScoped<TechnicalInspectionRunner>();
         services.AddSingleton<DerivedArtifactStore>();

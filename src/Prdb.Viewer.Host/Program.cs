@@ -103,6 +103,7 @@ if (!readingEndpoints)
         return await OperatorCommands.RunAsync(
             args,
             scope.ServiceProvider.GetRequiredService<Prdb.Viewer.Infrastructure.Access.AccessService>(),
+            scope.ServiceProvider.GetRequiredService<Prdb.Viewer.Infrastructure.Recovery.BackupService>(),
             Console.Out,
             Console.Error);
     }

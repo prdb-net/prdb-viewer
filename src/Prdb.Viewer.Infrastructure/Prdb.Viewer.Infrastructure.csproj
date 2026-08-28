@@ -11,6 +11,7 @@
     <PackageReference Include="Microsoft.Extensions.Identity.Core" />
     <PackageReference Include="Prdb.Sdk" />
     <PackageReference Include="Prdb.Hashing" />
+    <PackageReference Include="Konscious.Security.Cryptography.Argon2" />
   </ItemGroup>
 
 </Project>

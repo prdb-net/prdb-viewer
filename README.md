@@ -296,3 +296,83 @@ and no committed result is lost.
 Ordinary Users never see Background Work, Work Issues, configuration, mounts, or
 operational diagnostics — only the neutral preparation and availability states
 their Videos carry.
+
+## Back up and restore
+
+Backup is an Installation Operator action performed through the container CLI.
+It needs no web session, never reads or copies Source Video Files, and never
+changes the installation:
+
+```bash
+VIEWER_DATA_DIRECTORY="$PWD/.data" \
+  dotnet run --project src/Prdb.Viewer.Host -- backup /backups/installation.prdbviewer
+```
+
+The command asks for a passphrase and repeats the question to confirm it. The
+passphrase is never accepted as a command-line argument, so it cannot appear in
+a process listing; piping it in on standard input works for automation. It is
+never printed, never logged, and never stored — losing it is deliberately
+unrecoverable, and neither an Administrator nor the project can weaken the
+archive.
+
+One Backup Archive is one portable file. It is wholly encrypted with AES-256-GCM
+under an Argon2id key, its versioned envelope is authenticated together with the
+body, and it is written with owner-only permissions to a staged file that is
+opened and revalidated before it is published — a failed backup never leaves
+behind something that could be mistaken for a successful one.
+
+The archive carries every durable fact that cannot be reconstructed without
+loss: Accounts with their roles, approval states, and password hashes;
+configuration, the prdb credential, and historical onboarding milestones;
+Library Directory identity and history; the Video and Video File identity graph
+with its associations and provenance; Identification Claims, Candidates,
+decisions, and overrides; Discovery Dates; and all Personal State. Source media,
+generated previews, cached artwork, active sessions, Bootstrap Authorizations,
+Recovery Codes, and Background Work checkpoints are excluded, because they are
+either externally authoritative or regenerable.
+
+An archive can be checked at any time without a restore target:
+
+```bash
+VIEWER_DATA_DIRECTORY="$PWD/.data" \
+  dotnet run --project src/Prdb.Viewer.Host -- validate-backup /backups/installation.prdbviewer
+```
+
+Validation authenticates the whole archive and checks its envelope, format and
+product versions, required sections, internal references, Account ownership,
+Administrator presence, and identity continuity. A wrong passphrase, a truncated
+or altered file, an unsupported format, or a violated invariant fails without
+emitting any decrypted data and without touching the archive.
+
+Restore activates an archive into an **empty, unclaimed** application state and
+never merges into or overwrites an existing installation:
+
+```bash
+VIEWER_DATA_DIRECTORY="$PWD/.recovered" \
+  dotnet run --project src/Prdb.Viewer.Host -- restore /backups/installation.prdbviewer
+```
+
+To recover a damaged installation, stop it, move its application data aside as a
+fallback, and point Restore at a fresh data directory. Restore revalidates the
+archive rather than trusting an earlier result, and every failure happens before
+activation, so both the archive and the empty target stay usable.
+
+After activation, Accounts, roles, Shared Library Knowledge, provenance, and
+Personal State are back, and every earlier session, Bootstrap Authorization, and
+Recovery Code is invalid, so Users sign in again through their restored
+Accounts. Video Files stay conservatively Unreachable until a Library Scan
+observes them again — a missing mount never produces Missing or Removed by
+itself. Previews are regenerated, the restored prdb credential is reverified
+against current conditions rather than claiming its historical Verified result,
+and a Background Work pause that was in force travels with the archive and stays
+in force until an Administrator resumes it.
+
+Every archive names its Backup Archive format and producing product version in
+its authenticated header. This version writes and restores format 1; an unknown
+newer format is refused before any mutation, and an older one names the exact
+product version to use rather than reporting a generic incompatibility.
+
+If an Administrator loses their password, use `recover-administrator` rather
+than a restore: it issues a single-use code that changes credential authority
+only, and leaves identity, role, Shared Library Knowledge, and Personal State
+untouched.
