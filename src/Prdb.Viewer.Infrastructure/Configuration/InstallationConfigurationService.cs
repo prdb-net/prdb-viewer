@@ -16,6 +16,7 @@ public sealed class InstallationConfigurationService(
     LibraryDirectoryInspector directories,
     IPrdbConnectionVerifier prdb,
     LibraryWorkScheduler work,
+    VideoProjection projection,
     TimeProvider timeProvider)
 {
     public async Task<InstallationConfigurationSummary> GetAsync(
@@ -34,6 +35,9 @@ public sealed class InstallationConfigurationService(
             .ToListAsync(cancellationToken);
         var hasPendingDirectory = await database.LibraryDirectoryStages.AnyAsync(
             stage => stage.ExpiresAt > now,
+            cancellationToken);
+        var facts = await DirectoryFactsAsync(
+            activeDirectories.Select(directory => directory.Id).ToArray(),
             cancellationToken);
         var connection = configuration?.PrdbConnectionStatus ?? PrdbConnectionStatus.Missing;
         var status = InstallationConfigurationRule.Determine(
@@ -55,7 +59,7 @@ public sealed class InstallationConfigurationService(
             AsOffset(configuration?.ConfiguredAt),
             AsOffset(configuration?.FirstPlayableVideoReachedAt),
             mountRoot.Path,
-            activeDirectories.Select(Summary).ToArray());
+            activeDirectories.Select(directory => Summary(directory, facts)).ToArray());
     }
 
     public async Task<PrdbConnectionUpdateResult> VerifyCredentialAsync(
@@ -221,6 +225,82 @@ public sealed class InstallationConfigurationService(
     }
 
     /// <summary>
+    /// Withdraws a Library Directory from the active library, on the Administrator's explicit
+    /// confirmation.
+    ///
+    /// The occurrences beneath it become Removed while everything established about them survives:
+    /// identity, path history, technical facts, identification and its provenance, Shared Library
+    /// Knowledge, and every Account's Personal State. A Video backed by an occurrence in another
+    /// Active Library Directory stays active and derives its availability from that one.
+    ///
+    /// Raising the configuration generation is what stops work in flight from crossing the removal:
+    /// every runner compares the generation it was queued under against the directory's, and a Scan
+    /// that finds the directory no longer Active is not a complete observation of anything.
+    /// </summary>
+    public async Task<LibraryDirectoryRemovalResult> RemoveLibraryDirectoryAsync(
+        Guid libraryDirectoryId,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await database.Database.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken);
+
+        var directory = await database.LibraryDirectories
+            .AsTracking()
+            .SingleOrDefaultAsync(row => row.Id == libraryDirectoryId, cancellationToken);
+
+        if (directory is null)
+        {
+            return new LibraryDirectoryRemovalResult(LibraryDirectoryRemovalVerdict.NotFound);
+        }
+
+        if (directory.State != LibraryDirectoryState.Active)
+        {
+            return new LibraryDirectoryRemovalResult(LibraryDirectoryRemovalVerdict.AlreadyRemoved);
+        }
+
+        var now = Now();
+        directory.State = LibraryDirectoryState.Removed;
+        directory.RemovedAt = now;
+        directory.ConfigurationGeneration += 1;
+
+        var occurrences = await database.VideoFiles
+            .AsTracking()
+            .Where(file => file.LibraryDirectoryId == libraryDirectoryId &&
+                           file.Availability != VideoFileAvailability.Removed)
+            .ToListAsync(cancellationToken);
+
+        foreach (var occurrence in occurrences)
+        {
+            occurrence.Availability = VideoFileAvailability.Removed;
+        }
+
+        // Work already queued under the old generation is refused by its runner, but a run left
+        // Queued or Waiting would sit there forever with nothing to do.
+        await database.BackgroundWork
+            .Where(row => row.LibraryDirectoryId == libraryDirectoryId &&
+                          row.FinishedAt == null)
+            .ExecuteUpdateAsync(
+                update => update
+                    .SetProperty(row => row.CancellationRequested, true)
+                    .SetProperty(row => row.UpdatedAt, now),
+                cancellationToken);
+
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        // Availability is a fact about a Video derived from its occurrences, so the Videos that
+        // just lost one are re-derived rather than left describing a directory that is gone.
+        var affected = occurrences.Select(file => file.VideoId).Distinct().ToArray();
+        await projection.RefreshAsync(affected, cancellationToken);
+
+        return new LibraryDirectoryRemovalResult(
+            LibraryDirectoryRemovalVerdict.Removed,
+            occurrences.Count,
+            affected.Length);
+    }
+
+    /// <summary>
     /// Lets identification continue as soon as a usable credential exists. A lane that stopped for
     /// a missing or refused key carries exactly that condition, so a newly verified key is the
     /// Resolution Evidence it was waiting for.
@@ -330,7 +410,72 @@ public sealed class InstallationConfigurationService(
         !credential.Any(char.IsControl) &&
         credential.Trim().Length == credential.Length;
 
-    private static LibraryDirectorySummary Summary(LibraryDirectoryRow directory) =>
+    /// <summary>
+    /// What a configured Library Directory can say about itself beyond its name and its path.
+    ///
+    /// A directory that is mounted and readable is not the same as one a Scan has actually read,
+    /// and neither is the same as one holding Video Files. The Installation screen is where an
+    /// Operator looks when the library is empty, so the answer belongs beside the directory rather
+    /// than only in the background-work history.
+    /// </summary>
+    private sealed record DirectoryFacts(
+        int AvailableVideoFileCount,
+        DateTime? LastScanCompletedAt,
+        DateTime? LastScanStartedAt,
+        int LastScanCandidateCount,
+        bool LastScanCoveredEverything);
+
+    private async Task<IReadOnlyDictionary<Guid, DirectoryFacts>> DirectoryFactsAsync(
+        IReadOnlyCollection<Guid> directoryIds,
+        CancellationToken cancellationToken)
+    {
+        if (directoryIds.Count == 0)
+        {
+            return new Dictionary<Guid, DirectoryFacts>();
+        }
+
+        var available = await database.VideoFiles
+            .Where(file => directoryIds.Contains(file.LibraryDirectoryId) &&
+                           file.Availability == VideoFileAvailability.Available)
+            .GroupBy(file => file.LibraryDirectoryId)
+            .Select(group => new { LibraryDirectoryId = group.Key, Count = group.Count() })
+            .ToDictionaryAsync(entry => entry.LibraryDirectoryId, entry => entry.Count, cancellationToken);
+
+        // The newest Library Scan of each directory that actually finished. An unfinished one says
+        // nothing yet about what is there, and a superseded one says it about a different
+        // configuration.
+        var scans = await database.BackgroundWork
+            .Where(work => directoryIds.Contains(work.LibraryDirectoryId) &&
+                           work.Category == BackgroundWorkCategory.LibraryScan &&
+                           work.FinishedAt != null)
+            .GroupBy(work => work.LibraryDirectoryId)
+            .Select(group => group
+                .OrderByDescending(work => work.FinishedAt)
+                .Select(work => new
+                {
+                    work.LibraryDirectoryId,
+                    work.FinishedAt,
+                    work.StartedAt,
+                    work.DiscoveredCandidateCount,
+                    work.CoverageComplete,
+                })
+                .First())
+            .ToListAsync(cancellationToken);
+        var newest = scans.ToDictionary(scan => scan.LibraryDirectoryId);
+
+        return directoryIds.ToDictionary(
+            id => id,
+            id => new DirectoryFacts(
+                available.TryGetValue(id, out var count) ? count : 0,
+                newest.TryGetValue(id, out var scan) ? scan.FinishedAt : null,
+                scan?.StartedAt,
+                scan?.DiscoveredCandidateCount ?? 0,
+                scan?.CoverageComplete ?? false));
+    }
+
+    private static LibraryDirectorySummary Summary(
+        LibraryDirectoryRow directory,
+        IReadOnlyDictionary<Guid, DirectoryFacts>? facts = null) =>
         new(
             directory.Id,
             directory.Name,
@@ -339,7 +484,19 @@ public sealed class InstallationConfigurationService(
             directory.Health,
             directory.ConfigurationGeneration,
             AsOffset(directory.ActivatedAt)!.Value,
-            directory.InitialProcessingStartedAt is not null);
+            directory.InitialProcessingStartedAt is not null,
+            Facts(facts, directory.Id).AvailableVideoFileCount,
+            AsOffset(Facts(facts, directory.Id).LastScanCompletedAt),
+            AsOffset(Facts(facts, directory.Id).LastScanStartedAt),
+            Facts(facts, directory.Id).LastScanCandidateCount,
+            Facts(facts, directory.Id).LastScanCoveredEverything);
+
+    private static DirectoryFacts Facts(
+        IReadOnlyDictionary<Guid, DirectoryFacts>? facts,
+        Guid directoryId) =>
+        facts is not null && facts.TryGetValue(directoryId, out var found)
+            ? found
+            : new DirectoryFacts(0, null, null, 0, false);
 
     private DateTime Now() => timeProvider.GetUtcNow().UtcDateTime;
 

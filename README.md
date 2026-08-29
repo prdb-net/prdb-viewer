@@ -80,8 +80,11 @@ and it warns about each one it had to leave behind.
 The command prints only the credential file location. The browser consumes and
 deletes the credential when it creates the first Administrator. User
 registration requests do not grant access until an Administrator approves
-them. If an Administrator loses access, the operator can issue a short-lived,
-single-use recovery code without exposing it in command output:
+them, and an Administrator can disable an approved Account and reinstate a
+disabled one — a disabled Account keeps everything it established and signs in
+again when it is reinstated. If an Administrator loses access, the operator can
+issue a short-lived, single-use recovery code without exposing it in command
+output:
 
 ```bash
 VIEWER_DATA_DIRECTORY="$PWD/.data" \
@@ -164,6 +167,20 @@ Configuration in the browser:
 2. Select a readable container path beneath `/libraries`, validate it, review
    the staged result, and explicitly activate the Library Directory. Add or
    change the corresponding host bind mount outside the application first.
+
+A configured Library Directory then describes itself on the same screen: its
+state and health, how many Video Files are available beneath it, and what its
+last completed Library Scan found and when. That is where an empty library is
+explained, because "the directory is readable" and "the directory holds Video
+Files" are different facts.
+
+It can also be withdrawn from there, on explicit confirmation. Removing a Library
+Directory takes its occurrences out of the active library and keeps everything
+established about them — identity, path history, technical facts, identification
+and its provenance, and every Account's own viewing and organisation. A Video
+also backed by another Active Library Directory stays available. Any Scan of the
+withdrawn directory stops, and no work queued before the removal can reach back
+across it.
 
 The application never returns a stored prdb credential through its API. It must
 recover that credential for unattended background work, so it is stored in the

@@ -127,6 +127,14 @@ public static class AccessEndpoints
                 await service.ApproveAsync(accountId, cancellationToken))))
             .RequireCsrf();
 
+        accounts.MapPost("/{accountId:guid}/reinstate", async (
+            Guid accountId,
+            AccessService service,
+            CancellationToken cancellationToken) =>
+            TypedResults.Ok(new AccountActionResponse(
+                await service.ReinstateAsync(accountId, cancellationToken))))
+            .RequireCsrf();
+
         accounts.MapPost("/{accountId:guid}/disable", async (
             Guid accountId,
             AccessService service,

@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router'
 import {
   api,
   type Account,
+  type BackgroundWorkStatus,
   type BackgroundWorkSummary,
   type WorkIssueAction,
   type WorkIssueSummary,
@@ -13,12 +14,31 @@ import { exactTime, friendlyState, timeAgo } from '../lib/format'
 import { queryKeys } from '../queryKeys'
 import { firstError, PageHeading, RequestError, Tab } from '../ui'
 
+/// How often the screen looks while a lane is running, and while none is.
+const runningPollMilliseconds = 2_000
+const settledPollMilliseconds = 30_000
+
+/// Whether anything is happening that the screen would want to show changing.
+///
+/// A run that has settled cannot move on its own; one that is running, waiting for its next
+/// attempt, or being cancelled can. An unresolved issue counts too, because automatic recovery
+/// resolves some of them without anyone acting.
+function busy(status: BackgroundWorkStatus | undefined) {
+  if (!status) return true
+
+  return status.work.some((work) => work.phase !== 'Settled' || work.cancellationRequested) ||
+    status.issues.some((issue) => issue.remediationOwner === 'AutomaticRecovery')
+}
+
 export function WorkPage({ account }: { account: Account }) {
   const configuration = useQuery({ queryKey: queryKeys.configuration, queryFn: api.configuration })
   const status = useQuery({
     queryKey: queryKeys.backgroundWork,
     queryFn: api.backgroundWork,
-    refetchInterval: 2_000,
+    // Watch closely while something is actually happening, and stop watching closely when it is
+    // not. An installation whose lanes have all settled was being asked thirty times a minute for
+    // an answer that could not change without someone pressing something on this screen.
+    refetchInterval: (query) => (busy(query.state.data) ? runningPollMilliseconds : settledPollMilliseconds),
   })
   const queryClient = useQueryClient()
   const refresh = () => void queryClient.invalidateQueries({ queryKey: queryKeys.backgroundWork })

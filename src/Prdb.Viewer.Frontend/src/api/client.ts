@@ -18,6 +18,8 @@ export type PrdbConnectionUpdate = components['schemas']['PrdbConnectionUpdateRe
 export type LibraryDirectoryCandidates = components['schemas']['LibraryDirectoryCandidatesResponse']
 export type LibraryDirectoryStage = components['schemas']['LibraryDirectoryStageResult']
 export type LibraryDirectoryActivation = components['schemas']['LibraryDirectoryActivationResult']
+export type LibraryDirectoryRemoval = components['schemas']['LibraryDirectoryRemovalResult']
+export type LibraryDirectorySummary = components['schemas']['LibraryDirectorySummary']
 export type BackgroundWorkStatus = components['schemas']['BackgroundWorkStatus']
 export type BackgroundWorkSummary = components['schemas']['BackgroundWorkSummary']
 export type WorkIssueSummary = components['schemas']['WorkIssueSummary']
@@ -281,6 +283,8 @@ export const api = {
     post<AccountActionResponse>(`/api/admin/accounts/${accountId}/approve`, undefined, csrfToken),
   disable: (accountId: string, csrfToken: string) =>
     post<AccountActionResponse>(`/api/admin/accounts/${accountId}/disable`, undefined, csrfToken),
+  reinstate: (accountId: string, csrfToken: string) =>
+    post<AccountActionResponse>(`/api/admin/accounts/${accountId}/reinstate`, undefined, csrfToken),
   recoveryCode: (accountId: string, csrfToken: string) =>
     post<RecoveryCodeResponse>(`/api/admin/accounts/${accountId}/recovery-code`, undefined, csrfToken),
   configuration: () => request<InstallationConfiguration>('/api/admin/configuration/'),
@@ -300,6 +304,13 @@ export const api = {
     post<LibraryDirectoryActivation>(
       `/api/admin/configuration/library-directories/stages/${stageId}/activate`,
       undefined,
+      csrfToken,
+    ),
+
+  removeLibraryDirectory: (libraryDirectoryId: string, csrfToken: string) =>
+    mutate<LibraryDirectoryRemoval>(
+      `/api/admin/configuration/library-directories/${libraryDirectoryId}`,
+      'DELETE',
       csrfToken,
     ),
   identificationQueue: () =>

@@ -5,6 +5,7 @@ import {
   isLibraryRequest,
   isVideoRequest,
   json,
+  libraryPage,
   libraryVideo,
   renderApp,
   signedInAs,
@@ -173,6 +174,94 @@ describe('The application shell', () => {
     )
   })
 
+  it('adds to a facet rather than replacing what was already chosen', async () => {
+    signedInAs('User', (input) => {
+      if (isFacetRequest(input)) {
+        return json({
+          sites: [{ value: 'First Site', count: 2 }, { value: 'Second Site', count: 3 }],
+          actors: [],
+        })
+      }
+      return undefined
+    })
+
+    // Values within one facet combine with OR, and the control looked like several could be on.
+    renderApp('/?sites=First+Site')
+
+    await screen.findByRole('heading', { name: 'Matching Videos' })
+    fireEvent.click(screen.getByRole('button', { name: 'Second Site (3)' }))
+
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('sites=First+Site%2CSecond+Site'),
+      expect.anything(),
+    ))
+    expect(screen.getByRole('button', { name: 'First Site (2)' })).toHaveAttribute('aria-pressed', 'true')
+  })
+
+  it('reveals more by asking for the next page rather than a longer first one', async () => {
+    signedInAs('User', (input) => {
+      if (isLibraryRequest(input)) {
+        const parameters = new URLSearchParams((input as string).slice((input as string).indexOf('?')))
+        const skip = Number(parameters.get('skip'))
+        return json(libraryPage(
+          [libraryVideo({ id: `01994dd4-2a0a-7000-8000-0000000000${skip === 0 ? '01' : '02'}` })],
+          { totalMatches: 2, hasMore: skip === 0 },
+        ))
+      }
+      return undefined
+    })
+
+    renderApp()
+
+    await screen.findByRole('heading', { name: 'Browse' })
+    fireEvent.click(await screen.findByRole('button', { name: 'Show more' }))
+
+    // The second page is asked for as a page. Widening the first request was what made returning
+    // to a deep address cost the whole depth every time it refreshed.
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('skip=60&take=60'),
+      expect.anything(),
+    ))
+    const asked = requestedTakes()
+    expect(asked.every((take) => take === '60')).toBe(true)
+    // And both pages are shown, rather than the second replacing the first.
+    await vi.waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(2))
+  })
+
+  it('leaves the other cards usable while one of them is saving', async () => {
+    let settle = () => {}
+    signedInAs('User', (input) => {
+      if (isLibraryRequest(input)) {
+        return json(libraryPage([
+          libraryVideo({ id: '01994dd4-2a0a-7000-8000-0000000000c1', displayTitle: 'First Video' }),
+          libraryVideo({ id: '01994dd4-2a0a-7000-8000-0000000000c2', displayTitle: 'Second Video' }),
+        ]))
+      }
+      if (typeof input === 'string' && input.includes('/favourite')) {
+        // Held open, so the screen is observed mid-save rather than after it.
+        return new Promise<Response>((resolve) => {
+          settle = () => resolve(new Response(null, { status: 204 }))
+        })
+      }
+      return undefined
+    })
+
+    renderApp()
+
+    await screen.findByRole('heading', { name: 'Browse' })
+    const [first, second] = screen.getAllByRole('article')
+    fireEvent.click(within(first).getByRole('button', { name: 'Favourite' }))
+
+    // The card acting is busy; the one beside it is not. One global pending flag used to disable
+    // every control on every card in the grid.
+    await vi.waitFor(() => expect(within(first).getByRole('button', { name: 'Favourite' })).toBeDisabled())
+    expect(within(second).getByRole('button', { name: 'Favourite' })).toBeEnabled()
+    expect(within(second).getByRole('button', { name: 'Watch Later' })).toBeEnabled()
+
+    settle()
+    await vi.waitFor(() => expect(within(first).getByRole('button', { name: 'Favourite' })).toBeEnabled())
+  })
+
   it('follows a link to a Video that was merged into another one', async () => {
     const survivor = libraryVideo({
       id: '01994dd4-2a0a-7000-8000-000000000090',
@@ -205,6 +294,15 @@ describe('The application shell', () => {
     expect(screen.getByRole('link', { name: 'Back to the library' })).toBeInTheDocument()
   })
 })
+
+/// The page sizes the library was asked for, in order.
+function requestedTakes() {
+  return vi.mocked(globalThis.fetch).mock.calls
+    .map(([input]) => input)
+    .filter((input): input is string => typeof input === 'string' && isLibraryRequest(input))
+    .map((input) => new URLSearchParams(input.slice(input.indexOf('?'))).get('take'))
+    .filter((take): take is string => take !== null)
+}
 
 /// The searches the library was actually asked for, in order.
 function requestedQueries() {

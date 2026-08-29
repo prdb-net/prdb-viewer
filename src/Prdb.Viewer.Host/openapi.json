@@ -289,6 +289,36 @@
         }
       }
     },
+    "/api/admin/accounts/{accountId}/reinstate": {
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "parameters": [
+          {
+            "name": "accountId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountActionResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/accounts/{accountId}/disable": {
       "post": {
         "tags": [
@@ -487,6 +517,36 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LibraryDirectoryActivationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/configuration/library-directories/{libraryDirectoryId}": {
+      "delete": {
+        "tags": [
+          "Configuration"
+        ],
+        "parameters": [
+          {
+            "name": "libraryDirectoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryDirectoryRemovalResult"
                 }
               }
             }
@@ -2728,6 +2788,42 @@
           "Unreachable"
         ]
       },
+      "LibraryDirectoryRemovalResult": {
+        "required": [
+          "verdict"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/LibraryDirectoryRemovalVerdict"
+          },
+          "removedVideoFileCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 0
+          },
+          "affectedVideoCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 0
+          }
+        }
+      },
+      "LibraryDirectoryRemovalVerdict": {
+        "enum": [
+          "Removed",
+          "NotFound",
+          "AlreadyRemoved"
+        ]
+      },
       "LibraryDirectoryStageRequest": {
         "required": [
           "name",
@@ -2812,7 +2908,12 @@
           "health",
           "configurationGeneration",
           "activatedAt",
-          "initialProcessingStarted"
+          "initialProcessingStarted",
+          "availableVideoFileCount",
+          "lastScanCompletedAt",
+          "lastScanStartedAt",
+          "lastScanCandidateCount",
+          "lastScanCoveredEverything"
         ],
         "type": "object",
         "properties": {
@@ -2845,6 +2946,39 @@
             "format": "date-time"
           },
           "initialProcessingStarted": {
+            "type": "boolean"
+          },
+          "availableVideoFileCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lastScanCompletedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastScanStartedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lastScanCandidateCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "lastScanCoveredEverything": {
             "type": "boolean"
           }
         }

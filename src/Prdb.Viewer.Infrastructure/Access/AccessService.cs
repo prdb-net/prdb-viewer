@@ -308,6 +308,43 @@ public sealed class AccessService(
         return AccountActionVerdict.Completed;
     }
 
+    /// <summary>
+    /// Returns a disabled Account to Approved.
+    ///
+    /// Disabling is a decision an Administrator can be wrong about, or right about only for a while,
+    /// and until now it was the one Account state with no way out: approval requires a request
+    /// waiting for it, and a disabled Account has none. Everything the Account established — its
+    /// viewing, its organisation, its identity — was retained the whole time, so reinstating it
+    /// restores access rather than creating an Account.
+    ///
+    /// Its sessions are not restored. They were deleted when it was disabled, which is what made
+    /// disabling take effect, so the person signs in again.
+    /// </summary>
+    public async Task<AccountActionVerdict> ReinstateAsync(
+        Guid accountId,
+        CancellationToken cancellationToken = default)
+    {
+        var account = await database.Accounts.AsTracking().SingleOrDefaultAsync(
+            row => row.Id == accountId,
+            cancellationToken);
+
+        if (account is null)
+        {
+            return AccountActionVerdict.NotFound;
+        }
+
+        if (account.State != AccountState.Disabled)
+        {
+            return AccountActionVerdict.InvalidState;
+        }
+
+        account.State = AccountState.Approved;
+        account.ApprovedAt = Now();
+        account.DisabledAt = null;
+        await database.SaveChangesAsync(cancellationToken);
+        return AccountActionVerdict.Completed;
+    }
+
     public async Task<AccountActionVerdict> DisableAsync(
         Guid accountId,
         CancellationToken cancellationToken = default)
