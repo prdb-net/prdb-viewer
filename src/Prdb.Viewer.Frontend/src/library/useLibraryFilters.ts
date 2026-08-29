@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useSearchParams } from 'react-router'
 
 import { emptyFilters, type LibraryFilters } from '../api/client'
@@ -13,6 +13,27 @@ import { emptyFilters, type LibraryFilters } from '../api/client'
 /// address restores the same depth rather than the first page of it.
 export function useLibraryFilters() {
   const [parameters, setParameters] = useSearchParams()
+
+  /// The address this hook last wrote, while that write has not come back as a render yet.
+  ///
+  /// React Router does not sequence two navigations raised in the same tick: the second one's
+  /// updater still receives the location the first one started from, so the second overwrites the
+  /// first instead of building on it. Two facets clicked quickly lost the earlier choice that way.
+  /// Holding what was written — and dropping it the moment the address catches up — is what makes
+  /// a second change in the same tick continue the first.
+  const pending = useRef<string | null>(null)
+
+  useEffect(() => {
+    pending.current = null
+  }, [parameters])
+
+  /// Every write goes through here, on the pending address where there is one.
+  const change = useCallback((edit: (next: URLSearchParams) => void) => {
+    const next = new URLSearchParams(pending.current ?? parameters.toString())
+    edit(next)
+    pending.current = next.toString()
+    setParameters(next, { replace: true })
+  }, [parameters, setParameters])
 
   const filters = useMemo<LibraryFilters>(() => ({
     query: parameters.get('query') ?? '',
@@ -31,49 +52,35 @@ export function useLibraryFilters() {
 
   /// Narrowing returns to the first page, because the depth reached in a wider set says nothing
   /// about a narrower one.
-  const narrow = useCallback((change: Partial<LibraryFilters>) => {
-    setParameters((current) => {
-      const next = new URLSearchParams(current)
-      for (const [key, value] of Object.entries(change)) {
+  const narrow = useCallback((narrowing: Partial<LibraryFilters>) => {
+    change((next) => {
+      for (const [key, value] of Object.entries(narrowing)) {
         write(next, key, value)
       }
       next.delete('pages')
-      return next
-    }, { replace: true })
-  }, [setParameters])
+    })
+  }, [change])
 
-  /// Adds a value to a multi-valued facet, or takes it out again.
-  ///
-  /// It reads the list it is changing out of the address being updated rather than out of the last
-  /// render, because those are not the same list while a navigation is still settling: two quick
-  /// clicks would otherwise both be computed against the empty list the first one started from, and
-  /// the second would discard the first. This is the same mistake the search field made, in the
-  /// place a facet row makes it easiest to hit.
+  /// Adds a value to a multi-valued facet, or takes it out again. Values inside one facet combine
+  /// with OR, so a second Site widens the set rather than replacing the first.
   const toggle = useCallback((key: 'sites' | 'actors', value: string, selected: boolean) => {
-    setParameters((current) => {
-      const next = new URLSearchParams(current)
+    change((next) => {
       const held = list(next.get(key))
-      write(
-        next,
-        key,
-        selected ? [...held, value] : held.filter((one) => one !== value),
-      )
+      write(next, key, selected ? [...held, value] : held.filter((one) => one !== value))
       next.delete('pages')
-      return next
-    }, { replace: true })
-  }, [setParameters])
+    })
+  }, [change])
 
   const clear = useCallback(() => {
+    pending.current = null
     setParameters(new URLSearchParams(), { replace: true })
   }, [setParameters])
 
   const showMore = useCallback(() => {
-    setParameters((current) => {
-      const next = new URLSearchParams(current)
+    change((next) => {
       next.set('pages', String(Math.max(1, Number(next.get('pages') ?? 1) || 1) + 1))
-      return next
-    }, { replace: true })
-  }, [setParameters])
+    })
+  }, [change])
 
   const narrowed = filters.query.trim().length > 0 ||
     filters.sites.length > 0 ||

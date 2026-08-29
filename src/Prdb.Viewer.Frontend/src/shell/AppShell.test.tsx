@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react'
+import { act, fireEvent, screen, within } from '@testing-library/react'
 
 import {
   isFacetRequest,
@@ -212,10 +212,14 @@ describe('The application shell', () => {
     renderApp()
 
     await screen.findByRole('heading', { name: 'Browse' })
-    // Both in one batch, as clicking quickly produces. Computing the new list from the last render
-    // rather than from the address discarded the first of them.
-    fireEvent.click(screen.getByRole('button', { name: 'First Site (2)' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Second Site (3)' }))
+
+    // Both in one batch, with no render between them — which is what clicking quickly produces and
+    // what `fireEvent` does not, since it wraps each event in its own act(). The second navigation
+    // then still sees the address the first one started from.
+    await act(async () => {
+      screen.getByRole('button', { name: 'First Site (2)' }).click()
+      screen.getByRole('button', { name: 'Second Site (3)' }).click()
+    })
 
     await vi.waitFor(() => {
       expect(screen.getByRole('button', { name: 'First Site (2)' })).toHaveAttribute('aria-pressed', 'true')
