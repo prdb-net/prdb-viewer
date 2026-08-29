@@ -7,6 +7,58 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-29
+
+The Viewer becomes an application you navigate rather than one page you scroll.
+A persistent shell carries search, identity and a sidebar built to hold more
+destinations than it has today, every screen is its own address, and a Video has
+a page of its own.
+
+### Added
+
+- Navigate the Viewer from a persistent sidebar, grouped by what it is for.
+  Administration is a section rather than four panels stacked beneath the
+  library, and the entries that lead to waiting work carry its count, so
+  Operational Attention and an open identification queue are visible without
+  opening the screen behind them. On a narrow viewport the same navigation
+  opens as a drawer.
+- Reach one Video at its own address. That page owns playback — the play
+  action, the order the Video Files are tried in, the visible fallback after a
+  decode failure, and what each kind of failure means — together with the
+  Video's provenance, its facts and your own organisation of it. Every other
+  surface links to it, so a Video reached from a shelf, from a search, or from a
+  link somebody sent is the same screen.
+- Follow a link to a Video that has since been merged into another one. The
+  address answers as the Video that survived the merge and says that it did,
+  rather than failing. A Video that has left the library says so plainly.
+- Browse Continue Watching, Favourites and Watch Later as their own pages
+  instead of as shelves above the library, each stating that it is private to
+  your Account.
+- Search from anywhere. The search field belongs to the shell, and what it finds
+  is the library page at an address you can send to someone else.
+
+### Changed
+
+- The library's search, facets, sort order and revealed depth now live in the
+  address, as do the identification case an Administrator has open. Returning
+  to an address reproduces what you were looking at, which is what ADR 0004
+  asked for and what component state could not give.
+- Direct address does not apply the admission rule of Ordinary Discovery. A
+  Video your browser cannot play is still shown when you ask for it by name,
+  because following a link is your decision to look rather than the library's
+  decision to offer.
+- Showing unsupported Videos in ordinary results moved to your Account, where
+  standing preferences belong; it was a checkbox among the facets, which are
+  filters on one view. The control that reveals what the current rules keep out
+  still sets it from the library, where you notice it.
+- A Work Issue that names what to correct now navigates to it. It previously
+  scrolled to a section that happened to be on the same page.
+- What an Account may reach is decided in the navigation and in the routes as
+  well as at the API, so an address typed by hand meets the same answer as an
+  entry that is not offered.
+- The signed-in interface no longer opens with a full-height title. An
+  application says where you are; the space belongs to the library.
+
 ## [0.3.0] - 2026-08-28
 
 Playability becomes a fact about your browser rather than a guess for everyone,
