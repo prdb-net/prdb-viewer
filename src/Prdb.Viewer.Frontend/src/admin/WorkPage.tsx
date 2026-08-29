@@ -26,8 +26,44 @@ const settledPollMilliseconds = 30_000
 function busy(status: BackgroundWorkStatus | undefined) {
   if (!status) return true
 
-  return status.work.some((work) => work.phase !== 'Settled' || work.cancellationRequested) ||
+  return status.work.some((work) => work.phase !== settledPhase || work.cancellationRequested) ||
     status.issues.some((issue) => issue.remediationOwner === 'AutomaticRecovery')
+}
+
+/// The phase a run reports once it can no longer move on its own.
+const settledPhase = 'Settled'
+
+/// What the right-hand side of a lane row says about how far the lane got.
+///
+/// It used to be a bare `completed/discovered`, and two numbers with no unit beside them were not
+/// answerable: `0/0` on a lane that had nothing left to do read as though nothing had ever
+/// happened, and the two kinds of lane do not even mean the same thing by the pair. A Library Scan
+/// discovers its own scope as it walks, so its denominator is only ever what it has found so far
+/// and a ratio against it is meaningless. A derived lane knows how many admitted Video Files it
+/// still has to advance, so while it runs a ratio is the honest answer. Neither is what an
+/// Administrator wants from a lane that has settled: that one is not making progress, and its
+/// result is the thing to say.
+function progress(work: BackgroundWorkSummary) {
+  // A queued lane has no counts to report, and the state beside it already says it is waiting.
+  if (work.state === 'Queued') return null
+
+  const found = Number(work.discoveredCandidateCount)
+  const done = Number(work.completedItemCount)
+  const settled = work.phase === settledPhase
+
+  if (work.category === 'LibraryScan') {
+    if (found === 0) return settled ? 'no files found' : 'looking for files'
+    return settled ? `${files(found)} found` : `${files(found)} found so far`
+  }
+
+  if (found === 0) return settled ? 'nothing to do' : 'nothing to do yet'
+  if (!settled) return `${done} of ${files(found)}`
+
+  return done >= found ? `${files(found)} done` : `${done} of ${files(found)} done`
+}
+
+function files(count: number) {
+  return count === 1 ? '1 file' : `${count} files`
 }
 
 export function WorkPage({ account }: { account: Account }) {
@@ -112,18 +148,15 @@ export function WorkPage({ account }: { account: Account }) {
             <div>
               <strong>{friendlyState(work.category)}</strong>
               <small>
-                {work.libraryDirectoryName} · {friendlyState(work.state)} · {work.phase}
+                {work.libraryDirectoryName} · {friendlyState(work.state)}
+                {work.phase === settledPhase ? '' : ` · ${work.phase}`}
                 {work.waitingReason ? ` · ${work.waitingReason}` : ''}
                 {' · '}
                 <LaneTime work={work} />
               </small>
             </div>
             <div className="row-actions">
-              <span>
-                {work.completedPercent === null || work.completedPercent === undefined
-                  ? `${work.completedItemCount}/${work.discoveredCandidateCount}`
-                  : `${work.completedPercent}%`}
-              </span>
+              <span>{progress(work)}</span>
               {work.cancellable && (
                 <button
                   className="quiet-button"

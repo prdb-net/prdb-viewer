@@ -9,6 +9,14 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- Background work says what each lane got done, in words. The right-hand side of
+  a lane row was a bare `completed/discovered` pair with no unit beside it, and
+  the two kinds of lane did not mean the same thing by it: `0/0` on a lane that
+  had nothing left to do was indistinguishable from a lane that had never run,
+  and a Library Scan's denominator is only ever what it has found so far. A lane
+  now reports what it found, how far through its admitted files it is, or that it
+  had nothing to do. `Completed · Settled` said the same thing twice, so a
+  settled run no longer repeats its phase.
 - A Library Scan that finished in a single pass reported none of the files it had
   just recorded, and kept reporting that for good. The tally was taken before the
   pass rather than after it, so it always trailed by one, and a library small

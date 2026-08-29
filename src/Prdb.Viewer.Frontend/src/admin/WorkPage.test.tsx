@@ -57,12 +57,90 @@ describe('Background work', () => {
 
     // And the row that survives is the newer run, not whichever the list happened to reach first.
     const scan = within(panel).getByText('Library Scan').closest('article')!
-    expect(within(scan).getByText('7/7')).toBeInTheDocument()
+    expect(within(scan).getByText('7 files found')).toBeInTheDocument()
+
+    // A settled lane with nothing outstanding used to read `0/0`, which is indistinguishable from
+    // a lane that never ran. It now says which of the two it is.
+    const hashing = within(panel).getByText('Hashing').closest('article')!
+    expect(within(hashing).getByText('nothing to do')).toBeInTheDocument()
+
+    // `Completed · Settled` said the same thing twice, so a settled run drops the phase.
+    expect(within(panel).queryByText(/Settled/)).not.toBeInTheDocument()
 
     // Which run this is has to be answerable, so each lane carries when it last did something.
     const times = panel.querySelectorAll('time')
     expect(times).toHaveLength(2)
     expect(times[0]).toHaveAttribute('datetime', '2026-08-29T12:00:04Z')
+  })
+
+  it('says what a lane is doing in words, whichever kind of lane it is', async () => {
+    signedInAs('Administrator', (input) => {
+      if (input === '/api/admin/background-work/') {
+        return json({
+          work: [
+            // A Library Scan discovers its own scope, so it reports what it has found.
+            run({
+              id: 'scanning',
+              category: 'LibraryScan',
+              state: 'Running',
+              phase: 'Traversing directories',
+              discoveredCandidateCount: 1,
+              finishedAt: null,
+            }),
+            // A derived lane knows its denominator, so while it runs a ratio is honest.
+            run({
+              id: 'inspecting',
+              category: 'TechnicalInspection',
+              state: 'Running',
+              phase: 'Inspecting candidates',
+              discoveredCandidateCount: 12,
+              completedItemCount: 4,
+              completedPercent: 33,
+              finishedAt: null,
+            }),
+            // A queued lane has no counts worth printing; its state already says it is waiting.
+            run({ id: 'queued', category: 'Hashing', state: 'Queued', phase: 'Waiting to start' }),
+            // A run that stopped short keeps both numbers, so the shortfall stays visible.
+            run({
+              id: 'cancelled',
+              category: 'Identification',
+              state: 'Cancelled',
+              discoveredCandidateCount: 12,
+              completedItemCount: 4,
+            }),
+            run({
+              id: 'done',
+              category: 'PreviewGeneration',
+              discoveredCandidateCount: 12,
+              completedItemCount: 12,
+            }),
+          ],
+          issues: [],
+          resolvedIssues: [],
+          operationalAttention: false,
+          operationalAttentionCount: 0,
+          paused: false,
+        })
+      }
+      if (input === '/api/admin/configuration/') {
+        return json({ status: 'Configured', libraryDirectories: [] })
+      }
+      return undefined
+    })
+
+    renderApp('/admin/work')
+
+    const lanes = await screen.findByRole('heading', { name: 'Lanes' })
+    const panel = lanes.closest('section')!
+
+    expect(await within(panel).findByText('1 file found so far')).toBeInTheDocument()
+    expect(within(panel).getByText('4 of 12 files')).toBeInTheDocument()
+    expect(within(panel).getByText('4 of 12 files done')).toBeInTheDocument()
+    expect(within(panel).getByText('12 files done')).toBeInTheDocument()
+
+    const queued = within(panel).getByText('Hashing').closest('article')!
+    expect(within(queued).getByText(/Waiting to start/)).toBeInTheDocument()
+    expect(within(queued).queryByText(/file/)).not.toBeInTheDocument()
   })
 })
 

@@ -764,8 +764,9 @@ describe('App', () => {
     expect(screen.getByText(/WI-A1B2C3D4E5F6/)).toBeInTheDocument()
     expect(screen.getByText(/\/library\/films/)).toBeInTheDocument()
 
-    // A Library Scan reports its counts rather than an invented percentage.
-    expect(screen.getByText('4/12')).toBeInTheDocument()
+    // A running Library Scan says what it has found, in words. A ratio against its own discovery
+    // would always read as complete, and a percentage would be invented outright.
+    expect(screen.getByText('12 files found so far')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Pause background work' }))
     await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
