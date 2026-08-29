@@ -1,4 +1,5 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api, type Account, type LibraryPage as LibraryPageResult } from '../api/client'
 import { usePersonalActions } from '../personal/usePersonalActions'
@@ -11,6 +12,14 @@ import { useLibraryFilters } from './useLibraryFilters'
 const pageSize = 60
 const playabilityValues = ['ReadyForDirectPlay', 'CompatibilityUncertain', 'NotDirectlyPlayable']
 
+/// How often a library with nothing in it looks again.
+///
+/// This is the one state where the screen waits for something that arrives without anyone doing
+/// anything — the first technical inspection to complete — and it says so in as many words. A
+/// library that holds Videos is not refreshed on a timer: returning to the tab refreshes it, and so
+/// does anything done here.
+const emptyLibraryPollMilliseconds = 30_000
+
 /// The shared library: everything this Account's client can discover, narrowed by what the address
 /// says. It shows Videos and offers what belongs to a list — search results, facets, order and
 /// depth. What belongs to one Video belongs to that Video's own page.
@@ -18,10 +27,11 @@ export function LibraryPage({ account }: { account: Account }) {
   const queryClient = useQueryClient()
   const { filters, pages, narrow, clear, showMore, narrowed } = useLibraryFilters()
   const facets = useQuery({ queryKey: queryKeys.libraryFacets, queryFn: api.libraryFacets })
-  const videos = useQuery({
-    queryKey: queryKeys.videos(JSON.stringify(filters), pages),
-    queryFn: () => api.videos(filters, 0, pageSize * pages),
-    refetchInterval: 5_000,
+  const videos = useInfiniteQuery({
+    queryKey: queryKeys.videos(JSON.stringify(filters)),
+    queryFn: ({ pageParam }) => api.videos(filters, pageParam, pageSize),
+    initialPageParam: 0,
+    getNextPageParam: (last, loaded) => (last.hasMore ? loaded.length * pageSize : undefined),
     placeholderData: (previous) => previous,
   })
   const personal = usePersonalActions(account)
@@ -29,6 +39,27 @@ export function LibraryPage({ account }: { account: Account }) {
     mutationFn: (included: boolean) => api.setIncludeNotReady(included, account.csrfToken),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['videos'] }),
   })
+
+  const loaded = videos.data?.pages.length ?? 0
+  const { hasNextPage, isFetchingNextPage, fetchNextPage, isFetching, refetch } = videos
+
+  /// The address carries how much was revealed, so arriving at it reveals that much again — a page
+  /// at a time rather than as one ever-widening request, which is what made returning to a deep
+  /// address cost the whole depth on every refresh.
+  useEffect(() => {
+    if (loaded > 0 && loaded < pages && hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage()
+    }
+  }, [loaded, pages, hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  const empty = (videos.data?.pages[0]?.videos.length ?? 0) === 0
+
+  useEffect(() => {
+    if (!empty || isFetching) return
+
+    const timer = window.setTimeout(() => void refetch(), emptyLibraryPollMilliseconds)
+    return () => window.clearTimeout(timer)
+  }, [empty, isFetching, refetch])
 
   if (videos.isPending) {
     return <p role="status">Opening the shared library…</p>
@@ -38,7 +69,11 @@ export function LibraryPage({ account }: { account: Account }) {
     return <RequestError error={videos.error} />
   }
 
-  const page = videos.data
+  // The counts describe the whole match rather than one page of it, so the newest page holds the
+  // current answer; the Videos themselves are every page revealed so far.
+  const revealed = videos.data.pages
+  const page = revealed[revealed.length - 1]
+  const shown = revealed.flatMap((slice) => slice.videos)
 
   return (
     <>
@@ -60,7 +95,7 @@ export function LibraryPage({ account }: { account: Account }) {
         narrowed={narrowed}
       />
 
-      {page.videos.length === 0 && (
+      {shown.length === 0 && (
         <div className="empty-library">
           <strong>{narrowed ? 'Nothing matches' : 'No Videos yet'}</strong>
           <p>{narrowed
@@ -69,7 +104,7 @@ export function LibraryPage({ account }: { account: Account }) {
         </div>
       )}
 
-      <VideoGrid videos={page.videos} act={personal.act} pending={personal.pending} />
+      <VideoGrid videos={shown} act={personal.act} pending={personal.pending} />
 
       <HiddenMatches
         page={page}
@@ -78,9 +113,18 @@ export function LibraryPage({ account }: { account: Account }) {
         pending={includeNotReady.isPending}
       />
 
-      {page.hasMore && (
-        <button className="quiet-button load-more" onClick={showMore} disabled={videos.isFetching}>
-          {videos.isFetching ? 'Loading…' : 'Show more'}
+      {hasNextPage && (
+        <button
+          className="quiet-button load-more"
+          onClick={() => {
+            showMore()
+            void fetchNextPage()
+          }}
+          // Only the fetch this button asked for disables it. A background refresh used to, which
+          // made the control unavailable at intervals for no reason the screen gave.
+          disabled={isFetchingNextPage}
+        >
+          {isFetchingNextPage ? 'Loading…' : 'Show more'}
         </button>
       )}
 

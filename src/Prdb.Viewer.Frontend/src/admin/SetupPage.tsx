@@ -1,8 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { api, type Account, type LibraryDirectoryStage } from '../api/client'
-import { directoryStageMessage, friendlyState } from '../lib/format'
+import {
+  api,
+  type Account,
+  type LibraryDirectoryStage,
+  type LibraryDirectorySummary,
+} from '../api/client'
+import { directoryStageMessage, exactTime, friendlyState, timeAgo } from '../lib/format'
 import { queryKeys } from '../queryKeys'
 import { Field, firstError, Notice, PageHeading, RequestError, SubmitButton, submitting, values } from '../ui'
 
@@ -122,9 +127,16 @@ export function SetupPage({ account }: { account: Account }) {
             )}
             {stage && stage.verdict !== 'Staged' && <Notice kind="error">{directoryStageMessage(stage.verdict)}</Notice>}
             {current.libraryDirectories.map((directory) => (
-              <div className="configured-directory" key={directory.id}>
-                <strong>{directory.name}</strong><code>{directory.containerPath}</code>
-              </div>
+              <ConfiguredDirectory
+                key={directory.id}
+                directory={directory}
+                account={account}
+                onRemoved={() => {
+                  void queryClient.invalidateQueries({ queryKey: queryKeys.configuration })
+                  void queryClient.invalidateQueries({ queryKey: ['videos'] })
+                  void queryClient.invalidateQueries({ queryKey: queryKeys.backgroundWork })
+                }}
+              />
             ))}
           </section>
         </div>
@@ -142,6 +154,111 @@ export function SetupPage({ account }: { account: Account }) {
           )}
         />
       )}
+    </>
+  )
+}
+
+/// One configured Library Directory, as more than its name and its path.
+///
+/// This is the screen an Operator opens when the library is empty, so it is where the directory has
+/// to answer for itself: whether it is reachable, when a Scan last read it, what that Scan found,
+/// and how many Video Files are available beneath it now. "Configured" and "holds Videos" are
+/// different facts, and only saying the first left the second nowhere to be read.
+function ConfiguredDirectory({ directory, account, onRemoved }: {
+  directory: LibraryDirectorySummary
+  account: Account
+  onRemoved: () => void
+}) {
+  const [confirming, setConfirming] = useState(false)
+  const remove = useMutation({
+    mutationFn: () => api.removeLibraryDirectory(directory.id, account.csrfToken),
+    onSuccess: (result) => {
+      if (result.verdict === 'Removed') {
+        setConfirming(false)
+        onRemoved()
+      }
+    },
+  })
+  const healthy = directory.health === 'Healthy'
+
+  return (
+    <div className="configured-directory">
+      <div className="configured-directory-identity">
+        <strong>{directory.name}</strong>
+        <code>{directory.containerPath}</code>
+      </div>
+
+      <p className={healthy ? 'muted' : 'directory-unhealthy'}>
+        {friendlyState(directory.state)} · {friendlyState(directory.health)} ·{' '}
+        {directory.availableVideoFileCount} Video File
+        {Number(directory.availableVideoFileCount) === 1 ? '' : 's'} available
+      </p>
+
+      <p className="muted"><ScanOutcome directory={directory} /></p>
+
+      {confirming ? (
+        <div className="confirmation">
+          <p>
+            Removing <strong>{directory.name}</strong> withdraws its Video Files from the active
+            library. Everything established about them is kept — identification, history, and every
+            Account's own viewing and organisation — and a Video also backed by another Library
+            Directory stays available. Any Scan of this directory stops.
+          </p>
+          <div className="row-actions">
+            <button
+              className="primary-button"
+              onClick={() => remove.mutate()}
+              disabled={remove.isPending}
+            >
+              {remove.isPending ? 'Removing…' : 'Remove it'}
+            </button>
+            <button
+              className="quiet-button"
+              onClick={() => setConfirming(false)}
+              disabled={remove.isPending}
+            >Keep it</button>
+          </div>
+        </div>
+      ) : (
+        <button className="quiet-button" onClick={() => setConfirming(true)}>
+          Remove this directory
+        </button>
+      )}
+
+      {remove.isError && <RequestError error={remove.error} />}
+      {remove.data?.verdict === 'AlreadyRemoved' && (
+        <Notice kind="error">This Library Directory was already removed.</Notice>
+      )}
+      {remove.data?.verdict === 'NotFound' && (
+        <Notice kind="error">This Library Directory no longer exists.</Notice>
+      )}
+    </div>
+  )
+}
+
+/// What the last completed Scan of this directory found, in a sentence.
+///
+/// `Completed · 0/0` is true and says nothing. An Operator staring at an empty library needs the
+/// difference between "read it, there is nothing there" and "nothing has read it yet".
+function ScanOutcome({ directory }: { directory: LibraryDirectorySummary }) {
+  const at = directory.lastScanCompletedAt
+
+  if (!at) {
+    return <>No Library Scan of this directory has finished yet.</>
+  }
+
+  const candidates = Number(directory.lastScanCandidateCount)
+  const found = candidates === 0
+    ? 'found no Video File Candidates'
+    : `found ${candidates} Video File Candidate${candidates === 1 ? '' : 's'}`
+  const coverage = directory.lastScanCoveredEverything
+    ? ''
+    : ' It did not cover the whole directory.'
+
+  return (
+    <>
+      Last Scan finished <time dateTime={at} title={exactTime(at)}>{timeAgo(at)}</time> and {found}.
+      {coverage}
     </>
   )
 }

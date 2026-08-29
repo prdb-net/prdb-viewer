@@ -7,6 +7,43 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Withdraw a Library Directory you no longer want read. It takes its Video Files
+  out of the active library and keeps everything established about them —
+  identity, path history, technical facts, identification and its provenance, and
+  every Account's own viewing and organisation. A Video also backed by another
+  Library Directory stays available. Any Scan of the withdrawn directory stops,
+  and work queued before the removal cannot reach back across it.
+- Read a configured Library Directory on the Installation screen: its state and
+  health, how many Video Files are available beneath it, and what its last
+  completed Library Scan found and when. An empty library is explained where an
+  Operator looks for the explanation, rather than having to be inferred from two
+  zeroes on another screen.
+- Reinstate a disabled Account. Disabling was a one-way door: approval needs a
+  request waiting for it and a disabled Account has none, so nothing could bring
+  one back. It keeps everything it established, and signs in again once it is
+  reinstated.
+- Narrow the library by more than one Site or Actor at a time. Values inside one
+  facet combine with OR, which is what the facets always looked like they did.
+
+### Changed
+
+- Reveal more of the library by asking for the next page rather than for a longer
+  first one, so returning to a deep address no longer costs the whole depth on
+  every refresh.
+- Poll only when something can change. The library refreshes on a timer only
+  while it has nothing to show — the one state where it waits for something
+  arriving on its own — and Background work watches closely while a lane is
+  running and loosely once everything has settled.
+- One Video being saved no longer disables every other Video's controls, and one
+  Account's decision no longer disables every other Account's. Show more is
+  likewise no longer taken away by a background refresh.
+- Say what a refused Account decision meant. "This is the only approved
+  Administrator" and "that Account is no longer in the state this action applies
+  to" replace a generic failure, and the Accounts screen says how somebody asks
+  for access in the first place.
+
 ## [0.4.1] - 2026-08-29
 
 Six defects found by walking the 0.4.0 shell in a browser, and the small

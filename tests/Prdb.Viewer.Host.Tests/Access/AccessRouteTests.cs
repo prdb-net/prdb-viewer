@@ -198,6 +198,78 @@ public sealed class AccessRouteTests
         Assert.Equal(HttpStatusCode.Forbidden, forbidden.StatusCode);
     }
 
+    /// Disabling used to be a one-way door: approval needs a request waiting for it, and a disabled
+    /// Account has none, so nothing could bring one back.
+    [Fact]
+    public async Task A_disabled_account_can_be_reinstated_and_signs_in_again()
+    {
+        using var application = new ViewerApplication();
+        using var administrator = application.CreateClient();
+        var authorization = await application.CreateBootstrapAuthorizationAsync();
+        var adminAccount = await ClaimAsync(administrator, authorization);
+        var csrf = adminAccount.GetProperty("csrfToken").GetString()!;
+
+        using var registration = await administrator.PostAsJsonAsync(
+            "/api/access/registration-requests",
+            new { username = "returning-user", password = "returning user password", email = (string?)null },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, registration.StatusCode);
+
+        var accounts = await administrator.GetFromJsonAsync<JsonElement>(
+            "/api/admin/accounts/",
+            TestContext.Current.CancellationToken);
+        var applicant = accounts.EnumerateArray()
+            .Single(account => account.GetProperty("username").GetString() == "returning-user")
+            .GetProperty("id")
+            .GetGuid();
+
+        Assert.Equal("Completed", await ActOnAccountAsync(administrator, applicant, "approve", csrf));
+
+        using var user = application.CreateClient();
+        Assert.Equal(
+            "SignedIn",
+            (await SignInAsync(user, "returning-user", "returning user password"))
+                .GetProperty("verdict")
+                .GetString());
+
+        Assert.Equal("Completed", await ActOnAccountAsync(administrator, applicant, "disable", csrf));
+        Assert.Equal(
+            "Disabled",
+            (await SignInAsync(application.CreateClient(), "returning-user", "returning user password"))
+                .GetProperty("verdict")
+                .GetString());
+
+        // Reinstating an Account that is not disabled is not an action; reinstating one that is,
+        // is.
+        Assert.Equal("InvalidState", await ActOnAccountAsync(
+            administrator,
+            adminAccount.GetProperty("id").GetGuid(),
+            "reinstate",
+            csrf));
+        Assert.Equal("Completed", await ActOnAccountAsync(administrator, applicant, "reinstate", csrf));
+        Assert.Equal(
+            "SignedIn",
+            (await SignInAsync(application.CreateClient(), "returning-user", "returning user password"))
+                .GetProperty("verdict")
+                .GetString());
+    }
+
+    private static async Task<string?> ActOnAccountAsync(
+        HttpClient client,
+        Guid accountId,
+        string action,
+        string csrfToken)
+    {
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/admin/accounts/{accountId}/{action}");
+        request.Headers.Add(CsrfEndpointFilter.HeaderName, csrfToken);
+        using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+        return result.GetProperty("verdict").GetString();
+    }
+
     [Fact]
     public async Task Competing_bootstrap_claims_create_only_one_Administrator()
     {

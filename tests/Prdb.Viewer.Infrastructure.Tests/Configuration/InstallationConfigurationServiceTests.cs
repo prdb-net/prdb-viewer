@@ -1,9 +1,12 @@
+using Microsoft.EntityFrameworkCore;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Time.Testing;
 
 using Prdb.Viewer.Core.Configuration;
 using Prdb.Viewer.Infrastructure.Access;
 using Prdb.Viewer.Infrastructure.Configuration;
+using Prdb.Viewer.Infrastructure.Persistence;
 
 using Xunit;
 
@@ -120,6 +123,104 @@ public sealed class InstallationConfigurationServiceTests
         Assert.Equal("source media", await File.ReadAllTextAsync(
             marker,
             TestContext.Current.CancellationToken));
+    }
+
+    /// Withdrawing a Library Directory takes its occurrences out of the active library and leaves
+    /// everything established about them alone. It also has to stop work in flight from crossing
+    /// the removal, which is what the configuration generation is for.
+    [Fact]
+    public async Task Removing_a_library_directory_withdraws_its_occurrences_and_stops_its_work()
+    {
+        await using var database = await TestDatabase.CreateAsync(
+            prdbConnectionVerifier: new StubPrdbConnectionVerifier(PrdbVerificationOutcome.Verified));
+        await using var scope = database.Scope();
+        var configuration = scope.ServiceProvider.GetRequiredService<InstallationConfigurationService>();
+        await configuration.VerifyCredentialAsync("api-key", TestContext.Current.CancellationToken);
+
+        var library = Path.Combine(database.LibraryMountRoot.Path, "withdrawn");
+        Directory.CreateDirectory(library);
+        var staged = await configuration.StageLibraryDirectoryAsync(
+            "Withdrawn",
+            library,
+            TestContext.Current.CancellationToken);
+        var activated = await configuration.ActivateLibraryDirectoryAsync(
+            staged.StageId!.Value,
+            TestContext.Current.CancellationToken);
+        var directoryId = activated.Directory!.Id;
+        var generationBefore = activated.Directory.ConfigurationGeneration;
+
+        var removed = await configuration.RemoveLibraryDirectoryAsync(
+            directoryId,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(LibraryDirectoryRemovalVerdict.Removed, removed.Verdict);
+
+        // It leaves the active configuration, so the screen that lists what is configured no
+        // longer names it.
+        var current = await configuration.GetAsync(TestContext.Current.CancellationToken);
+        Assert.Empty(current.LibraryDirectories);
+
+        await using var reader = database.Scope();
+        var store = reader.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var row = await store.LibraryDirectories.SingleAsync(
+            directory => directory.Id == directoryId,
+            TestContext.Current.CancellationToken);
+
+        // Retained rather than deleted: the record, its path history and its identity survive.
+        Assert.Equal(LibraryDirectoryState.Removed, row.State);
+        Assert.NotNull(row.RemovedAt);
+        Assert.Equal("Withdrawn", row.Name);
+
+        // The generation moved, which is what every runner compares against before it does anything.
+        Assert.True(row.ConfigurationGeneration > generationBefore);
+
+        // And the Scan queued on activation is asked to stop rather than left waiting for a
+        // directory that is gone.
+        var work = await store.BackgroundWork
+            .Where(entry => entry.LibraryDirectoryId == directoryId && entry.FinishedAt == null)
+            .ToListAsync(TestContext.Current.CancellationToken);
+        Assert.All(work, entry => Assert.True(entry.CancellationRequested));
+
+        // Removing it twice is not a second removal.
+        Assert.Equal(
+            LibraryDirectoryRemovalVerdict.AlreadyRemoved,
+            (await configuration.RemoveLibraryDirectoryAsync(
+                directoryId,
+                TestContext.Current.CancellationToken)).Verdict);
+        Assert.Equal(
+            LibraryDirectoryRemovalVerdict.NotFound,
+            (await configuration.RemoveLibraryDirectoryAsync(
+                Guid.CreateVersion7(),
+                TestContext.Current.CancellationToken)).Verdict);
+    }
+
+    /// A directory reports what a Scan of it found, because "configured" and "holds Video Files"
+    /// are different facts and an Operator staring at an empty library needs both.
+    [Fact]
+    public async Task A_configured_directory_reports_what_its_last_scan_found()
+    {
+        await using var database = await TestDatabase.CreateAsync(
+            prdbConnectionVerifier: new StubPrdbConnectionVerifier(PrdbVerificationOutcome.Verified));
+        await using var scope = database.Scope();
+        var configuration = scope.ServiceProvider.GetRequiredService<InstallationConfigurationService>();
+        await configuration.VerifyCredentialAsync("api-key", TestContext.Current.CancellationToken);
+
+        var library = Path.Combine(database.LibraryMountRoot.Path, "described");
+        Directory.CreateDirectory(library);
+        var staged = await configuration.StageLibraryDirectoryAsync(
+            "Described",
+            library,
+            TestContext.Current.CancellationToken);
+        await configuration.ActivateLibraryDirectoryAsync(
+            staged.StageId!.Value,
+            TestContext.Current.CancellationToken);
+
+        // Nothing has finished reading it yet, and the summary says exactly that rather than
+        // implying a Scan found nothing.
+        var before = await configuration.GetAsync(TestContext.Current.CancellationToken);
+        var directory = Assert.Single(before.LibraryDirectories);
+        Assert.Null(directory.LastScanCompletedAt);
+        Assert.Equal(0, directory.AvailableVideoFileCount);
+        Assert.Equal(LibraryDirectoryHealth.Healthy, directory.Health);
     }
 
     [Fact]

@@ -440,6 +440,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/accounts/{accountId}/reinstate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    accountId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AccountActionResponse"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/accounts/{accountId}/disable": {
         parameters: {
             query?: never;
@@ -729,6 +766,43 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/configuration/library-directories/{libraryDirectoryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    libraryDirectoryId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LibraryDirectoryRemovalResult"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -2069,6 +2143,21 @@ export interface components {
         };
         /** @enum {unknown} */
         LibraryDirectoryHealth: "Healthy" | "PartiallyUnreachable" | "Unreachable";
+        LibraryDirectoryRemovalResult: {
+            verdict: components["schemas"]["LibraryDirectoryRemovalVerdict"];
+            /**
+             * Format: int32
+             * @default 0
+             */
+            removedVideoFileCount: number | string;
+            /**
+             * Format: int32
+             * @default 0
+             */
+            affectedVideoCount: number | string;
+        };
+        /** @enum {unknown} */
+        LibraryDirectoryRemovalVerdict: "Removed" | "NotFound" | "AlreadyRemoved";
         LibraryDirectoryStageRequest: {
             name: null | string;
             containerPath: null | string;
@@ -2098,6 +2187,15 @@ export interface components {
             /** Format: date-time */
             activatedAt: string;
             initialProcessingStarted: boolean;
+            /** Format: int32 */
+            availableVideoFileCount: number | string;
+            /** Format: date-time */
+            lastScanCompletedAt: null | string;
+            /** Format: date-time */
+            lastScanStartedAt: null | string;
+            /** Format: int32 */
+            lastScanCandidateCount: number | string;
+            lastScanCoveredEverything: boolean;
         };
         LibraryFacets: {
             sites: components["schemas"]["LibraryFacetValue"][];

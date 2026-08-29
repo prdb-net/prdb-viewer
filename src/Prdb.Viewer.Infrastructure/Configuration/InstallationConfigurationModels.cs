@@ -57,6 +57,18 @@ public sealed record LibraryDirectoryActivationResult(
     LibraryDirectoryActivationVerdict Verdict,
     LibraryDirectorySummary? Directory = null);
 
+public enum LibraryDirectoryRemovalVerdict
+{
+    Removed,
+    NotFound,
+    AlreadyRemoved,
+}
+
+public sealed record LibraryDirectoryRemovalResult(
+    LibraryDirectoryRemovalVerdict Verdict,
+    int RemovedVideoFileCount = 0,
+    int AffectedVideoCount = 0);
+
 public sealed record LibraryDirectorySummary(
     Guid Id,
     string Name,
@@ -65,7 +77,12 @@ public sealed record LibraryDirectorySummary(
     LibraryDirectoryHealth Health,
     int ConfigurationGeneration,
     DateTimeOffset ActivatedAt,
-    bool InitialProcessingStarted);
+    bool InitialProcessingStarted,
+    int AvailableVideoFileCount,
+    DateTimeOffset? LastScanCompletedAt,
+    DateTimeOffset? LastScanStartedAt,
+    int LastScanCandidateCount,
+    bool LastScanCoveredEverything);
 
 public sealed record InstallationConfigurationSummary(
     InstallationConfigurationStatus Status,

@@ -64,7 +64,9 @@ export function LibraryControls({
               key={site.value}
               label={`${site.value} (${site.count})`}
               selected={filters.sites.includes(site.value)}
-              onToggle={(selected) => narrow({ sites: selected ? [site.value] : [] })}
+              onToggle={(selected) => narrow({
+                sites: withValue(filters.sites, site.value, selected),
+              })}
             />
           ))}
         </div>
@@ -76,13 +78,24 @@ export function LibraryControls({
               key={actor.value}
               label={`${actor.value} (${actor.count})`}
               selected={filters.actors.includes(actor.value)}
-              onToggle={(selected) => narrow({ actors: selected ? [actor.value] : [] })}
+              onToggle={(selected) => narrow({
+                actors: withValue(filters.actors, actor.value, selected),
+              })}
             />
           ))}
         </div>
       ) : null}
     </div>
   )
+}
+
+/// One more chosen value, or one fewer.
+///
+/// Values inside one facet combine with OR, so selecting a second Site widens the set rather than
+/// replacing the first. These controls looked like several could be on at once and behaved as a
+/// choice of one, which quietly discarded the earlier selection.
+function withValue(chosen: string[], value: string, selected: boolean) {
+  return selected ? [...chosen, value] : chosen.filter((held) => held !== value)
 }
 
 function FacetToggle({ label, selected, onToggle }: {

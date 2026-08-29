@@ -8,7 +8,7 @@ import {
   playbackUnavailableReason,
   playableSource,
 } from '../lib/format'
-import type { PersonalAction } from '../personal/usePersonalActions'
+import type { PersonalAction, PersonalPending } from '../personal/usePersonalActions'
 import { Provenance } from './Provenance'
 
 /// One Video as the Library shows it.
@@ -20,9 +20,11 @@ import { Provenance } from './Provenance'
 export function VideoCard({ video, act, pending, dismissible = false }: {
   video: VideoSummary
   act: PersonalAction
-  pending: boolean
+  pending: PersonalPending
   dismissible?: boolean
 }) {
+  // This card is busy only while one of its own actions is in flight, not while any card's is.
+  const busy = pending(video.id)
   const source = playableSource(video)
   const progress = Number(video.personalState.playbackProgressMilliseconds ?? 0)
   const resume = progress > 0 && video.personalState.playState === 'InProgress'
@@ -66,13 +68,13 @@ export function VideoCard({ video, act, pending, dismissible = false }: {
             className={video.personalState.favourite ? 'selected' : ''}
             aria-pressed={video.personalState.favourite}
             onClick={() => act('favourite', video, !video.personalState.favourite)}
-            disabled={pending}
+            disabled={busy}
           >Favourite</button>
           <button
             className={video.personalState.watchLater ? 'selected' : ''}
             aria-pressed={video.personalState.watchLater}
             onClick={() => act('watch-later', video, !video.personalState.watchLater)}
-            disabled={pending}
+            disabled={busy}
           >Watch Later</button>
         </div>
         <label className="rating-field">
@@ -81,14 +83,14 @@ export function VideoCard({ video, act, pending, dismissible = false }: {
             aria-label={`Rate ${video.displayTitle}`}
             value={video.personalState.personalRating?.toString() ?? ''}
             onChange={(event) => act('rating', video, event.target.value ? Number(event.target.value) : null)}
-            disabled={pending}
+            disabled={busy}
           >
             <option value="">Not rated</option>
             {[1, 2, 3, 4, 5].map((rating) => <option key={rating} value={rating}>{rating} / 5</option>)}
           </select>
         </label>
         {dismissible && (
-          <button className="dismiss-button" onClick={() => act('dismiss', video)} disabled={pending}>
+          <button className="dismiss-button" onClick={() => act('dismiss', video)} disabled={busy}>
             Dismiss
           </button>
         )}
@@ -100,7 +102,7 @@ export function VideoCard({ video, act, pending, dismissible = false }: {
 export function VideoGrid({ videos, act, pending, dismissible = false }: {
   videos: VideoSummary[]
   act: PersonalAction
-  pending: boolean
+  pending: PersonalPending
   dismissible?: boolean
 }) {
   return (

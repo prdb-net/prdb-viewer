@@ -194,7 +194,9 @@ export function VideoPage({ account }: { account: Account }) {
     )
   }
 
-  const busy = startPlayback.isPending || personal.pending || playing !== undefined
+  // This screen is about one Video, so its own actions are the only ones that make it busy.
+  const saving = personal.pending(video.id)
+  const busy = startPlayback.isPending || saving || playing !== undefined
 
   return (
     <>
@@ -271,13 +273,13 @@ export function VideoPage({ account }: { account: Account }) {
               className={video.personalState.favourite ? 'selected' : ''}
               aria-pressed={video.personalState.favourite}
               onClick={() => personal.act('favourite', video, !video.personalState.favourite)}
-              disabled={personal.pending}
+              disabled={saving}
             >Favourite</button>
             <button
               className={video.personalState.watchLater ? 'selected' : ''}
               aria-pressed={video.personalState.watchLater}
               onClick={() => personal.act('watch-later', video, !video.personalState.watchLater)}
-              disabled={personal.pending}
+              disabled={saving}
             >Watch Later</button>
           </div>
           <label className="rating-field">
@@ -290,7 +292,7 @@ export function VideoPage({ account }: { account: Account }) {
                 video,
                 event.target.value ? Number(event.target.value) : null,
               )}
-              disabled={personal.pending}
+              disabled={saving}
             >
               <option value="">Not rated</option>
               {[1, 2, 3, 4, 5].map((rating) => <option key={rating} value={rating}>{rating} / 5</option>)}

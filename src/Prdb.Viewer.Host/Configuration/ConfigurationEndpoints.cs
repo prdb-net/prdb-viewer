@@ -56,6 +56,18 @@ public static class ConfigurationEndpoints
                 stageId,
                 cancellationToken)))
             .RequireCsrf();
+
+        // A withdrawal rather than a deletion: DELETE names what happens to the configuration,
+        // while everything established beneath the directory is retained. What it costs is in the
+        // answer, so the screen can say what it did rather than only that it worked.
+        configuration.MapDelete("/library-directories/{libraryDirectoryId:guid}", async (
+            Guid libraryDirectoryId,
+            InstallationConfigurationService service,
+            CancellationToken cancellationToken) =>
+            TypedResults.Ok(await service.RemoveLibraryDirectoryAsync(
+                libraryDirectoryId,
+                cancellationToken)))
+            .RequireCsrf();
     }
 }
 
