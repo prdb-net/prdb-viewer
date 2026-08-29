@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-08-29
+
+Six defects found by walking the 0.4.0 shell in a browser, and the small
+inconsistencies alongside them. Nothing here changes what the product does; it
+corrects places where it did not do what it already said it did.
+
 ### Fixed
 
 - Use the Viewer in more than one tab. The token that proves a change came from
