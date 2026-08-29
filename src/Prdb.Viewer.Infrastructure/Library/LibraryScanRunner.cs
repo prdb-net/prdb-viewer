@@ -57,7 +57,6 @@ public sealed class LibraryScanRunner(
         }
 
         var now = Now();
-        work.CompletedItemCount = work.DiscoveredCandidateCount;
         work.State = BackgroundWorkState.Running;
         work.Phase = BackgroundWorkPhases.Traversing;
         work.StartedAt ??= now;
@@ -75,6 +74,12 @@ public sealed class LibraryScanRunner(
         }
 
         work.PendingDirectoriesJson = JsonSerializer.Serialize(pending);
+
+        // A traversal has no step between finding a candidate and being done with it: the candidate
+        // row is written as it is found. Counted before the slice rather than after it, the tally
+        // trailed by one slice and a scan that finished in a single slice settled at none of the
+        // candidates it had just recorded.
+        work.CompletedItemCount = work.DiscoveredCandidateCount;
 
         foreach (var report in reports)
         {

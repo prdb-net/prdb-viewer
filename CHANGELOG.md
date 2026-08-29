@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- A Library Scan that finished in a single pass reported none of the files it had
+  just recorded, and kept reporting that for good. The tally was taken before the
+  pass rather than after it, so it always trailed by one, and a library small
+  enough to be walked in one go never caught up.
+
 ## [0.5.2] - 2026-08-29
 
 ### Fixed

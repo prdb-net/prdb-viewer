@@ -121,6 +121,37 @@ public sealed class LibraryProcessingTests
                     work.State == BackgroundWorkState.CompletedWithIssues);
     }
 
+    [Fact]
+    public async Task A_scan_that_finishes_in_one_slice_settles_at_the_candidates_it_recorded()
+    {
+        await using var store = await TestDatabase.CreateAsync(mediaProbe: new FixtureProbe());
+        var source = Path.Combine(store.LibraryMountRoot.Path, "source");
+        Directory.CreateDirectory(source);
+        foreach (var name in new[] { "first.mp4", "second.mp4", "third.mp4" })
+        {
+            await File.WriteAllBytesAsync(
+                Path.Combine(source, name),
+                [1],
+                TestContext.Current.CancellationToken);
+        }
+        _ = await ActivateAsync(store, source);
+
+        await DrainAsync(store);
+
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var scan = await database.BackgroundWork.SingleAsync(
+            work => work.Category == BackgroundWorkCategory.LibraryScan,
+            TestContext.Current.CancellationToken);
+
+        // The tally used to be taken before the slice rather than after it, so a scan short enough
+        // to finish in one slice settled at none of the three candidates it had just recorded, and
+        // the screen reported it as 0 of 3 for good.
+        Assert.Equal(BackgroundWorkState.Completed, scan.State);
+        Assert.Equal(3, scan.DiscoveredCandidateCount);
+        Assert.Equal(3, scan.CompletedItemCount);
+    }
+
     private static async Task<Guid> ActivateAsync(TestDatabase store, string path)
     {
         await using var scope = store.Scope();
