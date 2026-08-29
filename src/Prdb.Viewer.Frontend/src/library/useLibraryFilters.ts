@@ -42,6 +42,27 @@ export function useLibraryFilters() {
     }, { replace: true })
   }, [setParameters])
 
+  /// Adds a value to a multi-valued facet, or takes it out again.
+  ///
+  /// It reads the list it is changing out of the address being updated rather than out of the last
+  /// render, because those are not the same list while a navigation is still settling: two quick
+  /// clicks would otherwise both be computed against the empty list the first one started from, and
+  /// the second would discard the first. This is the same mistake the search field made, in the
+  /// place a facet row makes it easiest to hit.
+  const toggle = useCallback((key: 'sites' | 'actors', value: string, selected: boolean) => {
+    setParameters((current) => {
+      const next = new URLSearchParams(current)
+      const held = list(next.get(key))
+      write(
+        next,
+        key,
+        selected ? [...held, value] : held.filter((one) => one !== value),
+      )
+      next.delete('pages')
+      return next
+    }, { replace: true })
+  }, [setParameters])
+
   const clear = useCallback(() => {
     setParameters(new URLSearchParams(), { replace: true })
   }, [setParameters])
@@ -64,7 +85,7 @@ export function useLibraryFilters() {
     filters.availability.length > 0 ||
     filters.playState.length > 0
 
-  return { filters, pages, narrow, clear, showMore, narrowed }
+  return { filters, pages, narrow, toggle, clear, showMore, narrowed }
 }
 
 function list(value: string | null) {
