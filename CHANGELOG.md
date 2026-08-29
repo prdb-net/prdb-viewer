@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-29
+
+The six functional gaps the 0.4.0 UI review wrote down rather than closed. A
+Library Directory can now be read and withdrawn rather than only added, a
+disabled Account can come back, the library pages instead of widening, and one
+thing being saved no longer stops the screen around it.
+
 ### Added
 
 - Withdraw a Library Directory you no longer want read. It takes its Video Files
