@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-08-29
+
 ### Fixed
 
 - Background work says what each lane got done, in words. The right-hand side of
