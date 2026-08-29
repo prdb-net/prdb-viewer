@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api, type Account, type AccountSummary } from '../api/client'
 import { queryKeys } from '../queryKeys'
-import { Notice, PageHeading, RequestError } from '../ui'
+import { firstError, Notice, PageHeading, RequestError } from '../ui'
 
 export function AccountsPage({ account }: { account: Account }) {
   const accounts = useQuery({ queryKey: queryKeys.accounts, queryFn: api.accounts })
@@ -49,7 +49,9 @@ export function AccountsPage({ account }: { account: Account }) {
         {issuedCode && <Notice kind="success">One-time recovery code: <code>{issuedCode}</code></Notice>}
       </section>
 
-      {(accounts.isError || action.isError) && <RequestError />}
+      {(accounts.isError || action.isError) && (
+        <RequestError error={firstError(accounts.error, action.error)} />
+      )}
     </>
   )
 }

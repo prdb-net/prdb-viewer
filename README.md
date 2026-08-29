@@ -190,17 +190,19 @@ or inaccessible traversal never infers absence for the directory.
 
 The Viewer is an application rather than a page. A persistent shell carries
 search, your Account and a sidebar of destinations grouped by what they are for:
-the library and your own shelves under **Library**, and — for an Administrator —
-installation configuration, identification review, background work and accounts
-under **Administration**. Entries that lead to waiting work carry its count, so
-Operational Attention and an open identification queue are visible without
-opening the screen behind them. On a narrow viewport the same navigation opens
-as a drawer.
+the library and your own shelves under **Library**, your own Account under
+**Account**, and — for an Administrator — installation configuration,
+identification review, background work and accounts under **Administration**.
+Entries that lead to waiting work carry its count, so Operational Attention and
+an open identification queue are visible without opening the screen behind them.
+On a narrow viewport the same navigation opens as a drawer, which the Escape key
+closes and which takes no keyboard focus while it is shut.
 
 Every screen is its own address, and the address carries what you were looking
 at: the library's search, facets, sort order and revealed depth, and the
 identification case an Administrator has open. A link therefore reproduces the
-same page for whoever opens it. What an Account may reach is decided in the
+same page for whoever opens it, and the window is named for the screen that is
+open, so the history and a bookmark say which one it was. What an Account may reach is decided in the
 navigation and in the routes as well as at the API, so an address typed by hand
 meets the same answer as an entry that is not offered.
 
@@ -317,9 +319,12 @@ and can independently maintain Favourites, the oldest-first Watch Later queue,
 and an optional one-to-five Personal Rating.
 
 Every Personal State endpoint derives its Account from the authenticated local
-session and requires CSRF protection for changes. No request accepts another
-Account identifier, and Administrator authority does not grant access to a
-User's Personal State. Personal references survive temporary unavailability;
+session and requires CSRF protection for changes. That token is derived from the
+session itself rather than stored and reissued, so every tab of one session
+holds the same working token; see
+[ADR 0017](docs/adr/0017-derive-the-csrf-token-from-the-session-token.md). No
+request accepts another Account identifier, and Administrator authority does not
+grant access to a User's Personal State. Personal references survive temporary unavailability;
 they remain dormant only while their Video is removed from the active Library.
 
 ## Identify Videos and generate previews

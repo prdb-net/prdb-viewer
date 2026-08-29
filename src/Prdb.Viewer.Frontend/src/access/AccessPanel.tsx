@@ -45,7 +45,7 @@ export function AccessPanel() {
           <Field name="password" label="Password" type="password" autoComplete="current-password" required />
           <SubmitButton pending={signIn.isPending}>Sign in</SubmitButton>
           {signIn.data && !signIn.data.account && <Notice kind="error">{signInMessage(signIn.data.verdict)}</Notice>}
-          {signIn.isError && <RequestError />}
+          {signIn.isError && <RequestError error={signIn.error} />}
         </form>
       )}
 
@@ -60,7 +60,7 @@ export function AccessPanel() {
           <SubmitButton pending={register.isPending}>Submit request</SubmitButton>
           {register.data?.verdict === 'Submitted' && <Notice kind="success">Request submitted. Access begins only after approval.</Notice>}
           {register.data?.verdict === 'InvalidInput' && <Notice kind="error">Check the username, email, and password.</Notice>}
-          {register.isError && <RequestError />}
+          {register.isError && <RequestError error={register.error} />}
         </form>
       )}
 
@@ -74,7 +74,7 @@ export function AccessPanel() {
           <SubmitButton pending={recover.isPending}>Replace password</SubmitButton>
           {recover.data?.verdict === 'PasswordReplaced' && <Notice kind="success">Password replaced. You can now sign in.</Notice>}
           {recover.data && recover.data.verdict !== 'PasswordReplaced' && <Notice kind="error">The recovery code or account details are invalid.</Notice>}
-          {recover.isError && <RequestError />}
+          {recover.isError && <RequestError error={recover.error} />}
         </form>
       )}
     </CenteredCard>

@@ -2,6 +2,12 @@ using Prdb.Viewer.Infrastructure.Access;
 
 namespace Prdb.Viewer.Host.Access;
 
+/// Proof that a state-changing request came from this application rather than from a page that
+/// merely knows the browser carries the Session cookie.
+///
+/// The expected token is derived from the Session cookie on every request, so it needs neither a
+/// database round trip nor stored state that one client could rotate out from under another. See
+/// <see cref="CsrfToken"/> for why the derivation is the protection it looks like.
 public sealed class CsrfEndpointFilter : IEndpointFilter
 {
     public const string HeaderName = "X-CSRF-Token";
@@ -11,15 +17,12 @@ public sealed class CsrfEndpointFilter : IEndpointFilter
         EndpointFilterDelegate next)
     {
         var http = context.HttpContext;
-        var sessionId = http.User.SessionId();
-        var accountId = http.User.AccountId();
-        var token = http.Request.Headers[HeaderName].ToString();
+        var presented = http.Request.Headers[HeaderName].ToString();
+        http.Request.Cookies.TryGetValue(SessionAuthentication.CookieName, out var sessionToken);
 
-        if (sessionId is null ||
-            accountId is null ||
-            !await http.RequestServices
-                .GetRequiredService<AccessService>()
-                .ValidateCsrfTokenAsync(sessionId.Value, accountId.Value, token, http.RequestAborted))
+        if (http.User.SessionId() is null ||
+            http.User.AccountId() is null ||
+            !CsrfToken.Matches(sessionToken, presented))
         {
             return Results.Problem(
                 statusCode: StatusCodes.Status403Forbidden,

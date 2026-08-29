@@ -150,3 +150,34 @@ export async function waitForVideo(container: HTMLElement) {
   return container.querySelector('video')!
 }
 
+/// The answers every screen needs before it can render, with room for the one a test is about.
+export function signedInAs(
+  authority: 'Administrator' | 'User',
+  answer: (input: unknown) => Promise<Response> | undefined = () => undefined,
+) {
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+    const specific = answer(input)
+    if (specific) return specific
+
+    if (input === '/api/access/state') return json({ claimed: true, signedIn: true })
+    if (input === '/api/access/me') {
+      return json({
+        id: '01994dd4-2a0a-7000-8000-000000000001',
+        username: 'viewer',
+        email: null,
+        authority,
+        csrfToken: 'csrf-token',
+      })
+    }
+    if (input === '/api/personal/playback-profiles') return json([])
+    if (input === '/api/admin/background-work/') return json({ work: [], issues: [] })
+    if (input === '/api/admin/identification/queue') return json([])
+    if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+    if (isVideoRequest(input)) return json(videoDetail(libraryVideo()))
+    if (isLibraryRequest(input)) return json(libraryPage([libraryVideo()]))
+    if (input === '/api/personal/library') {
+      return json({ continueWatching: [], favourites: [], watchLater: [] })
+    }
+    return json([])
+  })
+}

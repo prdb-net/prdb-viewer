@@ -10,8 +10,6 @@ public sealed class SessionRow
 
     public required byte[] TokenHash { get; set; }
 
-    public required byte[] CsrfTokenHash { get; set; }
-
     public DateTime CreatedAt { get; set; }
 
     public DateTime ExpiresAt { get; set; }

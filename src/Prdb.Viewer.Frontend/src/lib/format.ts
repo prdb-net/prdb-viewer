@@ -97,3 +97,40 @@ export function provenanceLabel(source: string | null | undefined) {
 export function candidateOrigin(source: string | null | undefined) {
   return source === 'LocalInference' ? 'from the file’s own path' : 'from prdb'
 }
+
+/// When something happened, in words rather than a timestamp to do arithmetic on.
+///
+/// An operator looking at a lane wants one thing from a time: whether this is the run that just
+/// happened or one from yesterday. The exact instant stays available as the element's title.
+export function timeAgo(value: string | null | undefined, now: number = Date.now()) {
+  if (!value) return undefined
+
+  const at = Date.parse(value)
+  if (Number.isNaN(at)) return undefined
+
+  const seconds = Math.round((at - now) / 1_000)
+  const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
+  const units: [Intl.RelativeTimeFormatUnit, number][] = [
+    ['second', 60],
+    ['minute', 60],
+    ['hour', 24],
+    ['day', 7],
+    ['week', 4.35],
+    ['month', 12],
+  ]
+
+  let amount = seconds
+  for (const [unit, next] of units) {
+    if (Math.abs(amount) < next) return relative.format(Math.round(amount), unit)
+    amount /= next
+  }
+
+  return relative.format(Math.round(amount), 'year')
+}
+
+/// The instant itself, for the title a relative time carries.
+export function exactTime(value: string | null | undefined) {
+  if (!value) return undefined
+  const at = new Date(value)
+  return Number.isNaN(at.getTime()) ? undefined : at.toLocaleString()
+}

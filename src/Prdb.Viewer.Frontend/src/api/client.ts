@@ -116,6 +116,19 @@ export const clientContextKey = (() => {
   return `c${hash.toString(16).padStart(8, '0')}`
 })()
 
+/// What a refused request said, kept rather than flattened into "it failed".
+///
+/// The API answers a refusal with a problem document whose detail says what to do about it, and
+/// "Refresh the page and try the action again" is not the same instruction as "try again". A
+/// screen that replaces the API's words with its own can end up telling the reader to do the one
+/// thing that cannot work.
+export class RequestFailure extends Error {
+  constructor(readonly status: number, readonly detail?: string) {
+    super(detail ?? `Request failed with status ${status}.`)
+    this.name = 'RequestFailure'
+  }
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, {
     credentials: 'same-origin',
@@ -128,10 +141,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
 
   if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}.`)
+    throw new RequestFailure(response.status, await problemDetail(response))
   }
 
   return response.json() as Promise<T>
+}
+
+/// The instruction a problem document carries, where the answer is one and it has anything to say.
+async function problemDetail(response: Response): Promise<string | undefined> {
+  try {
+    const problem: unknown = await response.json()
+    const detail = (problem as { detail?: unknown } | null)?.detail
+    return typeof detail === 'string' && detail.trim() ? detail.trim() : undefined
+  } catch {
+    return undefined
+  }
 }
 
 function post<T>(path: string, body?: unknown, csrfToken?: string) {

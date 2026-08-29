@@ -63,6 +63,89 @@ public sealed class AccessRouteTests
         Assert.Equal(HttpStatusCode.Unauthorized, afterSignOut.StatusCode);
     }
 
+    /// A second client of the same Session — another tab, or a reload — asks who it is. That must
+    /// not disturb the token the first one is already using, which a rotating token did: every
+    /// state-changing request from the older tab was refused until it was reloaded.
+    [Fact]
+    public async Task Asking_who_you_are_leaves_an_existing_csrf_token_usable()
+    {
+        using var application = new ViewerApplication();
+        using var client = application.CreateClient();
+
+        var authorization = await application.CreateBootstrapAuthorizationAsync();
+        using var claim = await client.PostAsJsonAsync(
+            "/api/access/bootstrap",
+            new
+            {
+                authorization,
+                username = "administrator",
+                password = "administrator password",
+                email = "admin@example.test",
+            },
+            TestContext.Current.CancellationToken);
+        var claimed = await claim.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+        var issued = claimed.GetProperty("account").GetProperty("csrfToken").GetString();
+
+        var first = await client.GetFromJsonAsync<JsonElement>(
+            "/api/access/me",
+            TestContext.Current.CancellationToken);
+        var second = await client.GetFromJsonAsync<JsonElement>(
+            "/api/access/me",
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(issued, first.GetProperty("csrfToken").GetString());
+        Assert.Equal(issued, second.GetProperty("csrfToken").GetString());
+
+        using var signOut = new HttpRequestMessage(HttpMethod.Post, "/api/access/sign-out");
+        signOut.Headers.Add(CsrfEndpointFilter.HeaderName, issued);
+        using var signedOut = await client.SendAsync(signOut, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, signedOut.StatusCode);
+    }
+
+    /// The token belongs to one Session. Another Account's token must not verify a request made
+    /// with this Session's cookie.
+    [Fact]
+    public async Task A_csrf_token_from_another_session_is_refused()
+    {
+        using var application = new ViewerApplication();
+        using var administrator = application.CreateClient();
+        using var other = application.CreateClient();
+
+        var authorization = await application.CreateBootstrapAuthorizationAsync();
+        using var claim = await administrator.PostAsJsonAsync(
+            "/api/access/bootstrap",
+            new
+            {
+                authorization,
+                username = "administrator",
+                password = "administrator password",
+                email = "admin@example.test",
+            },
+            TestContext.Current.CancellationToken);
+        var claimed = await claim.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+
+        using var secondSignIn = await other.PostAsJsonAsync(
+            "/api/access/sign-in",
+            new { username = "administrator", password = "administrator password" },
+            TestContext.Current.CancellationToken);
+        var secondSession = await secondSignIn.Content.ReadFromJsonAsync<JsonElement>(
+            TestContext.Current.CancellationToken);
+        var otherToken = secondSession.GetProperty("account").GetProperty("csrfToken").GetString();
+
+        Assert.NotEqual(
+            claimed.GetProperty("account").GetProperty("csrfToken").GetString(),
+            otherToken);
+
+        using var borrowed = new HttpRequestMessage(HttpMethod.Post, "/api/access/sign-out");
+        borrowed.Headers.Add(CsrfEndpointFilter.HeaderName, otherToken);
+        using var refused = await administrator.SendAsync(
+            borrowed,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+    }
+
     [Fact]
     public async Task Registration_requires_administrator_approval_and_users_cannot_administer_accounts()
     {

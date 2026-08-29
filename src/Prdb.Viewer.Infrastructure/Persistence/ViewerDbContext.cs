@@ -85,7 +85,6 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             session.HasKey(row => row.Id);
             session.Property(row => row.Id).ValueGeneratedNever();
             session.Property(row => row.TokenHash).IsRequired();
-            session.Property(row => row.CsrfTokenHash).IsRequired();
             session.HasIndex(row => row.TokenHash).IsUnique();
             session.HasIndex(row => row.ExpiresAt);
             session.HasOne(row => row.Account)

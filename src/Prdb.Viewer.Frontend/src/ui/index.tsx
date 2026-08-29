@@ -1,4 +1,7 @@
+import { useEffect } from 'react'
 import type { FormEvent, ReactNode } from 'react'
+
+import { RequestFailure } from '../api/client'
 
 /// The small vocabulary every screen is written in. It is deliberately plain: a screen that needs
 /// something these do not offer says so by naming its own element rather than by growing a
@@ -28,18 +31,44 @@ export function Notice({ kind, children }: { kind: 'error' | 'success'; children
   return <div className={`notice ${kind}`} role={kind === 'error' ? 'alert' : 'status'}>{children}</div>
 }
 
-export function RequestError() {
-  return <Notice kind="error">The request could not be completed. Try again.</Notice>
+/// What went wrong, in the API's own words wherever it had any.
+///
+/// A refusal usually says what to do about it, and that instruction is more use than a generic
+/// apology — particularly when the generic one ("try again") is advice that cannot work.
+export function RequestError({ error }: { error?: unknown }) {
+  const detail = error instanceof RequestFailure ? error.detail : undefined
+  return <Notice kind="error">{detail ?? 'The request could not be completed. Try again.'}</Notice>
+}
+
+/// The first of the several failures a screen watches that actually happened. A screen shows one
+/// notice, so it should be the one belonging to whatever failed.
+export function firstError(...candidates: unknown[]): unknown {
+  return candidates.find((candidate) => candidate !== null && candidate !== undefined)
+}
+
+/// The window's own name for the screen that is open.
+///
+/// A page that states its title already knows what the tab, the history entry and the bookmark
+/// should say. Leaving all three reading "prdb-viewer" made every address look identical in the
+/// one place a person goes back through them, which is a strange thing for an application whose
+/// screens each have an address of their own.
+function useDocumentTitle(title: string) {
+  useEffect(() => {
+    document.title = `${title} · prdb-viewer`
+    return () => { document.title = 'prdb-viewer' }
+  }, [title])
 }
 
 /// The heading every page carries. A page states what it is and what it is for in one place, so
-/// the shell never has to guess a title from the route.
+/// the shell never has to guess a title from the route — and neither does the browser.
 export function PageHeading({ eyebrow, title, children, actions }: {
   eyebrow?: string
   title: string
   children?: ReactNode
   actions?: ReactNode
 }) {
+  useDocumentTitle(title)
+
   return (
     <div className="page-heading">
       <div>

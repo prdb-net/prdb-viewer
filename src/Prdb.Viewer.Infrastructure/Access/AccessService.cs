@@ -203,47 +203,6 @@ public sealed class AccessService(
             Identity(session.Account));
     }
 
-    public async Task<string?> RotateCsrfTokenAsync(
-        Guid sessionId,
-        Guid accountId,
-        CancellationToken cancellationToken = default)
-    {
-        var session = await database.Sessions
-            .AsTracking()
-            .SingleOrDefaultAsync(
-                row => row.Id == sessionId && row.AccountId == accountId && row.ExpiresAt > Now(),
-                cancellationToken);
-
-        if (session is null)
-        {
-            return null;
-        }
-
-        var token = NewToken();
-        session.CsrfTokenHash = Hash(token);
-        await database.SaveChangesAsync(cancellationToken);
-        return token;
-    }
-
-    public async Task<bool> ValidateCsrfTokenAsync(
-        Guid sessionId,
-        Guid accountId,
-        string token,
-        CancellationToken cancellationToken = default)
-    {
-        if (!TokenCanBeValid(token))
-        {
-            return false;
-        }
-
-        var expected = await database.Sessions
-            .Where(row => row.Id == sessionId && row.AccountId == accountId && row.ExpiresAt > Now())
-            .Select(row => row.CsrfTokenHash)
-            .SingleOrDefaultAsync(cancellationToken);
-
-        return expected is not null && TokenMatches(token, expected);
-    }
-
     public async Task SignOutAsync(
         Guid sessionId,
         Guid accountId,
@@ -499,7 +458,6 @@ public sealed class AccessService(
     private SessionGrant IssueSession(AccountRow account, DateTime now)
     {
         var sessionToken = NewToken();
-        var csrfToken = NewToken();
         var expiresAt = now + AccessLifetimes.Session;
         var row = new SessionRow
         {
@@ -507,7 +465,6 @@ public sealed class AccessService(
             Account = account,
             AccountId = account.Id,
             TokenHash = Hash(sessionToken),
-            CsrfTokenHash = Hash(csrfToken),
             CreatedAt = now,
             ExpiresAt = expiresAt,
         };
@@ -516,7 +473,7 @@ public sealed class AccessService(
         return new SessionGrant(
             row.Id,
             sessionToken,
-            csrfToken,
+            CsrfToken.For(sessionToken),
             AsOffset(expiresAt),
             Identity(account));
     }

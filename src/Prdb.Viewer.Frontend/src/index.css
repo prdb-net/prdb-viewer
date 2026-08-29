@@ -89,8 +89,18 @@ p { color: #bdb8c7; line-height: 1.6; }
 .global-search input:focus { border-color: #a984ff; box-shadow: 0 0 0 .2rem rgb(169 132 255 / 15%); }
 
 .account-menu { display: flex; align-items: center; gap: .7rem; color: #c9c4cf; font-size: .9rem; }
-.account-link { color: #c9c4cf; text-decoration: none; }
-.account-link:hover, .account-link.active { color: #fff; }
+.account-link {
+  color: #c9c4cf;
+  text-decoration: underline;
+  text-decoration-color: rgb(255 255 255 / 25%);
+  text-underline-offset: .25rem;
+  border-radius: .4rem;
+  padding: .15rem .25rem;
+}
+.account-link:hover, .account-link:focus-visible, .account-link.active {
+  color: #fff;
+  text-decoration-color: currentcolor;
+}
 
 .app-navigation {
   grid-area: nav;
@@ -304,10 +314,16 @@ p { color: #bdb8c7; line-height: 1.6; }
     height: calc(100dvh - var(--header-height));
     max-height: none;
     background: #16151b;
+    /* A drawer that is merely pushed off-screen still takes the Tab key and still reads to a
+       screen reader, so a closed drawer is hidden rather than only moved. Transitioning
+       visibility holds it visible until the slide out has finished. */
+    visibility: hidden;
     transform: translateX(-100%);
-    transition: transform .18s ease-out;
+    transition: transform .18s ease-out, visibility .18s;
   }
-  .drawer-open .app-navigation { transform: translateX(0); }
+  .drawer-open .app-navigation { visibility: visible; transform: translateX(0); }
+  /* The drawer covers the content, so what it covers does not scroll beneath it. */
+  body.drawer-open { overflow: hidden; }
   .drawer-open .drawer-scrim { display: block; position: fixed; inset: var(--header-height) 0 0; z-index: 3; background: rgb(0 0 0 / 45%); }
   .video-detail { grid-template-columns: 1fr; }
 }
@@ -317,6 +333,8 @@ p { color: #bdb8c7; line-height: 1.6; }
   .card { border-radius: 1.3rem; }
   .app-header { gap: .6rem; }
   .brand.compact h1 { display: none; }
+  /* The header has no room for the name here. The Account keeps its own navigation entry, so
+     hiding this shortcut costs nothing but the shortcut. */
   .account-menu > .account-link { display: none; }
   .app-content { padding: 1.25rem 1rem 4rem; }
   .account-row { align-items: flex-start; flex-direction: column; }

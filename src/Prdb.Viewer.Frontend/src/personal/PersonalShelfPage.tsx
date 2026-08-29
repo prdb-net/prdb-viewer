@@ -43,7 +43,7 @@ export function PersonalShelfPage({ account, shelf }: { account: Account; shelf:
   }
 
   if (personalLibrary.isError) {
-    return <RequestError />
+    return <RequestError error={personalLibrary.error} />
   }
 
   const videos = personalLibrary.data[shelf]
@@ -53,7 +53,7 @@ export function PersonalShelfPage({ account, shelf }: { account: Account; shelf:
       <PageHeading
         eyebrow="Yours"
         title={description.title}
-        actions={<span className="muted">{videos.length}</span>}
+        actions={<span className="muted">{videos.length} here</span>}
       >
         {description.explanation}
       </PageHeading>
@@ -69,7 +69,7 @@ export function PersonalShelfPage({ account, shelf }: { account: Account; shelf:
           />
         )}
 
-      {personal.failed && <RequestError />}
+      {personal.failed && <RequestError error={personal.error} />}
     </>
   )
 }
