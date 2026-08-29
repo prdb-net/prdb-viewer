@@ -198,6 +198,35 @@ describe('The application shell', () => {
     expect(screen.getByRole('button', { name: 'First Site (2)' })).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('keeps both facets when they are clicked faster than a render', async () => {
+    signedInAs('User', (input) => {
+      if (isFacetRequest(input)) {
+        return json({
+          sites: [{ value: 'First Site', count: 2 }, { value: 'Second Site', count: 3 }],
+          actors: [],
+        })
+      }
+      return undefined
+    })
+
+    renderApp()
+
+    await screen.findByRole('heading', { name: 'Browse' })
+    // Both in one batch, as clicking quickly produces. Computing the new list from the last render
+    // rather than from the address discarded the first of them.
+    fireEvent.click(screen.getByRole('button', { name: 'First Site (2)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Second Site (3)' }))
+
+    await vi.waitFor(() => {
+      expect(screen.getByRole('button', { name: 'First Site (2)' })).toHaveAttribute('aria-pressed', 'true')
+      expect(screen.getByRole('button', { name: 'Second Site (3)' })).toHaveAttribute('aria-pressed', 'true')
+    })
+    expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('sites=First+Site%2CSecond+Site'),
+      expect.anything(),
+    )
+  })
+
   it('reveals more by asking for the next page rather than a longer first one', async () => {
     signedInAs('User', (input) => {
       if (isLibraryRequest(input)) {

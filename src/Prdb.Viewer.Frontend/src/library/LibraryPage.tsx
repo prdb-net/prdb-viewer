@@ -25,7 +25,7 @@ const emptyLibraryPollMilliseconds = 30_000
 /// depth. What belongs to one Video belongs to that Video's own page.
 export function LibraryPage({ account }: { account: Account }) {
   const queryClient = useQueryClient()
-  const { filters, pages, narrow, clear, showMore, narrowed } = useLibraryFilters()
+  const { filters, pages, narrow, toggle, clear, showMore, narrowed } = useLibraryFilters()
   const facets = useQuery({ queryKey: queryKeys.libraryFacets, queryFn: api.libraryFacets })
   const videos = useInfiniteQuery({
     queryKey: queryKeys.videos(JSON.stringify(filters)),
@@ -91,6 +91,7 @@ export function LibraryPage({ account }: { account: Account }) {
         filters={filters}
         facets={facets.data}
         narrow={narrow}
+        toggle={toggle}
         clear={clear}
         narrowed={narrowed}
       />

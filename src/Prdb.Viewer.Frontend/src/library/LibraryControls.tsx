@@ -6,12 +6,17 @@ export function LibraryControls({
   filters,
   facets,
   narrow,
+  toggle,
   clear,
   narrowed,
 }: {
   filters: LibraryFilters
   facets?: LibraryFacets
   narrow: (change: Partial<LibraryFilters>) => void
+  /// Values inside one facet combine with OR, so a Site or an Actor is added to what is already
+  /// chosen rather than replacing it. It goes through the address rather than through `narrow`,
+  /// which would compute the new list from a render that a quick second click has already outrun.
+  toggle: (key: 'sites' | 'actors', value: string, selected: boolean) => void
   clear: () => void
   narrowed: boolean
 }) {
@@ -64,9 +69,7 @@ export function LibraryControls({
               key={site.value}
               label={`${site.value} (${site.count})`}
               selected={filters.sites.includes(site.value)}
-              onToggle={(selected) => narrow({
-                sites: withValue(filters.sites, site.value, selected),
-              })}
+              onToggle={(selected) => toggle('sites', site.value, selected)}
             />
           ))}
         </div>
@@ -78,24 +81,13 @@ export function LibraryControls({
               key={actor.value}
               label={`${actor.value} (${actor.count})`}
               selected={filters.actors.includes(actor.value)}
-              onToggle={(selected) => narrow({
-                actors: withValue(filters.actors, actor.value, selected),
-              })}
+              onToggle={(selected) => toggle('actors', actor.value, selected)}
             />
           ))}
         </div>
       ) : null}
     </div>
   )
-}
-
-/// One more chosen value, or one fewer.
-///
-/// Values inside one facet combine with OR, so selecting a second Site widens the set rather than
-/// replacing the first. These controls looked like several could be on at once and behaved as a
-/// choice of one, which quietly discarded the earlier selection.
-function withValue(chosen: string[], value: string, selected: boolean) {
-  return selected ? [...chosen, value] : chosen.filter((held) => held !== value)
 }
 
 function FacetToggle({ label, selected, onToggle }: {

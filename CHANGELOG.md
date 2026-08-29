@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-08-29
+
+### Fixed
+
+- Choose two Sites, or two Actors, as fast as you can click them. The second
+  choice was computed from what the screen had last drawn rather than from the
+  address it was updating, so a click arriving before that redraw discarded the
+  one before it. The same mistake the search field made in 0.4.1, in the place a
+  row of facets makes it easiest to hit.
+
 ## [0.5.0] - 2026-08-29
 
 The six functional gaps the 0.4.0 UI review wrote down rather than closed. A
