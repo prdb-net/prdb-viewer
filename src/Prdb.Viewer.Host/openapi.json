@@ -882,6 +882,39 @@
         }
       }
     },
+    "/api/library/videos/{videoId}": {
+      "get": {
+        "tags": [
+          "Library"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/library/facets": {
       "get": {
         "tags": [
@@ -3848,6 +3881,25 @@
           "Unavailable",
           "Removed"
         ]
+      },
+      "VideoDetail": {
+        "required": [
+          "video",
+          "supersededVideoId"
+        ],
+        "type": "object",
+        "properties": {
+          "video": {
+            "$ref": "#/components/schemas/VideoSummary"
+          },
+          "supersededVideoId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          }
+        }
       },
       "VideoFileAvailability": {
         "enum": [

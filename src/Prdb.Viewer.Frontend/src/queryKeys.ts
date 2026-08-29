@@ -1,0 +1,16 @@
+export const queryKeys = {
+  state: ['access-state'] as const,
+  account: ['account'] as const,
+  accounts: ['accounts'] as const,
+  configuration: ['configuration'] as const,
+  libraryDirectoryCandidates: ['library-directory-candidates'] as const,
+  backgroundWork: ['background-work'] as const,
+  workIssueItems: (workIssueId: string) => ['work-issue-items', workIssueId] as const,
+  identificationQueue: ['identification-queue'] as const,
+  identificationCase: (videoId: string) => ['identification-case', videoId] as const,
+  videos: (filters: string, pages: number) => ['videos', filters, pages] as const,
+  video: (videoId: string) => ['video', videoId] as const,
+  libraryFacets: ['library-facets'] as const,
+  personalLibrary: ['personal-library'] as const,
+  playbackProfiles: ['playback-profiles'] as const,
+}

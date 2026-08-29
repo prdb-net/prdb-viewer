@@ -27,6 +27,7 @@ export type BackgroundWorkActionResult = components['schemas']['BackgroundWorkAc
 export type BackgroundWorkPauseResult = components['schemas']['BackgroundWorkPauseResult']
 export type QueueLibraryScanResult = components['schemas']['QueueLibraryScanResult']
 export type VideoSummary = components['schemas']['VideoSummary']
+export type VideoDetail = components['schemas']['VideoDetail']
 export type LibraryPage = components['schemas']['LibraryPage']
 export type LibraryFacets = components['schemas']['LibraryFacets']
 export type LibrarySortOrder = components['schemas']['LibrarySortOrder']
@@ -153,6 +154,7 @@ export const api = {
   state: () => request<AccessState>('/api/access/state'),
   videos: (filters: LibraryFilters, skip = 0, take = 60) =>
     request<LibraryPage>(`/api/library/videos?${libraryQuery(filters, skip, take)}`),
+  video: (videoId: string) => request<VideoDetail>(`/api/library/videos/${videoId}`),
   libraryFacets: () => request<LibraryFacets>('/api/library/facets'),
   setIncludeNotReady: (included: boolean, csrfToken: string) =>
     mutate<LibraryPreferences>(

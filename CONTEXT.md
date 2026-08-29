@@ -291,3 +291,7 @@ _Avoid_: all indexed Videos, active library, default library
 **Discovery Date**:
 The installation-wide time at which technical inspection first admits a Video File Candidate as a Video, or at which a split creates a genuinely new Video identity. It is independent of playability and Personal State, and later enrichment, temporary loss, and recovery do not reset it.
 _Avoid_: Ordinary Discovery eligibility time, first playback time, metadata update time, file modification time
+
+**Direct Address**:
+Reaching one Video by its own address rather than by finding it in a presentation. It does not apply the admission rule of Ordinary Discovery, because following a link is the User's own decision to look at a Video rather than the Library's decision to offer it; only what has left the active Library is refused, and an identity absorbed by a merge answers as the Video that survived it.
+_Avoid_: Ordinary Discovery, search result, deep link to a Video File

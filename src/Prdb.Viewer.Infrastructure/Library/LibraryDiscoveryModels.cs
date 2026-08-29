@@ -63,6 +63,13 @@ public sealed record LibraryPage(
     bool IncludesNotReadyForDirectPlay);
 
 /// <summary>
+/// One Video answered on its own. <paramref name="SupersededVideoId"/> is the identity that was
+/// asked for when it differs from the one answered, so the view can say that the link led to the
+/// Video this one was merged into rather than silently showing something else.
+/// </summary>
+public sealed record VideoDetail(VideoSummary Video, Guid? SupersededVideoId);
+
+/// <summary>
 /// One media configuration this Account's client has not answered for yet, with everything Media
 /// Capabilities needs to answer it. The Video Files carrying it are not named: the question is
 /// about the configuration, not about anyone's library.
