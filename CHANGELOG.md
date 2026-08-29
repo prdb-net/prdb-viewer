@@ -7,15 +7,24 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-08-29
+
+### Fixed
+
+- Choose two Sites, or two Actors, as fast as you can click them. 0.5.1 claimed
+  this and did not deliver it: reading the list out of the address inside the
+  updater is not enough, because two navigations raised in the same tick both
+  receive the address the first one started from. Every filter this screen writes
+  now builds on what was last written while that write is still on its way, so a
+  second change in the same tick continues the first rather than replacing it.
+
 ## [0.5.1] - 2026-08-29
 
 ### Fixed
 
-- Choose two Sites, or two Actors, as fast as you can click them. The second
-  choice was computed from what the screen had last drawn rather than from the
-  address it was updating, so a click arriving before that redraw discarded the
-  one before it. The same mistake the search field made in 0.4.1, in the place a
-  row of facets makes it easiest to hit.
+- Attempted to make two quick Site or Actor choices both stick, and did not
+  succeed. The change was real but insufficient, and the test covering it passed
+  for the wrong reason. 0.5.2 fixes it.
 
 ## [0.5.0] - 2026-08-29
 
