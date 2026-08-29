@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+
 using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Core.Personal;
 using Prdb.Viewer.Host.Access;
@@ -46,6 +48,21 @@ public static class VideoEndpoints
                     Take = take,
                 },
                 cancellationToken)));
+
+        library.MapGet("/videos/{videoId:guid}", async Task<Results<Ok<VideoDetail>, NotFound>> (
+            Guid videoId,
+            HttpContext http,
+            LibraryDiscovery discovery,
+            CancellationToken cancellationToken) =>
+        {
+            var video = await discovery.GetVideoAsync(
+                http.User.AccountId()!.Value,
+                http.ClientContextKey(),
+                videoId,
+                cancellationToken);
+
+            return video is null ? TypedResults.NotFound() : TypedResults.Ok(video);
+        });
 
         library.MapGet("/facets", async (
             HttpContext http,

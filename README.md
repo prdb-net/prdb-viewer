@@ -12,8 +12,9 @@ authenticated catalogue, direct browser playback path, Account-private playback
 and Personal State surfaces, a searchable and filterable library whose playability
 is assessed per Account and browser, prdb identification with local preview
 images, local site recognition and an Administrator review workflow, the
-observable background-work operations surface, and operator backup and restore.
-See
+observable background-work operations surface, and operator backup and restore,
+presented as a navigable application in which every screen — and every Video —
+has its own address. See
 [VISION.md](VISION.md) for the product contract.
 
 ## Prerequisites
@@ -176,7 +177,7 @@ scans do not write beneath a Library Directory.
 Activating a Library Directory queues its first Library Scan. Traversal and
 technical inspection run in separate bounded background-work lanes and persist
 their checkpoints, progress, and Work Issues in SQLite. The Administrator can
-follow those runs or coalesce another scan from the Background work panel.
+follow those runs or coalesce another scan from the Background work screen.
 
 Recognised regular files are hashed and inspected with `ffprobe`. Technical
 facts are committed only if the file remains unchanged throughout inspection.
@@ -184,6 +185,30 @@ A stable content identity preserves a Video File across a rename, while a
 changed file at an existing path is retained as Replaced. One trustworthy
 complete absence records Unreachable; a second records Missing. An incomplete
 or inaccessible traversal never infers absence for the directory.
+
+## Find your way around
+
+The Viewer is an application rather than a page. A persistent shell carries
+search, your Account and a sidebar of destinations grouped by what they are for:
+the library and your own shelves under **Library**, and — for an Administrator —
+installation configuration, identification review, background work and accounts
+under **Administration**. Entries that lead to waiting work carry its count, so
+Operational Attention and an open identification queue are visible without
+opening the screen behind them. On a narrow viewport the same navigation opens
+as a drawer.
+
+Every screen is its own address, and the address carries what you were looking
+at: the library's search, facets, sort order and revealed depth, and the
+identification case an Administrator has open. A link therefore reproduces the
+same page for whoever opens it. What an Account may reach is decided in the
+navigation and in the routes as well as at the API, so an address typed by hand
+meets the same answer as an entry that is not offered.
+
+A Video has a page of its own, reached from anywhere it appears. Following that
+link is a Direct Address: it does not apply the admission rule of Ordinary
+Discovery, so a Video this browser cannot play directly is still shown when you
+ask for it by name. An address whose Video was merged into another one answers
+as the Video that survived the merge and says so.
 
 ## Browse and directly play Videos
 

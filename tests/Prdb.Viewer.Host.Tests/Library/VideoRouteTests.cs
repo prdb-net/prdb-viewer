@@ -66,6 +66,20 @@ public sealed class VideoRouteTests
             $"/media/videos/{Guid.NewGuid()}",
             TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+
+        // One Video answered on its own, which is what a link to it needs.
+        var addressed = await client.GetFromJsonAsync<JsonElement>(
+            $"/api/library/videos/{video.GetProperty("id").GetString()}",
+            TestContext.Current.CancellationToken);
+        Assert.Equal("sample", addressed.GetProperty("video").GetProperty("displayTitle").GetString());
+        Assert.Equal(
+            JsonValueKind.Null,
+            addressed.GetProperty("supersededVideoId").ValueKind);
+
+        using var unknown = await client.GetAsync(
+            $"/api/library/videos/{Guid.CreateVersion7()}",
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NotFound, unknown.StatusCode);
     }
 
     private static async Task<Guid> AddVideoAsync(ViewerApplication application)

@@ -1,39 +1,20 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 
-import { App } from './App'
-
-function renderApp() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return render(<QueryClientProvider client={queryClient}><App /></QueryClientProvider>)
-}
-
-function libraryPage(videos: unknown[], overrides: Record<string, unknown> = {}) {
-  return {
-    videos,
-    totalMatches: videos.length,
-    hiddenNotReadyForDirectPlay: 0,
-    hiddenUnavailable: 0,
-    hasMore: false,
-    includesNotReadyForDirectPlay: false,
-    ...overrides,
-  }
-}
-
-function isFacetRequest(input: unknown) {
-  return input === '/api/library/facets'
-}
-
-function isLibraryRequest(input: unknown) {
-  return typeof input === 'string' && input.startsWith('/api/library/videos')
-}
-
-function json(body: unknown) {
-  return Promise.resolve(new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { 'Content-Type': 'application/json' },
-  }))
-}
+import {
+  claim,
+  identification,
+  isFacetRequest,
+  isLibraryRequest,
+  isVideoRequest,
+  json,
+  libraryPage,
+  libraryVideo,
+  personalState,
+  renderApp,
+  variant,
+  videoDetail,
+  waitForVideo,
+} from './test/fixtures'
 
 describe('App', () => {
   afterEach(() => vi.restoreAllMocks())
@@ -107,7 +88,7 @@ describe('App', () => {
       return json([])
     })
 
-    const rendered = renderApp()
+    renderApp()
     expect(await screen.findByRole('heading', { name: 'Claim this installation' })).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('One-time authorization'), { target: { value: 'authorization' } })
@@ -115,16 +96,16 @@ describe('App', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'administrator password' } })
     fireEvent.click(screen.getByRole('button', { name: 'Create Administrator' }))
 
-    expect(await screen.findByRole('heading', { name: 'Your collection starts here' })).toBeInTheDocument()
+    // Claiming the installation lands in the library rather than on a page that carries every
+    // administrative section beneath it.
+    expect(await screen.findByRole('heading', { name: 'Browse' })).toBeInTheDocument()
+    expect(screen.getByText('Sample Video')).toBeInTheDocument()
+
+    // Configuration is a destination, reached from the navigation the shell always shows.
+    fireEvent.click(screen.getByRole('link', { name: 'Installation' }))
     expect(await screen.findByRole('heading', { name: 'Configuration' })).toBeInTheDocument()
-    fireEvent.click(await screen.findByRole('button', { name: 'Play' }))
-    expect(await screen.findByText('Your browser cannot play this Video File.')).toBeInTheDocument()
-    expect(rendered.container.querySelector('video')).toHaveAttribute(
-      'src',
-      '/media/videos/01994dd4-2a0a-7000-8000-000000000012',
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Close' }))
-    await vi.waitFor(() => expect(rendered.container.querySelector('video')).toBeNull())
+    expect(screen.queryByText('Sample Video')).not.toBeInTheDocument()
+
     expect(globalThis.fetch).toHaveBeenCalledWith(
       '/api/access/bootstrap',
       expect.objectContaining({ method: 'POST' }),
@@ -161,6 +142,7 @@ describe('App', () => {
       if (input === '/api/personal/library') {
         return json({ continueWatching: [video], favourites: [], watchLater: [] })
       }
+      if (isVideoRequest(input)) return json(videoDetail(video))
       if (input === '/api/personal/videos/01994dd4-2a0a-7000-8000-000000000010/playback-attempts') {
         return json({
           verdict: 'Started',
@@ -181,15 +163,18 @@ describe('App', () => {
     })
     const clock = vi.spyOn(performance, 'now').mockReturnValue(0)
 
-    const rendered = renderApp()
-    expect(await screen.findByRole('region', { name: 'Continue Watching' })).toBeInTheDocument()
+    // Continue Watching is its own destination rather than a shelf stacked above the library.
+    const rendered = renderApp('/continue')
+    expect(await screen.findByRole('heading', { name: 'Continue Watching' })).toBeInTheDocument()
     fireEvent.click(screen.getAllByRole('button', { name: 'Favourite' })[0])
     await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
       '/api/personal/videos/01994dd4-2a0a-7000-8000-000000000010/favourite',
       expect.objectContaining({ method: 'PUT' }),
     ))
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Resume' })[0])
+    // Resuming leads to the Video's own page, which is where playback lives, and starts there.
+    fireEvent.click(screen.getAllByRole('link', { name: 'Resume' })[0])
+    expect(await screen.findByRole('heading', { name: 'Resume Me' })).toBeInTheDocument()
     const player = await waitForVideo(rendered.container)
     Object.defineProperty(player, 'paused', { configurable: true, value: false })
     player.currentTime = 20
@@ -369,7 +354,7 @@ describe('App', () => {
       return json([])
     })
 
-    renderApp()
+    renderApp('/admin/identification')
 
     fireEvent.click(await screen.findByRole('button', { name: 'Review' }))
     expect(await screen.findByText('The evidence is only suggestive, so it can propose a candidate.'))
@@ -437,7 +422,7 @@ describe('App', () => {
     expect(screen.getByText(/2 matches not ready for direct play/)).toBeInTheDocument()
     expect(screen.getByText(/1 match currently unavailable/)).toBeInTheDocument()
 
-    fireEvent.change(screen.getByLabelText('Search'), { target: { value: 'known' } })
+    fireEvent.change(screen.getByLabelText('Search the library'), { target: { value: 'known' } })
     await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining('query=known'),
       expect.anything(),
@@ -537,6 +522,7 @@ describe('App', () => {
         return Promise.resolve(new Response(null, { status: 206 }))
       }
       if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isVideoRequest(input)) return json(videoDetail(video))
       if (isLibraryRequest(input)) return json(libraryPage([video]))
       if (input === '/api/personal/library') {
         return json({ continueWatching: [], favourites: [], watchLater: [] })
@@ -544,8 +530,9 @@ describe('App', () => {
       return json([])
     })
 
-    const rendered = renderApp()
-    expect(await screen.findByText('Two Variants')).toBeInTheDocument()
+    // Playback is the Video's own page, so this is where the fallback chain plays out.
+    const rendered = renderApp('/videos/01994dd4-2a0a-7000-8000-000000000010')
+    expect(await screen.findByRole('heading', { name: 'Two Variants' })).toBeInTheDocument()
 
     // The browser answers for the configurations the library holds, and says how it answered.
     await vi.waitFor(() => expect(decodingInfo).toHaveBeenCalled())
@@ -642,25 +629,27 @@ describe('App', () => {
       '/media/previews/01994dd4-2a0a-7000-8000-000000000014',
     )
     expect(screen.getByText(/asf \(wmv3 \+ wmav2\)/)).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Play' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Play' })).not.toBeInTheDocument()
 
     // A locally recognised Site says so rather than looking like a prdb match.
     expect(screen.getByText('Known Site · recognised locally')).toBeInTheDocument()
 
-    // The standing preference is visible and can be turned off again.
-    const preference = screen.getByLabelText('Show unsupported Videos in ordinary results')
-    expect(preference).toBeChecked()
-    fireEvent.click(preference)
-    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
-      '/api/library/preferences/include-not-ready',
-      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ included: false }) }),
-    ))
-
-    // The explicit filter narrows one view without changing the preference.
+    // The explicit filter narrows one view, and the address is what carries it.
     fireEvent.click(screen.getByRole('button', { name: 'Unsupported only' }))
     await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
       expect.stringContaining('playability=NotDirectlyPlayable'),
       expect.anything(),
+    ))
+
+    // The standing preference is not a filter, so it lives with the Account rather than beside
+    // the facets, and can be turned off again from there.
+    fireEvent.click(screen.getByRole('link', { name: 'viewer' }))
+    const preference = await screen.findByLabelText('Show unsupported Videos in ordinary results')
+    await vi.waitFor(() => expect(preference).toBeChecked())
+    fireEvent.click(preference)
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/library/preferences/include-not-ready',
+      expect.objectContaining({ method: 'PUT', body: JSON.stringify({ included: false }) }),
     ))
   })
 
@@ -767,10 +756,10 @@ describe('App', () => {
       return json([])
     })
 
-    renderApp()
+    renderApp('/admin/work')
 
     expect(await screen.findByText('Operational attention')).toBeInTheDocument()
-    expect(screen.getByText('1 issue block work until someone acts.')).toBeInTheDocument()
+    expect(screen.getByText(/1 issue blocks work until someone acts\./)).toBeInTheDocument()
     expect(await screen.findByText('Library directory “Films” cannot be scanned')).toBeInTheDocument()
     expect(screen.getByText(/WI-A1B2C3D4E5F6/)).toBeInTheDocument()
     expect(screen.getByText(/\/library\/films/)).toBeInTheDocument()
@@ -797,96 +786,3 @@ describe('App', () => {
     ))
   })
 })
-
-function variant(overrides: Record<string, unknown> = {}) {
-  return {
-    videoFileId: '01994dd4-2a0a-7000-8000-000000000011',
-    deliveryUrl: '/media/videos/01994dd4-2a0a-7000-8000-000000000012',
-    containerFormat: 'matroska,webm',
-    videoCodec: 'vp8',
-    audioCodec: 'vorbis',
-    width: 1920,
-    height: 1080,
-    frameRate: 25,
-    bitrate: 2000000,
-    audioChannels: 2,
-    audioSampleRate: 48000,
-    audioBitrate: 128000,
-    size: 10,
-    durationMilliseconds: 10000,
-    directPlayClassification: 'BaselineCandidate',
-    profileKey: 'video/webm|vp8|profile-unknown|level-unknown|8bit|fullhd|standard|vorbis|2ch',
-    preciseVideoContentType: null,
-    preciseAudioContentType: null,
-    basicContentType: 'video/webm; codecs="vp8, vorbis"',
-    assessment: null,
-    smooth: null,
-    powerEfficient: null,
-    outcome: null,
-    readyForDirectPlay: true,
-    selectionReason: 'BaselineCandidate',
-    ...overrides,
-  }
-}
-
-function personalState(overrides: Record<string, unknown> = {}) {
-  return {
-    playbackProgressMilliseconds: null,
-    accumulatedWatchDurationMilliseconds: 0,
-    playCount: 0,
-    hasViewingCompletion: false,
-    playState: 'Unplayed',
-    continueWatching: false,
-    favourite: false,
-    watchLater: false,
-    personalRating: null,
-    ...overrides,
-  }
-}
-
-function claim(overrides: Record<string, unknown> = {}) {
-  return {
-    dimension: 'WorkIdentification',
-    resolution: 'Unknown',
-    reviewStatus: 'Clear',
-    targetTitle: null,
-    targetUrl: null,
-    source: 'PrdbIdentification',
-    evidenceClass: 'Conclusive',
-    administrativeOverride: false,
-    establishedAt: null,
-    lastConfirmedAt: null,
-    ...overrides,
-  }
-}
-
-function identification(overrides: Record<string, unknown> = {}) {
-  return {
-    work: claim(),
-    site: claim({ dimension: 'SiteRecognition' }),
-    actors: [],
-    metadataFetchedAt: null,
-    ...overrides,
-  }
-}
-
-function libraryVideo(overrides: Record<string, unknown> = {}) {
-  return {
-    id: '01994dd4-2a0a-7000-8000-000000000010',
-    displayTitle: 'Sample Video',
-    discoveryDate: '2026-08-27T12:00:00Z',
-    availability: 'Available',
-    previewUrl: null,
-    identification: identification(),
-    playability: 'ReadyForDirectPlay',
-    isUnsupportedVideo: false,
-    personalState: personalState(),
-    videoFiles: [variant()],
-    ...overrides,
-  }
-}
-
-async function waitForVideo(container: HTMLElement) {
-  await vi.waitFor(() => expect(container.querySelector('video')).not.toBeNull())
-  return container.querySelector('video')!
-}

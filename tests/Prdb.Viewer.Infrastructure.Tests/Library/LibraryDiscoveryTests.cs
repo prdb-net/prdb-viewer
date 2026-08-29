@@ -282,6 +282,89 @@ public sealed class LibraryDiscoveryTests
         Assert.NotEqual(DirectPlayClassification.BaselineCandidate, file.DirectPlayClassification);
     }
 
+    [Fact]
+    public async Task A_direct_address_answers_a_video_ordinary_discovery_keeps_out()
+    {
+        await using var store = await CreateAsync();
+        var accountId = await AccountAsync(store);
+        await SourceAsync(store, ("ready.mp4", "mp4"), ("uncertain.mkv", "matroska"));
+        await LibraryPipeline.DrainAsync(store);
+
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var kept = await database.Videos
+            .SingleAsync(
+                video => video.DisplayLabel == "uncertain",
+                TestContext.Current.CancellationToken);
+
+        // Ordinary Discovery does not offer it, because this client is not ready to play it.
+        var page = await Discovery(scope).GetAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            new LibraryDiscoveryRequest(),
+            TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(page.Videos, video => video.Id == kept.Id);
+
+        // Addressing it directly still answers it: the link is the User's own decision to look.
+        var detail = await Discovery(scope).GetVideoAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            kept.Id,
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(detail);
+        Assert.Equal(kept.Id, detail.Video.Id);
+        Assert.Null(detail.SupersededVideoId);
+        Assert.NotEqual(ClientVideoPlayability.ReadyForDirectPlay, detail.Video.Playability);
+    }
+
+    [Fact]
+    public async Task A_direct_address_follows_a_merge_and_refuses_a_removed_video()
+    {
+        await using var store = await CreateAsync();
+        var accountId = await AccountAsync(store);
+        await SourceAsync(store, ("survivor.mp4", "mp4"), ("merged.mp4", "mp4"), ("gone.mp4", "mp4"));
+        await LibraryPipeline.DrainAsync(store);
+
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var survivor = await database.Videos.AsTracking().SingleAsync(
+            video => video.DisplayLabel == "survivor",
+            TestContext.Current.CancellationToken);
+        var merged = await database.Videos.AsTracking().SingleAsync(
+            video => video.DisplayLabel == "merged",
+            TestContext.Current.CancellationToken);
+        var removed = await database.Videos.AsTracking().SingleAsync(
+            video => video.DisplayLabel == "gone",
+            TestContext.Current.CancellationToken);
+        merged.SurvivingVideoId = survivor.Id;
+        removed.Availability = VideoAvailability.Removed;
+        await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // A link taken before the merge keeps leading somewhere true, and says where it led.
+        var followed = await Discovery(scope).GetVideoAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            merged.Id,
+            TestContext.Current.CancellationToken);
+
+        Assert.NotNull(followed);
+        Assert.Equal(survivor.Id, followed.Video.Id);
+        Assert.Equal(merged.Id, followed.SupersededVideoId);
+
+        // What has left the active Library is refused rather than answered.
+        Assert.Null(await Discovery(scope).GetVideoAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            removed.Id,
+            TestContext.Current.CancellationToken));
+        Assert.Null(await Discovery(scope).GetVideoAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            Guid.CreateVersion7(),
+            TestContext.Current.CancellationToken));
+    }
+
     private static LibraryDiscovery Discovery(AsyncServiceScope scope) =>
         scope.ServiceProvider.GetRequiredService<LibraryDiscovery>();
 

@@ -110,6 +110,69 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
     }
 
     /// <summary>
+    /// One Video, addressed directly rather than discovered.
+    ///
+    /// Direct address is not Ordinary Discovery and does not apply its admission rule: a Video this
+    /// client cannot play is still answered, because following a link is the User's own decision to
+    /// look at a Video rather than the Library's decision to offer it. What is no longer part of
+    /// the active Library is still refused, and a merged identity answers as the Video that
+    /// survived it, so a link taken before a merge keeps leading somewhere true.
+    /// </summary>
+    public async Task<VideoDetail?> GetVideoAsync(
+        Guid accountId,
+        string clientContextKey,
+        Guid videoId,
+        CancellationToken cancellationToken = default)
+    {
+        var addressed = await SurvivorOfAsync(videoId, cancellationToken);
+
+        if (addressed is null)
+        {
+            return null;
+        }
+
+        var loaded = await LoadAsync(accountId, clientContextKey, [addressed.Value], LibrarySortOrder.Newest, cancellationToken);
+
+        return loaded.Count == 0
+            ? null
+            : new VideoDetail(loaded[0], addressed.Value == videoId ? null : videoId);
+    }
+
+    /// <summary>
+    /// The Video that carries this identity today. A merge points the Video it absorbed at its
+    /// survivor, and a later merge can move that survivor again, so the chain is followed rather
+    /// than the single hop — bounded, because a cycle is a defect rather than a longer chain.
+    /// </summary>
+    private async Task<Guid?> SurvivorOfAsync(Guid videoId, CancellationToken cancellationToken)
+    {
+        const int mergeChainLimit = 8;
+        var current = videoId;
+
+        for (var hop = 0; hop < mergeChainLimit; hop++)
+        {
+            var found = await database.Videos
+                .AsNoTracking()
+                .Where(video => video.Id == current)
+                .Select(video => new { video.SurvivingVideoId, video.Availability })
+                .SingleOrDefaultAsync(cancellationToken);
+
+            if (found is null || found.Availability == VideoAvailability.Removed)
+            {
+                return null;
+            }
+
+            if (found.SurvivingVideoId is null)
+            {
+                return current;
+            }
+
+            current = found.SurvivingVideoId.Value;
+        }
+
+        return null;
+    }
+
+    /// <summary>
     /// How many Available matches this client cannot play, which is what the view offers to reveal.
     ///
     /// In the ordinary case it is arithmetic rather than a second question: everything admitted was

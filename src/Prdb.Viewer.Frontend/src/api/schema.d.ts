@@ -1126,6 +1126,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/library/videos/{videoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["VideoDetail"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/library/facets": {
         parameters: {
             query?: never;
@@ -2284,6 +2328,11 @@ export interface components {
         VariantSelectionReason: "PreviouslyPlayedHere" | "PositivelyAssessedAndSmooth" | "PositivelyAssessed" | "BaselineCandidate" | "NotYetAssessed" | "RuledOutHere";
         /** @enum {unknown} */
         VideoAvailability: "Available" | "Unavailable" | "Removed";
+        VideoDetail: {
+            video: components["schemas"]["VideoSummary"];
+            /** Format: uuid */
+            supersededVideoId: null | string;
+        };
         /** @enum {unknown} */
         VideoFileAvailability: "Available" | "Unreachable" | "Missing" | "Replaced" | "Removed";
         /** @enum {unknown} */
