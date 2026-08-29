@@ -34,7 +34,7 @@ export function BootstrapPanel() {
       {mutation.data && !mutation.data.account && (
         <Notice kind="error">{bootstrapMessage(mutation.data.verdict)}</Notice>
       )}
-      {mutation.isError && <RequestError />}
+      {mutation.isError && <RequestError error={mutation.error} />}
     </CenteredCard>
   )
 }

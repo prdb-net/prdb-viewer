@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type Account, type LibraryPage as LibraryPageResult } from '../api/client'
 import { usePersonalActions } from '../personal/usePersonalActions'
 import { queryKeys } from '../queryKeys'
-import { PageHeading, RequestError } from '../ui'
+import { firstError, PageHeading, RequestError } from '../ui'
 import { VideoGrid } from '../video/VideoCard'
 import { LibraryControls } from './LibraryControls'
 import { useLibraryFilters } from './useLibraryFilters'
@@ -35,7 +35,7 @@ export function LibraryPage({ account }: { account: Account }) {
   }
 
   if (videos.isError) {
-    return <RequestError />
+    return <RequestError error={videos.error} />
   }
 
   const page = videos.data
@@ -84,7 +84,9 @@ export function LibraryPage({ account }: { account: Account }) {
         </button>
       )}
 
-      {(personal.failed || includeNotReady.isError) && <RequestError />}
+      {(personal.failed || includeNotReady.isError) && (
+        <RequestError error={firstError(personal.error, includeNotReady.error)} />
+      )}
     </>
   )
 }

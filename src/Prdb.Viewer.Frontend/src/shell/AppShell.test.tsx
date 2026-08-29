@@ -5,9 +5,9 @@ import {
   isLibraryRequest,
   isVideoRequest,
   json,
-  libraryPage,
   libraryVideo,
   renderApp,
+  signedInAs,
   videoDetail,
 } from '../test/fixtures'
 
@@ -101,6 +101,78 @@ describe('The application shell', () => {
     expect(await screen.findByRole('heading', { name: 'Matching Videos' })).toBeInTheDocument()
   })
 
+  it('keeps every keystroke, and asks the library once typing settles', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    signedInAs('User')
+    renderApp()
+
+    await screen.findByRole('heading', { name: 'Browse' })
+    const field = screen.getByLabelText('Search the library')
+
+    // Keystrokes arriving faster than a navigation can render: the field used to be fed by the
+    // address, and dropped whichever character landed between the two.
+    fireEvent.change(field, { target: { value: 'b' } })
+    fireEvent.change(field, { target: { value: 'be' } })
+    fireEvent.change(field, { target: { value: 'bea' } })
+    fireEvent.change(field, { target: { value: 'beac' } })
+    fireEvent.change(field, { target: { value: 'beach' } })
+    expect(field).toHaveValue('beach')
+
+    const during = requestedQueries()
+    await vi.advanceTimersByTimeAsync(400)
+
+    expect(field).toHaveValue('beach')
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('query=beach'),
+      expect.anything(),
+    ))
+    // One search, not one per keystroke.
+    expect(requestedQueries().filter((query) => !during.includes(query))).toEqual(['beach'])
+
+    vi.useRealTimers()
+  })
+
+  it('offers the Account as a destination rather than only as a header shortcut', async () => {
+    signedInAs('User')
+    renderApp()
+
+    const navigation = await screen.findByRole('navigation', { name: 'Main' })
+    // The header shortcut is hidden where the window is narrow, so the navigation has to carry it.
+    expect(within(navigation).getByRole('link', { name: 'Your Account' })).toHaveAttribute(
+      'href',
+      '/account',
+    )
+  })
+
+  it('names the open screen in the window rather than the application', async () => {
+    signedInAs('User')
+    renderApp('/favourites')
+
+    await screen.findByRole('heading', { name: 'Favourites' })
+    await vi.waitFor(() => expect(document.title).toBe('Favourites · prdb-viewer'))
+  })
+
+  it('says what a refusal said rather than replacing it with advice that cannot work', async () => {
+    signedInAs('User', (input) => {
+      if (isLibraryRequest(input)) {
+        return Promise.resolve(new Response(
+          JSON.stringify({
+            title: 'The request could not be verified.',
+            detail: 'Refresh the page and try the action again.',
+          }),
+          { status: 403, headers: { 'Content-Type': 'application/problem+json' } },
+        ))
+      }
+      return undefined
+    })
+
+    renderApp()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Refresh the page and try the action again.',
+    )
+  })
+
   it('follows a link to a Video that was merged into another one', async () => {
     const survivor = libraryVideo({
       id: '01994dd4-2a0a-7000-8000-000000000090',
@@ -134,34 +206,12 @@ describe('The application shell', () => {
   })
 })
 
-/// The answers every screen needs before it can render, with room for the one a test is about.
-function signedInAs(
-  authority: 'Administrator' | 'User',
-  answer: (input: unknown) => Promise<Response> | undefined = () => undefined,
-) {
-  vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-    const specific = answer(input)
-    if (specific) return specific
-
-    if (input === '/api/access/state') return json({ claimed: true, signedIn: true })
-    if (input === '/api/access/me') {
-      return json({
-        id: '01994dd4-2a0a-7000-8000-000000000001',
-        username: 'viewer',
-        email: null,
-        authority,
-        csrfToken: 'csrf-token',
-      })
-    }
-    if (input === '/api/personal/playback-profiles') return json([])
-    if (input === '/api/admin/background-work/') return json({ work: [], issues: [] })
-    if (input === '/api/admin/identification/queue') return json([])
-    if (isFacetRequest(input)) return json({ sites: [], actors: [] })
-    if (isVideoRequest(input)) return json(videoDetail(libraryVideo()))
-    if (isLibraryRequest(input)) return json(libraryPage([libraryVideo()]))
-    if (input === '/api/personal/library') {
-      return json({ continueWatching: [], favourites: [], watchLater: [] })
-    }
-    return json([])
-  })
+/// The searches the library was actually asked for, in order.
+function requestedQueries() {
+  const calls = vi.mocked(globalThis.fetch).mock.calls
+  return calls
+    .map(([input]) => input)
+    .filter((input): input is string => typeof input === 'string' && isLibraryRequest(input))
+    .map((input) => new URLSearchParams(input.slice(input.indexOf('?'))).get('query'))
+    .filter((query): query is string => query !== null)
 }

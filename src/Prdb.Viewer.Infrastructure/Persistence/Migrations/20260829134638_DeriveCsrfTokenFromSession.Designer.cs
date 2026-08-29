@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Prdb.Viewer.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using Prdb.Viewer.Infrastructure.Persistence;
 namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ViewerDbContext))]
-    partial class ViewerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260829134638_DeriveCsrfTokenFromSession")]
+    partial class DeriveCsrfTokenFromSession
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");

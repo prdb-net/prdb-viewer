@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type Account, type LibraryDirectoryStage } from '../api/client'
 import { directoryStageMessage, friendlyState } from '../lib/format'
 import { queryKeys } from '../queryKeys'
-import { Field, Notice, PageHeading, RequestError, SubmitButton, submitting, values } from '../ui'
+import { Field, firstError, Notice, PageHeading, RequestError, SubmitButton, submitting, values } from '../ui'
 
 export function SetupPage({ account }: { account: Account }) {
   const configuration = useQuery({ queryKey: queryKeys.configuration, queryFn: api.configuration })
@@ -129,7 +129,19 @@ export function SetupPage({ account }: { account: Account }) {
           </section>
         </div>
       )}
-      {(configuration.isError || candidates.isError || verify.isError || retry.isError || stageDirectory.isError || activate.isError) && <RequestError />}
+      {(configuration.isError || candidates.isError || verify.isError || retry.isError ||
+        stageDirectory.isError || activate.isError) && (
+        <RequestError
+          error={firstError(
+            configuration.error,
+            candidates.error,
+            verify.error,
+            retry.error,
+            stageDirectory.error,
+            activate.error,
+          )}
+        />
+      )}
     </>
   )
 }

@@ -91,7 +91,7 @@ public static class AccessEndpoints
             .AllowAnonymous()
             .RequireRateLimiting("anonymous-access");
 
-        access.MapGet("/me", CurrentAccountAsync);
+        access.MapGet("/me", CurrentAccount);
 
         access.MapPost("/sign-out", async (
             AccessService service,
@@ -164,26 +164,24 @@ public static class AccessEndpoints
             grant.Account.Authority,
             grant.CsrfToken);
 
-    private static async Task<Results<Ok<SignedInAccountResponse>, UnauthorizedHttpResult>> CurrentAccountAsync(
-        AccessService service,
-        HttpContext http,
-        CancellationToken cancellationToken)
+    /// Asking who you are is a question, not a change. It reports the Session's CSRF token rather
+    /// than issuing a new one, so a second tab — or a reload — leaves the token every other client
+    /// of the same Session is already using intact.
+    private static Results<Ok<SignedInAccountResponse>, UnauthorizedHttpResult> CurrentAccount(
+        HttpContext http)
     {
-        var sessionId = http.User.SessionId()!.Value;
-        var accountId = http.User.AccountId()!.Value;
-        var csrfToken = await service.RotateCsrfTokenAsync(
-            sessionId,
-            accountId,
-            cancellationToken);
+        if (!http.Request.Cookies.TryGetValue(SessionAuthentication.CookieName, out var sessionToken) ||
+            string.IsNullOrEmpty(sessionToken))
+        {
+            return TypedResults.Unauthorized();
+        }
 
-        return csrfToken is null
-            ? TypedResults.Unauthorized()
-            : TypedResults.Ok(new SignedInAccountResponse(
-                accountId,
-                http.User.Identity!.Name!,
-                http.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value,
-                Enum.Parse<AccountAuthority>(http.User.FindFirst(System.Security.Claims.ClaimTypes.Role)!.Value),
-                csrfToken));
+        return TypedResults.Ok(new SignedInAccountResponse(
+            http.User.AccountId()!.Value,
+            http.User.Identity!.Name!,
+            http.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value,
+            Enum.Parse<AccountAuthority>(http.User.FindFirst(System.Security.Claims.ClaimTypes.Role)!.Value),
+            CsrfToken.For(sessionToken)));
     }
 }
 

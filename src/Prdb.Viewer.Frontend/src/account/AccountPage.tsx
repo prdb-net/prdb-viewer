@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api, emptyFilters, type Account } from '../api/client'
 import { friendlyState } from '../lib/format'
-import { PageHeading, RequestError } from '../ui'
+import { firstError, PageHeading, RequestError } from '../ui'
 
 /// Who you are here, and the standing choices that follow you rather than one view.
 ///
@@ -58,7 +58,9 @@ export function AccountPage({ account }: { account: Account }) {
         </label>
       </section>
 
-      {(preference.isError || includeNotReady.isError) && <RequestError />}
+      {(preference.isError || includeNotReady.isError) && (
+        <RequestError error={firstError(preference.error, includeNotReady.error)} />
+      )}
     </>
   )
 }

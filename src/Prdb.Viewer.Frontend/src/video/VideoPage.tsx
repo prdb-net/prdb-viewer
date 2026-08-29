@@ -18,7 +18,7 @@ import {
 } from '../lib/format'
 import { usePersonalActions } from '../personal/usePersonalActions'
 import { queryKeys } from '../queryKeys'
-import { Notice, PageHeading, RequestError } from '../ui'
+import { firstError, Notice, PageHeading, RequestError } from '../ui'
 import { Provenance } from './Provenance'
 import { TrackedPlayer } from './TrackedPlayer'
 
@@ -320,7 +320,11 @@ export function VideoPage({ account }: { account: Account }) {
         </ul>
       </section>
 
-      {(startPlayback.isError || personal.failed || forgetOutcomes.isError) && <RequestError />}
+      {(startPlayback.isError || personal.failed || forgetOutcomes.isError) && (
+        <RequestError
+          error={firstError(startPlayback.error, personal.error, forgetOutcomes.error)}
+        />
+      )}
     </>
   )
 }

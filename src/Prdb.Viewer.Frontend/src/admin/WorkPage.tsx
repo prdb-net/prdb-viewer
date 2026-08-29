@@ -2,10 +2,16 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router'
 
-import { api, type Account, type WorkIssueAction, type WorkIssueSummary } from '../api/client'
-import { friendlyState } from '../lib/format'
+import {
+  api,
+  type Account,
+  type BackgroundWorkSummary,
+  type WorkIssueAction,
+  type WorkIssueSummary,
+} from '../api/client'
+import { exactTime, friendlyState, timeAgo } from '../lib/format'
 import { queryKeys } from '../queryKeys'
-import { PageHeading, RequestError, Tab } from '../ui'
+import { firstError, PageHeading, RequestError, Tab } from '../ui'
 
 export function WorkPage({ account }: { account: Account }) {
   const configuration = useQuery({ queryKey: queryKeys.configuration, queryFn: api.configuration })
@@ -78,14 +84,18 @@ export function WorkPage({ account }: { account: Account }) {
 
       <section className="panel">
         <div className="section-heading"><h3>Lanes</h3></div>
-        {status.data?.work.length === 0 && <p className="muted">No Background Work has run yet.</p>}
-        {status.data?.work.map((work) => (
+        {status.data && status.data.work.length === 0 && (
+          <p className="muted">No Background Work has run yet.</p>
+        )}
+        {lanes(status.data?.work ?? []).map((work) => (
           <article className="work-row" key={work.id}>
             <div>
               <strong>{friendlyState(work.category)}</strong>
               <small>
                 {work.libraryDirectoryName} · {friendlyState(work.state)} · {work.phase}
                 {work.waitingReason ? ` · ${work.waitingReason}` : ''}
+                {' · '}
+                <LaneTime work={work} />
               </small>
             </div>
             <div className="row-actions">
@@ -122,11 +132,53 @@ export function WorkPage({ account }: { account: Account }) {
         <WorkIssueCard key={issue.id} issue={issue} account={account} refresh={refresh} />
       ))}
 
-      {(configuration.isError || status.isError || scan.isError || pause.isError || cancel.isError) && (
-        <RequestError />
+      {(configuration.isError || status.isError || scan.isError || pause.isError ||
+        cancel.isError) && (
+        <RequestError
+          error={firstError(
+            configuration.error,
+            status.error,
+            scan.error,
+            pause.error,
+            cancel.error,
+          )}
+        />
       )}
     </>
   )
+}
+
+/// One row per lane, rather than one per run.
+///
+/// The endpoint answers with the last fifty runs, newest first — a history, which is the right
+/// answer to give. Shown as it arrives it was the wrong thing to call Lanes: a second Scan of the
+/// same Library Directory added a second row for every lane, and nothing on either row said which
+/// of them was the current one. A lane is one category within one Library Directory, so what the
+/// lane is doing is its newest run; the rest is history, and an older run that went wrong is
+/// already spoken for by the issues below.
+function lanes(work: BackgroundWorkSummary[]): BackgroundWorkSummary[] {
+  const newest = new Map<string, BackgroundWorkSummary>()
+
+  for (const run of work) {
+    const lane = `${run.libraryDirectoryId}:${run.category}`
+    const held = newest.get(lane)
+    if (!held || Date.parse(run.requestedAt) > Date.parse(held.requestedAt)) {
+      newest.set(lane, run)
+    }
+  }
+
+  return [...newest.values()]
+}
+
+/// When this lane last did something, so a run that just happened is not mistaken for one from
+/// yesterday. Which instant that is depends on how far the run got.
+function LaneTime({ work }: { work: BackgroundWorkSummary }) {
+  const at = work.finishedAt ?? work.lastActivityAt ?? work.startedAt ?? work.requestedAt
+  const relative = timeAgo(at)
+
+  if (!relative) return null
+
+  return <time dateTime={at} title={exactTime(at)}>{relative}</time>
 }
 
 function WorkIssueCard({ issue, account, refresh }: {
@@ -209,7 +261,7 @@ function WorkIssueCard({ issue, account, refresh }: {
           ))}
         </ul>
       )}
-      {advance.isError && <RequestError />}
+      {advance.isError && <RequestError error={advance.error} />}
     </div>
   )
 }

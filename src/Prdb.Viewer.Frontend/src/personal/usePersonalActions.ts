@@ -50,5 +50,5 @@ export function usePersonalActions(account: Account) {
     rating: typeof value === 'number' || value === null ? value : undefined,
   })
 
-  return { act, pending: mutation.isPending, failed: mutation.isError }
+  return { act, pending: mutation.isPending, failed: mutation.isError, error: mutation.error }
 }

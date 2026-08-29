@@ -11,7 +11,7 @@ import {
 } from '../api/client'
 import { candidateOrigin, friendlyState, provenanceLabel } from '../lib/format'
 import { queryKeys } from '../queryKeys'
-import { Field, Notice, PageHeading, RequestError } from '../ui'
+import { Field, firstError, Notice, PageHeading, RequestError } from '../ui'
 
 export function IdentificationPage({ account }: { account: Account }) {
   const queryClient = useQueryClient()
@@ -116,7 +116,12 @@ export function IdentificationPage({ account }: { account: Account }) {
       </PageHeading>
 
       {outcome && <Notice kind="success">{outcome}</Notice>}
-      {queue.data?.length === 0 && <p className="muted">No identification decision is waiting.</p>}
+      {queue.data?.length === 0 && (
+        <div className="empty-library">
+          <strong>Nothing to review</strong>
+          <p>No identification decision is waiting.</p>
+        </div>
+      )}
 
       <div className="review-queue">
         {queue.data?.map((item) => (
@@ -224,7 +229,9 @@ export function IdentificationPage({ account }: { account: Account }) {
           )}
         </div>
       )}
-      {(queue.isError || openCase.isError || decide.isError) && <RequestError />}
+      {(queue.isError || openCase.isError || decide.isError) && (
+        <RequestError error={firstError(queue.error, openCase.error, decide.error)} />
+      )}
     </>
   )
 }

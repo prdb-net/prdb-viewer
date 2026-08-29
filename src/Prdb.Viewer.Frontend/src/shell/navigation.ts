@@ -26,6 +26,11 @@ export type NavigationGroup = {
 /// It is a list of groups rather than a tree of screens because that is what the sidebar can grow
 /// into: a new destination is a line here and a route, and needs no decision about where the
 /// chrome puts it. Groups are ordered by who uses them and how often, not alphabetically.
+///
+/// Every screen an Account can open belongs here, including its own. The header carries a shortcut
+/// to the Account as well, but a shortcut is not a way to reach something: the header has no room
+/// for it on a narrow viewport, and a screen reachable only where the window is wide enough is a
+/// screen that is missing.
 export const navigation: NavigationGroup[] = [
   {
     title: 'Library',
@@ -34,6 +39,12 @@ export const navigation: NavigationGroup[] = [
       { to: '/continue', label: 'Continue Watching' },
       { to: '/favourites', label: 'Favourites' },
       { to: '/watch-later', label: 'Watch Later' },
+    ],
+  },
+  {
+    title: 'Account',
+    entries: [
+      { to: '/account', label: 'Your Account' },
     ],
   },
   {

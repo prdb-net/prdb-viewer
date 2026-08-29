@@ -7,6 +7,35 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- Use the Viewer in more than one tab. The token that proves a change came from
+  the application is now a property of your session rather than something reissued
+  each time a tab asked who you were, so opening a second tab no longer refuses
+  every action in the first one until it is reloaded. See
+  [ADR 0017](docs/adr/0017-derive-the-csrf-token-from-the-session-token.md).
+- Type a search without losing letters. The field kept what you typed rather
+  than what the address had caught up to, so a character arriving between the
+  two is no longer dropped, and the library is asked once typing settles instead
+  of once per keystroke.
+- Reach your Account on a narrow viewport. It is a destination in the navigation
+  like every other screen, rather than only a shortcut in a header that has no
+  room for it below 640 pixels.
+- Tab past a closed drawer. A drawer that is shut is hidden rather than only
+  moved off-screen, so it no longer holds eight invisible stops for the keyboard
+  or reads out to a screen reader. An open one closes on Escape, returns the
+  focus to the control that opened it, and holds the page behind it still.
+- Read the Lanes section as what it says it is. It shows each lane once, at its
+  newest run, with when that run last did something — rather than a row per run,
+  which grew by six after every Scan with nothing to say which row was current.
+- Act on what a refusal actually said. A request that is turned down reports the
+  instruction the API gave, instead of replacing it with "try again" — advice
+  which, for a refusal that asks you to reload, could not work.
+- Tell the shelves apart from each other in the history and the tab bar: the
+  window is named for the screen that is open. Continue Watching, Favourites and
+  Watch Later say what their count counts, and Identification review states an
+  empty queue the way every other screen states an empty one.
+
 ## [0.4.0] - 2026-08-29
 
 The Viewer becomes an application you navigate rather than one page you scroll.
