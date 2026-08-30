@@ -7,6 +7,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Seed a local installation with `seed`, so that looking at a screen is cheap
+  enough to be done before a release rather than after one. It writes real video
+  files, claims the installation, registers one Account in each state the
+  Accounts screen has a row for, and runs the lanes to a standstill twice — the
+  second Scan being what leaves each derived lane with a run that had nothing to
+  do, the state an installation sits in almost all of the time. It refuses to run
+  against an installation that has already been claimed, on the same reasoning as
+  Restore.
+- `VIEWER_LIBRARY_MOUNT_ROOT` sets the root beneath which Library Directories may
+  be staged. It defaults to the container's `/libraries`, which a working copy
+  has no way to create, so those screens could not be reached outside a container.
+
 ## [0.5.3] - 2026-08-29
 
 ### Fixed

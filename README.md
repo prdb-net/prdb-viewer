@@ -56,12 +56,24 @@ Build the frontend, create an ignored local data directory, and start the Host:
 
 ```bash
 npm run build --prefix src/Prdb.Viewer.Frontend
-mkdir -p .data
-VIEWER_DATA_DIRECTORY="$PWD/.data" dotnet run --project src/Prdb.Viewer.Host
+mkdir -p .data .libraries
+VIEWER_DATA_DIRECTORY="$PWD/.data" \
+  VIEWER_LIBRARY_MOUNT_ROOT="$PWD/.libraries" \
+  dotnet run --project src/Prdb.Viewer.Host
 ```
 
 The application listens on the address printed by ASP.NET Core. The public
 liveness endpoint is `/api/health`.
+
+`VIEWER_LIBRARY_MOUNT_ROOT` is the root beneath which an Administrator may stage
+a Library Directory, and nothing outside it can be configured. It defaults to
+the container's `/libraries`, which a working copy has no way to create, so a
+local run has to say where its libraries are before those screens do anything.
+
+**Build the frontend explicitly after changing it.** `dotnet build` builds it
+too, but it skips that step when the last build passed `SkipFrontendBuild`, and
+the Host then serves the stale bundle out of `wwwroot` — a change appears to
+have had no effect, and the mistake is invisible.
 
 Before opening a new installation in the browser, create its short-lived,
 single-use Bootstrap Authorization:
@@ -90,6 +102,37 @@ output:
 VIEWER_DATA_DIRECTORY="$PWD/.data" \
   dotnet run --project src/Prdb.Viewer.Host -- recover-administrator <username>
 ```
+
+### Seed a local installation
+
+Looking at a screen is the only thing that finds a defect the screen itself
+causes, and an empty installation shows none of them: a lane that has never run,
+a library with nothing in it, and an Accounts page with one row hide exactly the
+states worth looking at. `seed` fills an empty data directory with what a real
+installation reaches after a few days.
+
+```bash
+VIEWER_DATA_DIRECTORY="$PWD/.data" \
+  VIEWER_LIBRARY_MOUNT_ROOT="$PWD/.libraries" \
+  dotnet run --project src/Prdb.Viewer.Host -- seed
+```
+
+It writes real video files with `ffmpeg`, because every lane past the traversal
+reads them; claims the installation; registers one Account in each state the
+Accounts screen has a row for; and then runs the lanes to a standstill **twice**.
+The second Scan is the point rather than a flourish: it is what leaves each
+derived lane with a run that had nothing to do, which is the state an
+installation sits in almost all of the time and the one its screens were never
+looked at in.
+
+The Videos are left unidentified, because that needs a prdb credential and this
+command does not invent one. Verifying a key on the Installation screen gives
+the identification lanes something to do; leaving it out is itself a state worth
+seeing, and the one the seeded installation starts in.
+
+Seeding refuses to run against an installation that has already been claimed, on
+the same reasoning as Restore: it writes an installation from nothing, and must
+never be able to do that over one that someone is using.
 
 ## Run the container
 

@@ -1,6 +1,7 @@
 .scratch/
 .firecrawl/
 .data/
+.libraries/
 .idea/
 .vscode/
 **/bin/

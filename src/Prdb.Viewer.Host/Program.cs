@@ -11,20 +11,26 @@ using Microsoft.OpenApi;
 
 using Prdb.Viewer.Host.Access;
 using Prdb.Viewer.Host.Configuration;
+using Prdb.Viewer.Host.Development;
 using Prdb.Viewer.Host.Library;
 using Prdb.Viewer.Host.Personal;
 using Prdb.Viewer.Infrastructure.Persistence;
 
 var operatorCommand = OperatorCommands.Matches(args);
+var seedCommand = SeedCommand.Matches(args);
+
+// Every command line that is a command rather than a server start: the web host is built without
+// the arguments, its logging is quietened, and the result of the command is the process output.
+var command = operatorCommand || seedCommand;
 
 // The OpenAPI document generator loads this application only to read its endpoints. It never
 // prepares the database, so the background-work lanes must not start and report an unopenable one.
 var readingEndpoints = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
-var builder = WebApplication.CreateBuilder(operatorCommand ? [] : args);
+var builder = WebApplication.CreateBuilder(command ? [] : args);
 
 // An operator command's result is its output. Routine startup and query logging would bury it, so
 // only warnings and worse reach the console.
-if (operatorCommand)
+if (command)
 {
     builder.Logging.SetMinimumLevel(LogLevel.Warning);
 }
@@ -32,8 +38,14 @@ if (operatorCommand)
 var dataDirectory = builder.Configuration["VIEWER_DATA_DIRECTORY"]
     ?? Path.Combine(AppContext.BaseDirectory, "data");
 
+// The container mounts the library tree at the default, and nothing about a deployed installation
+// needs to say so. A developer running the application from a working copy has no /libraries and
+// cannot create one, which left the Library Directory screens unreachable outside a container.
+var libraryMountRoot = builder.Configuration["VIEWER_LIBRARY_MOUNT_ROOT"]
+    ?? Prdb.Viewer.Infrastructure.Configuration.LibraryMountRoot.DefaultPath;
+
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddViewerPersistence(dataDirectory);
+builder.Services.AddViewerPersistence(dataDirectory, libraryMountRoot);
 if (!readingEndpoints && builder.Configuration.GetValue("VIEWER_BACKGROUND_WORK_ENABLED", true))
 {
     builder.Services.AddHostedService<LibraryScanWorker>();
@@ -112,6 +124,11 @@ if (!readingEndpoints)
     catch (DatabaseMigrationException)
     {
         return 1;
+    }
+
+    if (seedCommand)
+    {
+        return await SeedCommand.RunAsync(app.Services, Console.Out, Console.Error);
     }
 
     if (operatorCommand)
