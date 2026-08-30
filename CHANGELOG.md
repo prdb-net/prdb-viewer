@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-08-30
+
+A dependency bump, and the certificate it made unnecessary. Nothing about the
+running product changes.
+
 ### Changed
 
 - The prdb SDK moves to 0.13.0, and the stand-in catalogue in `tools/` serves
