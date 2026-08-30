@@ -8,6 +8,7 @@ import {
   playbackUnavailableReason,
   playableSource,
 } from '../lib/format'
+import { StarRating } from '../personal/StarRating'
 import type { PersonalAction, PersonalPending } from '../personal/usePersonalActions'
 import { Provenance } from './Provenance'
 import { VideoArt } from './VideoArt'
@@ -76,18 +77,12 @@ export function VideoCard({ video, act, pending, dismissible = false }: {
             disabled={busy}
           >Watch Later</button>
         </div>
-        <label className="rating-field">
-          <span>Personal Rating</span>
-          <select
-            aria-label={`Rate ${video.displayTitle}`}
-            value={video.personalState.personalRating?.toString() ?? ''}
-            onChange={(event) => act('rating', video, event.target.value ? Number(event.target.value) : null)}
-            disabled={busy}
-          >
-            <option value="">Not rated</option>
-            {[1, 2, 3, 4, 5].map((rating) => <option key={rating} value={rating}>{rating} / 5</option>)}
-          </select>
-        </label>
+        <StarRating
+          title={video.displayTitle}
+          value={video.personalState.personalRating}
+          onChange={(score) => act('rating', video, score)}
+          disabled={busy}
+        />
         {dismissible && (
           <button className="dismiss-button" onClick={() => act('dismiss', video)} disabled={busy}>
             Dismiss

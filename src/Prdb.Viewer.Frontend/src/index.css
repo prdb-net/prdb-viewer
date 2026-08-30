@@ -216,8 +216,27 @@ p { color: #bdb8c7; line-height: 1.6; }
 .personal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; margin-top: .65rem; }
 .personal-actions button, .dismiss-button { padding: .5rem; border: 1px solid rgb(255 255 255 / 10%); border-radius: .55rem; color: #aaa4b4; background: #211e28; font-size: .7rem; font-weight: 750; }
 .personal-actions button.selected { border-color: rgb(169 132 255 / 40%); color: #efe8ff; background: #49376d; }
-.rating-field { display: grid; gap: .3rem; margin-top: .65rem; color: var(--muted); font-size: .68rem; font-weight: 750; }
-.rating-field select { width: 100%; padding: .45rem; border: 1px solid rgb(255 255 255 / 10%); border-radius: .55rem; color: #d9d4e0; background: #211e28; }
+/* A Personal Rating is read far more often than it is set, so it is drawn as the thing it is
+   rather than as a control: five stars carry the score across a grid without being opened, and
+   the same five take the click that changes it. The radio inputs behind them are the choice
+   itself, kept off-screen but focusable, so the keyboard walks the scale unaided. */
+.star-rating { margin-top: .65rem; }
+.star-rating.large { margin-top: 1rem; }
+.star-rating .rating-caption { display: block; margin-bottom: .35rem; color: var(--muted); font-size: .68rem; font-weight: 750; }
+.star-rating .rating-row { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
+.star-rating .stars { display: flex; gap: .05rem; min-width: 0; margin: 0; padding: 0; border: 0; }
+.star-rating .star { position: relative; display: inline-grid; place-items: center; padding: .1rem; color: rgb(255 255 255 / 26%); font-size: 1.15rem; line-height: 1; cursor: pointer; }
+.star-rating .star input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }
+.star-rating .star.on { color: #f2b750; }
+.star-rating .glyph { transition: color .12s ease, transform .12s ease; }
+.star-rating .star:hover .glyph { transform: scale(1.15); }
+.star-rating .star input:focus-visible ~ .glyph { outline: 2px solid var(--accent); outline-offset: .2rem; border-radius: .2rem; }
+.star-rating.large .star { padding: .1rem .15rem; font-size: 1.5rem; }
+.star-rating .rating-readout { color: var(--muted); font-size: .72rem; font-weight: 750; }
+.star-rating .clear-rating { padding: .15rem .45rem; border: 0; border-radius: .4rem; color: var(--muted); background: none; font-size: .68rem; font-weight: 750; }
+.star-rating .clear-rating:hover { color: #efe8ff; background: rgb(255 255 255 / 8%); }
+.star-rating.saving { opacity: .55; }
+.star-rating.saving .star { cursor: wait; }
 .dismiss-button { width: 100%; margin-top: .65rem; }
 .hidden-matches { margin-top: 1.2rem; padding: .9rem 1rem; border: 1px dashed rgb(255 255 255 / 15%); border-radius: .8rem; }
 .hidden-matches p { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin: 0; color: #cfc9d6; font-size: .85rem; }

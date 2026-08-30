@@ -34,6 +34,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- A Personal Rating is shown as the five stars it is, rather than as a dropdown
+  that had to be opened to be read. A rating is read far more often than it is
+  set, and a shelf of cards used to carry one closed control per card, each
+  hiding the one thing it was there to say. The stars state the score across a
+  grid at a glance and take the click that changes it, so there is no separate
+  reading form and setting form of a rating to keep in agreement. Underneath it
+  stays one choice out of a fixed scale — a radio group, so the keyboard walks
+  the scale unaided and a screen reader is told which Video the scale belongs to
+  — and clearing is its own action, because "not rated" is an absence rather
+  than a sixth score. Hovering shows what a click would make it before the click
+  lands, and the Video's own page states the score in words beside the stars.
 - `seed` writes its four video files at four different sizes rather than all at
   one. A screen that says what a Video is worth watching at looks the same on
   every card when every card is the same size, which is the one thing looking at

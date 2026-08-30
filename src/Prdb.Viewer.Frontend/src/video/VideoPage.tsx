@@ -23,6 +23,7 @@ import {
   qualityLabel,
   qualitySource,
 } from '../lib/quality'
+import { StarRating } from '../personal/StarRating'
 import { usePersonalActions } from '../personal/usePersonalActions'
 import { queryKeys } from '../queryKeys'
 import { firstError, Notice, PageHeading, RequestError } from '../ui'
@@ -297,22 +298,13 @@ export function VideoPage({ account }: { account: Account }) {
               disabled={saving}
             >Watch Later</button>
           </div>
-          <label className="rating-field">
-            <span>Personal Rating</span>
-            <select
-              aria-label={`Rate ${video.displayTitle}`}
-              value={video.personalState.personalRating?.toString() ?? ''}
-              onChange={(event) => personal.act(
-                'rating',
-                video,
-                event.target.value ? Number(event.target.value) : null,
-              )}
-              disabled={saving}
-            >
-              <option value="">Not rated</option>
-              {[1, 2, 3, 4, 5].map((rating) => <option key={rating} value={rating}>{rating} / 5</option>)}
-            </select>
-          </label>
+          <StarRating
+            title={video.displayTitle}
+            value={video.personalState.personalRating}
+            onChange={(score) => personal.act('rating', video, score)}
+            disabled={saving}
+            size="large"
+          />
         </aside>
       </div>
 
