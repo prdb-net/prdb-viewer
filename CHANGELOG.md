@@ -7,6 +7,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-30
+
+What a Video is worth watching at, and screens that say what they mean. The
+library now states quality — in the corner of every preview, as a facet, and as
+an order — and a Personal Rating is the five stars it always was rather than a
+dropdown that had to be opened to be read. The rest came from walking every
+screen of a seeded installation: five things the application was saying in its
+storage's words, a row of decisions drawn in the browser's, and the smaller
+gaps a real library would notice first. **It migrates**: Video Quality is a
+column of its own, and because Unknown is a real answer as well as what a new
+column defaults to, an upgrade clears every projection and rebuilds it at the
+next start. Migrations are forward-only, so a return to `0.6.1` needs a copy of
+the application data taken before the upgrade.
+
 ### Added
 
 - Every Video says what it is worth watching at. The resolution of the occurrence
