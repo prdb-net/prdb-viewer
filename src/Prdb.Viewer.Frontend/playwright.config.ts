@@ -31,9 +31,15 @@ export default defineConfig({
   // Serves the built bundle out of the Host's wwwroot, so what is exercised is what ships rather
   // than what a development server assembles. `npm run build` has to have run first.
   webServer: {
-    command: 'npm run preview -- --port 4173 --strictPort',
+    // The host is named rather than left to default. `vite preview` otherwise binds whatever
+    // `localhost` resolves to, which on a CI runner can be ::1 while this url is polled over IPv4
+    // — the server comes up, nothing ever reaches it, and the only symptom is a timeout.
+    command: 'npm run preview -- --port 4173 --strictPort --host 127.0.0.1',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
-    timeout: 60_000,
+    timeout: 120_000,
+    // Kept so that a failure to start says why, instead of only that it did not.
+    stdout: 'pipe',
+    stderr: 'pipe',
   },
 })
