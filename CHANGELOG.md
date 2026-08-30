@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-30
+
+Two defects the screens themselves caused, and the tools that found them. What
+this release mostly adds is the ability to look: a local installation can now be
+filled with the state a real one reaches, and the parts that talk to prdb and to
+a browser are exercised as they actually ship.
+
 ### Fixed
 
 - A prdb credential is reported as verified only when prdb actually answered. A
