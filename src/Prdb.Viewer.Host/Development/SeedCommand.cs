@@ -1,9 +1,12 @@
 using System.Diagnostics;
 
+using Microsoft.EntityFrameworkCore;
+
 using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Infrastructure.Access;
 using Prdb.Viewer.Infrastructure.Configuration;
 using Prdb.Viewer.Infrastructure.Library;
+using Prdb.Viewer.Infrastructure.Persistence;
 
 namespace Prdb.Viewer.Host.Development;
 
@@ -27,6 +30,8 @@ public static class SeedCommand
 
     /// <summary>The password every seeded Account is given. It is printed, and it is not a secret.</summary>
     private const string Password = "seed-password-2026";
+
+    private static readonly string[] Extensions = [".mp4", ".webm", ".mkv", ".mov", ".avi", ".m4v"];
 
     private static readonly (string Path, string Video, string Audio, string Container)[] Files =
     [
@@ -74,6 +79,7 @@ public static class SeedCommand
         }
 
         await RegisterAccountsAsync(access, output, cancellationToken);
+        await VerifyPrdbAsync(scope.ServiceProvider, output, cancellationToken);
 
         if (!await ActivateLibraryAsync(scope.ServiceProvider, mountRoot, output, error, cancellationToken))
         {
@@ -95,6 +101,39 @@ public static class SeedCommand
     }
 
     /// <summary>
+    /// Verifies a prdb credential where one is offered, so the identification lanes have somewhere
+    /// to ask and the screens show what an installation looks like once they can.
+    ///
+    /// It is read from the environment rather than taken as an argument, the way this project
+    /// treats every other credential: an argument is in the process list and the shell history the
+    /// moment it is typed. Its characters are never written to the output, only the verdict.
+    ///
+    /// Leaving it out is a state worth seeing in its own right — the lanes wait, and the
+    /// Background work screen carries the Work Issue that says why.
+    /// </summary>
+    private static async Task VerifyPrdbAsync(
+        IServiceProvider scoped,
+        TextWriter output,
+        CancellationToken cancellationToken)
+    {
+        var credential = scoped.GetRequiredService<IConfiguration>()["VIEWER_SEED_PRDB_KEY"];
+
+        if (string.IsNullOrWhiteSpace(credential))
+        {
+            await output.WriteLineAsync(
+                "No VIEWER_SEED_PRDB_KEY, so the identification lanes will have nowhere to ask.");
+            return;
+        }
+
+        var result = await scoped.GetRequiredService<InstallationConfigurationService>()
+            .VerifyCredentialAsync(credential, cancellationToken);
+
+        await output.WriteLineAsync(result.Verdict == PrdbConnectionUpdateVerdict.Verified
+            ? "Verified the prdb credential."
+            : $"The prdb credential was not accepted: {result.Verdict}.");
+    }
+
+    /// <summary>
     /// Writes real video files, because every lane past the traversal reads them. Files of the
     /// right name and the wrong content produce an installation full of invalid-content issues,
     /// which is a state worth seeing but not the one this is for.
@@ -105,6 +144,18 @@ public static class SeedCommand
         TextWriter error,
         CancellationToken cancellationToken)
     {
+        // A library that is already there is the better one: prdb recognises real content, and
+        // nothing generated here will ever be in its catalogue. Writing over it would also destroy
+        // whatever someone put there on purpose.
+        if (Directory.Exists(mountRoot) &&
+            Directory.EnumerateFiles(mountRoot, "*", SearchOption.AllDirectories)
+                .Any(path => Extensions.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase)))
+        {
+            await output.WriteLineAsync(
+                $"Found video files beneath {mountRoot} already, and left them alone.");
+            return true;
+        }
+
         await output.WriteLineAsync($"Writing {Files.Length} video files beneath {mountRoot}.");
 
         foreach (var (relativePath, video, audio, container) in Files)
@@ -381,11 +432,33 @@ public static class SeedCommand
             await output.WriteLineAsync($"Work Issues awaiting someone: {status.Issues.Count}.");
         }
 
+        // Whether the browsing screens have anything to work on. The facet rows are drawn from
+        // recognised Sites and Actors, so with none of them there is no facet row to look at —
+        // which is worth saying plainly rather than leaving to be discovered on the screen.
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var files = await database.VideoFiles.CountAsync(cancellationToken);
+
+        // What prdb established, not what it was asked about. The hash fields on a Video File say
+        // only that the question has been put; a Video answers whether anything came back, and it
+        // is the answer the browsing screens are built out of.
+        var works = await database.Videos.CountAsync(video => video.HasEstablishedWork, cancellationToken);
+        var sites = await database.Videos
+            .CountAsync(video => video.EstablishedSite != null, cancellationToken);
+
+        await output.WriteLineAsync();
+        await output.WriteLineAsync(
+            $"Video Files: {files}. Works established: {works}. Sites established: {sites}.");
+
+        if (sites == 0)
+        {
+            await output.WriteLineAsync(
+                "No Site was established, so the browsing screen draws no facet row. prdb " +
+                "recognises content, and a file generated here is in no catalogue — a credential " +
+                "does not change that. To see the facets, put real files under the library mount " +
+                "before seeding: anything already there is left alone and scanned as it is.");
+        }
+
         await output.WriteLineAsync();
         await output.WriteLineAsync($"Sign in as “{administrator}” with the password {Password}.");
-        await output.WriteLineAsync(
-            "The Videos are not identified: that needs a prdb credential, which this command " +
-            "deliberately does not invent. Add one on the Installation screen and the " +
-            "identification lanes will have something to do.");
     }
 }

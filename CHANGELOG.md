@@ -26,7 +26,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   second Scan being what leaves each derived lane with a run that had nothing to
   do, the state an installation sits in almost all of the time. It refuses to run
   against an installation that has already been claimed, on the same reasoning as
-  Restore.
+  Restore. `VIEWER_SEED_PRDB_KEY` gives it a credential to verify, so the
+  identification lanes run through instead of waiting; it is read from the
+  environment rather than taken as an argument, which would put it in the process
+  list. Video files already under the library mount are left alone and scanned as
+  they are, because prdb recognises content and nothing generated here is in its
+  catalogue.
 - `VIEWER_LIBRARY_MOUNT_ROOT` sets the root beneath which Library Directories may
   be staged. It defaults to the container's `/libraries`, which a working copy
   has no way to create, so those screens could not be reached outside a container.
