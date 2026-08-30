@@ -44,8 +44,14 @@ var dataDirectory = builder.Configuration["VIEWER_DATA_DIRECTORY"]
 var libraryMountRoot = builder.Configuration["VIEWER_LIBRARY_MOUNT_ROOT"]
     ?? Prdb.Viewer.Infrastructure.Configuration.LibraryMountRoot.DefaultPath;
 
+// Where prdb is. Set it to reach a catalogue that answers on demand: the real service recognises
+// content, so a library assembled for a test gets the same answer every time, and its failures —
+// a refusal, an outage, a rate limit — cannot be asked of it at all. The credential travels to
+// whatever this names.
+var prdbBaseUrl = builder.Configuration["VIEWER_PRDB_BASE_URL"];
+
 builder.Services.AddSingleton(TimeProvider.System);
-builder.Services.AddViewerPersistence(dataDirectory, libraryMountRoot);
+builder.Services.AddViewerPersistence(dataDirectory, libraryMountRoot, prdbBaseUrl);
 if (!readingEndpoints && builder.Configuration.GetValue("VIEWER_BACKGROUND_WORK_ENABLED", true))
 {
     builder.Services.AddHostedService<LibraryScanWorker>();

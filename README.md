@@ -80,6 +80,13 @@ VIEWER_DATA_DIRECTORY="$PWD/.data" \
 The application listens on the address printed by ASP.NET Core. The public
 liveness endpoint is `/api/health`.
 
+`VIEWER_PRDB_BASE_URL` points the installation at a different prdb, which is how
+the product is exercised against a catalogue that answers on demand. The real
+service recognises content, so files made for a test are in no catalogue and draw
+the same answer every time, and its failures cannot be requested at all. **The
+credential is sent to whatever this names**, so it belongs on a local endpoint and
+nowhere else. It defaults to the published service.
+
 `VIEWER_LIBRARY_MOUNT_ROOT` is the root beneath which an Administrator may stage
 a Library Directory, and nothing outside it can be configured. It defaults to
 the container's `/libraries`, which a working copy has no way to create, so a

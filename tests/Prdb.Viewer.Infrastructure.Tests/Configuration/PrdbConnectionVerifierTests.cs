@@ -55,8 +55,14 @@ public sealed class PrdbConnectionVerifierTests
                 request.RequestUri!,
                 request.Headers.GetValues("X-Api-Key").Single(),
                 [.. request.Headers.UserAgent]));
+            // The whole of the documented answer, not a corner of it. `isEnforced`, `hourly` and
+            // `monthly` are all required, and a reply short of them is one the verifier now
+            // declines to read as proof — a body that answers 200 and says nothing is what a
+            // proxy or a moved endpoint produces, not what prdb produces.
+            const string window =
+                "{\"limit\":1000,\"used\":1,\"remaining\":999,\"resetsInSeconds\":600}";
             var body = status == HttpStatusCode.OK
-                ? "{\"isEnforced\":true}"
+                ? $"{{\"isEnforced\":true,\"hourly\":{window},\"monthly\":{window}}}"
                 : $"{{\"status\":{(int)status},\"title\":\"Request refused\"}}";
 
             return Task.FromResult(new HttpResponseMessage(status)

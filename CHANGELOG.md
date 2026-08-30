@@ -9,6 +9,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Fixed
 
+- A prdb credential is reported as verified only when prdb actually answered. A
+  200 carrying JSON with none of the documented fields — a proxy, a gateway, an
+  endpoint that has moved — deserialises into an object with nothing in it, and
+  that counted as proof. The Installation screen could therefore show a verified
+  connection that had been checked against nothing, while identification went on
+  failing for a reason the screen contradicted.
 - Clicking one Site or Actor twice in quick succession turns it off again. It
   had been turning it on twice: the button decided between adding and removing
   from what it had last been drawn as, and inside a single batch that is a
@@ -32,6 +38,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   list. Video files already under the library mount are left alone and scanned as
   they are, because prdb recognises content and nothing generated here is in its
   catalogue.
+- `VIEWER_PRDB_BASE_URL` points the installation at a different prdb. It exists
+  for exercising the product against a catalogue that answers on demand: the real
+  service recognises content, so a library assembled for a test draws the same
+  answer every time, and the failures that decide what an Administrator is told —
+  a refusal, an outage, a rate limit — cannot be asked of it at all. The
+  credential travels to whatever this names, and it defaults to the real service.
 - `VIEWER_LIBRARY_MOUNT_ROOT` sets the root beneath which Library Directories may
   be staged. It defaults to the container's `/libraries`, which a working copy
   has no way to create, so those screens could not be reached outside a container.

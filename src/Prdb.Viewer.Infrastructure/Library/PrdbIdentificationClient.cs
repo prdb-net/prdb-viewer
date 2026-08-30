@@ -14,7 +14,9 @@ namespace Prdb.Viewer.Infrastructure.Library;
 /// Identifies local files through the documented public prdb API using the official SDK. It sends
 /// only the file name, size, and content hashes, and it never mirrors the remote hash database.
 /// </summary>
-public sealed class PrdbIdentificationClient(IHttpMessageHandlerFactory handlers)
+public sealed class PrdbIdentificationClient(
+    IHttpMessageHandlerFactory handlers,
+    PrdbEndpoint? endpoint = null)
     : IPrdbIdentificationClient
 {
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(60);
@@ -27,6 +29,7 @@ public sealed class PrdbIdentificationClient(IHttpMessageHandlerFactory handlers
         var status = new ResponseStatusOption();
         var client = PrdbClientFactory.Create(
             credential,
+            (endpoint ?? new PrdbEndpoint()).BaseUrl,
             transport: handlers.CreateHandler(PrdbConnectionVerifier.TransportName),
             retry: PrdbRetryOptions.Disabled,
             timeout: RequestTimeout);

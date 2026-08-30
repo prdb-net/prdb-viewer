@@ -31,7 +31,9 @@ public interface IPrdbSiteDirectoryClient
 /// about the local library — the request carries only the installation credential — and it asks at
 /// most once a day, because a site list is a slowly changing vocabulary rather than a lookup.
 /// </summary>
-public sealed class PrdbSiteDirectoryClient(IHttpMessageHandlerFactory handlers)
+public sealed class PrdbSiteDirectoryClient(
+    IHttpMessageHandlerFactory handlers,
+    PrdbEndpoint? endpoint = null)
     : IPrdbSiteDirectoryClient
 {
     private const int PageSize = 1_000;
@@ -52,6 +54,7 @@ public sealed class PrdbSiteDirectoryClient(IHttpMessageHandlerFactory handlers)
         var status = new ResponseStatusOption();
         var client = PrdbClientFactory.Create(
             credential,
+            (endpoint ?? new PrdbEndpoint()).BaseUrl,
             transport: handlers.CreateHandler(PrdbConnectionVerifier.TransportName),
             retry: PrdbRetryOptions.Disabled,
             timeout: RequestTimeout);

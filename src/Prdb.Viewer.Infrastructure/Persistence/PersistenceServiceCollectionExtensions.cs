@@ -15,7 +15,8 @@ public static class PersistenceServiceCollectionExtensions
     public static IServiceCollection AddViewerPersistence(
         this IServiceCollection services,
         string dataDirectory,
-        string libraryMountRoot = LibraryMountRoot.DefaultPath)
+        string libraryMountRoot = LibraryMountRoot.DefaultPath,
+        string? prdbBaseUrl = null)
     {
         var location = new ViewerDatabaseLocation(dataDirectory);
 
@@ -30,6 +31,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<IPasswordHasher<AccountRow>, PasswordHasher<AccountRow>>();
         services.AddScoped<AccessService>();
         services.AddSingleton(new LibraryMountRoot(libraryMountRoot));
+        services.AddSingleton(new PrdbEndpoint(prdbBaseUrl));
         services.AddScoped<LibraryDirectoryInspector>();
         services.AddScoped<IPrdbConnectionVerifier, PrdbConnectionVerifier>();
         services.AddScoped<InstallationConfigurationService>();

@@ -33,10 +33,18 @@ internal sealed class FakePrdb : HttpMessageHandler
     /// <summary>When set, every endpoint answers with this instead, the way an outage does.</summary>
     public HttpStatusCode? Failure { get; set; }
 
-    /// <summary>When set, the body is returned as-is, however malformed.</summary>
+    /// <summary>
+    /// When set, every endpoint answers 200 with this body, however malformed. `RawBody` used to
+    /// apply to the identify endpoint alone, which made a test that pointed it at the credential
+    /// check quietly meaningless — the endpoint went on answering correctly.
+    /// </summary>
     public string? RawBody { get; set; }
 
     public int RequestCount { get; private set; }
+
+    /// <summary>Every address that was asked, so a test can see where the client went.</summary>
+    public List<Uri> Requested { get; } = [];
+
 
     public sealed record Match(
         int Confidence,
@@ -73,16 +81,22 @@ internal sealed class FakePrdb : HttpMessageHandler
         CancellationToken cancellationToken)
     {
         RequestCount++;
+        Requested.Add(request.RequestUri!);
 
         if (Failure is { } failure)
         {
             return Respond(failure, """{"title":"Refused by the fixture."}""");
         }
 
+        if (RawBody is not null)
+        {
+            return Respond(HttpStatusCode.OK, RawBody);
+        }
+
         return request.RequestUri?.AbsolutePath switch
         {
             "/videos/identify" => await IdentifyAsync(request, cancellationToken),
-            "/sites" => Respond(HttpStatusCode.OK, Sites()),
+            "/sites" => Respond(HttpStatusCode.OK, Sites(request.RequestUri)),
             "/rate-limit" => Respond(HttpStatusCode.OK, RateLimit()),
             _ => Respond(HttpStatusCode.NotFound, """{"title":"No such endpoint."}"""),
         };
@@ -95,11 +109,6 @@ internal sealed class FakePrdb : HttpMessageHandler
         var sent = JsonNode.Parse(
             await request.Content!.ReadAsStringAsync(cancellationToken))!;
         IdentifyRequests.Add(sent);
-
-        if (RawBody is not null)
-        {
-            return Respond(HttpStatusCode.OK, RawBody);
-        }
 
         var results = new JsonArray();
 
@@ -158,18 +167,70 @@ internal sealed class FakePrdb : HttpMessageHandler
             new JsonObject { ["results"] = results }.ToJsonString());
     }
 
-    private static string Sites() =>
-        new JsonObject
+    /// <summary>
+    /// How many Sites each page holds, per page number. A page not named here is empty, which is
+    /// how the client is told to stop asking.
+    /// </summary>
+    public Dictionary<int, int> SitePages { get; } = new() { [1] = 1 };
+
+    /// <summary>Every page number the Site Directory was asked for, in order.</summary>
+    public List<int> SitePagesRequested { get; } = [];
+
+    /// <summary>A Site with neither identifier nor title, which the client has to skip.</summary>
+    public bool IncludeUnusableSite { get; set; }
+
+    /// <summary>
+    /// The list of Sites, one page at a time.
+    ///
+    /// The field is `items`, which is worth being exact about: the client reads `Items`, and a
+    /// fake answering with anything else hands it an empty page it accepts without complaint —
+    /// a green test that proves the fake talks to itself.
+    /// </summary>
+    private string Sites(Uri? uri)
+    {
+        var query = System.Web.HttpUtility.ParseQueryString(uri?.Query ?? string.Empty);
+        var page = int.TryParse(query["page"], out var asked) ? asked : 1;
+        var pageSize = int.TryParse(query["pageSize"], out var size) ? size : 1_000;
+        SitePagesRequested.Add(page);
+
+        var items = new JsonArray();
+
+        for (var index = 0; index < SitePages.GetValueOrDefault(page); index++)
         {
-            ["sites"] = new JsonArray(new JsonObject
+            items.Add(new JsonObject
             {
                 ["id"] = Guid.CreateVersion7().ToString(),
-                ["title"] = "Example Site",
+                ["title"] = $"Site {page}-{index}",
                 ["url"] = "https://example.invalid/site",
                 ["createdAtUtc"] = "2026-08-01T00:00:00Z",
                 ["updatedAtUtc"] = "2026-08-01T00:00:00Z",
-            }),
+            });
+        }
+
+        if (IncludeUnusableSite && page == 1)
+        {
+            // Everything the schema requires except a title, which is what the client checks
+            // before it keeps one. It has to be dropped rather than kept as a blank.
+            items.Add(new JsonObject
+            {
+                ["id"] = Guid.CreateVersion7().ToString(),
+                ["title"] = "",
+                ["url"] = "https://example.invalid/site",
+                ["createdAtUtc"] = "2026-08-01T00:00:00Z",
+                ["updatedAtUtc"] = "2026-08-01T00:00:00Z",
+            });
+        }
+
+        return new JsonObject
+        {
+            ["items"] = items,
+            ["totalCount"] = items.Count,
+            ["page"] = page,
+            ["pageSize"] = pageSize,
+            ["sortBy"] = "title",
+            ["sortDirection"] = "asc",
         }.ToJsonString();
+    }
 
     private static string RateLimit() =>
         new JsonObject
