@@ -49,6 +49,13 @@ internal sealed class FakePrdb : HttpMessageHandler
     /// <summary>How many Sites each page holds. A page not named here is empty.</summary>
     public Dictionary<int, int> SitePages { get; } = new() { [1] = 1 };
 
+    /// <summary>
+    /// Site titles the directory publishes on its first page, in place of the synthetic ones.
+    /// A test about paging wants Sites it can count; a test about recognition wants Sites whose
+    /// titles a Video File's path can actually be read against.
+    /// </summary>
+    public List<string> PublishedSites { get; } = [];
+
     /// <summary>Every page number the Site Directory was asked for, in order.</summary>
     public List<int> SitePagesRequested { get; } = [];
 
@@ -118,12 +125,20 @@ internal sealed class FakePrdb : HttpMessageHandler
         var pageSize = int.TryParse(query["pageSize"], out var size) ? size : 1_000;
         SitePagesRequested.Add(page);
 
-        var items = Enumerable
-            .Range(0, SitePages.GetValueOrDefault(page))
-            .Select(index => CatalogueAnswers.SiteItem(
-                CatalogueEntry.Identifier($"page:{page}:{index}"),
-                $"Site {page}-{index}"))
-            .ToList();
+        var items = PublishedSites.Count > 0
+            ? (page == 1
+                ? PublishedSites
+                    .Select(title => CatalogueAnswers.SiteItem(
+                        CatalogueEntry.Identifier($"site:{title}"),
+                        title))
+                    .ToList()
+                : [])
+            : Enumerable
+                .Range(0, SitePages.GetValueOrDefault(page))
+                .Select(index => CatalogueAnswers.SiteItem(
+                    CatalogueEntry.Identifier($"page:{page}:{index}"),
+                    $"Site {page}-{index}"))
+                .ToList();
 
         if (IncludeUnusableSite && page == 1)
         {

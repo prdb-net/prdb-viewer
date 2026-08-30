@@ -35,6 +35,7 @@ internal sealed class TestDatabase : IAsyncDisposable
         IPreviewImageGenerator? previewGenerator = null,
         IPrdbIdentificationClient? identificationClient = null,
         IPrdbSiteDirectoryClient? siteDirectoryClient = null,
+        FakePrdb? prdb = null,
         string? targetMigration = null)
     {
         var directory = Path.Combine(Path.GetTempPath(), $"prdb-viewer-{Guid.NewGuid():n}");
@@ -74,10 +75,23 @@ internal sealed class TestDatabase : IAsyncDisposable
             services.AddSingleton(identificationClient);
         }
 
-        // No test ever reaches prdb.net: a test that says nothing about the Site Directory gets an
-        // installation whose directory is simply empty.
-        services.RemoveAll<IPrdbSiteDirectoryClient>();
-        services.AddSingleton(siteDirectoryClient ?? new FixtureSiteDirectoryClient());
+        if (prdb is not null)
+        {
+            // Both prdb clients stay the ones that ship, and only the socket underneath them is
+            // replaced. A test that asks for this is testing the seam between the lanes and the
+            // wire — what the SDK sends, and what the lanes make of a real reply — which a
+            // hand-written stand-in for the client interface cannot reach.
+            services.RemoveAll<IHttpMessageHandlerFactory>();
+            services.AddSingleton<IHttpMessageHandlerFactory>(new FakePrdbTransport(prdb));
+        }
+
+        if (siteDirectoryClient is not null || prdb is null)
+        {
+            // No test ever reaches prdb.net: a test that says nothing about the Site Directory
+            // gets an installation whose directory is simply empty.
+            services.RemoveAll<IPrdbSiteDirectoryClient>();
+            services.AddSingleton(siteDirectoryClient ?? new FixtureSiteDirectoryClient());
+        }
 
         var database = new TestDatabase(directory, services.BuildServiceProvider());
         if (targetMigration is null)
