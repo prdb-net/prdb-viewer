@@ -40,6 +40,8 @@ public sealed class VideoProjection(ViewerDbContext database, TimeProvider timeP
                 == IdentificationReviewStatus.ReviewNeeded;
         video.BestClassification = BestClassificationOf(
             available.Select(file => file.DirectPlayClassification));
+        video.Quality = VideoQualityRule.Best(
+            available.Select(file => VideoQualityRule.For(file.Width, file.Height)));
         video.Availability = AvailabilityOf(files);
         video.SearchText = SearchTextOf(label, title, video.EstablishedSite, actors, files);
         video.ProjectedAt = timeProvider.GetUtcNow().UtcDateTime;

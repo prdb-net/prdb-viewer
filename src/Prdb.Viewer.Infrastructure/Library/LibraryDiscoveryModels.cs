@@ -30,6 +30,12 @@ public sealed record LibraryDiscoveryRequest
 
     public IReadOnlyList<VideoAvailability> Availability { get; init; } = [];
 
+    /// <summary>
+    /// The Video Quality bands wanted. It matches the Video's own Quality — the best its Available
+    /// occurrences hold — rather than the one this client would be shown, per ADR 0018.
+    /// </summary>
+    public IReadOnlyList<VideoQualityBand> Quality { get; init; } = [];
+
     public IReadOnlyList<PersonalPlayState> PlayState { get; init; } = [];
 
     /// <summary>True selects Videos with no Established Site, which is its own facet value.</summary>
@@ -98,6 +104,14 @@ public sealed record ClientPlaybackAssessmentReport(
 /// <summary>The Established values an Account can currently filter or navigate by.</summary>
 public sealed record LibraryFacets(
     IReadOnlyList<LibraryFacetValue> Sites,
-    IReadOnlyList<LibraryFacetValue> Actors);
+    IReadOnlyList<LibraryFacetValue> Actors,
+    IReadOnlyList<LibraryQualityFacetValue> Quality);
 
 public sealed record LibraryFacetValue(string Value, int Count);
+
+/// <summary>
+/// One Video Quality band the library actually holds, with how much of it there is. Bands nobody
+/// has are not offered: a facet is a way to narrow the Library, and a value that narrows it to
+/// nothing is a dead end rather than a choice.
+/// </summary>
+public sealed record LibraryQualityFacetValue(VideoQualityBand Value, int Count);

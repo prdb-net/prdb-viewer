@@ -10,6 +10,7 @@ import {
 } from '../lib/format'
 import type { PersonalAction, PersonalPending } from '../personal/usePersonalActions'
 import { Provenance } from './Provenance'
+import { VideoArt } from './VideoArt'
 
 /// One Video as the Library shows it.
 ///
@@ -33,9 +34,7 @@ export function VideoCard({ video, act, pending, dismissible = false }: {
   return (
     <article className="video-card">
       <Link to={`/videos/${video.id}`} className="video-link">
-        {video.previewUrl
-          ? <img className="video-preview" src={video.previewUrl} alt="" loading="lazy" />
-          : <div className="video-placeholder" aria-hidden="true">▶</div>}
+        <VideoArt video={video} />
         <strong className="video-title">{video.displayTitle}</strong>
       </Link>
       <div className="card-facts">

@@ -25,6 +25,9 @@ public sealed record PlaybackVariantView(
     long? AudioBitrate,
     long Size,
     long DurationMilliseconds,
+    /// <summary>The Video File Quality of this occurrence, derived once here so that a screen
+    /// names the band the Library filtered by rather than deriving a second one.</summary>
+    VideoQualityBand QualityBand,
     DirectPlayClassification DirectPlayClassification,
     string ProfileKey,
     /// <summary>The full RFC 6381 type a client measures with Media Capabilities, when the
@@ -174,6 +177,7 @@ public sealed class PlaybackPlanner(ViewerDbContext database)
             file.AudioBitrate,
             file.Size,
             file.DurationMilliseconds,
+            media.QualityBand,
             file.DirectPlayClassification,
             file.ProfileKey,
             PlaybackProfileRule.PreciseVideoContentType(media),

@@ -200,8 +200,15 @@ p { color: #bdb8c7; line-height: 1.6; }
 .video-card .card-actions { margin-top: auto; }
 .video-link { display: block; color: inherit; text-decoration: none; }
 .video-link:hover strong { color: var(--accent); }
-.video-preview { display: block; width: 100%; aspect-ratio: 16 / 9; margin-bottom: .8rem; border-radius: .7rem; object-fit: cover; background: #19161f; }
-.video-placeholder { display: grid; aspect-ratio: 16 / 9; margin-bottom: .8rem; place-items: center; border-radius: .7rem; color: var(--accent); background: linear-gradient(135deg, #34274c, #19161f); }
+/* The art carries the margin so that the quality badges can sit inside the picture rather than
+   inside the gap beneath it. */
+.video-art { position: relative; margin-bottom: .8rem; }
+.video-art.large { margin-bottom: 1rem; }
+.video-preview { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: .7rem; object-fit: cover; background: #19161f; }
+.video-placeholder { display: grid; aspect-ratio: 16 / 9; place-items: center; border-radius: .7rem; color: var(--accent); background: linear-gradient(135deg, #34274c, #19161f); }
+.quality-badges { position: absolute; right: .45rem; bottom: .45rem; display: flex; gap: .3rem; }
+.quality-badge { padding: .15rem .45rem; border-radius: .45rem; color: #f2eefb; background: rgb(10 8 14 / 72%); font-size: .7rem; font-weight: 800; letter-spacing: .02em; }
+.video-art.large .quality-badge { padding: .25rem .6rem; font-size: .8rem; }
 .video-card .primary-button { margin-top: .8rem; }
 .unsupported { display: block; margin-top: .8rem; color: #d7bdc1; font-size: .78rem; }
 .play-state { display: flex; gap: .45rem; flex-wrap: wrap; margin-top: .65rem; color: #bcb4c9; font-size: .7rem; }
@@ -230,7 +237,7 @@ p { color: #bdb8c7; line-height: 1.6; }
 .video-detail { display: grid; grid-template-columns: minmax(0, 2fr) minmax(15rem, 1fr); gap: 1.5rem; align-items: start; }
 .video-detail-main { min-width: 0; }
 .video-detail-facts { padding: 1.1rem; border: 1px solid var(--line); border-radius: 1.1rem; background: var(--surface); }
-.video-preview.large, .video-placeholder.large { margin-bottom: 1rem; border-radius: 1rem; font-size: 2rem; }
+.video-preview.large, .video-placeholder.large { border-radius: 1rem; font-size: 2rem; }
 .video-detail-main .primary-button { width: auto; min-width: 12rem; margin-top: 0; padding: .8rem 2rem; }
 .uncertain-note { display: block; margin-top: .5rem; color: #ffd8a8; font-size: .78rem; }
 .primary-button.uncertain { color: #1a1820; background: #ffd8a8; }

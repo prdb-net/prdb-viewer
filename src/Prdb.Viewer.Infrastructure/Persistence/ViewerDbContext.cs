@@ -220,6 +220,9 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             video.Property(row => row.Id).ValueGeneratedNever();
             video.Property(row => row.BestClassification).HasConversion<string>();
             video.Property(row => row.Availability).HasConversion<string>();
+            // Stored as its ordinal rather than as a name, unlike the enumerations beside it: a
+            // band is an order, and `ORDER BY` over the names would sort 1080p above 4K.
+            video.Property(row => row.Quality).HasConversion<int>();
             video.Property(row => row.DisplayLabel).IsRequired();
             video.Property(row => row.SearchText).IsRequired();
             video.HasIndex(row => row.DiscoveryDate);
@@ -240,6 +243,13 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
                 row.Availability,
                 row.BestClassification,
                 row.DisplayLabel,
+            });
+            video.HasIndex(row => new
+            {
+                row.SurvivingVideoId,
+                row.Availability,
+                row.BestClassification,
+                row.Quality,
             });
         });
 

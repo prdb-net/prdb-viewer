@@ -26,6 +26,7 @@ public static class VideoEndpoints
             string? review = null,
             string? playability = null,
             string? availability = null,
+            string? quality = null,
             string? playState = null,
             int skip = 0,
             int take = LibraryPaging.DefaultPageSize) =>
@@ -43,6 +44,7 @@ public static class VideoEndpoints
                     ReviewStatus = Parsed<IdentificationReviewStatus>(review),
                     Playability = Parsed<ClientVideoPlayability>(playability),
                     Availability = Parsed<VideoAvailability>(availability),
+                    Quality = Parsed<VideoQualityBand>(quality),
                     PlayState = Parsed<PersonalPlayState>(playState),
                     Skip = skip,
                     Take = take,

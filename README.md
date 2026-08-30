@@ -162,7 +162,9 @@ VIEWER_DATA_DIRECTORY="$PWD/.data" \
 ```
 
 It writes real video files with `ffmpeg`, because every lane past the traversal
-reads them; claims the installation; registers one Account in each state the
+reads them — at four different sizes, so that the seeded library holds more than
+one quality band and a screen that names one can be seen to be naming it;
+claims the installation; registers one Account in each state the
 Accounts screen has a row for; and then runs the lanes to a standstill **twice**.
 The second Scan is the point rather than a flourish: it is what leaves each
 derived lane with a run that had nothing to do, which is the state an
@@ -402,19 +404,40 @@ other titles, then Sites and Actors, then file names. There is deliberately no
 stemming, typo correction or semantic matching.
 
 Filters cover Site, Actor, Work Identification, review status, Client Video
-Playability, availability and the Account's own Personal Play State. Values inside one facet
+Playability, availability, Video Quality and the Account's own Personal Play State. Values inside one facet
 combine with OR and the facets combine with AND, and Unknown Work Identification,
 Unknown Site and Review Needed are explicit values rather than the absence of
-one. Established Sites and Actors are offered with their counts.
+one. Established Sites and Actors are offered with their counts, and so are the
+quality bands the library holds — a band it has none of is not offered.
 
 The default order is Discovery Date descending, so later enrichment never makes
-an old Video look newly added; Title A-Z is the one alternative.
+an old Video look newly added; Title A-Z and best quality first are the
+alternatives, the latter falling back to the default order inside one band.
 
 Ordinary results contain a Video while it is Available and ready for direct
 play. When the current rules keep matches out, the view says how many and offers
 the control that reveals them rather than dropping them silently: a per-Account
 preference widens results to Videos that are not ready for direct play, and an
 explicit playability filter overrides that preference for one view.
+
+Every entry says what it is worth watching at. The resolution of the occurrence a
+play action would reach for is written into the corner of its preview — `4K`,
+`1080p`, `720p`, `SD` — with the frame rate beside it where it is above the
+ordinary thirty. A resolution is named the way a release is named rather than by
+its height alone, so a film with the bars cut off and a recording held upright
+are both the 1080p they are, and where inspection established no dimensions
+nothing is claimed. A Video's own page adds what that occurrence costs and
+carries — runtime, bitrate, audio layout and size — and repeats the quality line
+against each of its Video Files, so choosing between two occurrences of one Video
+is a choice between facts.
+
+Filtering and ordering by quality are about what the library holds rather than
+what this browser would be shown: a Video's Video Quality is the best band among
+its Available Video Files, projected once and the same for every Account. Where a
+Video has occurrences in two bands and this browser has ruled the better one out,
+the filter and the card can therefore differ — the card is right about what would
+play, the filter about what is there, and the Video's own page lists both. See
+[ADR 0018](docs/adr/0018-decide-video-quality-installation-wide.md).
 
 An unsupported Video is shown, not summarised away. It carries its title, its
 locally generated preview, its provenance, and its Personal State like any other

@@ -44,6 +44,13 @@ public sealed class VideoRow
     public DirectPlayClassification BestClassification { get; set; } =
         DirectPlayClassification.Unsupported;
 
+    /// <summary>
+    /// The highest Video File Quality among this Video's Available occurrences. It is
+    /// installation-wide, which is what lets the Library filter and order by it in one indexed
+    /// question rather than deciding it per Account and client. See ADR 0018.
+    /// </summary>
+    public VideoQualityBand Quality { get; set; } = VideoQualityBand.Unknown;
+
     public VideoAvailability Availability { get; set; } = VideoAvailability.Unavailable;
 
     public bool HasEstablishedWork { get; set; }

@@ -33,17 +33,24 @@ public static class SeedCommand
 
     private static readonly string[] Extensions = [".mp4", ".webm", ".mkv", ".mov", ".avi", ".m4v"];
 
-    private static readonly (string Path, string Video, string Audio, string Container)[] Files =
+    /// <summary>
+    /// The library this writes. The dimensions differ so that the seeded installation holds more
+    /// than one Video Quality band — a screen that says what a Video is worth watching at looks
+    /// the same on every card when every card is the same size, which is the one thing looking at
+    /// it is supposed to catch. Only the WebM's size is load-bearing: the conservative baseline is
+    /// the one classification with dimensions in it, so that file stays small enough to keep it.
+    /// </summary>
+    private static readonly (string Path, string Video, string Audio, string Container, string Size)[] Files =
     [
         // Ordinary H.264 in MP4: the broadest case, and one the browser has to be asked about.
-        ("films/first-film.mp4", "libx264", "aac", "mp4"),
+        ("films/first-film.mp4", "libx264", "aac", "mp4", "1920x1080"),
         // VP8 in WebM: the conservative baseline any client plays.
-        ("films/second-film.webm", "libvpx", "libvorbis", "webm"),
+        ("films/second-film.webm", "libvpx", "libvorbis", "webm", "320x240"),
         // Nested deeper, so the traversal has more than one level to walk and a path worth reading.
-        ("films/series/third-film.mp4", "libx264", "aac", "mp4"),
+        ("films/series/third-film.mp4", "libx264", "aac", "mp4", "1280x720"),
         // A fourth, so a catalogue that recognises it by name rather than by content has something
         // to put in the identification review queue.
-        ("films/series/fourth-film.mp4", "libx264", "aac", "mp4"),
+        ("films/series/fourth-film.mp4", "libx264", "aac", "mp4", "640x480"),
     ];
 
     public static bool Matches(string[] arguments) => arguments is [Seed];
@@ -161,7 +168,7 @@ public static class SeedCommand
 
         await output.WriteLineAsync($"Writing {Files.Length} video files beneath {mountRoot}.");
 
-        foreach (var (relativePath, video, audio, container) in Files)
+        foreach (var (relativePath, video, audio, container, size) in Files)
         {
             var path = Path.Combine(mountRoot, relativePath);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -174,7 +181,7 @@ public static class SeedCommand
             var arguments = new[]
             {
                 "-nostdin", "-loglevel", "error", "-y",
-                "-f", "lavfi", "-i", "testsrc=duration=2:size=320x240:rate=10",
+                "-f", "lavfi", "-i", $"testsrc=duration=2:size={size}:rate=10",
                 "-f", "lavfi", "-i", "sine=frequency=440:duration=2",
                 "-c:v", video, "-pix_fmt", "yuv420p", "-c:a", audio, "-shortest",
                 "-f", container, path,

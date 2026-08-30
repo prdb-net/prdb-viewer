@@ -6,6 +6,9 @@ public enum LibrarySortOrder
     Newest,
 
     TitleAscending,
+
+    /// <summary>Video Quality descending, with the newest first inside one band.</summary>
+    QualityDescending,
 }
 
 /// <summary>

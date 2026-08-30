@@ -895,6 +895,13 @@
             }
           },
           {
+            "name": "quality",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "playState",
             "in": "query",
             "schema": {
@@ -2986,7 +2993,8 @@
       "LibraryFacets": {
         "required": [
           "sites",
-          "actors"
+          "actors",
+          "quality"
         ],
         "type": "object",
         "properties": {
@@ -3000,6 +3008,12 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/LibraryFacetValue"
+            }
+          },
+          "quality": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LibraryQualityFacetValue"
             }
           }
         }
@@ -3084,10 +3098,31 @@
           }
         }
       },
+      "LibraryQualityFacetValue": {
+        "required": [
+          "value",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "$ref": "#/components/schemas/VideoQualityBand"
+          },
+          "count": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
       "LibrarySortOrder": {
         "enum": [
           "Newest",
-          "TitleAscending"
+          "TitleAscending",
+          "QualityDescending"
         ]
       },
       "ObservedPlaybackOutcome": {
@@ -3437,6 +3472,7 @@
           "audioBitrate",
           "size",
           "durationMilliseconds",
+          "qualityBand",
           "directPlayClassification",
           "profileKey",
           "preciseVideoContentType",
@@ -3548,6 +3584,9 @@
               "string"
             ],
             "format": "int64"
+          },
+          "qualityBand": {
+            "$ref": "#/components/schemas/VideoQualityBand"
           },
           "directPlayClassification": {
             "$ref": "#/components/schemas/DirectPlayClassification"
@@ -4050,6 +4089,17 @@
           "Computed",
           "Incomplete",
           "Failed"
+        ]
+      },
+      "VideoQualityBand": {
+        "enum": [
+          "Unknown",
+          "StandardDefinition",
+          "Hd720",
+          "FullHd1080",
+          "Qhd1440",
+          "Uhd2160",
+          "Uhd4320"
         ]
       },
       "VideoSummary": {

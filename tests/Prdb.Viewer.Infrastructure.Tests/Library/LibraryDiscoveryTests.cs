@@ -173,6 +173,78 @@ public sealed class LibraryDiscoveryTests
     }
 
     [Fact]
+    public async Task Video_quality_narrows_the_library_orders_it_and_offers_the_bands_it_holds()
+    {
+        await using var store = await TestDatabase.CreateAsync(
+            mediaProbe: new DimensionAwareProbe(),
+            hasher: new FixtureHasher(),
+            previewGenerator: new FixturePreviewGenerator(),
+            identificationClient: new FixtureIdentificationClient());
+        var accountId = await AccountAsync(store);
+        await SourceAsync(store, ("uhd.mp4", "mp4"), ("fullhd.mp4", "mp4"), ("sd.mp4", "mp4"));
+        await LibraryPipeline.DrainAsync(store);
+
+        // A 4K picture is past the conservative baseline whatever it is encoded as, so this
+        // Account asks to see what its browser has not confirmed. The test is about Video Quality,
+        // and admission is a separate question with its own tests.
+        await using (var preference = store.Scope())
+        {
+            await preference.ServiceProvider
+                .GetRequiredService<LibraryPreferences>()
+                .SetIncludesNotReadyForDirectPlayAsync(
+                    accountId,
+                    true,
+                    TestContext.Current.CancellationToken);
+        }
+
+        await using var scope = store.Scope();
+
+        var uhd = await Discovery(scope).GetAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            new LibraryDiscoveryRequest { Quality = [VideoQualityBand.Uhd2160] },
+            TestContext.Current.CancellationToken);
+        Assert.Equal("uhd", Assert.Single(uhd.Videos).DisplayTitle);
+
+        // Values inside one facet combine with OR, as everywhere else.
+        var either = await Discovery(scope).GetAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            new LibraryDiscoveryRequest
+            {
+                Quality = [VideoQualityBand.Uhd2160, VideoQualityBand.StandardDefinition],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(["sd", "uhd"], either.Videos.Select(video => video.DisplayTitle).Order());
+
+        var ordered = await Discovery(scope).GetAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            new LibraryDiscoveryRequest { Sort = LibrarySortOrder.QualityDescending },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(
+            ["uhd", "fullhd", "sd"],
+            ordered.Videos.Select(video => video.DisplayTitle));
+
+        // The facet offers the bands the library holds, best first, with what each one holds.
+        var facets = await Discovery(scope).GetFacetsAsync(
+            accountId,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(
+            [
+                (VideoQualityBand.Uhd2160, 1),
+                (VideoQualityBand.FullHd1080, 1),
+                (VideoQualityBand.StandardDefinition, 1),
+            ],
+            facets.Quality.Select(band => (band.Value, band.Count)));
+
+        // What a card names is the band the filter admitted it by, not a second opinion.
+        Assert.Equal(
+            VideoQualityBand.Uhd2160,
+            Assert.Single(Assert.Single(uhd.Videos).VideoFiles).QualityBand);
+    }
+
+    [Fact]
     public async Task A_page_costs_a_page_and_says_whether_more_follows()
     {
         await using var store = await CreateAsync();
@@ -435,4 +507,27 @@ internal sealed class ContainerAwareProbe : IMediaProbe
                 FixtureProbe.Baseline with { ContainerFormat = "matroska", VideoCodec = "h264" },
                 12_345)
             : new MediaProbeFacts(FixtureProbe.Baseline, 12_345));
+}
+
+/// <summary>
+/// A probe that reports the dimensions the file name implies, so that a test about Video Quality
+/// produces genuinely different bands instead of asserting against a forced column.
+/// </summary>
+internal sealed class DimensionAwareProbe : IMediaProbe
+{
+    public Task<MediaProbeFacts?> InspectAsync(
+        string path,
+        CancellationToken cancellationToken = default)
+    {
+        var (width, height) = Path.GetFileNameWithoutExtension(path) switch
+        {
+            "uhd" => (3840, 2160),
+            "sd" => (720, 404),
+            _ => (1920, 1080),
+        };
+
+        return Task.FromResult<MediaProbeFacts?>(new MediaProbeFacts(
+            FixtureProbe.Baseline with { Width = width, Height = height },
+            12_345));
+    }
 }

@@ -45,6 +45,7 @@ export function useLibraryFilters() {
     review: list(parameters.get('review')),
     playability: list(parameters.get('playability')),
     availability: list(parameters.get('availability')),
+    quality: list(parameters.get('quality')),
     playState: list(parameters.get('playState')),
   }), [parameters])
 
@@ -68,7 +69,7 @@ export function useLibraryFilters() {
   /// list is. Taking it from the caller means taking it from the last render: two clicks on one
   /// facet inside a single batch both saw it unselected, so both added it, and the address ended
   /// up naming that Site twice while the button drew itself as unselected.
-  const toggle = useCallback((key: 'sites' | 'actors', value: string) => {
+  const toggle = useCallback((key: 'sites' | 'actors' | 'quality', value: string) => {
     change((next) => {
       const held = list(next.get(key))
       write(next, key, held.includes(value) ? held.filter((one) => one !== value) : [...held, value])
@@ -95,6 +96,7 @@ export function useLibraryFilters() {
     filters.review.length > 0 ||
     filters.playability.length > 0 ||
     filters.availability.length > 0 ||
+    filters.quality.length > 0 ||
     filters.playState.length > 0
 
   return { filters, pages, narrow, toggle, clear, showMore, narrowed }

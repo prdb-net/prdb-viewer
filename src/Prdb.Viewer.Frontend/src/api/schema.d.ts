@@ -1171,6 +1171,7 @@ export interface paths {
                     review?: string;
                     playability?: string;
                     availability?: string;
+                    quality?: string;
                     playState?: string;
                     skip?: number | string;
                     take?: number | string;
@@ -2200,6 +2201,7 @@ export interface components {
         LibraryFacets: {
             sites: components["schemas"]["LibraryFacetValue"][];
             actors: components["schemas"]["LibraryFacetValue"][];
+            quality: components["schemas"]["LibraryQualityFacetValue"][];
         };
         LibraryFacetValue: {
             value: string;
@@ -2220,8 +2222,13 @@ export interface components {
         LibraryPreferencesSummary: {
             includesNotReadyForDirectPlay: boolean;
         };
+        LibraryQualityFacetValue: {
+            value: components["schemas"]["VideoQualityBand"];
+            /** Format: int32 */
+            count: number | string;
+        };
         /** @enum {unknown} */
-        LibrarySortOrder: "Newest" | "TitleAscending";
+        LibrarySortOrder: "Newest" | "TitleAscending" | "QualityDescending";
         /** @enum {unknown} */
         ObservedPlaybackOutcome: "Succeeded" | "Failed" | null;
         ObservedPlaybackOutcomeRequest: {
@@ -2325,6 +2332,7 @@ export interface components {
             size: number | string;
             /** Format: int64 */
             durationMilliseconds: number | string;
+            qualityBand: components["schemas"]["VideoQualityBand"];
             directPlayClassification: components["schemas"]["DirectPlayClassification"];
             profileKey: string;
             preciseVideoContentType: null | string;
@@ -2435,6 +2443,8 @@ export interface components {
         VideoFileAvailability: "Available" | "Unreachable" | "Missing" | "Replaced" | "Removed";
         /** @enum {unknown} */
         VideoFileHashState: "Pending" | "Computed" | "Incomplete" | "Failed";
+        /** @enum {unknown} */
+        VideoQualityBand: "Unknown" | "StandardDefinition" | "Hd720" | "FullHd1080" | "Qhd1440" | "Uhd2160" | "Uhd4320";
         VideoSummary: {
             /** Format: uuid */
             id: string;

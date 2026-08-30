@@ -9,8 +9,10 @@ import {
   json,
   libraryPage,
   libraryVideo,
+  noFacets,
   personalState,
   renderApp,
+  signedInAs,
   variant,
   videoDetail,
   waitForVideo,
@@ -70,9 +72,9 @@ describe('App', () => {
         return json({ ended: true })
       }
       if (input === '/api/personal/playback-profiles') return json([])
-      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isFacetRequest(input)) return json(noFacets())
       if (input === '/api/personal/playback-profiles') return json([])
-      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isFacetRequest(input)) return json(noFacets())
       if (isLibraryRequest(input)) {
         return json(libraryPage([{
           id: '01994dd4-2a0a-7000-8000-000000000010',
@@ -137,7 +139,7 @@ describe('App', () => {
         csrfToken: 'csrf-token',
       })
       if (input === '/api/personal/playback-profiles') return json([])
-      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isFacetRequest(input)) return json(noFacets())
       if (isLibraryRequest(input)) return json(libraryPage([video]))
       if (input === '/api/personal/library') {
         return json({ continueWatching: [video], favourites: [], watchLater: [] })
@@ -211,9 +213,9 @@ describe('App', () => {
         csrfToken: 'csrf-token',
       })
       if (input === '/api/personal/playback-profiles') return json([])
-      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isFacetRequest(input)) return json(noFacets())
       if (input === '/api/personal/playback-profiles') return json([])
-      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isFacetRequest(input)) return json(noFacets())
       if (isLibraryRequest(input)) {
         return json(libraryPage([
           libraryVideo({
@@ -254,6 +256,45 @@ describe('App', () => {
     expect(screen.getByText('Unknown Video')).toBeInTheDocument()
     expect(screen.getByText('Review needed')).toBeInTheDocument()
     expect(screen.queryByText('A Guessed Work')).not.toBeInTheDocument()
+  })
+
+  it('says what a Video is worth watching at, on the shelf and on its own page', async () => {
+    const file = variant({
+      containerFormat: 'mov,mp4',
+      videoCodec: 'h264',
+      audioCodec: 'aac',
+      qualityBand: 'Uhd2160',
+      width: 3840,
+      height: 2160,
+      frameRate: 59.94,
+      bitrate: 24_000_000,
+      audioChannels: 6,
+      audioSampleRate: 48_000,
+      size: 8_400_000_000,
+      durationMilliseconds: 5_400_000,
+    })
+    const video = libraryVideo({ videoFiles: [file] })
+    signedInAs('User', (input) => {
+      if (isLibraryRequest(input)) return json(libraryPage([video]))
+      if (isVideoRequest(input)) return json(videoDetail(video))
+      return undefined
+    })
+
+    renderApp()
+
+    // The shelf says it in the corner of the picture, where a person looking for it looks.
+    expect(await screen.findByText('4K')).toBeInTheDocument()
+    expect(screen.getByText('60 fps')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Sample Video'))
+
+    // The Video's own page says the rest of it, about the occurrence Play would reach for.
+    expect(await screen.findByText('4K · 60 fps')).toBeInTheDocument()
+    expect(screen.getByText('1 h 30 min')).toBeInTheDocument()
+    expect(screen.getByText('24 Mbit/s')).toBeInTheDocument()
+    expect(screen.getByText('aac · 5.1 · 48 kHz')).toBeInTheDocument()
+    expect(screen.getByText('8.4 GB')).toBeInTheDocument()
+    expect(screen.getByText('4K · 60 fps · mov,mp4 (h264 + aac)')).toBeInTheDocument()
   })
 
   it('lets an Administrator preview and confirm an identification decision', async () => {
@@ -305,7 +346,7 @@ describe('App', () => {
         csrfToken: 'csrf-token',
       })
       if (input === '/api/personal/playback-profiles') return json([])
-      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isFacetRequest(input)) return json(noFacets())
       if (isLibraryRequest(input)) return json(libraryPage([]))
       if (input === '/api/personal/library') {
         return json({ continueWatching: [], favourites: [], watchLater: [] })
@@ -397,7 +438,7 @@ describe('App', () => {
         csrfToken: 'csrf-token',
       })
       if (isFacetRequest(input)) {
-        return json({ sites: [{ value: 'Known Site', count: 3 }], actors: [] })
+        return json(noFacets({ sites: [{ value: 'Known Site', count: 3 }] }))
       }
       if (isLibraryRequest(input)) {
         return json(libraryPage([shown], {
@@ -445,6 +486,48 @@ describe('App', () => {
     await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
       '/api/library/preferences/include-not-ready',
       expect.objectContaining({ method: 'PUT' }),
+    ))
+  })
+
+  it('narrows and orders the Library by the quality it holds', async () => {
+    signedInAs('User', (input) => {
+      if (isFacetRequest(input)) {
+        return json(noFacets({
+          quality: [
+            { value: 'Uhd2160', count: 3 },
+            { value: 'FullHd1080', count: 12 },
+            { value: 'Unknown', count: 1 },
+          ],
+        }))
+      }
+      return undefined
+    })
+
+    renderApp()
+
+    // The bands are offered by name, best first, with what each one holds. The band inspection
+    // never established is not a choice, so it is not offered as one.
+    expect(await screen.findByRole('button', { name: '4K (3)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '1080p (12)' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Unknown \(1\)/ })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: '4K (3)' }))
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('quality=Uhd2160'),
+      expect.anything(),
+    ))
+
+    // Values inside one facet combine with OR, so the second band widens what the first chose.
+    fireEvent.click(screen.getByRole('button', { name: '1080p (12)' }))
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('quality=Uhd2160%2CFullHd1080'),
+      expect.anything(),
+    ))
+
+    fireEvent.change(screen.getByLabelText('Sort'), { target: { value: 'QualityDescending' } })
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('sort=QualityDescending'),
+      expect.anything(),
     ))
   })
 
@@ -521,7 +604,7 @@ describe('App', () => {
       if (typeof input === 'string' && input.startsWith('/media/videos/')) {
         return Promise.resolve(new Response(null, { status: 206 }))
       }
-      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isFacetRequest(input)) return json(noFacets())
       if (isVideoRequest(input)) return json(videoDetail(video))
       if (isLibraryRequest(input)) return json(libraryPage([video]))
       if (input === '/api/personal/library') {
@@ -607,7 +690,7 @@ describe('App', () => {
         csrfToken: 'csrf-token',
       })
       if (input === '/api/personal/playback-profiles') return json([])
-      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isFacetRequest(input)) return json(noFacets())
       if (isLibraryRequest(input)) {
         return json(libraryPage([unsupported], { includesNotReadyForDirectPlay: true }))
       }
@@ -748,7 +831,7 @@ describe('App', () => {
         return json({ containerPaths: [] })
       }
       if (input === '/api/personal/playback-profiles') return json([])
-      if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+      if (isFacetRequest(input)) return json(noFacets())
       if (isLibraryRequest(input)) return json(libraryPage([]))
       if (input === '/api/personal/library') {
         return json({ continueWatching: [], favourites: [], watchLater: [] })

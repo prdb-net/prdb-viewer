@@ -47,6 +47,38 @@ test('a facet row is drawn from the library the server actually holds', async ({
     'Jules Poe (1)',
     'Sam Roe (1)',
   ])
+
+  // The bands the four files were encoded at, best first, as the server projected them. Nothing
+  // here is pinned by the test: `ffmpeg` wrote the pictures, `ffprobe` read them back, and the
+  // projection banded them.
+  await expect(facets(page, 'Quality')).toHaveText([
+    '1080p (1)',
+    '720p (1)',
+    'SD (2)',
+  ])
+})
+
+test('what a card says a Video is worth watching at survives the round trip', async ({ page }) => {
+  // The shape of every display defect this project has shipped: a screen reading a field the API
+  // does not send. The badge is drawn from a band the Core derived and the contract carries, so a
+  // field that stops arriving shows up here as an empty corner rather than as a passing test.
+  await expect(page.locator('.quality-badge')).toHaveCount(4)
+  expect((await page.locator('.quality-badge').allTextContents()).sort())
+    .toEqual(['1080p', '720p', 'SD', 'SD'])
+})
+
+test('choosing a quality band narrows the list at the server', async ({ page }) => {
+  await page.getByRole('button', { name: 'SD (2)' }).click()
+
+  await expect(page.locator('.video-card')).toHaveCount(2)
+  expect(new URL(page.url()).searchParams.get('quality')).toBe('StandardDefinition')
+  await expect(page.getByText('2 matching')).toBeVisible()
+
+  // And ordering by it is the server's answer too, not a sort the screen did to a page.
+  await page.goto('/?sort=QualityDescending')
+  await page.locator('.video-card').first().waitFor()
+  expect((await page.locator('.quality-badge').allTextContents()))
+    .toEqual(['1080p', '720p', 'SD', 'SD'])
 })
 
 test('choosing a Site narrows the list at the server', async ({ page }) => {
@@ -136,7 +168,7 @@ test('the Installation screen reports the connection it actually made', async ({
   await expect(page.getByText('/libraries', { exact: true })).toBeVisible()
 })
 
-function facets(page: Page, group: 'Sites' | 'Actors') {
+function facets(page: Page, group: 'Sites' | 'Actors' | 'Quality') {
   return page.locator(`[aria-label="${group}"] button.facet`)
 }
 

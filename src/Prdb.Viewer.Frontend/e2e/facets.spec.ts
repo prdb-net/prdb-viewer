@@ -156,6 +156,7 @@ async function answerApi(page: Page) {
           { value: 'Alex Doe', count: 2 },
           { value: 'Sam Roe', count: 1 },
         ],
+        quality: [],
       } :
       path === '/api/library/videos' ? {
         videos: [],

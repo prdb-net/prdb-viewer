@@ -35,6 +35,9 @@ public sealed record MediaConfiguration(
 
     public long? AudioBitrate { get; init; }
 
+    /// <summary>The Video File Quality of this configuration.</summary>
+    public VideoQualityBand QualityBand => VideoQualityRule.For(Width, Height);
+
     public IReadOnlyList<string> Formats =>
         ContainerFormat.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 

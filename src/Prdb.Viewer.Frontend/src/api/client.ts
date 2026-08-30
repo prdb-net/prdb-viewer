@@ -32,6 +32,7 @@ export type VideoSummary = components['schemas']['VideoSummary']
 export type VideoDetail = components['schemas']['VideoDetail']
 export type LibraryPage = components['schemas']['LibraryPage']
 export type LibraryFacets = components['schemas']['LibraryFacets']
+export type VideoQualityBand = components['schemas']['VideoQualityBand']
 export type LibrarySortOrder = components['schemas']['LibrarySortOrder']
 export type LibraryPreferences = components['schemas']['LibraryPreferencesSummary']
 export type PlaybackVariant = components['schemas']['PlaybackVariantView']
@@ -50,6 +51,7 @@ export type LibraryFilters = {
   review: string[]
   playability: string[]
   availability: string[]
+  quality: string[]
   playState: string[]
 }
 
@@ -63,6 +65,7 @@ export const emptyFilters: LibraryFilters = {
   review: [],
   playability: [],
   availability: [],
+  quality: [],
   playState: [],
 }
 
@@ -77,6 +80,7 @@ function libraryQuery(filters: LibraryFilters, skip: number, take: number) {
   if (filters.review.length) parameters.set('review', filters.review.join(','))
   if (filters.playability.length) parameters.set('playability', filters.playability.join(','))
   if (filters.availability.length) parameters.set('availability', filters.availability.join(','))
+  if (filters.quality.length) parameters.set('quality', filters.quality.join(','))
   if (filters.playState.length) parameters.set('playState', filters.playState.join(','))
   parameters.set('skip', String(skip))
   parameters.set('take', String(take))

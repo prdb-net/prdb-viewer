@@ -7,6 +7,40 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Every Video says what it is worth watching at. The resolution of the occurrence
+  a play action would reach for sits in the corner of its preview, with the frame
+  rate beside it where it is above the ordinary thirty, and the Video's own page
+  states the runtime, bitrate, audio layout and size of that occurrence and
+  repeats the quality line against each of its Video Files. Inspection had been
+  retaining all of this since the first Scan and the catalogue had been answering
+  with it; only the screens had nothing to say about it, so a person could see
+  that a Video would play here but not whether it was worth playing. A resolution
+  is named the way a release is named rather than by its height alone — a film
+  with the bars cut off and a recording held upright are both the 1080p they are
+  — and where inspection established no dimensions, nothing is claimed.
+- Narrow the Library to the quality bands it holds, and order it by best quality
+  first. The facet offers only the bands there are something in, with their
+  counts, and combines with OR inside itself and with AND across the other facets
+  like every facet beside it. A Video's Video Quality is the best band among its
+  Available Video Files, projected once per ADR 0013 and the same for every
+  Account, so narrowing and ordering by it cost one indexed comparison rather
+  than a decision taken per row. That is a deliberate exception to ADR 0015 —
+  a filter could have meant what this browser would be shown, an order could not,
+  and the reasoning is in
+  [ADR 0018](docs/adr/0018-decide-video-quality-installation-wide.md). An
+  upgrade rebuilds every projection once at startup to fill the new column.
+
+### Changed
+
+- `seed` writes its four video files at four different sizes rather than all at
+  one. A screen that says what a Video is worth watching at looks the same on
+  every card when every card is the same size, which is the one thing looking at
+  a seeded installation is meant to catch. Only the WebM's size still carries
+  weight, because the conservative baseline is the one classification with
+  dimensions in it.
+
 ## [0.6.1] - 2026-08-30
 
 A dependency bump, and the certificate it made unnecessary. Nothing about the

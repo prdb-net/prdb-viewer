@@ -154,6 +154,14 @@ _Avoid_: scan state, playability
 The state derived from a Video's Video Files: Available when any is available, Unavailable when none is available but the Video remains active, or Removed when every association has been deliberately removed from the active library.
 _Avoid_: Video File Availability, playability
 
+**Video File Quality**:
+The resolution band one Video File would be named by — SD, 720p, 1080p, 1440p, 4K, 8K, or Unknown where inspection established no dimensions. A band names a picture the way a release is named rather than by its height alone, so a film with its bars cut off and a recording held upright are both the band they would be called.
+_Avoid_: resolution, Playback Profile Key, bitrate
+
+**Video Quality**:
+The state derived from a Video's Video Files: the highest Video File Quality among those that are Available, and Unknown when none of them establishes one. It is installation-wide and is what the Library filters and orders by, unlike the occurrence a play action would reach for on one client, whose quality is what a screen shows.
+_Avoid_: Video File Quality, Direct-Play Classification
+
 ### Identification and provenance
 
 **Identification Claim**:

@@ -75,8 +75,9 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
     }
 
     /// <summary>
-    /// The Established Sites and Actors of the Videos an Account can currently discover, with the
-    /// counts a facet list shows. Removed Videos are never counted.
+    /// The Established Sites and Actors of the Videos an Account can currently discover, and the
+    /// Video Quality bands the library holds, with the counts a facet list shows. Removed Videos
+    /// are never counted.
     /// </summary>
     public async Task<LibraryFacets> GetFacetsAsync(
         Guid accountId,
@@ -104,9 +105,18 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             .Take(FacetLimit)
             .ToListAsync(cancellationToken);
 
+        var quality = await active
+            .GroupBy(video => video.Quality)
+            .Select(group => new { Value = group.Key, Count = group.Count() })
+            .ToListAsync(cancellationToken);
+
         return new LibraryFacets(
             sites.Select(site => new LibraryFacetValue(site.Value, site.Count)).ToArray(),
-            actors.Select(actor => new LibraryFacetValue(actor.Value, actor.Count)).ToArray());
+            actors.Select(actor => new LibraryFacetValue(actor.Value, actor.Count)).ToArray(),
+            quality
+                .OrderByDescending(band => band.Value)
+                .Select(band => new LibraryQualityFacetValue(band.Value, band.Count))
+                .ToArray());
     }
 
     /// <summary>
@@ -343,6 +353,15 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             videos = videos.Where(video => video.ReviewNeeded == needed);
         }
 
+        if (request.Quality.Count > 0)
+        {
+            // The Video's own Quality is a projected column, so this is one indexed comparison
+            // rather than a decision taken per occurrence. ADR 0018 says why it is not the band
+            // this client would be shown.
+            var bands = request.Quality;
+            videos = videos.Where(video => bands.Contains(video.Quality));
+        }
+
         if (request.PlayState.Count > 0)
         {
             var states = request.PlayState;
@@ -448,12 +467,22 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
 
     /// <summary>
     /// Discovery Date descending by default, so later enrichment never makes an old Video look
-    /// newly added. Title A-Z is the one explicit alternative.
+    /// newly added. Title A-Z and best Video Quality first are the explicit alternatives.
     /// </summary>
     private static IQueryable<VideoRow> Order(IQueryable<VideoRow> videos, LibrarySortOrder sort) =>
-        sort == LibrarySortOrder.TitleAscending
-            ? videos.OrderBy(video => video.DisplayLabel).ThenByDescending(video => video.DiscoveryDate)
-            : videos.OrderByDescending(video => video.DiscoveryDate).ThenBy(video => video.Id);
+        sort switch
+        {
+            LibrarySortOrder.TitleAscending => videos
+                .OrderBy(video => video.DisplayLabel)
+                .ThenByDescending(video => video.DiscoveryDate),
+            // A band holds thousands of Videos and says nothing about which of them to read first,
+            // so the default order decides inside it rather than leaving it to the row order.
+            LibrarySortOrder.QualityDescending => videos
+                .OrderByDescending(video => video.Quality)
+                .ThenByDescending(video => video.DiscoveryDate)
+                .ThenBy(video => video.Id),
+            _ => videos.OrderByDescending(video => video.DiscoveryDate).ThenBy(video => video.Id),
+        };
 
     /// <summary>
     /// Loads the page's Videos with everything a card needs, including what this client may do with

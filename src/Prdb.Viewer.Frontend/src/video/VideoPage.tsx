@@ -16,11 +16,19 @@ import {
   playbackUnavailableReason,
   variantReason,
 } from '../lib/format'
+import {
+  formatBitrate,
+  formatSize,
+  qualityFacts,
+  qualityLabel,
+  qualitySource,
+} from '../lib/quality'
 import { usePersonalActions } from '../personal/usePersonalActions'
 import { queryKeys } from '../queryKeys'
 import { firstError, Notice, PageHeading, RequestError } from '../ui'
 import { Provenance } from './Provenance'
 import { TrackedPlayer } from './TrackedPlayer'
+import { VideoArt } from './VideoArt'
 
 /// One deliberate play action in progress: the variant being tried, the ones left to try, and the
 /// ones already attempted, so no occurrence is tried twice and the failure can name them all.
@@ -197,6 +205,10 @@ export function VideoPage({ account }: { account: Account }) {
   // This screen is about one Video, so its own actions are the only ones that make it busy.
   const saving = personal.pending(video.id)
   const busy = startPlayback.isPending || saving || playing !== undefined
+  // The facts describe the occurrence a play action would reach for, so the sidebar and the corner
+  // of the picture are talking about the same Video File.
+  const source = qualitySource(video)
+  const quality = source ? qualityFacts(source) : []
 
   return (
     <>
@@ -244,9 +256,7 @@ export function VideoPage({ account }: { account: Account }) {
             />
           ) : (
             <>
-              {video.previewUrl
-                ? <img className="video-preview large" src={video.previewUrl} alt="" />
-                : <div className="video-placeholder large" aria-hidden="true">▶</div>}
+              <VideoArt video={video} large />
               <PlayAction video={video} play={play} pending={busy} />
             </>
           )}
@@ -255,6 +265,11 @@ export function VideoPage({ account }: { account: Account }) {
         <aside className="video-detail-facts">
           <Provenance identification={video.identification} />
           <dl className="fact-list">
+            {/* What the file itself is comes first: somebody deciding whether to watch this asks
+                what they would be watching before they ask what the library did with it. */}
+            {quality.map((fact) => (
+              <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>
+            ))}
             <div><dt>Discovered</dt><dd>{new Date(video.discoveryDate).toLocaleDateString()}</dd></div>
             <div><dt>Availability</dt><dd>{friendlyState(video.availability)}</dd></div>
             <div><dt>Playability</dt><dd>{friendlyState(video.playability)}</dd></div>
@@ -312,8 +327,8 @@ export function VideoPage({ account }: { account: Account }) {
         <ul className="variant-list">
           {video.videoFiles.map((variant) => (
             <li key={variant.videoFileId}>
-              <span>{fileFormat(variant)}</span>
-              <small>{variantReason(variant)}</small>
+              <span>{variantHeadline(variant)}</span>
+              <small>{variantDetail(variant)}</small>
               <button className="quiet-button" onClick={() => play(variant)} disabled={busy}>
                 {variant.selectionReason === 'RuledOutHere' ? 'Try anyway' : 'Play this one'}
               </button>
@@ -329,6 +344,26 @@ export function VideoPage({ account }: { account: Account }) {
       )}
     </>
   )
+}
+
+/// One occurrence in the list, named by what it is worth watching at before what it is encoded as.
+/// Two occurrences of the same Video usually differ in quality first and in format second, so that
+/// is the order somebody choosing between them reads them in.
+function variantHeadline(variant: PlaybackVariant) {
+  const quality = qualityLabel(variant)
+  return quality ? `${quality} · ${fileFormat(variant)}` : fileFormat(variant)
+}
+
+/// Why this occurrence stands where it does, and what choosing it would cost — the facts that
+/// separate two occurrences a client is equally happy with.
+function variantDetail(variant: PlaybackVariant) {
+  const parts = [
+    variantReason(variant),
+    formatBitrate(Number(variant.bitrate ?? 0)),
+    formatSize(Number(variant.size ?? 0)),
+  ].filter(Boolean)
+
+  return parts.join(' · ')
 }
 
 /// The three playability states offered as what they are: the ordinary action, a labelled attempt

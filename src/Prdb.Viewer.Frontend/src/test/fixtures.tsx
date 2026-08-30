@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 
+import type { PlaybackVariant } from '../api/client'
 import { App } from '../App'
 
 /// What the tests agree a Video, an Account and a library answer look like.
@@ -37,6 +38,11 @@ export function isFacetRequest(input: unknown) {
   return input === '/api/library/facets'
 }
 
+/// What the facets endpoint answers when a test is not about facets.
+export function noFacets(overrides: Record<string, unknown> = {}) {
+  return { sites: [], actors: [], quality: [], ...overrides }
+}
+
 export function isLibraryRequest(input: unknown) {
   return typeof input === 'string' && input.startsWith('/api/library/videos?')
 }
@@ -57,7 +63,7 @@ export function json(body: unknown) {
   }))
 }
 
-export function variant(overrides: Record<string, unknown> = {}) {
+export function variant(overrides: Record<string, unknown> = {}): PlaybackVariant {
   return {
     videoFileId: '01994dd4-2a0a-7000-8000-000000000011',
     deliveryUrl: '/media/videos/01994dd4-2a0a-7000-8000-000000000012',
@@ -73,6 +79,7 @@ export function variant(overrides: Record<string, unknown> = {}) {
     audioBitrate: 128000,
     size: 10,
     durationMilliseconds: 10000,
+    qualityBand: 'FullHd1080',
     directPlayClassification: 'BaselineCandidate',
     profileKey: 'video/webm|vp8|profile-unknown|level-unknown|8bit|fullhd|standard|vorbis|2ch',
     preciseVideoContentType: null,
@@ -85,7 +92,7 @@ export function variant(overrides: Record<string, unknown> = {}) {
     readyForDirectPlay: true,
     selectionReason: 'BaselineCandidate',
     ...overrides,
-  }
+  } as PlaybackVariant
 }
 
 export function personalState(overrides: Record<string, unknown> = {}) {
@@ -172,7 +179,7 @@ export function signedInAs(
     if (input === '/api/personal/playback-profiles') return json([])
     if (input === '/api/admin/background-work/') return json({ work: [], issues: [] })
     if (input === '/api/admin/identification/queue') return json([])
-    if (isFacetRequest(input)) return json({ sites: [], actors: [] })
+    if (isFacetRequest(input)) return json(noFacets())
     if (isVideoRequest(input)) return json(videoDetail(libraryVideo()))
     if (isLibraryRequest(input)) return json(libraryPage([libraryVideo()]))
     if (input === '/api/personal/library') {

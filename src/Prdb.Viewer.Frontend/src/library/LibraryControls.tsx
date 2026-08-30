@@ -1,4 +1,5 @@
 import type { LibraryFacets, LibraryFilters } from '../api/client'
+import { qualityBandLabel } from '../lib/quality'
 
 /// The sort order and the facets. Search itself is not here: it belongs to the shell, because it
 /// is how the Library is reached from anywhere rather than something this screen owns.
@@ -16,7 +17,7 @@ export function LibraryControls({
   /// Values inside one facet combine with OR, so a Site or an Actor is added to what is already
   /// chosen rather than replacing it. It goes through the address rather than through `narrow`,
   /// which would compute the new list from a render that a quick second click has already outrun.
-  toggle: (key: 'sites' | 'actors', value: string) => void
+  toggle: (key: 'sites' | 'actors' | 'quality', value: string) => void
   clear: () => void
   narrowed: boolean
 }) {
@@ -31,6 +32,7 @@ export function LibraryControls({
           >
             <option value="Newest">Newest</option>
             <option value="TitleAscending">Title A–Z</option>
+            <option value="QualityDescending">Best quality first</option>
           </select>
         </label>
         {narrowed && <button className="quiet-button" onClick={clear}>Clear</button>}
@@ -62,6 +64,26 @@ export function LibraryControls({
           onToggle={(selected) => narrow({ playability: selected ? ['NotDirectlyPlayable'] : [] })}
         />
       </div>
+      {/* The bands the library actually holds, best first. A band it has none of is not offered:
+          Video Quality is what the library holds rather than what this browser would be shown, so
+          a band with a count has Videos in it whatever the browser. */}
+      {facets?.quality?.length ? (
+        <div className="facet-row" aria-label="Quality">
+          {facets.quality.map((band) => {
+            const label = qualityBandLabel(band.value)
+            if (!label) return null
+
+            return (
+              <FacetToggle
+                key={band.value}
+                label={`${label} (${band.count})`}
+                selected={filters.quality.includes(band.value)}
+                onToggle={() => toggle('quality', band.value)}
+              />
+            )
+          })}
+        </div>
+      ) : null}
       {facets?.sites?.length ? (
         <div className="facet-row" aria-label="Sites">
           {facets.sites.map((site) => (

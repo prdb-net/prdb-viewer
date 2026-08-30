@@ -35,6 +35,7 @@ public sealed class VideoProjectionTests
         var video = await Projected(scope);
         Assert.Equal("Beach Day 2019", video.DisplayLabel);
         Assert.Equal(DirectPlayClassification.BaselineCandidate, video.BestClassification);
+        Assert.Equal(VideoQualityBand.FullHd1080, video.Quality);
         Assert.Equal(VideoAvailability.Available, video.Availability);
         Assert.False(video.HasEstablishedWork);
         Assert.Null(video.EstablishedSite);
@@ -101,6 +102,9 @@ public sealed class VideoProjectionTests
         // about direct play.
         Assert.Equal(VideoAvailability.Unavailable, video.Availability);
         Assert.Equal(DirectPlayClassification.Unsupported, video.BestClassification);
+
+        // Nor about its quality: a band the library cannot reach is not one it holds.
+        Assert.Equal(VideoQualityBand.Unknown, video.Quality);
 
         // The label survives the loss, because losing a file is not losing what it was called.
         Assert.Equal("gone", video.DisplayLabel);
