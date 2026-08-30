@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
+using Prdb.FakeCatalogue;
+
 using Prdb.Viewer.Infrastructure.Persistence;
 using Prdb.Viewer.Infrastructure.Configuration;
 using Prdb.Viewer.Infrastructure.Library;

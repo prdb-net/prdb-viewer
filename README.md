@@ -157,7 +157,7 @@ browsing screen — run it against the stand-in catalogue in `tools/`, which
 recognises the files the seed writes:
 
 ```bash
-dotnet run --project tools/Prdb.FakeCatalogue          # in one terminal
+dotnet run --project tools/Prdb.FakeCatalogue.Server   # in one terminal
 
 VIEWER_DATA_DIRECTORY="$PWD/.data" \
   VIEWER_LIBRARY_MOUNT_ROOT="$PWD/.libraries" \

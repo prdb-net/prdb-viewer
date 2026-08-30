@@ -1,12 +1,19 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    A stand-in for prdb, for running the product against a catalogue that answers on demand. It is
-    not shipped: the Dockerfile builds src/Prdb.Viewer.Host, and nothing in src references this.
+    A stand-in for prdb: the bodies its endpoints answer with, and the message handler that serves
+    them in place of a socket. Prdb.FakeCatalogue.Server serves the same answers on a port.
+
+    It is not shipped: the Dockerfile builds src/Prdb.Viewer.Host, and nothing in src references
+    this. It lives outside tests/ because the runnable server needs it too, and one copy of these
+    answers is the whole point — two imitations drift, and drift here is quiet.
   -->
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
 </Project>

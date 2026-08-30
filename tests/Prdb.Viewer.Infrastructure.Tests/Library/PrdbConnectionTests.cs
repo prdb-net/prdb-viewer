@@ -1,5 +1,7 @@
 using System.Net;
 
+using Prdb.FakeCatalogue;
+
 using Prdb.Viewer.Infrastructure.Configuration;
 using Prdb.Viewer.Infrastructure.Library;
 

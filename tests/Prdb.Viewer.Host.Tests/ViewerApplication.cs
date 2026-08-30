@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
+using Prdb.FakeCatalogue;
+
 using Prdb.Viewer.Infrastructure.Access;
 using Prdb.Viewer.Infrastructure.Configuration;
 
@@ -12,7 +14,8 @@ namespace Prdb.Viewer.Host.Tests;
 
 internal sealed class ViewerApplication(
     IPrdbConnectionVerifier? prdbConnectionVerifier = null,
-    bool behindReverseProxy = false)
+    bool behindReverseProxy = false,
+    FakePrdb? prdb = null)
     : WebApplicationFactory<Program>
 {
     private readonly string dataDirectory = Path.Combine(
@@ -40,6 +43,15 @@ internal sealed class ViewerApplication(
             {
                 services.RemoveAll<IPrdbConnectionVerifier>();
                 services.AddSingleton(prdbConnectionVerifier);
+            }
+
+            if (prdb is not null)
+            {
+                // The verifier stays the one that ships and only the socket beneath it is
+                // replaced, so what a route answers is decided by a status code and a body rather
+                // than by a stand-in that was told what to conclude.
+                services.RemoveAll<IHttpMessageHandlerFactory>();
+                services.AddSingleton<IHttpMessageHandlerFactory>(new FakePrdbTransport(prdb));
             }
         });
     }

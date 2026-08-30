@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using Prdb.FakeCatalogue;
+
 using Prdb.Viewer.Core.Configuration;
 using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Infrastructure.Library;

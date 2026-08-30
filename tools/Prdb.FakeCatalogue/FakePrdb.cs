@@ -2,9 +2,7 @@ using System.Net;
 using System.Text;
 using System.Text.Json.Nodes;
 
-using Prdb.FakeCatalogue;
-
-namespace Prdb.Viewer.Infrastructure.Tests.Library;
+namespace Prdb.FakeCatalogue;
 
 /// <summary>
 /// Answers prdb's three endpoints in place of the network, so the clients that talk to them can be
@@ -21,11 +19,12 @@ namespace Prdb.Viewer.Infrastructure.Tests.Library;
 /// JSON, and the base url stays what it is in production because nothing ever leaves the process.
 ///
 /// The bodies come from <see cref="CatalogueAnswers"/>, which the runnable stand-in in
-/// <c>tools/Prdb.FakeCatalogue</c> answers out of as well. Keeping one copy is not tidiness: two
-/// imitations drift, and drift here is quiet — the reply still parses, the client accepts it, and
-/// a test that was meant to prove something passes anyway.
+/// <c>tools/Prdb.FakeCatalogue.Server</c> answers out of as well. That is why this lives beside
+/// the answers rather than in a test project: keeping one copy is not tidiness. Two imitations
+/// drift, and drift here is quiet — the reply still parses, the client accepts it, and a test
+/// that was meant to prove something passes anyway.
 /// </summary>
-internal sealed class FakePrdb : HttpMessageHandler
+public sealed class FakePrdb : HttpMessageHandler
 {
     private readonly Dictionary<string, CatalogueEntry> catalogue =
         new(StringComparer.OrdinalIgnoreCase);
@@ -160,7 +159,7 @@ internal sealed class FakePrdb : HttpMessageHandler
 /// <summary>
 /// Hands the client under test the fake in place of the transport the Host would give it.
 /// </summary>
-internal sealed class FakePrdbTransport(FakePrdb fake) : IHttpMessageHandlerFactory
+public sealed class FakePrdbTransport(FakePrdb fake) : IHttpMessageHandlerFactory
 {
     public HttpMessageHandler CreateHandler(string name) => fake;
 }
