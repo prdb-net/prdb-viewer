@@ -25,6 +25,26 @@ export function VideoArt({ video, large = false }: { video: VideoSummary, large?
           >▶</div>
           )}
       <QualityOverlay video={video} />
+      <ProgressOverlay video={video} />
+    </div>
+  )
+}
+
+/// How far this Account got through the Video, drawn over its art.
+///
+/// A shelf of part-watched Videos is read by how far each bar has moved, which is a glance; the
+/// same fact as a timestamp beside a title is arithmetic against a runtime the card does not
+/// state. The number stays where it was for anyone who wants it, so this adds a picture rather
+/// than replacing a fact.
+function ProgressOverlay({ video }: { video: VideoSummary }) {
+  const source = qualitySource(video)
+  const duration = Number(source?.durationMilliseconds ?? 0)
+  const progress = Number(video.personalState.playbackProgressMilliseconds ?? 0)
+  if (!(duration > 0) || !(progress > 0)) return null
+
+  return (
+    <div className="video-progress" aria-hidden="true">
+      <span style={{ width: `${Math.min(100, (progress / duration) * 100)}%` }} />
     </div>
   )
 }

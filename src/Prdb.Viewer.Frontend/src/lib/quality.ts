@@ -1,5 +1,5 @@
 import type { PlaybackVariant, VideoQualityBand, VideoSummary } from '../api/client'
-import { playableSource } from './format'
+import { friendlyState, playableSource, variantReason } from './format'
 
 /// What a Video File is worth watching at, in the words a person uses for it.
 ///
@@ -111,6 +111,12 @@ export function formatRuntime(milliseconds: number) {
     return undefined
   }
 
+  // Below a minute the seconds are the honest unit. Rounding a clip to minutes printed "0 min",
+  // which is not a runtime any file has, next to a Progress line counting the seconds it does.
+  if (milliseconds < 60_000) {
+    return `${Math.max(1, Math.round(milliseconds / 1_000))} s`
+  }
+
   const minutes = Math.round(milliseconds / 60_000)
   const hours = Math.floor(minutes / 60)
 
@@ -133,6 +139,21 @@ export function qualityFacts(file: PlaybackVariant) {
   add('Size', formatSize(Number(file.size ?? 0)))
 
   return facts
+}
+
+/// What a card says beneath the title: how long the Video runs, and how this browser knows it
+/// would play.
+///
+/// It used to open with the container and codecs — `mov,mp4,m4a,3gp,3g2,mj2 (h264 + aac)` — which
+/// is what the file is made of rather than anything somebody browsing is asking, and it was long
+/// enough to push the rest of the line out of the card. What a Video would be watched at is in the
+/// corner of the picture, what it is made of is on its own page against every occurrence, and this
+/// is the one thing neither of those says: how long it takes and whether it will play here.
+export function playbackSummary(video: VideoSummary, source: PlaybackVariant | undefined) {
+  if (!source) return friendlyState(video.availability)
+
+  const runtime = formatRuntime(Number(source.durationMilliseconds ?? 0))
+  return [runtime, variantReason(source)].filter(Boolean).join(' · ')
 }
 
 /// The occurrence whose quality is this Video's quality here: the one a play action would reach

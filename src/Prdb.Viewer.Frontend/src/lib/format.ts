@@ -4,6 +4,28 @@ export function friendlyState(state: string | null | undefined) {
   return (state ?? '').replace(/([a-z])([A-Z])/g, '$1 $2')
 }
 
+/// Client Video Playability in the words the domain has for it.
+///
+/// Splitting the enum on its capitals gave "Ready For Direct Play", which is nobody's name for
+/// that state: CONTEXT.md calls it Ready for Direct Play, and a screen that invents its own
+/// capitalisation of a defined term teaches the reader a second vocabulary for one thing.
+export function playabilityLabel(playability: string | null | undefined) {
+  if (playability === 'ReadyForDirectPlay') return 'Ready for Direct Play'
+  if (playability === 'CompatibilityUncertain') return 'Compatibility Uncertain'
+  if (playability === 'NotDirectlyPlayable') return 'Not Directly Playable'
+  return friendlyState(playability)
+}
+
+/// What state an Account is in, said rather than spelled.
+///
+/// The enum reached the screen unbroken as "PendingApproval" beside an "Approved" that needed no
+/// translation, so the one row an Administrator is there to act on was the one row written in the
+/// database's own words.
+export function accountStateLabel(state: string | null | undefined) {
+  if (state === 'PendingApproval') return 'Waiting for approval'
+  return friendlyState(state)
+}
+
 export function formatDuration(milliseconds: number) {
   const totalSeconds = Math.floor(milliseconds / 1_000)
   return `${Math.floor(totalSeconds / 60)}:${(totalSeconds % 60).toString().padStart(2, '0')}`
@@ -26,13 +48,6 @@ export function variantReason(variant: PlaybackVariant) {
     return variant.outcome === 'Failed' ? 'failed here before' : 'this browser rejects it'
   }
   return 'not assessed yet'
-}
-
-/// What a card says about playback beneath the title: the file this client would play and how it
-/// knows. It states evidence rather than promising an outcome.
-export function playbackSupport(video: VideoSummary, source: PlaybackVariant | undefined) {
-  if (!source) return friendlyState(video.availability)
-  return `${fileFormat(source)} · ${variantReason(source)}`
 }
 
 /// Why a Video has no Play action. It distinguishes the installation-wide case — every occurrence

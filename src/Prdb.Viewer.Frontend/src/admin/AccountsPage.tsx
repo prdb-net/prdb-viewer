@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api, type Account, type AccountSummary } from '../api/client'
+import { accountStateLabel } from '../lib/format'
 import { queryKeys } from '../queryKeys'
 import { firstError, Notice, PageHeading, RequestError } from '../ui'
 
@@ -59,7 +60,7 @@ export function AccountsPage({ account }: { account: Account }) {
       </p>
 
       <section className="panel">
-        {accounts.data?.map((candidate) => (
+        {waitingFirst(accounts.data).map((candidate) => (
           <AccountRow
             key={candidate.id}
             account={candidate}
@@ -97,6 +98,21 @@ export function AccountsPage({ account }: { account: Account }) {
   )
 }
 
+/// The Accounts in the order this screen is opened for: whoever is waiting on a decision first.
+///
+/// The heading says how many requests are waiting, and the request itself used to sit wherever the
+/// list happened to put it — third, or past the fold on an installation with more than a handful
+/// of Accounts. Everything else keeps the order the API sent, which is the one the list is read in
+/// when nobody is waiting.
+function waitingFirst(accounts: AccountSummary[] | undefined) {
+  if (!accounts) return []
+
+  return [
+    ...accounts.filter((candidate) => candidate.state === 'PendingApproval'),
+    ...accounts.filter((candidate) => candidate.state !== 'PendingApproval'),
+  ]
+}
+
 function AccountRow({ account, currentAccountId, pending, act }: {
   account: AccountSummary
   currentAccountId: string
@@ -109,7 +125,7 @@ function AccountRow({ account, currentAccountId, pending, act }: {
     <article className="account-row">
       <div>
         <strong>{account.username}</strong>
-        <small>{account.authority} · {account.state}{self ? ' · you' : ''}</small>
+        <small>{account.authority} · {accountStateLabel(account.state)}{self ? ' · you' : ''}</small>
       </div>
       <div className="row-actions">
         {account.state === 'PendingApproval' && (

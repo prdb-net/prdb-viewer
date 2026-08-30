@@ -4,10 +4,10 @@ import type { VideoSummary } from '../api/client'
 import {
   formatDuration,
   friendlyState,
-  playbackSupport,
   playbackUnavailableReason,
   playableSource,
 } from '../lib/format'
+import { playbackSummary } from '../lib/quality'
 import { StarRating } from '../personal/StarRating'
 import type { PersonalAction, PersonalPending } from '../personal/usePersonalActions'
 import { Provenance } from './Provenance'
@@ -29,6 +29,7 @@ export function VideoCard({ video, act, pending, dismissible = false }: {
   const busy = pending(video.id)
   const source = playableSource(video)
   const progress = Number(video.personalState.playbackProgressMilliseconds ?? 0)
+  const plays = Number(video.personalState.playCount)
   const resume = progress > 0 && video.personalState.playState === 'InProgress'
   const playable = source !== undefined && video.playability !== 'NotDirectlyPlayable'
 
@@ -39,13 +40,17 @@ export function VideoCard({ video, act, pending, dismissible = false }: {
         <strong className="video-title">{video.displayTitle}</strong>
       </Link>
       <div className="card-facts">
-        <small>{playbackSupport(video, source)}</small>
+        <small>{playbackSummary(video, source)}</small>
         <Provenance identification={video.identification} />
         {video.personalState.playState !== 'Unplayed' && (
           <div className="play-state">
             <span>{friendlyState(video.personalState.playState)}</span>
             {progress > 0 && <span>{formatDuration(progress)}</span>}
-            <span>{Number(video.personalState.playCount)} plays</span>
+            {/* A count of none says nothing the state beside it has not said, and next to
+                Completed it reads as a contradiction: a play is counted once enough of the Video
+                was actually watched, while completion is reaching the end of it, so a Video can
+                be finished without a play having been counted. */}
+            {plays > 0 && <span>{plays} {plays === 1 ? 'play' : 'plays'}</span>}
           </div>
         )}
       </div>

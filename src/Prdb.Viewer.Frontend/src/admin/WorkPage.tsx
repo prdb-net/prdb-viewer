@@ -118,17 +118,13 @@ export function WorkPage({ account }: { account: Account }) {
         </p>
       )}
 
+      {/* Scanning is what this screen is opened to do, so it leads while work is running. Pausing
+          every lane is the rarer and heavier action, and the two used to be drawn as the same kind
+          of thing; while work is paused, starting it again is the one that leads instead. */}
       <div className="scan-actions">
-        <button
-          className={status.data?.paused ? 'primary-button inline-button' : 'quiet-button'}
-          onClick={() => pause.mutate(!status.data?.paused)}
-          disabled={pause.isPending || !status.data}
-        >
-          {status.data?.paused ? 'Resume background work' : 'Pause background work'}
-        </button>
         {configuration.data?.libraryDirectories.map((directory) => (
           <button
-            className="quiet-button"
+            className={status.data?.paused ? 'quiet-button' : 'primary-button'}
             key={directory.id}
             onClick={() => scan.mutate(directory.id)}
             disabled={scan.isPending}
@@ -136,6 +132,13 @@ export function WorkPage({ account }: { account: Account }) {
             Scan {directory.name}
           </button>
         ))}
+        <button
+          className={status.data?.paused ? 'primary-button' : 'quiet-button'}
+          onClick={() => pause.mutate(!status.data?.paused)}
+          disabled={pause.isPending || !status.data}
+        >
+          {status.data?.paused ? 'Resume background work' : 'Pause background work'}
+        </button>
       </div>
 
       <section className="panel">

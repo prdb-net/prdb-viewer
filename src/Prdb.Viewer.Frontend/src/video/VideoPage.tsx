@@ -13,6 +13,7 @@ import {
   fileFormat,
   formatDuration,
   friendlyState,
+  playabilityLabel,
   playbackUnavailableReason,
   variantReason,
 } from '../lib/format'
@@ -273,9 +274,14 @@ export function VideoPage({ account }: { account: Account }) {
             ))}
             <div><dt>Discovered</dt><dd>{new Date(video.discoveryDate).toLocaleDateString()}</dd></div>
             <div><dt>Availability</dt><dd>{friendlyState(video.availability)}</dd></div>
-            <div><dt>Playability</dt><dd>{friendlyState(video.playability)}</dd></div>
+            <div><dt>Playability</dt><dd>{playabilityLabel(video.playability)}</dd></div>
             <div><dt>Play state</dt><dd>{friendlyState(video.personalState.playState)}</dd></div>
-            <div><dt>Plays</dt><dd>{Number(video.personalState.playCount)}</dd></div>
+            {/* A play is counted once enough of the Video was actually watched, and completion is
+                reaching the end of it, so the two are not the same fact. Stating a count of none
+                beside Completed read as a contradiction rather than as the distinction it is. */}
+            {Number(video.personalState.playCount) > 0 && (
+              <div><dt>Plays</dt><dd>{Number(video.personalState.playCount)}</dd></div>
+            )}
             {Number(video.personalState.playbackProgressMilliseconds ?? 0) > 0 && (
               <div>
                 <dt>Progress</dt>

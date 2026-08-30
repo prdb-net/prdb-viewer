@@ -21,6 +21,12 @@ button:disabled { cursor: wait; opacity: .55; }
 h1, h2, h3, p { margin-top: 0; }
 p { color: #bdb8c7; line-height: 1.6; }
 
+/* Every control the keyboard reaches says so, in one place. The inputs that draw their own focus
+   state opt out below; everything else used to rely on whatever the browser drew over a dark
+   surface, which on a dark surface is close to nothing. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.field input:focus-visible, .global-search input:focus-visible, .review-case textarea:focus-visible { outline: none; }
+
 .visually-hidden {
   position: absolute;
   width: 1px; height: 1px;
@@ -155,12 +161,18 @@ p { color: #bdb8c7; line-height: 1.6; }
 .field { display: grid; gap: .45rem; margin-top: 1rem; color: #d8d3df; font-size: .88rem; font-weight: 700; }
 .field input { width: 100%; padding: .85rem 1rem; border: 1px solid rgb(255 255 255 / 13%); border-radius: .8rem; outline: none; color: inherit; background: rgb(7 7 10 / 55%); }
 .field input:focus { border-color: #a984ff; box-shadow: 0 0 0 .2rem rgb(169 132 255 / 15%); }
-.primary-button, .account-row button, .quiet-button { display: inline-block; border: 0; border-radius: .75rem; color: #fff; background: #8257e6; font-weight: 750; text-align: center; text-decoration: none; }
+.primary-button, .account-row button, .quiet-button, .danger-button { display: inline-block; border: 0; border-radius: .75rem; color: #fff; background: #8257e6; font-weight: 750; text-align: center; text-decoration: none; }
 .primary-button { width: 100%; margin-top: 1.35rem; padding: .9rem 1rem; }
 .tabs { display: flex; gap: .35rem; margin-bottom: 1.7rem; padding: .3rem; border-radius: .85rem; background: rgb(0 0 0 / 22%); }
 .tab { flex: 1; padding: .65rem .5rem; border: 0; border-radius: .6rem; color: #aaa4b4; background: transparent; font-size: .8rem; font-weight: 750; }
 .tab.active { color: #fff; background: #3a3347; }
 .quiet-button { padding: .6rem .8rem; color: #d9d4e0; background: #302b38; }
+/* What an action takes away is said in its colour, wherever the action is. This used to be a rule
+   about Account rows, so the one screen that withdraws established knowledge could not reach it. */
+.danger-button { padding: .6rem .8rem; color: #ffd9da; background: rgb(240 91 92 / 20%); }
+/* A row of actions is a row: the leading one keeps its colour without also keeping the full width
+   a form's submit button is given. */
+.row-actions .primary-button, .scan-actions .primary-button { width: auto; margin-top: 0; padding: .6rem .9rem; }
 .notice { margin-top: 1rem; padding: .8rem 1rem; border-radius: .75rem; font-size: .86rem; line-height: 1.5; overflow-wrap: anywhere; }
 .notice.error { color: #ffd9da; background: rgb(240 91 92 / 14%); }
 .notice.success { color: #dff9e8; background: rgb(76 185 119 / 14%); }
@@ -182,7 +194,9 @@ p { color: #bdb8c7; line-height: 1.6; }
 .library-search { display: flex; align-items: flex-end; gap: .8rem; flex-wrap: wrap; }
 .library-search .field { flex: 0 0 11rem; margin: 0; }
 .library-search select { width: 100%; padding: .7rem .8rem; border: 1px solid rgb(255 255 255 / 12%); border-radius: .6rem; color: inherit; background: rgb(0 0 0 / 25%); font: inherit; }
-.facet-row { display: flex; gap: .45rem; flex-wrap: wrap; }
+.facet-group { display: flex; align-items: baseline; gap: .7rem; }
+.facet-label { flex: 0 0 5.5rem; padding-top: .35rem; color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+.facet-row { display: flex; gap: .45rem; flex-wrap: wrap; min-width: 0; }
 .facet { padding: .4rem .7rem; border: 1px solid rgb(255 255 255 / 12%); border-radius: 999px; color: #cfc9d6; background: transparent; font: inherit; font-size: .78rem; cursor: pointer; }
 .facet:hover { border-color: rgb(205 183 255 / 45%); }
 .facet.selected { border-color: transparent; color: #1a1820; background: var(--accent); font-weight: 700; }
@@ -206,6 +220,12 @@ p { color: #bdb8c7; line-height: 1.6; }
 .video-art.large { margin-bottom: 1rem; }
 .video-preview { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: .7rem; object-fit: cover; background: #19161f; }
 .video-placeholder { display: grid; aspect-ratio: 16 / 9; place-items: center; border-radius: .7rem; color: var(--accent); background: linear-gradient(135deg, #34274c, #19161f); }
+/* How far this Account got, along the bottom edge of the picture it belongs to. It sits under the
+   quality badges rather than beside them, because it is about this viewer and they are about the
+   file. */
+.video-progress { position: absolute; right: 0; bottom: 0; left: 0; height: .3rem; overflow: hidden; border-radius: 0 0 .7rem .7rem; background: rgb(0 0 0 / 55%); }
+.video-progress > span { display: block; height: 100%; background: var(--accent); }
+.video-art.large .video-progress { border-radius: 0 0 1rem 1rem; }
 .quality-badges { position: absolute; right: .45rem; bottom: .45rem; display: flex; gap: .3rem; }
 .quality-badge { padding: .15rem .45rem; border-radius: .45rem; color: #f2eefb; background: rgb(10 8 14 / 72%); font-size: .7rem; font-weight: 800; letter-spacing: .02em; }
 .video-art.large .quality-badge { padding: .25rem .6rem; font-size: .8rem; }
@@ -214,7 +234,9 @@ p { color: #bdb8c7; line-height: 1.6; }
 .play-state { display: flex; gap: .45rem; flex-wrap: wrap; margin-top: .65rem; color: #bcb4c9; font-size: .7rem; }
 .play-state span { padding: .25rem .4rem; border-radius: .4rem; background: rgb(255 255 255 / 6%); }
 .personal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; margin-top: .65rem; }
-.personal-actions button, .dismiss-button { padding: .5rem; border: 1px solid rgb(255 255 255 / 10%); border-radius: .55rem; color: #aaa4b4; background: #211e28; font-size: .7rem; font-weight: 750; }
+/* A finger is not a cursor: these were half the height a touch target needs, on the screens most
+   likely to be touched. */
+.personal-actions button, .dismiss-button { min-height: 2.75rem; padding: .5rem; border: 1px solid rgb(255 255 255 / 10%); border-radius: .55rem; color: #aaa4b4; background: #211e28; font-size: .74rem; font-weight: 750; }
 .personal-actions button.selected { border-color: rgb(169 132 255 / 40%); color: #efe8ff; background: #49376d; }
 /* A Personal Rating is read far more often than it is set, so it is drawn as the thing it is
    rather than as a control: five stars carry the score across a grid without being opened, and
@@ -225,7 +247,7 @@ p { color: #bdb8c7; line-height: 1.6; }
 .star-rating .rating-caption { display: block; margin-bottom: .35rem; color: var(--muted); font-size: .68rem; font-weight: 750; }
 .star-rating .rating-row { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
 .star-rating .stars { display: flex; gap: .05rem; min-width: 0; margin: 0; padding: 0; border: 0; }
-.star-rating .star { position: relative; display: inline-grid; place-items: center; padding: .1rem; color: rgb(255 255 255 / 26%); font-size: 1.15rem; line-height: 1; cursor: pointer; }
+.star-rating .star { position: relative; display: inline-grid; place-items: center; min-width: 2rem; min-height: 2rem; padding: .1rem; color: rgb(255 255 255 / 42%); font-size: 1.35rem; line-height: 1; cursor: pointer; }
 .star-rating .star input { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; }
 .star-rating .star.on { color: #f2b750; }
 .star-rating .glyph { transition: color .12s ease, transform .12s ease; }
@@ -233,7 +255,7 @@ p { color: #bdb8c7; line-height: 1.6; }
 .star-rating .star input:focus-visible ~ .glyph { outline: 2px solid var(--accent); outline-offset: .2rem; border-radius: .2rem; }
 .star-rating.large .star { padding: .1rem .15rem; font-size: 1.5rem; }
 .star-rating .rating-readout { color: var(--muted); font-size: .72rem; font-weight: 750; }
-.star-rating .clear-rating { padding: .15rem .45rem; border: 0; border-radius: .4rem; color: var(--muted); background: none; font-size: .68rem; font-weight: 750; }
+.star-rating .clear-rating { min-height: 2rem; padding: .15rem .55rem; border: 0; border-radius: .4rem; color: var(--muted); background: none; font-size: .7rem; font-weight: 750; }
 .star-rating .clear-rating:hover { color: #efe8ff; background: rgb(255 255 255 / 8%); }
 .star-rating.saving { opacity: .55; }
 .star-rating.saving .star { cursor: wait; }
@@ -274,7 +296,7 @@ p { color: #bdb8c7; line-height: 1.6; }
 
 /* --- Administration ------------------------------------------------------------------------ */
 
-.setup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); gap: 1rem; }
+.setup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr)); align-items: start; gap: 1rem; }
 .setup-step { min-width: 0; padding: 1.2rem; border: 1px solid var(--line); border-radius: 1rem; background: var(--surface); }
 .setup-step p { font-size: .88rem; }
 .setup-step code, .configured-directory code { color: var(--accent); overflow-wrap: anywhere; }
@@ -284,6 +306,9 @@ p { color: #bdb8c7; line-height: 1.6; }
 .state-badge { padding: .45rem .65rem; border-radius: 999px; color: #f7dfad; background: rgb(235 171 61 / 15%); font-size: .72rem; font-weight: 800; }
 .state-badge.ready { color: #dff9e8; background: rgb(76 185 119 / 14%); }
 .inline-button { margin-top: .8rem; }
+/* A step's actions belong under its field, reading from the left like the field does, rather than
+   pushed to the right the way a list row pushes them. */
+.setup-step .row-actions { justify-content: flex-start; margin-top: 1.1rem; }
 .confirmation { margin-top: 1rem; padding: 1rem; border: 1px solid rgb(76 185 119 / 25%); border-radius: .8rem; background: rgb(76 185 119 / 8%); }
 .confirmation .primary-button { margin-top: 0; }
 .configured-directory { display: grid; gap: .45rem; margin-top: .8rem; padding: .8rem; border-radius: .7rem; background: rgb(255 255 255 / 5%); font-size: .82rem; }
@@ -301,6 +326,8 @@ p { color: #bdb8c7; line-height: 1.6; }
 .account-row:first-child { border-top: 0; padding-top: 0; }
 .account-row small { display: block; margin-top: .25rem; color: var(--muted); }
 .account-row button { padding: .55rem .7rem; font-size: .78rem; }
+/* `.account-row button` is one selector more specific than `.danger-button`, so a row's own
+   destructive button still has to say so here. */
 .account-row .danger-button { color: #ffd9da; background: rgb(240 91 92 / 20%); }
 .scan-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin: 0 0 1rem; }
 .work-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 0; border-top: 1px solid var(--line); }
@@ -327,6 +354,7 @@ p { color: #bdb8c7; line-height: 1.6; }
 .case-files code { color: var(--accent); }
 .case-files small { display: block; color: var(--muted); }
 .assign-target { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
+.review-case .row-actions { margin-top: 1.2rem; }
 .review-case textarea { width: 100%; min-height: 4rem; padding: .5rem; border: 1px solid rgb(255 255 255 / 14%); border-radius: .6rem; color: inherit; background: rgb(255 255 255 / 5%); font: inherit; }
 
 /* --- Narrow viewports ---------------------------------------------------------------------- */
@@ -365,6 +393,8 @@ p { color: #bdb8c7; line-height: 1.6; }
 }
 
 @media (max-width: 40rem) {
+  .facet-group { display: block; }
+  .facet-label { display: block; padding: 0 0 .35rem; }
   .shell { padding: 1rem; }
   .card { border-radius: 1.3rem; }
   .app-header { gap: .6rem; }

@@ -35,6 +35,35 @@ describe('Accounts', () => {
     expect(screen.getByText(/Request access/)).toBeInTheDocument()
   })
 
+  it('puts the request waiting for a decision first, in words rather than in the enum', async () => {
+    signedInAs('Administrator', (input) => {
+      if (input === '/api/admin/accounts/') {
+        return json([
+          account({ username: 'administrator', authority: 'Administrator' }),
+          account({
+            id: '01994dd4-2a0a-7000-8000-0000000000b4',
+            username: 'applicant',
+            state: 'PendingApproval',
+            approvedAt: null,
+          }),
+        ])
+      }
+      return undefined
+    })
+
+    renderApp('/admin/accounts')
+
+    // The heading counts the requests waiting, so the row it counts is the row to open the screen
+    // on rather than wherever the list happened to put it.
+    await screen.findByText('applicant')
+    const rows = document.querySelectorAll('.account-row strong')
+    expect([...rows].map((row) => row.textContent)).toEqual(['applicant', 'administrator'])
+
+    // And the state is said rather than spelled the way the database spells it.
+    expect(screen.getByText(/Waiting for approval/)).toBeInTheDocument()
+    expect(screen.queryByText(/PendingApproval/)).not.toBeInTheDocument()
+  })
+
   it('refuses to leave the installation without an Administrator, in as many words', async () => {
     signedInAs('Administrator', (input) => {
       if (input === '/api/admin/accounts/') {

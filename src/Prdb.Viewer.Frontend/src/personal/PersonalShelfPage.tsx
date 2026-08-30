@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 
+import { Link } from 'react-router'
+
 import { api, type Account, type PersonalLibrary } from '../api/client'
 import { queryKeys } from '../queryKeys'
 import { PageHeading, RequestError } from '../ui'
@@ -58,8 +60,16 @@ export function PersonalShelfPage({ account, shelf }: { account: Account; shelf:
         {description.explanation}
       </PageHeading>
 
+      {/* An empty shelf is a dead end otherwise: it explains what would put something here without
+          offering the one screen anything is put here from. */}
       {videos.length === 0
-        ? <div className="empty-library"><strong>Nothing here yet</strong><p>{description.empty}</p></div>
+        ? (
+          <div className="empty-library">
+            <strong>Nothing here yet</strong>
+            <p>{description.empty}</p>
+            <p><Link className="quiet-button" to="/">Browse the library</Link></p>
+          </div>
+          )
         : (
           <VideoGrid
             videos={videos}

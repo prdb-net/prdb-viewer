@@ -158,7 +158,7 @@ export function IdentificationPage({ account }: { account: Account }) {
                   ? `Established “${reviewedClaim(openCase.data, selected.dimension).targetTitle}” · ${provenanceLabel(reviewedClaim(openCase.data, selected.dimension).source)}`
                   : 'Unknown'}
               </p>
-              <small>{openCase.data.videoFiles.length} Video File(s)</small>
+              <small>{files(openCase.data.videoFiles.length)}</small>
             </div>
             <div>
               <span className="eyebrow">Proposed</span>
@@ -194,14 +194,19 @@ export function IdentificationPage({ account }: { account: Account }) {
             <Field name="targetKey" label="Target identifier" value={target.key} onChange={(event) => setTarget((current) => ({ ...current, key: event.target.value }))} />
             <Field name="targetTitle" label="Target title" value={target.title} onChange={(event) => setTarget((current) => ({ ...current, title: event.target.value }))} />
           </div>
+          {/* The decisions this case offers, in the shapes they are. Accepting what was proposed is
+              the one an open case is normally closed with, so it leads; withdrawing knowledge the
+              library has already established is the one that takes something away, so it is
+              coloured like it. They arrived here as unstyled browser buttons, which said nothing
+              about any of that and looked like nothing else in the application. */}
           <div className="row-actions">
-            <button onClick={() => act('AcceptCandidate', false)} disabled={decide.isPending}>Accept candidate</button>
-            <button onClick={() => act('RejectCandidate', false)} disabled={decide.isPending}>Reject candidate</button>
-            <button onClick={() => act('AssignDirectly', false)} disabled={decide.isPending}>Assign directly</button>
-            <button onClick={() => act('ReplaceClaim', false)} disabled={decide.isPending}>Replace claim</button>
-            <button onClick={() => act('RevokeClaim', false)} disabled={decide.isPending}>Revoke claim</button>
+            <button className="primary-button" onClick={() => act('AcceptCandidate', false)} disabled={decide.isPending}>Accept candidate</button>
+            <button className="quiet-button" onClick={() => act('RejectCandidate', false)} disabled={decide.isPending}>Reject candidate</button>
+            <button className="quiet-button" onClick={() => act('AssignDirectly', false)} disabled={decide.isPending}>Assign directly</button>
+            <button className="quiet-button" onClick={() => act('ReplaceClaim', false)} disabled={decide.isPending}>Replace claim</button>
+            <button className="danger-button" onClick={() => act('RevokeClaim', false)} disabled={decide.isPending}>Revoke claim</button>
             {openCase.data.videoFiles.length > 1 && (
-              <button onClick={() => act('SplitVideo', false)} disabled={decide.isPending}>Split Video</button>
+              <button className="quiet-button" onClick={() => act('SplitVideo', false)} disabled={decide.isPending}>Split Video</button>
             )}
           </div>
 
@@ -211,7 +216,7 @@ export function IdentificationPage({ account }: { account: Account }) {
               <p>{consequence.candidateTransition}</p>
               {consequence.mergeSummary && <p>{consequence.mergeSummary}</p>}
               <small>
-                Affects {consequence.affectedVideoFileCount} Video File(s) · review becomes{' '}
+                Affects {files(Number(consequence.affectedVideoFileCount))} · review becomes{' '}
                 {friendlyState(consequence.resultingReviewStatus)}
               </small>
               {consequence.requiresNote && (
@@ -234,6 +239,12 @@ export function IdentificationPage({ account }: { account: Account }) {
       )}
     </>
   )
+}
+
+/// A count of Video Files, in the plural it actually has. "1 Video File(s)" made the reader do
+/// the agreement the sentence would not.
+function files(count: number) {
+  return `${count} Video File${count === 1 ? '' : 's'}`
 }
 
 /// The claim the open case is actually about. Reviewing a proposed Site next to the current Work

@@ -47,6 +47,10 @@ describe('quality', () => {
 
     expect(formatRuntime(5_400_000)).toBe('1 h 30 min')
     expect(formatRuntime(600_000)).toBe('10 min')
+    // A clip shorter than a minute has a runtime; rounding it to minutes claimed it had none.
+    expect(formatRuntime(2_000)).toBe('2 s')
+    expect(formatRuntime(59_400)).toBe('59 s')
+    expect(formatRuntime(0)).toBeUndefined()
 
     expect(audioSummary(variant({ audioCodec: 'aac', audioChannels: 6, audioSampleRate: 48_000 })))
       .toBe('aac · 5.1 · 48 kHz')

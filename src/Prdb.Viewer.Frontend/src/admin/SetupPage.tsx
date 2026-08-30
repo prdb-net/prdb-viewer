@@ -19,6 +19,8 @@ export function SetupPage({ account }: { account: Account }) {
   })
   const queryClient = useQueryClient()
   const [stage, setStage] = useState<LibraryDirectoryStage>()
+  /// Whether the Administrator asked to replace a key that is already verified.
+  const [replacing, setReplacing] = useState(false)
   const verify = useMutation({
     mutationFn: (credential: string) => api.verifyPrdb(credential, account.csrfToken),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.configuration }),
@@ -72,21 +74,48 @@ export function SetupPage({ account }: { account: Account }) {
               <div><strong>prdb connection</strong><small>{friendlyState(current.prdbConnectionStatus)}</small></div>
             </div>
             <p>The API key is verified once and is never returned by the application.</p>
-            <form onSubmit={submitting((form) => verify.mutate(
-              new FormData(form).get('credential')?.toString() ?? '',
-              { onSuccess: (result) => { if (result.verdict === 'Verified') form.reset() } },
-            ))}>
-              <Field
-                name="credential"
-                label={current.hasPrdbCredential ? 'Replacement API key' : 'API key'}
-                type="password"
-                autoComplete="off"
-                required
-              />
-              <SubmitButton pending={verify.isPending}>
-                {connectionReady ? 'Verify replacement' : 'Verify connection'}
-              </SubmitButton>
-            </form>
+            {/* A verified connection needs nothing done to it. Leaving the replacement field open
+                made the rarest action on this screen — and the one that can cost the installation
+                its identification — look like the thing the step was there for. */}
+            {connectionReady && !replacing
+              ? (
+                <button
+                  className="quiet-button inline-button"
+                  onClick={() => setReplacing(true)}
+                >Replace the API key</button>
+                )
+              : (
+                <form onSubmit={submitting((form) => verify.mutate(
+                  new FormData(form).get('credential')?.toString() ?? '',
+                  {
+                    onSuccess: (result) => {
+                      if (result.verdict !== 'Verified') return
+                      form.reset()
+                      setReplacing(false)
+                    },
+                  },
+                ))}>
+                  <Field
+                    name="credential"
+                    label={current.hasPrdbCredential ? 'Replacement API key' : 'API key'}
+                    type="password"
+                    autoComplete="off"
+                    required
+                  />
+                  <div className="row-actions">
+                    <SubmitButton pending={verify.isPending}>
+                      {connectionReady ? 'Verify replacement' : 'Verify connection'}
+                    </SubmitButton>
+                    {connectionReady && (
+                      <button
+                        type="button"
+                        className="quiet-button"
+                        onClick={() => setReplacing(false)}
+                      >Cancel</button>
+                    )}
+                  </div>
+                </form>
+                )}
             {connectionRetryable && (
               <button
                 className="quiet-button inline-button"

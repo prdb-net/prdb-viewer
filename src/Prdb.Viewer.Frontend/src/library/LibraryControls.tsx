@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import type { LibraryFacets, LibraryFilters } from '../api/client'
 import { qualityBandLabel } from '../lib/quality'
 
@@ -37,7 +39,7 @@ export function LibraryControls({
         </label>
         {narrowed && <button className="quiet-button" onClick={clear}>Clear</button>}
       </div>
-      <div className="facet-row">
+      <FacetGroup label="Only show">
         <FacetToggle
           label="Unknown work"
           selected={filters.work.includes('Unknown')}
@@ -63,12 +65,12 @@ export function LibraryControls({
           selected={filters.playability.includes('NotDirectlyPlayable')}
           onToggle={(selected) => narrow({ playability: selected ? ['NotDirectlyPlayable'] : [] })}
         />
-      </div>
+      </FacetGroup>
       {/* The bands the library actually holds, best first. A band it has none of is not offered:
           Video Quality is what the library holds rather than what this browser would be shown, so
           a band with a count has Videos in it whatever the browser. */}
       {facets?.quality?.length ? (
-        <div className="facet-row" aria-label="Quality">
+        <FacetGroup label="Quality">
           {facets.quality.map((band) => {
             const label = qualityBandLabel(band.value)
             if (!label) return null
@@ -82,10 +84,10 @@ export function LibraryControls({
               />
             )
           })}
-        </div>
+        </FacetGroup>
       ) : null}
       {facets?.sites?.length ? (
-        <div className="facet-row" aria-label="Sites">
+        <FacetGroup label="Sites">
           {facets.sites.map((site) => (
             <FacetToggle
               key={site.value}
@@ -94,10 +96,10 @@ export function LibraryControls({
               onToggle={() => toggle('sites', site.value)}
             />
           ))}
-        </div>
+        </FacetGroup>
       ) : null}
       {facets?.actors?.length ? (
-        <div className="facet-row" aria-label="Actors">
+        <FacetGroup label="Actors">
           {facets.actors.map((actor) => (
             <FacetToggle
               key={actor.value}
@@ -106,8 +108,23 @@ export function LibraryControls({
               onToggle={() => toggle('actors', actor.value)}
             />
           ))}
-        </div>
+        </FacetGroup>
       ) : null}
+    </div>
+  )
+}
+
+/// One row of facet values, with the question it answers written beside it.
+///
+/// The rows used to name themselves only to a screen reader: four rows of pills sat under each
+/// other, and "1080p (1)" next to "Alex Doe (2)" left the reader to work out that one was a
+/// quality and the other a person. The label carries the same name the group is announced with,
+/// so both readings say the same thing.
+function FacetGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="facet-group" role="group" aria-label={label}>
+      <span className="facet-label">{label}</span>
+      <div className="facet-row">{children}</div>
     </div>
   )
 }

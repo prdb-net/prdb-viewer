@@ -51,6 +51,68 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   a seeded installation is meant to catch. Only the WebM's size still carries
   weight, because the conservative baseline is the one classification with
   dimensions in it.
+- Each facet row says what it is a row of. The rows named themselves only to a
+  screen reader, so four rows of pills sat under one another and "1080p (1)"
+  beside "Alex Doe (2)" left the reader to work out that one was a quality and
+  the other a person. The label carries the same name the group is announced
+  with, and stacks above its values where a narrow screen has no room beside
+  them.
+- A card states how long a Video runs and draws how far this Account got through
+  it. The line beneath the title opened with the container and codecs —
+  `mov,mp4,m4a,3gp,3g2,mj2 (h264 + aac)` — which is what the file is made of
+  rather than anything somebody browsing asks, and it was long enough to push
+  the rest of the line out of the card. What a Video would be watched at is in
+  the corner of its picture and what it is made of is on its own page against
+  every occurrence; the runtime was in neither. Progress is a bar along the
+  bottom edge of the picture, so a shelf of part-watched Videos is read at a
+  glance rather than by doing arithmetic against a runtime the card was not
+  stating.
+- An empty shelf offers the library. Favourites, Watch Later and Continue
+  Watching explained what would put something on them without offering the one
+  screen anything is put there from.
+- Accounts waiting for a decision are listed first. The heading counts the
+  requests waiting and the request itself sat wherever the list happened to put
+  it, which on an installation with more than a handful of Accounts is past the
+  fold.
+- A verified prdb key is replaced deliberately rather than by default. The
+  Installation screen kept a replacement field open under a connection that
+  needed nothing done to it, which made the rarest action there — and the one
+  that can cost the installation its identification — look like the thing the
+  step was for.
+- Scanning leads on the Background work screen while work is running, and
+  resuming leads while it is paused. The two controls were drawn as the same
+  kind of thing, so the everyday action and the one that stops every lane were
+  indistinguishable.
+- The controls a finger and a keyboard reach say so. Favourite, Watch Later,
+  Dismiss and the rating stars were half the height a touch target needs on the
+  screens most likely to be touched; an empty star was drawn at a quarter of the
+  contrast of a filled one; and everything but the text fields relied on
+  whatever the browser draws for focus over a dark surface, which is close to
+  nothing.
+
+### Fixed
+
+- The decisions an identification review offers are drawn like the rest of the
+  application. Five of them carried no class at all and arrived as the browser's
+  own buttons — the only unstyled controls in the product — so the screen that
+  ends a review said nothing about which of them ends it, and withdrawing
+  knowledge the library had established looked exactly like accepting what prdb
+  proposed. Accepting leads, revoking is coloured like what it does, and the
+  rest are quiet.
+- A runtime shorter than a minute is stated in seconds. Rounding to minutes
+  printed "0 min" for a short clip, beside a Progress line counting the seconds
+  it did have.
+- Client Video Playability, an Account's state and a count of Video Files are
+  written the way they are read rather than the way they are stored. "Ready For
+  Direct Play" was the enum split on its capitals rather than the name the
+  domain gives that state, "PendingApproval" was not split at all — on the one
+  row an Administrator opens that screen to act on — and "1 Video File(s)" left
+  the reader to do the agreement.
+- A Video finished without a play being counted no longer states both as though
+  they contradicted each other. A play is counted once enough of the Video was
+  actually watched, and completion is reaching its end, so "Completed" beside
+  "0 plays" was two different facts reading as one mistake. A count of none is
+  left out, where it said nothing the state beside it had not already said.
 
 ## [0.6.1] - 2026-08-30
 
