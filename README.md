@@ -53,6 +53,28 @@ Its browser is installed separately, once:
 npm run test:e2e:install --prefix src/Prdb.Viewer.Frontend
 ```
 
+`test:e2e:full` is the other half of that trade, and is **not** part of the
+checks above. It runs the same browser against a real installation instead of
+against answers the test wrote: the published image, a database the `seed`
+command filled, six lanes that have run twice over four real video files, and
+the stand-in catalogue behind them. What it can see is the contract between the
+two halves — a screen reading a field the API does not send, or sending a filter
+the API ignores, which is the shape of every display defect this project has
+shipped so far.
+
+```bash
+npm run test:e2e:full --prefix src/Prdb.Viewer.Frontend
+```
+
+It needs Docker, and says so rather than failing some other way. It builds the
+product image and drains the lanes, which is minutes on a first run and too much
+to ask of every push — so run it before a release, not on every change.
+
+The installation itself leaves nothing behind: it lives in temporary directories
+that are removed when the run finishes, and its container is named and removed
+rather than left running. The `prdb-viewer:e2e` image stays, which is what makes
+the second run quick.
+
 The browser playback fixtures the tests classify are generated with `ffmpeg`
 during the run and skipped where it is unavailable, so nothing copyrighted or
 identifying is committed to the repository. The production-shaped SQLite
