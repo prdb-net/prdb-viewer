@@ -7,17 +7,15 @@ using Prdb.FakeCatalogue;
 // no Site, no Actor and therefore no facet row to look at. This answers for the files the seed
 // writes, so those screens have something to be right or wrong about.
 //
-// It serves https because the SDK refuses to send a credential over anything else, and it uses the
-// ASP.NET development certificate for it. Run `dotnet dev-certs https --trust` once.
+// It serves plain http. SDK 0.13.0 exempts loopback addresses from the https requirement, on the
+// grounds that a request to 127.0.0.1 never leaves the machine and so has no wire the key could be
+// read from — which means no certificate for a server that only ever answers itself. The exemption
+// is `localhost`, `127.0.0.1` and `[::1]` literally, so the address below has to stay one of them.
 //
 // Nothing here is shipped, and it holds no secret: it accepts any credential, because what it is
 // for is the shape of an answer rather than who is asking.
 var builder = WebApplication.CreateSlimBuilder(args);
-
-// The slim builder leaves https out, and binding an https address without this fails at startup
-// with nothing but a note to call it.
-builder.WebHost.UseKestrelHttpsConfiguration();
-builder.WebHost.UseUrls(Environment.GetEnvironmentVariable("FAKE_PRDB_URL") ?? "https://127.0.0.1:5443");
+builder.WebHost.UseUrls(Environment.GetEnvironmentVariable("FAKE_PRDB_URL") ?? "http://127.0.0.1:5080");
 builder.Logging.SetMinimumLevel(LogLevel.Warning);
 
 var app = builder.Build();

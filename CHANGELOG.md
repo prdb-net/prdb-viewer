@@ -7,6 +7,15 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- The prdb SDK moves to 0.13.0, and the stand-in catalogue in `tools/` serves
+  plain `http` because of it. The SDK now exempts loopback addresses from its
+  https requirement — a request to `127.0.0.1` never leaves the machine, so there
+  is no wire the API key could be read from — which removes the TLS certificate a
+  server that only ever answers itself used to need, and the four lines of
+  certificate handling that came with it. Every other host still requires https.
+
 ## [0.6.0] - 2026-08-30
 
 Two defects the screens themselves caused, and the tools that found them. What
