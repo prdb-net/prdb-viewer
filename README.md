@@ -36,6 +36,21 @@ npm run typecheck --prefix src/Prdb.Viewer.Frontend
 npm test --prefix src/Prdb.Viewer.Frontend
 npm run lint --prefix src/Prdb.Viewer.Frontend
 npm run build --prefix src/Prdb.Viewer.Frontend
+npm run test:e2e --prefix src/Prdb.Viewer.Frontend
+```
+
+`test:e2e` drives a real browser over the bundle the build just produced, so it
+has to run after it. It exists for what jsdom is too kind to reproduce: a unit
+test renders between one `fireEvent` and the next, so two clicks it raises are
+never in one React batch — and a defect that only appears when they are passed
+the unit suite for two releases running. It answers the API from the test rather
+than from the Host, because what it is about is what the browser does with an
+interaction, not what the server replies.
+
+Its browser is installed separately, once:
+
+```bash
+npm run test:e2e:install --prefix src/Prdb.Viewer.Frontend
 ```
 
 The browser playback fixtures the tests classify are generated with `ffmpeg`

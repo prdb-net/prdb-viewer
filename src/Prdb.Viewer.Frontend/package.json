@@ -8,6 +8,9 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b",
     "test": "vitest run",
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:install": "playwright install chromium",
     "generate:api": "dotnet build ../Prdb.Viewer.Host -p:SkipFrontendBuild=true && openapi-typescript ../Prdb.Viewer.Host/openapi.json --output src/api/schema.d.ts",
     "lint": "oxlint"
   },
@@ -23,6 +26,7 @@
     }
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^24.13.3",

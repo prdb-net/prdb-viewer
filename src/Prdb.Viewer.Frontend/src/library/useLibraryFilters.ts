@@ -63,10 +63,15 @@ export function useLibraryFilters() {
 
   /// Adds a value to a multi-valued facet, or takes it out again. Values inside one facet combine
   /// with OR, so a second Site widens the set rather than replacing the first.
-  const toggle = useCallback((key: 'sites' | 'actors', value: string, selected: boolean) => {
+  ///
+  /// Which of the two it is has to be read from the address being written, for the same reason the
+  /// list is. Taking it from the caller means taking it from the last render: two clicks on one
+  /// facet inside a single batch both saw it unselected, so both added it, and the address ended
+  /// up naming that Site twice while the button drew itself as unselected.
+  const toggle = useCallback((key: 'sites' | 'actors', value: string) => {
     change((next) => {
       const held = list(next.get(key))
-      write(next, key, selected ? [...held, value] : held.filter((one) => one !== value))
+      write(next, key, held.includes(value) ? held.filter((one) => one !== value) : [...held, value])
       next.delete('pages')
     })
   }, [change])

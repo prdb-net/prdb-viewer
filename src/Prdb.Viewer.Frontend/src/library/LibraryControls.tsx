@@ -16,7 +16,7 @@ export function LibraryControls({
   /// Values inside one facet combine with OR, so a Site or an Actor is added to what is already
   /// chosen rather than replacing it. It goes through the address rather than through `narrow`,
   /// which would compute the new list from a render that a quick second click has already outrun.
-  toggle: (key: 'sites' | 'actors', value: string, selected: boolean) => void
+  toggle: (key: 'sites' | 'actors', value: string) => void
   clear: () => void
   narrowed: boolean
 }) {
@@ -69,7 +69,7 @@ export function LibraryControls({
               key={site.value}
               label={`${site.value} (${site.count})`}
               selected={filters.sites.includes(site.value)}
-              onToggle={(selected) => toggle('sites', site.value, selected)}
+              onToggle={() => toggle('sites', site.value)}
             />
           ))}
         </div>
@@ -81,7 +81,7 @@ export function LibraryControls({
               key={actor.value}
               label={`${actor.value} (${actor.count})`}
               selected={filters.actors.includes(actor.value)}
-              onToggle={(selected) => toggle('actors', actor.value, selected)}
+              onToggle={() => toggle('actors', actor.value)}
             />
           ))}
         </div>

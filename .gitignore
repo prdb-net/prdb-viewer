@@ -10,3 +10,7 @@
 src/Prdb.Viewer.Host/data/
 src/Prdb.Viewer.Host/wwwroot/
 TestResults/
+
+# Playwright's run output. The suite itself lives in src/Prdb.Viewer.Frontend/e2e.
+src/Prdb.Viewer.Frontend/playwright-report/
+src/Prdb.Viewer.Frontend/test-results/

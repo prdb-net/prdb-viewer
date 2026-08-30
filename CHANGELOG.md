@@ -7,6 +7,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- Clicking one Site or Actor twice in quick succession turns it off again. It
+  had been turning it on twice: the button decided between adding and removing
+  from what it had last been drawn as, and inside a single batch that is a
+  reading from before the first click. The address ended up naming that Site
+  twice — and asking the server for it twice — while the button drew itself as
+  unchosen. 0.5.3 fixed where such a write starts from; this fixes what it
+  decides to write.
+
 ### Added
 
 - Seed a local installation with `seed`, so that looking at a screen is cheap

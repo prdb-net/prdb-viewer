@@ -65,6 +65,26 @@ jobs:
         run: npm run build
         working-directory: src/Prdb.Viewer.Frontend
 
+      # The browser-borne suite runs last because it serves what the build just produced. It covers
+      # what jsdom cannot: a unit test renders between one `fireEvent` and the next, so two clicks
+      # it raises are never in one React batch, and a defect that needs them to be passed that
+      # suite for two releases running.
+      - name: Install the browser the frontend suite drives
+        run: npx playwright install --with-deps chromium
+        working-directory: src/Prdb.Viewer.Frontend
+
+      - name: Test frontend in a browser
+        run: npm run test:e2e
+        working-directory: src/Prdb.Viewer.Frontend
+
+      - name: Keep the browser suite's report when it fails
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: src/Prdb.Viewer.Frontend/playwright-report/
+          retention-days: 7
+
   image:
     name: Build and start ${{ matrix.platform }} image
     runs-on: ${{ matrix.runner }}
