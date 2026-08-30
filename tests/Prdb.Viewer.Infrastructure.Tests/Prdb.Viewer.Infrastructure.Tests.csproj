@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Prdb.Viewer.Infrastructure\Prdb.Viewer.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\tools\Prdb.FakeCatalogue\Prdb.FakeCatalogue.csproj" />
   </ItemGroup>
 
   <ItemGroup>

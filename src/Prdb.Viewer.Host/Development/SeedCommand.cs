@@ -41,6 +41,9 @@ public static class SeedCommand
         ("films/second-film.webm", "libvpx", "libvorbis", "webm"),
         // Nested deeper, so the traversal has more than one level to walk and a path worth reading.
         ("films/series/third-film.mp4", "libx264", "aac", "mp4"),
+        // A fourth, so a catalogue that recognises it by name rather than by content has something
+        // to put in the identification review queue.
+        ("films/series/fourth-film.mp4", "libx264", "aac", "mp4"),
     ];
 
     public static bool Matches(string[] arguments) => arguments is [Seed];

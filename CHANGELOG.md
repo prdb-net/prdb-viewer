@@ -38,6 +38,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   list. Video files already under the library mount are left alone and scanned as
   they are, because prdb recognises content and nothing generated here is in its
   catalogue.
+- A stand-in for prdb in `tools/Prdb.FakeCatalogue`, so the product can be run
+  against a catalogue that answers on demand. The real service recognises
+  content, so files made for a test come back unknown however good the credential
+  is, which leaves the browsing screens with no Site, no Actor and no facet row
+  to look at. It answers for the files the seed writes, and its replies are built
+  from the same code the test suite's stand-in uses, because two imitations drift
+  and drift here is quiet.
 - `VIEWER_PRDB_BASE_URL` points the installation at a different prdb. It exists
   for exercising the product against a catalogue that answers on demand: the real
   service recognises content, so a library assembled for a test draws the same

@@ -152,6 +152,34 @@ command does not invent one. Verifying a key on the Installation screen gives
 the identification lanes something to do; leaving it out is itself a state worth
 seeing, and the one the seeded installation starts in.
 
+To have it come up identified — with Sites, Actors and therefore facet rows on the
+browsing screen — run it against the stand-in catalogue in `tools/`, which
+recognises the files the seed writes:
+
+```bash
+dotnet run --project tools/Prdb.FakeCatalogue          # in one terminal
+
+dotnet dev-certs https --export-path /tmp/devcert.pem --format PEM --no-password
+cat /etc/ssl/certs/ca-certificates.crt /tmp/devcert.pem > /tmp/ca-bundle.pem
+
+SSL_CERT_FILE=/tmp/ca-bundle.pem \
+  VIEWER_DATA_DIRECTORY="$PWD/.data" \
+  VIEWER_LIBRARY_MOUNT_ROOT="$PWD/.libraries" \
+  VIEWER_PRDB_BASE_URL="https://127.0.0.1:5443" \
+  VIEWER_SEED_PRDB_KEY="anything-the-stand-in-accepts" \
+  dotnet run --project src/Prdb.Viewer.Host -- seed
+```
+
+The SDK will not send a credential over anything but https, so the stand-in
+serves the ASP.NET development certificate. That certificate is self-signed, and
+nothing trusts it by default: the two lines above put it in a bundle beside the
+system roots and point one process at it, which is narrower than trusting it
+machine-wide with `dotnet dev-certs https --trust`.
+
+Three of its four files come back matched on content, which is evidence enough to
+establish a Work; the fourth is matched on file name, which is not, so it lands
+in the identification review queue. Both are worth having on screen.
+
 Seeding refuses to run against an installation that has already been claimed, on
 the same reasoning as Restore: it writes an installation from nothing, and must
 never be able to do that over one that someone is using.

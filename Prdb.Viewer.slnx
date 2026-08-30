@@ -15,6 +15,9 @@
     <Project Path="src/Prdb.Viewer.Infrastructure/Prdb.Viewer.Infrastructure.csproj" />
     <Project Path="src/Prdb.Viewer.Host/Prdb.Viewer.Host.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/Prdb.FakeCatalogue/Prdb.FakeCatalogue.csproj" />
+  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Prdb.Viewer.Core.Tests/Prdb.Viewer.Core.Tests.csproj" />
     <Project Path="tests/Prdb.Viewer.Infrastructure.Tests/Prdb.Viewer.Infrastructure.Tests.csproj" />

@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    A stand-in for prdb, for running the product against a catalogue that answers on demand. It is
+    not shipped: the Dockerfile builds src/Prdb.Viewer.Host, and nothing in src references this.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+</Project>
