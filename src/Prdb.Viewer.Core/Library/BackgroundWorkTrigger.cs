@@ -17,4 +17,7 @@ public enum BackgroundWorkTrigger
 
     /// <summary>Queued because an Administrator asked an unresolved Work Issue to be reattempted.</summary>
     IssueRetry,
+
+    /// <summary>Queued because the Library Directory reached the time its next Scan was due.</summary>
+    Periodic,
 }

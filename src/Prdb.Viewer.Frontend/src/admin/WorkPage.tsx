@@ -7,10 +7,11 @@ import {
   type Account,
   type BackgroundWorkStatus,
   type BackgroundWorkSummary,
+  type LibraryDirectorySummary,
   type WorkIssueAction,
   type WorkIssueSummary,
 } from '../api/client'
-import { exactTime, friendlyState, timeAgo } from '../lib/format'
+import { exactTime, friendlyState, nextScanDue, timeAgo } from '../lib/format'
 import { queryKeys } from '../queryKeys'
 import { firstError, PageHeading, RequestError, Tab } from '../ui'
 
@@ -141,6 +142,11 @@ export function WorkPage({ account }: { account: Account }) {
         </button>
       </div>
 
+      {/* A row of buttons is an instruction, and read on its own it says that pressing one is how
+          a new file is ever found. It is not: every Library Directory falls due on its own, and
+          the button is only for the file that was copied in a minute ago. */}
+      <Scheduled directories={configuration.data?.libraryDirectories ?? []} paused={status.data?.paused} />
+
       <section className="panel">
         <div className="section-heading"><h3>Lanes</h3></div>
         {status.data && status.data.work.length === 0 && (
@@ -201,6 +207,46 @@ export function WorkPage({ account }: { account: Account }) {
         />
       )}
     </>
+  )
+}
+
+/// When each Library Directory is next walked without anyone asking.
+///
+/// The point of the line is the promise, not the times: an Administrator who has just copied a
+/// file in should be able to read that leaving the screen alone is also an answer. A pause is the
+/// one case where the promise is suspended, and it says so rather than naming a moment that will
+/// come and go with nothing happening.
+function Scheduled({ directories, paused }: {
+  directories: LibraryDirectorySummary[]
+  paused: boolean | undefined
+}) {
+  const scheduled = directories.filter((directory) => directory.nextScanDueAt)
+
+  if (scheduled.length === 0) return null
+
+  return (
+    <p className="muted scan-schedule">
+      {paused
+        ? 'Scans also run on their own, and resume where the pause left them.'
+        : (
+          <>
+            Scans also run on their own —{' '}
+            {scheduled.map((directory, index) => (
+              <span key={directory.id}>
+                {index > 0 && ', '}
+                {directory.name}{' '}
+                <time
+                  dateTime={directory.nextScanDueAt ?? undefined}
+                  title={exactTime(directory.nextScanDueAt)}
+                >
+                  {nextScanDue(directory.nextScanDueAt)}
+                </time>
+              </span>
+            ))}
+            .
+          </>
+        )}
+    </p>
   )
 }
 

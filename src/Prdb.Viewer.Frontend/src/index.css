@@ -329,7 +329,8 @@ p { color: #bdb8c7; line-height: 1.6; }
 /* `.account-row button` is one selector more specific than `.danger-button`, so a row's own
    destructive button still has to say so here. */
 .account-row .danger-button { color: #ffd9da; background: rgb(240 91 92 / 20%); }
-.scan-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin: 0 0 1rem; }
+.scan-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin: 0 0 .5rem; }
+.scan-schedule { margin: 0 0 1rem; }
 .work-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 0; border-top: 1px solid var(--line); }
 .work-row:first-of-type { border-top: 0; }
 .work-row small { display: block; margin-top: .25rem; color: var(--muted); }

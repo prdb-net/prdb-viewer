@@ -238,6 +238,66 @@ public sealed class SqlitePersistenceTests
             TestContext.Current.CancellationToken)).BackgroundWorkPaused);
     }
 
+    [Fact]
+    public async Task The_periodic_scan_migration_schedules_from_the_last_completed_scan()
+    {
+        await using var database = await TestDatabase.CreateAsync(
+            targetMigration: "20260830163713_AddVideoQuality");
+        var scannedId = Guid.CreateVersion7();
+        var neverScannedId = Guid.CreateVersion7();
+        var removedId = Guid.CreateVersion7();
+        var activated = DateTime.SpecifyKind(new DateTime(2026, 8, 24, 12, 0, 0), DateTimeKind.Utc);
+        var finished = DateTime.SpecifyKind(new DateTime(2026, 8, 27, 11, 0, 0), DateTimeKind.Utc);
+
+        await using (var scope = database.Scope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+            await context.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO library_directory
+                    (Id, Name, ContainerPath, State, Health, ConfigurationGeneration,
+                     CreatedAt, ActivatedAt, RemovedAt, InitialProcessingStartedAt)
+                VALUES
+                    ({scannedId}, {"Scanned"}, {"/libraries/scanned"}, {"Active"}, {"Healthy"},
+                     {1}, {activated}, {activated}, NULL, {activated}),
+                    ({neverScannedId}, {"Untouched"}, {"/libraries/untouched"}, {"Active"},
+                     {"Healthy"}, {1}, {activated}, {activated}, NULL, NULL),
+                    ({removedId}, {"Gone"}, {"/libraries/gone"}, {"Removed"}, {"Healthy"},
+                     {2}, {activated}, {activated}, {finished}, {activated});
+                INSERT INTO background_work
+                    (Id, Category, State, LibraryDirectoryId, ConfigurationGeneration,
+                     LibraryScanId, CoverageComplete, FollowUpRequested, CancellationRequested,
+                     Trigger, Phase, SkippedItemCount, DiscoveredCandidateCount,
+                     CompletedItemCount, IssueCount, RequestedAt, UpdatedAt, FinishedAt)
+                VALUES
+                    ({Guid.CreateVersion7()}, {"LibraryScan"}, {"Completed"}, {scannedId}, {1},
+                     {Guid.CreateVersion7()}, {true}, {false}, {false}, {"Administrator"},
+                     {"Settled"}, {0}, {1}, {1}, {0}, {activated}, {finished}, {finished}),
+                    ({Guid.CreateVersion7()}, {"Hashing"}, {"Completed"}, {neverScannedId}, {1},
+                     NULL, {true}, {false}, {false}, {"FollowUpWork"}, {"Settled"}, {0}, {0}, {0},
+                     {0}, {activated}, {activated}, {activated});
+                """, TestContext.Current.CancellationToken);
+        }
+
+        await database.MigrateAsync();
+
+        await using var verificationScope = database.Scope();
+        var verification = verificationScope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var directories = await verification.LibraryDirectories
+            .OrderBy(directory => directory.Name)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        // A Library Directory that was scanned an hour ago waits out the rest of its period, one
+        // that has no Scan to count from waits it out from its activation and is therefore already
+        // due, and a Removed one is scheduled for nothing at all. Only the Library Scan counts:
+        // the derived lane that finished later says nothing about when the tree was last read.
+        Assert.Equal("Gone", directories[0].Name);
+        Assert.Null(directories[0].NextScanDueAt);
+        Assert.Equal("Scanned", directories[1].Name);
+        Assert.Equal(finished + LibraryScanSchedule.Interval, directories[1].NextScanDueAt);
+        Assert.Equal("Untouched", directories[2].Name);
+        Assert.Equal(activated + LibraryScanSchedule.Interval, directories[2].NextScanDueAt);
+    }
+
     private static async Task<object?> ScalarAsync(ViewerDbContext context, string sql)
     {
         await using var command = context.Database.GetDbConnection().CreateCommand();

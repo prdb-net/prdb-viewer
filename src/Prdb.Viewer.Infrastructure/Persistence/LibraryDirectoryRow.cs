@@ -23,4 +23,11 @@ public sealed class LibraryDirectoryRow
     public DateTime? RemovedAt { get; set; }
 
     public DateTime? InitialProcessingStartedAt { get; set; }
+
+    /// <summary>
+    /// When this Library Directory is next due a Library Scan nobody asked for, or null while none
+    /// is scheduled. Durable state is the only authority for what is due, so a restart neither
+    /// forgets a period that elapsed while the application was down nor starts a fresh one.
+    /// </summary>
+    public DateTime? NextScanDueAt { get; set; }
 }

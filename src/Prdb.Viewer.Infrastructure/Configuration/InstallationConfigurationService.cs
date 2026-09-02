@@ -263,6 +263,10 @@ public sealed class InstallationConfigurationService(
         directory.State = LibraryDirectoryState.Removed;
         directory.RemovedAt = now;
         directory.ConfigurationGeneration += 1;
+        // Nothing is due for a Library Directory that is no longer part of the library. The
+        // periodic sweep reads Active rows only, so this is honesty about the row rather than the
+        // thing that stops it being scanned.
+        directory.NextScanDueAt = null;
 
         var occurrences = await database.VideoFiles
             .AsTracking()
@@ -489,7 +493,8 @@ public sealed class InstallationConfigurationService(
             AsOffset(Facts(facts, directory.Id).LastScanCompletedAt),
             AsOffset(Facts(facts, directory.Id).LastScanStartedAt),
             Facts(facts, directory.Id).LastScanCandidateCount,
-            Facts(facts, directory.Id).LastScanCoveredEverything);
+            Facts(facts, directory.Id).LastScanCoveredEverything,
+            AsOffset(directory.NextScanDueAt));
 
     private static DirectoryFacts Facts(
         IReadOnlyDictionary<Guid, DirectoryFacts>? facts,

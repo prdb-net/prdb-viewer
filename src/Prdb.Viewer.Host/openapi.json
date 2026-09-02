@@ -1834,7 +1834,8 @@
           "Activation",
           "Administrator",
           "FollowUpWork",
-          "IssueRetry"
+          "IssueRetry",
+          "Periodic"
         ]
       },
       "BootstrapClaimVerdict": {
@@ -2920,7 +2921,8 @@
           "lastScanCompletedAt",
           "lastScanStartedAt",
           "lastScanCandidateCount",
-          "lastScanCoveredEverything"
+          "lastScanCoveredEverything",
+          "nextScanDueAt"
         ],
         "type": "object",
         "properties": {
@@ -2987,6 +2989,13 @@
           },
           "lastScanCoveredEverything": {
             "type": "boolean"
+          },
+          "nextScanDueAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },

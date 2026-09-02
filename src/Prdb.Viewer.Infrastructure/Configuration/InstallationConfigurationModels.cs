@@ -82,7 +82,10 @@ public sealed record LibraryDirectorySummary(
     DateTimeOffset? LastScanCompletedAt,
     DateTimeOffset? LastScanStartedAt,
     int LastScanCandidateCount,
-    bool LastScanCoveredEverything);
+    bool LastScanCoveredEverything,
+    // When this Library Directory is next scanned without anyone asking, or null while nothing is
+    // scheduled for it.
+    DateTimeOffset? NextScanDueAt);
 
 public sealed record InstallationConfigurationSummary(
     InstallationConfigurationStatus Status,

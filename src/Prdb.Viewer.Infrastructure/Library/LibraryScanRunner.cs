@@ -10,6 +10,7 @@ namespace Prdb.Viewer.Infrastructure.Library;
 
 public sealed class LibraryScanRunner(
     ViewerDbContext database,
+    LibraryWorkScheduler scheduler,
     WorkIssueRecorder issues,
     VideoProjection projection,
     TimeProvider timeProvider)
@@ -38,7 +39,10 @@ public sealed class LibraryScanRunner(
 
         if (work is null)
         {
-            return false;
+            // An empty lane is the only moment a Library Directory that has fallen due can be
+            // given its periodic Scan: nothing is in flight for it to coalesce into, and the
+            // Administrator's own request is never made to wait behind one nobody asked for.
+            return await scheduler.QueueDueScansAsync(cancellationToken);
         }
 
         // A cancelled or superseded scan is not a complete observation of its unvisited scope, so
@@ -333,6 +337,9 @@ public sealed class LibraryScanRunner(
         work.Phase = BackgroundWorkPhases.Settled;
         work.FinishedAt = now;
         work.UpdatedAt = now;
+        // The period runs from the observation that just finished, so a Library Directory that
+        // took an hour to walk is not immediately due again.
+        work.LibraryDirectory.NextScanDueAt = LibraryScanSchedule.NextDueAfter(now);
         work.LibraryDirectory.Health = work.CoverageComplete
             ? LibraryDirectoryHealth.Healthy
             : work.DiscoveredCandidateCount == 0

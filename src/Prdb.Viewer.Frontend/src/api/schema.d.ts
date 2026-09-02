@@ -1927,7 +1927,7 @@ export interface components {
             finishedAt: null | string;
         };
         /** @enum {unknown} */
-        BackgroundWorkTrigger: "Activation" | "Administrator" | "FollowUpWork" | "IssueRetry";
+        BackgroundWorkTrigger: "Activation" | "Administrator" | "FollowUpWork" | "IssueRetry" | "Periodic";
         /** @enum {unknown} */
         BootstrapClaimVerdict: "Created" | "InvalidInput" | "InvalidAuthorization" | "AlreadyClaimed";
         BootstrapRequest: {
@@ -2197,6 +2197,8 @@ export interface components {
             /** Format: int32 */
             lastScanCandidateCount: number | string;
             lastScanCoveredEverything: boolean;
+            /** Format: date-time */
+            nextScanDueAt: null | string;
         };
         LibraryFacets: {
             sites: components["schemas"]["LibraryFacetValue"][];

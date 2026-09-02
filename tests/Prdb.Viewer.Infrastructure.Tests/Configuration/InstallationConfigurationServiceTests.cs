@@ -173,6 +173,10 @@ public sealed class InstallationConfigurationServiceTests
         // The generation moved, which is what every runner compares against before it does anything.
         Assert.True(row.ConfigurationGeneration > generationBefore);
 
+        // Nothing is due for it either. A Library Directory that has left the library is not
+        // waiting for its next Scan.
+        Assert.Null(row.NextScanDueAt);
+
         // And the Scan queued on activation is asked to stop rather than left waiting for a
         // directory that is gone.
         var work = await store.BackgroundWork

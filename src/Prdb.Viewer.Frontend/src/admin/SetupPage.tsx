@@ -7,7 +7,7 @@ import {
   type LibraryDirectoryStage,
   type LibraryDirectorySummary,
 } from '../api/client'
-import { directoryStageMessage, exactTime, friendlyState, timeAgo } from '../lib/format'
+import { directoryStageMessage, exactTime, friendlyState, nextScanDue, timeAgo } from '../lib/format'
 import { queryKeys } from '../queryKeys'
 import { Field, firstError, Notice, PageHeading, RequestError, SubmitButton, submitting, values } from '../ui'
 
@@ -271,9 +271,22 @@ function ConfiguredDirectory({ directory, account, onRemoved }: {
 /// difference between "read it, there is nothing there" and "nothing has read it yet".
 function ScanOutcome({ directory }: { directory: LibraryDirectorySummary }) {
   const at = directory.lastScanCompletedAt
+  const due = nextScanDue(directory.nextScanDueAt)
+  // When the directory is read again without anyone asking. It belongs beside the last Scan
+  // because that is where the question "does anything happen if I do nothing?" is asked.
+  const next = due
+    ? (
+      <>
+        {' '}The next one is due{' '}
+        <time dateTime={directory.nextScanDueAt ?? undefined} title={exactTime(directory.nextScanDueAt)}>
+          {due}
+        </time>.
+      </>
+    )
+    : null
 
   if (!at) {
-    return <>No Library Scan of this directory has finished yet.</>
+    return <>No Library Scan of this directory has finished yet.{next}</>
   }
 
   const candidates = Number(directory.lastScanCandidateCount)
@@ -288,6 +301,7 @@ function ScanOutcome({ directory }: { directory: LibraryDirectorySummary }) {
     <>
       Last Scan finished <time dateTime={at} title={exactTime(at)}>{timeAgo(at)}</time> and {found}.
       {coverage}
+      {next}
     </>
   )
 }

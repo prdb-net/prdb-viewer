@@ -143,6 +143,20 @@ export function timeAgo(value: string | null | undefined, now: number = Date.now
   return relative.format(Math.round(amount), 'year')
 }
 
+/// When a Library Directory is next read without anyone asking for it.
+///
+/// A due time that has passed is not "an hour ago": the Scan it names has not run yet. It is due,
+/// and it stays due for as long as background work is paused, so saying it in the past tense would
+/// describe a Scan that never happened.
+export function nextScanDue(value: string | null | undefined, now: number = Date.now()) {
+  if (!value) return undefined
+
+  const at = Date.parse(value)
+  if (Number.isNaN(at)) return undefined
+
+  return at <= now ? 'now' : timeAgo(value, now)
+}
+
 /// The instant itself, for the title a relative time carries.
 export function exactTime(value: string | null | undefined) {
   if (!value) return undefined

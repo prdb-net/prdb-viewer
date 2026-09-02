@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 
 import { json, renderApp, signedInAs } from '../test/fixtures'
 
@@ -142,7 +142,49 @@ describe('Background work', () => {
     expect(within(queued).getByText(/Waiting to start/)).toBeInTheDocument()
     expect(within(queued).queryByText(/file/)).not.toBeInTheDocument()
   })
+
+  it('says when a Library Directory is read again without anyone asking', async () => {
+    signedInAs('Administrator', (input) => {
+      if (input === '/api/admin/background-work/') {
+        return json({
+          work: [],
+          issues: [],
+          resolvedIssues: [],
+          operationalAttention: false,
+          operationalAttentionCount: 0,
+          paused: false,
+        })
+      }
+      if (input === '/api/admin/configuration/') {
+        return json({
+          status: 'Configured',
+          libraryDirectories: [
+            { id: 'first', name: 'Fab', nextScanDueAt: inHours(4) },
+            { id: 'second', name: 'Ordeno', nextScanDueAt: inHours(-1) },
+          ],
+        })
+      }
+      return undefined
+    })
+
+    const { container } = renderApp('/admin/work')
+
+    // A row of Scan buttons on its own reads as the only way a new file is ever found, which is
+    // the question this line exists to answer.
+    await waitFor(() => expect(container.querySelector('.scan-schedule')).not.toBeNull())
+    const schedule = container.querySelector('.scan-schedule')!
+    expect(schedule.textContent).toContain('Fab in 4 hours')
+
+    // A due time that has passed is not "an hour ago": that Scan has not run yet.
+    expect(schedule.textContent).toContain('Ordeno now')
+  })
 })
+
+/// A moment relative to the test's own clock, so the words the screen chooses for it are stable
+/// without freezing time under React Query.
+function inHours(hours: number) {
+  return new Date(Date.now() + hours * 3_600_000).toISOString()
+}
 
 function run(overrides: Record<string, unknown> = {}) {
   return {

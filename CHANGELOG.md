@@ -7,6 +7,27 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- A file copied into the mounted library is found without anyone asking for it.
+  Every Active Library Directory falls due for another Library Scan six hours
+  after the last one read it, and the Background work and Installation screens
+  say when each one is next — the row of `Scan` buttons used to be the only way
+  a new file was ever discovered, and a screen that says nothing else reads as
+  though it were the only way one ever could be. When a Scan is due is durable
+  state per [ADR 0009](docs/adr/0009-persist-background-work-and-run-bounded-resource-lanes.md)
+  rather than a timer the process holds: an installation that was down over its
+  period scans when it starts again, one restarted twice within it does not scan
+  twice, and a period that elapses while background work is paused is served
+  when work resumes rather than skipped. A Scan that falls due never competes
+  with one already running or with an Administrator's own request, and any Scan
+  — asked for or not — starts the period again, so `Scan now` on a library
+  already being read does not cost it a second traversal. **It migrates**: the
+  schedule of an existing installation is derived from the last Library Scan
+  that finished beneath each Library Directory, so a library scanned recently
+  waits out the rest of its period and one last scanned long ago is read shortly
+  after the upgrade.
+
 ## [0.7.0] - 2026-08-30
 
 What a Video is worth watching at, and screens that say what they mean. The

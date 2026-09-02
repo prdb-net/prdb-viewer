@@ -309,6 +309,17 @@ technical inspection run in separate bounded background-work lanes and persist
 their checkpoints, progress, and Work Issues in SQLite. The Administrator can
 follow those runs or coalesce another scan from the Background work screen.
 
+A file copied into the mounted library afterwards is found without anyone
+asking: every Active Library Directory falls due for another Library Scan six
+hours after the last one read it, and the Background work and Installation
+screens say when each one is next. The moment it is due is durable rather than
+a timer this process holds, so an installation that was down over its period
+scans when it starts again, one restarted twice within it does not scan twice,
+and a period that elapses while background work is paused is served when work
+resumes rather than skipped. A due Scan never competes with one already
+running, and `Scan now` remains the answer for the file that cannot wait out
+the period.
+
 Recognised regular files are hashed and inspected with `ffprobe`. Technical
 facts are committed only if the file remains unchanged throughout inspection.
 A stable content identity preserves a Video File across a rename, while a
