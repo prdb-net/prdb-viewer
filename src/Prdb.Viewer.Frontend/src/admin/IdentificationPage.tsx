@@ -29,6 +29,7 @@ export function IdentificationPage({ account }: { account: Account }) {
   const [consequence, setConsequence] = useState<IdentificationConsequence>()
   const [note, setNote] = useState('')
   const [target, setTarget] = useState({ key: '', title: '' })
+  const [targeting, setTargeting] = useState<TargetedAction>()
   const [separated, setSeparated] = useState<string[]>([])
   const [outcome, setOutcome] = useState<string>()
   const openCase = useQuery({
@@ -41,6 +42,8 @@ export function IdentificationPage({ account }: { account: Account }) {
     setPending(undefined)
     setConsequence(undefined)
     setNote('')
+    setTarget({ key: '', title: '' })
+    setTargeting(undefined)
     setSeparated([])
   }
 
@@ -65,8 +68,10 @@ export function IdentificationPage({ account }: { account: Account }) {
           candidateId: action === 'AcceptCandidate' || action === 'RejectCandidate'
             ? selected!.candidate.id
             : null,
-          targetKey: target.key || null,
-          targetTitle: target.title || null,
+          // A target belongs to the two decisions that read one. Sending it alongside an accepted
+          // candidate said, in the request, that the typed fields had something to do with it.
+          targetKey: needsTarget(action) ? target.key.trim() || null : null,
+          targetTitle: needsTarget(action) ? target.title.trim() || null : null,
           note: note || null,
           separatedVideoFileIds: separated.length > 0 ? separated : null,
           retainPersonalStateWithContinuing: true,
@@ -105,6 +110,23 @@ export function IdentificationPage({ account }: { account: Account }) {
   const act = (action: IdentificationDecisionAction, confirm: boolean) =>
     decide.mutate({ action, confirm })
 
+  /// What a decision button does when it is pressed. The two decisions that establish an
+  /// identification of the Administrator's own need to be told which one first, so they ask before
+  /// they are previewed; every other decision already knows everything it needs.
+  const begin = (action: IdentificationDecisionAction) => {
+    setOutcome(undefined)
+    // A preview belongs to the decision it was asked for. Leaving the last one on screen offered a
+    // Confirm button under a heading naming a decision nobody had asked for again.
+    setPending(undefined)
+    setConsequence(undefined)
+    if (needsTarget(action)) {
+      setTargeting(action)
+      return
+    }
+    setTargeting(undefined)
+    act(action, false)
+  }
+
   return (
     <>
       <PageHeading
@@ -134,6 +156,9 @@ export function IdentificationPage({ account }: { account: Account }) {
                 {' '}proposes “{item.candidate.targetTitle}”
               </small>
               <small>{item.reason}</small>
+              {alreadyEstablished(item.currentResolution, item.currentTargetTitle, item.candidate.targetTitle) && (
+                <small className="already-established">Proposes what is already established here.</small>
+              )}
             </div>
             <button
               className="quiet-button"
@@ -164,6 +189,16 @@ export function IdentificationPage({ account }: { account: Account }) {
               <span className="eyebrow">Proposed</span>
               <p>{selected.candidate.targetTitle}</p>
               <small>{selected.candidate.evidenceSummary}</small>
+              {/* A proposal that repeats what is established is the one an Administrator reads
+                  twice: the two columns say the same thing, and nothing on the screen used to
+                  admit that this is why. */}
+              {alreadyEstablished(
+                reviewedClaim(openCase.data, selected.dimension).resolution,
+                reviewedClaim(openCase.data, selected.dimension).targetTitle,
+                selected.candidate.targetTitle,
+              ) && (
+                <small className="already-established">This is what is already established.</small>
+              )}
             </div>
           </div>
           <ul className="case-files">
@@ -190,25 +225,59 @@ export function IdentificationPage({ account }: { account: Account }) {
               </li>
             ))}
           </ul>
-          <div className="assign-target">
-            <Field name="targetKey" label="Target identifier" value={target.key} onChange={(event) => setTarget((current) => ({ ...current, key: event.target.value }))} />
-            <Field name="targetTitle" label="Target title" value={target.title} onChange={(event) => setTarget((current) => ({ ...current, title: event.target.value }))} />
-          </div>
           {/* The decisions this case offers, in the shapes they are. Accepting what was proposed is
               the one an open case is normally closed with, so it leads; withdrawing knowledge the
               library has already established is the one that takes something away, so it is
               coloured like it. They arrived here as unstyled browser buttons, which said nothing
-              about any of that and looked like nothing else in the application. */}
+              about any of that and looked like nothing else in the application.
+
+              A decision this case would refuse is now refused here rather than by the request:
+              offering all five as though any of them were available made the screen a place to
+              find out what it does not do by pressing things. */}
           <div className="row-actions">
-            <button className="primary-button" onClick={() => act('AcceptCandidate', false)} disabled={decide.isPending}>Accept candidate</button>
-            <button className="quiet-button" onClick={() => act('RejectCandidate', false)} disabled={decide.isPending}>Reject candidate</button>
-            <button className="quiet-button" onClick={() => act('AssignDirectly', false)} disabled={decide.isPending}>Assign directly</button>
-            <button className="quiet-button" onClick={() => act('ReplaceClaim', false)} disabled={decide.isPending}>Replace claim</button>
-            <button className="danger-button" onClick={() => act('RevokeClaim', false)} disabled={decide.isPending}>Revoke claim</button>
-            {openCase.data.videoFiles.length > 1 && (
-              <button className="quiet-button" onClick={() => act('SplitVideo', false)} disabled={decide.isPending}>Split Video</button>
-            )}
+            {decisions
+              .filter(({ action }) => action !== 'SplitVideo' || openCase.data!.videoFiles.length > 1)
+              .map(({ action, label, appearance }) => {
+                const refusal = refusalOf(openCase.data!, selected.dimension, action, separated)
+                return (
+                  <button
+                    key={action}
+                    className={refusal ? `${appearance} unavailable` : appearance}
+                    title={refusal}
+                    onClick={() => begin(action)}
+                    disabled={decide.isPending || refusal !== undefined}
+                  >{label}</button>
+                )
+              })}
           </div>
+          {refusals(openCase.data, selected.dimension, separated).map((refusal) => (
+            <p className="muted" key={refusal}>{refusal}</p>
+          ))}
+
+          {/* Where a target belongs: with the decision that reads one. The two fields used to sit
+              above every button, so a case whose only sensible answer was to reject a candidate
+              still opened with a form, and the decision they belong to was not named anywhere. */}
+          {targeting && (
+            <div className="assign-target-form">
+              <span className="eyebrow">{friendlyState(targeting)}</span>
+              <p>{targetPrompt(targeting, selected.dimension)}</p>
+              <div className="assign-target">
+                <Field name="targetKey" label="Target identifier" value={target.key} onChange={(event) => setTarget((current) => ({ ...current, key: event.target.value }))} />
+                <Field name="targetTitle" label="Target title" value={target.title} onChange={(event) => setTarget((current) => ({ ...current, title: event.target.value }))} />
+              </div>
+              <div className="row-actions">
+                <button
+                  className="primary-button"
+                  onClick={() => act(targeting, false)}
+                  disabled={decide.isPending || !target.key.trim() || !target.title.trim()}
+                >Preview {friendlyState(targeting).toLowerCase()}</button>
+                <button
+                  className="quiet-button"
+                  onClick={() => { setTargeting(undefined); setPending(undefined); setConsequence(undefined) }}
+                >Cancel</button>
+              </div>
+            </div>
+          )}
 
           {pending && consequence && (
             <div className="confirmation" role="group" aria-label="Consequence preview">
@@ -251,4 +320,91 @@ function files(count: number) {
 /// Identification would compare two different questions.
 function reviewedClaim(open: IdentificationCase, dimension: string) {
   return dimension === 'SiteRecognition' ? open.identification.site : open.identification.work
+}
+
+/// Whether a proposal says what its subject already knows. Local recognition reads a Video File's
+/// path whether or not prdb already answered the same question, so a candidate that repeats an
+/// established identification is ordinary rather than exceptional — and it is the one that reads
+/// as a screen asking for a decision it does not need.
+function alreadyEstablished(
+  resolution: string | null | undefined,
+  established: string | null | undefined,
+  proposed: string | null | undefined,
+) {
+  return resolution === 'Established' && Boolean(proposed) && established === proposed
+}
+
+/// The decisions a case can offer, in the order they are offered.
+const decisions: { action: IdentificationDecisionAction; label: string; appearance: string }[] = [
+  { action: 'AcceptCandidate', label: 'Accept candidate', appearance: 'primary-button' },
+  { action: 'RejectCandidate', label: 'Reject candidate', appearance: 'quiet-button' },
+  { action: 'AssignDirectly', label: 'Assign directly', appearance: 'quiet-button' },
+  { action: 'ReplaceClaim', label: 'Replace claim', appearance: 'quiet-button' },
+  { action: 'RevokeClaim', label: 'Revoke claim', appearance: 'danger-button' },
+  { action: 'SplitVideo', label: 'Split Video', appearance: 'quiet-button' },
+]
+
+/// The two decisions that establish an identification nobody proposed, and so read the target
+/// fields. The other four already have their subject: a candidate, the current claim, or the
+/// Video Files that were ticked.
+type TargetedAction = Extract<IdentificationDecisionAction, 'AssignDirectly' | 'ReplaceClaim'>
+
+function needsTarget(action: IdentificationDecisionAction): action is TargetedAction {
+  return action === 'AssignDirectly' || action === 'ReplaceClaim'
+}
+
+/// Why this case would refuse a decision, said before it is made rather than after.
+///
+/// Every reason here is one the server checks too — it remains the authority, and a case that
+/// changes under an open screen is still caught by its version. What the screen owes the reader is
+/// that a decision it cannot make does not look like one it can.
+function refusalOf(
+  open: IdentificationCase,
+  dimension: string,
+  action: IdentificationDecisionAction,
+  separated: string[],
+): string | undefined {
+  if (dimension === 'SiteRecognition' && open.unavailableSiteActions.includes(action)) {
+    return 'This Site Recognition came with the Work Identification. Correct that instead of establishing a second site truth.'
+  }
+
+  const established = reviewedClaim(open, dimension).resolution === 'Established'
+  if (action === 'AssignDirectly' && established) {
+    return 'Something is already established here. Replace claim is the decision that changes it.'
+  }
+  if (action === 'ReplaceClaim' && !established) {
+    return 'Nothing is established here yet. Assign directly is the decision that establishes one.'
+  }
+  if (action === 'RevokeClaim' && !established) {
+    return 'Nothing is established here to withdraw.'
+  }
+  if (action === 'SplitVideo' && separated.length === 0) {
+    return 'Tick the Video Files that belong to a Video of their own.'
+  }
+  if (action === 'SplitVideo' && separated.length === open.videoFiles.length) {
+    return 'A split leaves at least one Video File with this Video.'
+  }
+
+  return undefined
+}
+
+/// The reasons the offered decisions were refused, each said once. Four buttons turned off for one
+/// reason are one sentence, not four.
+function refusals(open: IdentificationCase, dimension: string, separated: string[]) {
+  const offered = decisions.filter(({ action }) =>
+    action !== 'SplitVideo' || open.videoFiles.length > 1)
+  return Array.from(new Set(offered
+    .map(({ action }) => refusalOf(open, dimension, action, separated))
+    .filter((refusal) => refusal !== undefined)))
+}
+
+/// What the target fields are being asked for, in the words of the decision that asked.
+function targetPrompt(action: TargetedAction, dimension: string) {
+  const subject = dimension === 'SiteRecognition'
+    ? 'the Site this Video came from'
+    : 'the work this Video is'
+  const override = 'It is established as an Administrative Override, which conflicting automation cannot silently replace.'
+  return action === 'AssignDirectly'
+    ? `Name ${subject}. ${override}`
+    : `Name ${subject} in place of what is established. ${override}`
 }

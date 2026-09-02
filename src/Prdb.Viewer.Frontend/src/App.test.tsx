@@ -400,6 +400,21 @@ describe('App', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Review' }))
     expect(await screen.findByText('The evidence is only suggestive, so it can propose a candidate.'))
       .toBeInTheDocument()
+
+    // A target belongs to the decisions that read one, so the fields wait to be asked for and
+    // naming a target is not a step every other decision appears to need.
+    expect(screen.queryByLabelText('Target identifier')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Assign directly' }))
+    expect(screen.getByLabelText('Target identifier')).toBeInTheDocument()
+    expect(decisions).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByLabelText('Target identifier')).not.toBeInTheDocument()
+
+    // Nothing is established here yet, so the two decisions that change an established claim are
+    // refused by the screen rather than by the request.
+    expect(screen.getByRole('button', { name: 'Replace claim' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Revoke claim' })).toBeDisabled()
+
     fireEvent.click(screen.getByRole('button', { name: 'Accept candidate' }))
 
     const preview = await screen.findByRole('group', { name: 'Consequence preview' })
@@ -409,6 +424,77 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Confirm/ }))
     await vi.waitFor(() => expect(decisions).toEqual(['AcceptCandidate']))
     expect(await screen.findByText('Accept Candidate applied.')).toBeInTheDocument()
+  })
+
+  it('refuses the site decisions a case does not offer, and says why', async () => {
+    const candidate = {
+      id: '01994dd4-2a0a-7000-8000-000000000041',
+      dimension: 'SiteRecognition',
+      status: 'Pending',
+      targetTitle: 'A Known Site',
+      targetUrl: null,
+      evidenceClass: 'Suggestive',
+      reason: 'SuggestiveEvidence',
+      source: 'LocalInference',
+      evidenceSummary: 'Local: Suggestive evidence, matched by the file’s own path',
+      supportingVideoFileId: '01994dd4-2a0a-7000-8000-000000000042',
+      createdAt: '2026-09-02T10:00:00Z',
+      resolvedAt: null,
+    }
+    const queueItem = {
+      videoId: '01994dd4-2a0a-7000-8000-000000000040',
+      caseVersion: 1,
+      displayLabel: 'A Known Work',
+      previewUrl: null,
+      dimension: 'SiteRecognition',
+      currentResolution: 'Established',
+      currentTargetTitle: 'A Known Site',
+      candidate,
+      affectedVideoFileCount: 1,
+      reason: 'The evidence is only suggestive.',
+    }
+    const openCase = {
+      videoId: queueItem.videoId,
+      caseVersion: 1,
+      displayLabel: 'A Known Work',
+      previewUrl: null,
+      identification: identification({
+        work: claim({ resolution: 'Established', targetTitle: 'A Known Work' }),
+        site: claim({
+          dimension: 'SiteRecognition',
+          resolution: 'Established',
+          reviewStatus: 'ReviewNeeded',
+          targetTitle: 'A Known Site',
+        }),
+      }),
+      openCandidates: [candidate],
+      candidateHistory: [],
+      videoFiles: [variant()],
+      decisions: [],
+      // A Site that came with the Work Identification is not separately editable, which the
+      // screen used to find out by sending a decision the server then refused.
+      unavailableSiteActions: ['AcceptCandidate', 'AssignDirectly', 'ReplaceClaim', 'RevokeClaim'],
+      explanation: 'The evidence is only suggestive, so it can propose a candidate.',
+    }
+    signedInAs('Administrator', (input) => {
+      if (input === '/api/admin/identification/queue') return json([queueItem])
+      if (input === `/api/admin/identification/videos/${queueItem.videoId}`) return json(openCase)
+      return undefined
+    })
+
+    renderApp('/admin/identification')
+
+    // Local recognition reads a path whether or not prdb answered the same question first, so the
+    // queue says when a proposal is one the library already knows.
+    expect(await screen.findByText('Proposes what is already established here.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+
+    expect(await screen.findByRole('button', { name: 'Reject candidate' })).toBeEnabled()
+    for (const label of ['Accept candidate', 'Assign directly', 'Replace claim', 'Revoke claim']) {
+      expect(screen.getByRole('button', { name: label })).toBeDisabled()
+    }
+    expect(screen.getByText(/second site truth/)).toBeInTheDocument()
+    expect(screen.queryByLabelText('Target identifier')).not.toBeInTheDocument()
   })
 
   it('offers sign-in and an approval-gated registration request', async () => {

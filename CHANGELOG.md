@@ -7,6 +7,27 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- Identification review offers the decisions the open case actually has. A
+  decision the case would refuse — a Site that came with the Work Identification
+  and so cannot be given a second truth of its own, replacing or withdrawing a
+  claim where nothing is established, assigning one where something already is,
+  splitting a Video without ticking a Video File — is now refused by the screen,
+  which says why underneath the actions. All five used to be offered as though
+  any of them were available, so the way to find out what a case does not do was
+  to press things and read the sentence that came back.
+- The target fields wait for the decision that reads them. `Assign directly` and
+  `Replace claim` now ask for a target and name what they are asking for; the
+  other decisions never read those fields and no longer open with a form
+  suggesting they do.
+- A candidate that proposes what is already established says so, in the queue
+  and beside the comparison. Local recognition reads a Video File's own path
+  whether or not prdb has already answered the same question, so a Video can
+  wait for a decision between an established Site and a proposal naming that
+  same Site — which reads as a screen asking for a decision it does not need
+  until it admits that is what happened.
+
 ## [0.8.0] - 2026-09-02
 
 Discovery that does not wait to be asked. A file copied into the mounted
