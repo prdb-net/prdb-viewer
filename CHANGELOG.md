@@ -7,6 +7,49 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-02
+
+Identification review stops asking about answers the library already has. A
+proposal naming what its Video has already established now confirms that claim
+instead of becoming a candidate, and local Site Recognition no longer reads the
+path of a Video prdb has already placed. The candidates the earlier releases
+made this way are closed as part of the upgrade, so a queue holding nothing but
+those empties itself. **This release migrates**, and the migration writes to
+existing identification data, so take a copy of the data directory before
+upgrading. Nothing about configuration, the HTTP API, or the Backup Archive
+changes.
+
+### Changed
+
+- A proposal that names what is already established confirms the claim rather
+  than opening a review. Agreement was the one thing a proposal could not
+  express: an Identification Candidate repeating the current claim put its Video
+  into review, both columns of the comparison said the same thing, and where the
+  Site had come with the Work Identification the only decision the review
+  offered was to reject evidence that was never wrong. Agreement is now recorded
+  where agreement belongs, on the claim it agrees with.
+- Local Site Recognition reads the paths of Videos whose Site is still open. It
+  waited for prdb to answer before reading a path, which is what makes it local
+  recognition rather than a race — but it then read the path whether or not the
+  answer had named a Site, so a Video prdb had already placed was asked a
+  question it had answered. A path that names a second known site along the way
+  — a work title that happens to be a site's name — turned that into a review
+  with nothing to decide. The condition that already governs re-reading a path
+  now governs reading it the first time.
+- Background work reports Site Recognition as the lane it now is: on an
+  installation whose catalogue knows its library, it runs and finds nothing
+  outstanding, which the screen shows as nought of nought rather than as a lane
+  that never started.
+
+### Fixed
+
+- Identification Candidates proposing what their own Video already has
+  established are closed on upgrade. They are marked Superseded rather than
+  Rejected, because the evidence was never wrong — it was overtaken by an answer
+  the library already held — and rejecting it would have suppressed the same
+  path until materially stronger evidence appeared. Each affected case gets a
+  new version, so a review screen holding one finds it changed and reloads.
+
 ## [0.10.0] - 2026-09-02
 
 An identification review that names the decision it is waiting for. A case whose
