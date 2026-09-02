@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Fixed
+
+- The sort order's list opens in the colours of the rest of the application. The
+  browser had been told nothing about the dark surface it draws on, so it opened
+  a light list and filled it with the pale text the dark page asks for, leaving
+  every order but the chosen one barely readable.
+
 ## [0.13.0] - 2026-09-02
 
 Continue Watching, Favourites and Watch Later have what the browsing screen has.

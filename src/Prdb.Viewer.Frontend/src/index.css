@@ -1,4 +1,7 @@
 :root {
+  /* The application is dark everywhere, so say so: without this the browser draws its native
+     widgets light, and a `<select>` popup ends up with our pale text on a pale list. */
+  color-scheme: dark;
   color: #f7f4ef;
   background: #111015;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -200,7 +203,10 @@ p { color: #bdb8c7; line-height: 1.6; }
 .result-count { color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
 .toolbar-actions { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
 .sort-field { display: inline-flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .78rem; font-weight: 700; }
-.sort-field select { padding: .5rem .7rem; border: 1px solid rgb(255 255 255 / 12%); border-radius: .6rem; color: inherit; background: rgb(0 0 0 / 25%); font: inherit; font-size: .85rem; }
+.sort-field select { padding: .5rem .7rem; border: 1px solid rgb(255 255 255 / 12%); border-radius: .6rem; color: #f7f4ef; background: rgb(0 0 0 / 25%); font: inherit; font-size: .85rem; }
+/* The list the browser opens is its own surface, not the control's: the translucent black above
+   would leave it reading whatever sits behind the page, so name the colours outright. */
+.sort-field select option { color: #f7f4ef; background: #1a1820; }
 .filters-toggle { display: none; padding: .5rem .8rem; font-size: .85rem; }
 /* What is chosen, each with the control that takes it out again. */
 .active-filters { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin: 0; padding: 0; list-style: none; }
