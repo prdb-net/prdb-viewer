@@ -7,6 +7,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-02
+
+An identification review that says what the open case can do before anything is
+pressed. A decision the case would refuse is refused by the screen itself, with
+the reason underneath the actions, and the target fields appear only under the
+two decisions that read them. A candidate proposing what is already established
+now says so in the queue and beside the comparison, so a case that needs no
+decision no longer looks like one that does. Nothing about configuration, the
+HTTP API, the Backup Archive, or the stored data changes, so an upgrade from
+`0.8.0` is the new image and nothing else.
+
 ### Changed
 
 - Identification review offers the decisions the open case actually has. A
