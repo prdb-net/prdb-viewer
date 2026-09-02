@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { api, type Account, type LibraryPage as LibraryPageResult } from '../api/client'
+import { api, emptyFilters, type Account, type LibraryPage as LibraryPageResult } from '../api/client'
 import { usePersonalActions } from '../personal/usePersonalActions'
 import { queryKeys } from '../queryKeys'
 import { firstError, PageHeading, RequestError } from '../ui'
@@ -26,7 +26,16 @@ const emptyLibraryPollMilliseconds = 30_000
 export function LibraryPage({ account }: { account: Account }) {
   const queryClient = useQueryClient()
   const { filters, pages, narrow, toggle, clear, showMore, narrowed } = useLibraryFilters()
-  const facets = useQuery({ queryKey: queryKeys.libraryFacets, queryFn: api.libraryFacets })
+  // The facets are counted against what is chosen, so a count says what choosing that value would
+  // leave. The sort order is not part of what is chosen, so changing it does not ask again; and
+  // the previous answer stays on screen while the next one arrives, so the rows do not empty and
+  // refill on every click.
+  const narrowing = JSON.stringify({ ...filters, sort: emptyFilters.sort })
+  const facets = useQuery({
+    queryKey: queryKeys.libraryFacets(narrowing),
+    queryFn: () => api.libraryFacets(filters),
+    placeholderData: (previous) => previous,
+  })
   const videos = useInfiniteQuery({
     queryKey: queryKeys.videos(JSON.stringify(filters)),
     queryFn: ({ pageParam }) => api.videos(filters, pageParam, pageSize),
@@ -77,11 +86,7 @@ export function LibraryPage({ account }: { account: Account }) {
 
   return (
     <>
-      <PageHeading
-        eyebrow="Library"
-        title={narrowed ? 'Matching Videos' : 'Browse'}
-        actions={<span className="muted">{page.totalMatches} {narrowed ? 'matching' : 'available'}</span>}
-      >
+      <PageHeading eyebrow="Library" title={narrowed ? 'Matching Videos' : 'Browse'}>
         {narrowed
           ? 'These are the Videos your search and filters admit.'
           : 'Everything this browser can play, newest first.'}
@@ -94,6 +99,7 @@ export function LibraryPage({ account }: { account: Account }) {
         toggle={toggle}
         clear={clear}
         narrowed={narrowed}
+        total={Number(page.totalMatches)}
       />
 
       {shown.length === 0 && (
@@ -115,18 +121,23 @@ export function LibraryPage({ account }: { account: Account }) {
       />
 
       {hasNextPage && (
-        <button
-          className="quiet-button load-more"
-          onClick={() => {
-            showMore()
-            void fetchNextPage()
-          }}
-          // Only the fetch this button asked for disables it. A background refresh used to, which
-          // made the control unavailable at intervals for no reason the screen gave.
-          disabled={isFetchingNextPage}
-        >
-          {isFetchingNextPage ? 'Loading…' : 'Show more'}
-        </button>
+        <div className="load-more">
+          {/* How much of the match is on screen, so the decision to reveal more is taken against
+              the whole rather than against a button that could go on forever. */}
+          <span className="muted">{shown.length} of {Number(page.totalMatches)} shown</span>
+          <button
+            className="quiet-button"
+            onClick={() => {
+              showMore()
+              void fetchNextPage()
+            }}
+            // Only the fetch this button asked for disables it. A background refresh used to, which
+            // made the control unavailable at intervals for no reason the screen gave.
+            disabled={isFetchingNextPage}
+          >
+            {isFetchingNextPage ? 'Loading…' : 'Show more'}
+          </button>
+        </div>
       )}
 
       {(personal.failed || includeNotReady.isError) && (

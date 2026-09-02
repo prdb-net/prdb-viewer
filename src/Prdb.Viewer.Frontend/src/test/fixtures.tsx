@@ -35,7 +35,7 @@ export function libraryPage(videos: unknown[], overrides: Record<string, unknown
 }
 
 export function isFacetRequest(input: unknown) {
-  return input === '/api/library/facets'
+  return typeof input === 'string' && input.startsWith('/api/library/facets')
 }
 
 /// What the facets endpoint answers when a test is not about facets.

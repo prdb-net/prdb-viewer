@@ -144,6 +144,9 @@ p { color: #bdb8c7; line-height: 1.6; }
   min-width: 0;
   padding: 1.75rem clamp(1rem, 3vw, 2.5rem) 5rem;
 }
+/* A grid of Videos is the one thing that gets better with every column a screen can hold. The
+   measure stays on the heading's prose, which has its own cap. */
+.app-content.wide { width: 100%; }
 
 /* --- Page furniture ------------------------------------------------------------------------ */
 
@@ -190,33 +193,56 @@ p { color: #bdb8c7; line-height: 1.6; }
 
 /* --- The library --------------------------------------------------------------------------- */
 
-.library-controls { display: grid; gap: .8rem; margin: 0 0 1.6rem; }
-.library-search { display: flex; align-items: flex-end; gap: .8rem; flex-wrap: wrap; }
-.library-search .field { flex: 0 0 11rem; margin: 0; }
-.library-search select { width: 100%; padding: .7rem .8rem; border: 1px solid rgb(255 255 255 / 12%); border-radius: .6rem; color: inherit; background: rgb(0 0 0 / 25%); font: inherit; }
+.library-controls { display: grid; gap: .8rem; margin: 0 0 1.4rem; }
+/* One row: how many Videos this is, and how they are ordered. The count used to sit in the page
+   heading and the sort order under a label of its own, two places for what one row says. */
+.library-toolbar { display: flex; align-items: center; justify-content: space-between; gap: .8rem; flex-wrap: wrap; }
+.result-count { color: var(--muted); font-size: .85rem; font-variant-numeric: tabular-nums; }
+.toolbar-actions { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; }
+.sort-field { display: inline-flex; align-items: center; gap: .5rem; color: var(--muted); font-size: .78rem; font-weight: 700; }
+.sort-field select { padding: .5rem .7rem; border: 1px solid rgb(255 255 255 / 12%); border-radius: .6rem; color: inherit; background: rgb(0 0 0 / 25%); font: inherit; font-size: .85rem; }
+.filters-toggle { display: none; padding: .5rem .8rem; font-size: .85rem; }
+/* What is chosen, each with the control that takes it out again. */
+.active-filters { display: flex; align-items: center; gap: .4rem; flex-wrap: wrap; margin: 0; padding: 0; list-style: none; }
+.active-filter { display: inline-flex; align-items: center; gap: .4rem; padding: .3rem .55rem .3rem .75rem; border: 0; border-radius: 999px; color: #1a1820; background: var(--accent); font-size: .78rem; font-weight: 700; }
+.active-filter .remove { font-size: 1.05rem; line-height: 1; }
+.active-filter:hover { background: #e2d5ff; }
+.clear-filters { padding: .3rem .5rem; border: 0; border-radius: .4rem; color: var(--muted); background: none; font-size: .78rem; font-weight: 700; text-decoration: underline; text-underline-offset: .2rem; }
+.clear-filters:hover { color: #efe8ff; }
+.facet-groups { display: grid; gap: .8rem; }
 .facet-group { display: flex; align-items: baseline; gap: .7rem; }
 .facet-label { flex: 0 0 5.5rem; padding-top: .35rem; color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
 .facet-row { display: flex; gap: .45rem; flex-wrap: wrap; min-width: 0; }
 .facet { padding: .4rem .7rem; border: 1px solid rgb(255 255 255 / 12%); border-radius: 999px; color: #cfc9d6; background: transparent; font: inherit; font-size: .78rem; cursor: pointer; }
 .facet:hover { border-color: rgb(205 183 255 / 45%); }
 .facet.selected { border-color: transparent; color: #1a1820; background: var(--accent); font-weight: 700; }
+/* The rest of a long facet, one control away rather than one row each. */
+.facet-more { padding: .4rem .7rem; border: 1px dashed rgb(255 255 255 / 20%); border-radius: 999px; color: var(--muted); background: transparent; font: inherit; font-size: .78rem; }
+.facet-more:hover { color: #efe8ff; border-color: rgb(205 183 255 / 45%); }
 
 .empty-library { margin-top: 1.5rem; padding: 1.4rem; border: 1px dashed rgb(255 255 255 / 15%); border-radius: 1rem; }
 .empty-library p { margin: .35rem 0 0; }
-.video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr)); gap: 1rem; margin-top: 1rem; }
+/* A card's width grows with the screen, so a wide screen shows bigger pictures as well as more of
+   them rather than only more of the same small ones. */
+.video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(12rem, 13vw, 18rem), 1fr)); gap: 1rem; margin-top: 1rem; }
 /* A card fills its grid row and pushes its actions to the bottom, so a two-line title does not
    leave the Play action of one card sitting above its neighbours'. */
-.video-card { display: flex; flex-direction: column; min-width: 0; height: 100%; padding: .8rem; border: 1px solid rgb(255 255 255 / 8%); border-radius: 1rem; background: var(--surface); }
+.video-card { position: relative; display: flex; flex-direction: column; min-width: 0; height: 100%; padding: .6rem; border: 1px solid rgb(255 255 255 / 8%); border-radius: 1rem; background: var(--surface); transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease; }
+/* The whole card answers the pointer, because the whole picture is the link. */
+.video-card:hover, .video-card:focus-within { border-color: rgb(205 183 255 / 35%); box-shadow: 0 .6rem 1.6rem rgb(0 0 0 / 35%); transform: translateY(-2px); }
 .video-card small { display: block; margin-top: .25rem; color: var(--muted); }
-.video-card .video-title { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; min-height: 2.6em; }
+.video-card .video-title { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; font-size: .92rem; line-height: 1.3; }
 .video-card .card-facts { flex: 1 1 auto; }
-.video-card .card-facts small { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .video-card .card-actions { margin-top: auto; }
+/* One line of facts, the parts separated rather than run together, so each part is one thing. */
+.card-line { display: flex; flex-wrap: wrap; font-size: .76rem; line-height: 1.45; }
+.card-line > span:not(:first-child)::before { content: " · "; white-space: pre; }
+.card-flags { display: flex; gap: .35rem; flex-wrap: wrap; margin-top: .4rem; }
 .video-link { display: block; color: inherit; text-decoration: none; }
 .video-link:hover strong { color: var(--accent); }
 /* The art carries the margin so that the quality badges can sit inside the picture rather than
    inside the gap beneath it. */
-.video-art { position: relative; margin-bottom: .8rem; }
+.video-art { position: relative; margin-bottom: .6rem; }
 .video-art.large { margin-bottom: 1rem; }
 .video-preview { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: .7rem; object-fit: cover; background: #19161f; }
 .video-placeholder { display: grid; aspect-ratio: 16 / 9; place-items: center; border-radius: .7rem; color: var(--accent); background: linear-gradient(135deg, #34274c, #19161f); }
@@ -227,12 +253,22 @@ p { color: #bdb8c7; line-height: 1.6; }
 .video-progress > span { display: block; height: 100%; background: var(--accent); }
 .video-art.large .video-progress { border-radius: 0 0 1rem 1rem; }
 .quality-badges { position: absolute; right: .45rem; bottom: .45rem; display: flex; gap: .3rem; }
-.quality-badge { padding: .15rem .45rem; border-radius: .45rem; color: #f2eefb; background: rgb(10 8 14 / 72%); font-size: .7rem; font-weight: 800; letter-spacing: .02em; }
-.video-art.large .quality-badge { padding: .25rem .6rem; font-size: .8rem; }
-.video-card .primary-button { margin-top: .8rem; }
+.quality-badge, .runtime-badge { padding: .15rem .45rem; border-radius: .45rem; color: #f2eefb; background: rgb(10 8 14 / 72%); font-size: .7rem; font-weight: 800; letter-spacing: .02em; }
+/* The runtime takes the corner opposite the quality, where a video library puts it. */
+.runtime-badge { position: absolute; left: .45rem; bottom: .45rem; font-variant-numeric: tabular-nums; }
+.video-art.large .quality-badge, .video-art.large .runtime-badge { padding: .25rem .6rem; font-size: .8rem; }
+/* Favourite and Watch Later, on the picture. They appear on hover and on focus, stay whenever
+   one of them is set, and are always there where nothing can hover. They sit beside the link
+   rather than inside it, because a button inside a link is two controls in one place. */
+.art-actions { position: absolute; top: 1rem; right: 1rem; z-index: 1; display: flex; gap: .3rem; opacity: 0; transition: opacity .12s ease; }
+.video-card:hover .art-actions, .video-card:focus-within .art-actions, .art-actions.pinned, .art-actions:has(:focus-visible) { opacity: 1; }
+.art-action { display: grid; width: 2.1rem; height: 2.1rem; place-items: center; padding: 0; border: 0; border-radius: 50%; color: #f2eefb; background: rgb(10 8 14 / 72%); backdrop-filter: blur(.3rem); }
+.art-action:hover { background: rgb(40 30 60 / 85%); }
+.art-action.selected { color: #1a1820; background: var(--accent); }
+@media (hover: none) { .art-actions { opacity: 1; } }
+.video-card .primary-button { margin-top: .6rem; padding: .65rem 1rem; }
 .unsupported { display: block; margin-top: .8rem; color: #d7bdc1; font-size: .78rem; }
-.play-state { display: flex; gap: .45rem; flex-wrap: wrap; margin-top: .65rem; color: #bcb4c9; font-size: .7rem; }
-.play-state span { padding: .25rem .4rem; border-radius: .4rem; background: rgb(255 255 255 / 6%); }
+.play-state { color: #bcb4c9; }
 .personal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; margin-top: .65rem; }
 /* A finger is not a cursor: these were half the height a touch target needs, on the screens most
    likely to be touched. */
@@ -244,6 +280,10 @@ p { color: #bdb8c7; line-height: 1.6; }
    itself, kept off-screen but focusable, so the keyboard walks the scale unaided. */
 .star-rating { margin-top: .65rem; }
 .star-rating.large { margin-top: 1rem; }
+/* On a card the stars are read, and only changed where they already are, so they take less room
+   than the control that first gives a rating. */
+.video-card .star-rating { margin-top: .4rem; }
+.video-card .star-rating .star { min-width: 1.6rem; min-height: 1.6rem; font-size: 1.1rem; }
 .star-rating .rating-caption { display: block; margin-bottom: .35rem; color: var(--muted); font-size: .68rem; font-weight: 750; }
 .star-rating .rating-row { display: flex; align-items: center; gap: .45rem; flex-wrap: wrap; }
 .star-rating .stars { display: flex; gap: .05rem; min-width: 0; margin: 0; padding: 0; border: 0; }
@@ -264,7 +304,7 @@ p { color: #bdb8c7; line-height: 1.6; }
 .hidden-matches p { display: flex; align-items: center; gap: .6rem; flex-wrap: wrap; margin: 0; color: #cfc9d6; font-size: .85rem; }
 .hidden-matches p + p { margin-top: .5rem; }
 .hidden-matches button { padding: .35rem .7rem; font-size: .78rem; }
-.load-more { display: block; margin: 1.4rem auto 0; }
+.load-more { display: grid; justify-items: center; gap: .5rem; margin-top: 1.4rem; }
 
 .provenance { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; margin-top: .45rem; }
 .badge { padding: .12rem .5rem; border-radius: 999px; font-size: .72rem; letter-spacing: .02em; }
@@ -410,6 +450,11 @@ p { color: #bdb8c7; line-height: 1.6; }
 @media (max-width: 40rem) {
   .facet-group { display: block; }
   .facet-label { display: block; padding: 0 0 .35rem; }
+  /* The facet rows filled two screens before the first Video. Here they wait behind one control,
+     closed until asked for; what is chosen is still said in the row above them. */
+  .filters-toggle { display: inline-block; }
+  .facet-groups:not(.open) { display: none; }
+  .video-grid { grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .7rem; }
   .shell { padding: 1rem; }
   .card { border-radius: 1.3rem; }
   .app-header { gap: .6rem; }

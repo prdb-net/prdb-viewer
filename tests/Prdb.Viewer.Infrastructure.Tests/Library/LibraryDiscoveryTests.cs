@@ -167,6 +167,7 @@ public sealed class LibraryDiscoveryTests
 
         var facets = await Discovery(scope).GetFacetsAsync(
             accountId,
+            new LibraryDiscoveryRequest(),
             TestContext.Current.CancellationToken);
         Assert.Equal("Example Site", Assert.Single(facets.Sites).Value);
         Assert.Equal("Alex Doe", Assert.Single(facets.Actors).Value);
@@ -229,6 +230,7 @@ public sealed class LibraryDiscoveryTests
         // The facet offers the bands the library holds, best first, with what each one holds.
         var facets = await Discovery(scope).GetFacetsAsync(
             accountId,
+            new LibraryDiscoveryRequest(),
             TestContext.Current.CancellationToken);
         Assert.Equal(
             [
@@ -242,6 +244,124 @@ public sealed class LibraryDiscoveryTests
         Assert.Equal(
             VideoQualityBand.Uhd2160,
             Assert.Single(Assert.Single(uhd.Videos).VideoFiles).QualityBand);
+    }
+
+    [Fact]
+    public async Task Facets_count_what_the_current_narrowing_leaves_except_their_own()
+    {
+        const string otherWork = "6f1a2c34-0000-4000-8000-000000000002";
+        await using var store = await CreateAsync(new FixtureIdentificationClient()
+            .Conclusive("one.mp4", WorkId, "Work One", new RemoteSite("s1", "Site One", null))
+            .Conclusive("two.mp4", otherWork, "Work Two", new RemoteSite("s2", "Site Two", null)));
+        var accountId = await AccountAsync(store);
+        await SourceAsync(store, ("one.mp4", "mp4"), ("two.mp4", "mp4"), ("unknown.mp4", "mp4"));
+        await LibraryPipeline.SetCredentialAsync(store, "installation-key");
+        await LibraryPipeline.DrainAsync(store);
+
+        await using var scope = store.Scope();
+
+        // Nothing chosen: every Site the library holds, and the Actor both Videos share.
+        var open = await Discovery(scope).GetFacetsAsync(
+            accountId,
+            new LibraryDiscoveryRequest(),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(
+            [("Site One", 1), ("Site Two", 1)],
+            open.Sites.Select(site => (site.Value, site.Count)));
+        Assert.Equal(("Alex Doe", 2), Assert.Single(open.Actors.Select(a => (a.Value, a.Count))));
+
+        // A Site chosen narrows what the Actors count, but not the Sites on offer: a second Site
+        // would widen the set, so the first one chosen must not hide it.
+        var narrowed = await Discovery(scope).GetFacetsAsync(
+            accountId,
+            new LibraryDiscoveryRequest { Sites = ["Site One"] },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(
+            [("Site One", 1), ("Site Two", 1)],
+            narrowed.Sites.Select(site => (site.Value, site.Count)));
+        Assert.Equal(("Alex Doe", 1), Assert.Single(narrowed.Actors.Select(a => (a.Value, a.Count))));
+
+        // The search narrows every facet, because it is not one of them.
+        var searched = await Discovery(scope).GetFacetsAsync(
+            accountId,
+            new LibraryDiscoveryRequest { Query = "two" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(("Site Two", 1), Assert.Single(searched.Sites.Select(s => (s.Value, s.Count))));
+        Assert.Equal(("Alex Doe", 1), Assert.Single(searched.Actors.Select(a => (a.Value, a.Count))));
+    }
+
+    [Fact]
+    public async Task The_library_orders_by_runtime_recent_play_and_personal_rating()
+    {
+        await using var store = await TestDatabase.CreateAsync(
+            mediaProbe: new RuntimeAwareProbe(),
+            hasher: new FixtureHasher(),
+            previewGenerator: new FixturePreviewGenerator(),
+            identificationClient: new FixtureIdentificationClient());
+        var accountId = await AccountAsync(store);
+        await SourceAsync(store, ("short.mp4", "mp4"), ("long.mp4", "mp4"), ("middle.mp4", "mp4"));
+        await LibraryPipeline.DrainAsync(store);
+
+        await using (var personal = store.Scope())
+        {
+            var database = personal.ServiceProvider.GetRequiredService<ViewerDbContext>();
+            var videos = await database.Videos
+                .ToDictionaryAsync(video => video.DisplayLabel, TestContext.Current.CancellationToken);
+            var now = DateTime.SpecifyKind(new DateTime(2026, 9, 1, 12, 0, 0), DateTimeKind.Utc);
+
+            // The short one was played most recently and rated lowest; the middle one was played
+            // earlier and rated highest; the long one has no Personal State at all.
+            database.PersonalVideoStates.AddRange(
+                new PersonalVideoStateRow
+                {
+                    AccountId = accountId,
+                    VideoId = videos["short"].Id,
+                    PlayState = PersonalPlayState.InProgress,
+                    PlayStateChangedAt = now,
+                    PersonalRating = 2,
+                    UpdatedAt = now,
+                },
+                new PersonalVideoStateRow
+                {
+                    AccountId = accountId,
+                    VideoId = videos["middle"].Id,
+                    PlayState = PersonalPlayState.Completed,
+                    PlayStateChangedAt = now.AddDays(-1),
+                    PersonalRating = 5,
+                    UpdatedAt = now,
+                });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using var scope = store.Scope();
+
+        Assert.Equal(
+            ["long", "middle", "short"],
+            await OrderedAsync(scope, accountId, LibrarySortOrder.LongestFirst));
+
+        // What was never played comes after everything that was.
+        Assert.Equal(
+            ["short", "middle", "long"],
+            await OrderedAsync(scope, accountId, LibrarySortOrder.RecentlyPlayed));
+
+        // What was never rated comes after everything that was.
+        Assert.Equal(
+            ["middle", "short", "long"],
+            await OrderedAsync(scope, accountId, LibrarySortOrder.BestRated));
+    }
+
+    private static async Task<IEnumerable<string>> OrderedAsync(
+        AsyncServiceScope scope,
+        Guid accountId,
+        LibrarySortOrder sort)
+    {
+        var page = await Discovery(scope).GetAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            new LibraryDiscoveryRequest { Sort = sort },
+            TestContext.Current.CancellationToken);
+
+        return page.Videos.Select(video => video.DisplayTitle);
     }
 
     [Fact]
@@ -529,5 +649,26 @@ internal sealed class DimensionAwareProbe : IMediaProbe
         return Task.FromResult<MediaProbeFacts?>(new MediaProbeFacts(
             FixtureProbe.Baseline with { Width = width, Height = height },
             12_345));
+    }
+}
+
+/// <summary>
+/// A probe that reports the runtime the file name implies, so a test about order by runtime has
+/// three Videos that genuinely differ in it.
+/// </summary>
+internal sealed class RuntimeAwareProbe : IMediaProbe
+{
+    public Task<MediaProbeFacts?> InspectAsync(
+        string path,
+        CancellationToken cancellationToken = default)
+    {
+        var duration = Path.GetFileNameWithoutExtension(path) switch
+        {
+            "long" => 3_600_000,
+            "middle" => 600_000,
+            _ => 60_000,
+        };
+
+        return Task.FromResult<MediaProbeFacts?>(new MediaProbeFacts(FixtureProbe.Baseline, duration));
     }
 }

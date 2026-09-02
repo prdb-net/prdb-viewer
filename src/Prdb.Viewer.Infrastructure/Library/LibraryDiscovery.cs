@@ -45,7 +45,7 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
         var admitted = Admit(matched, request, preference, ready, attemptable);
         var total = await admitted.CountAsync(cancellationToken);
         var take = LibraryPaging.Clamp(request.Take);
-        var page = await Order(admitted, request.Sort)
+        var page = await Order(admitted, request.Sort, accountId)
             .Skip(Math.Max(0, request.Skip))
             .Take(take + 1)
             .Select(video => video.Id)
@@ -75,19 +75,25 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
     }
 
     /// <summary>
-    /// The Established Sites and Actors of the Videos an Account can currently discover, and the
-    /// Video Quality bands the library holds, with the counts a facet list shows. Removed Videos
-    /// are never counted.
+    /// The Established Sites and Actors, and the Video Quality bands, of the Videos the current
+    /// narrowing admits, with the counts a facet list shows. Removed Videos are never counted.
+    ///
+    /// Each facet is counted against everything the request narrows by except itself: a Site's
+    /// count says what choosing that Site would leave once the chosen Actors and bands have had
+    /// their say, and a second Site widens the set rather than narrowing it, so the Sites already
+    /// chosen must not narrow the Sites on offer. Admission by playability is not applied, because
+    /// what the library holds is the same fact on every client while what plays here is not.
     /// </summary>
     public async Task<LibraryFacets> GetFacetsAsync(
         Guid accountId,
+        LibraryDiscoveryRequest request,
         CancellationToken cancellationToken = default)
     {
-        var active = database.Videos
-            .AsNoTracking()
-            .Where(video => video.SurvivingVideoId == null &&
-                            video.Availability != VideoAvailability.Removed);
-        var sites = await active
+        var forSites = Matching(accountId, request with { Sites = [], UnknownSite = false });
+        var forActors = Matching(accountId, request with { Actors = [] });
+        var forQuality = Matching(accountId, request with { Quality = [] });
+
+        var sites = await forSites
             .Where(video => video.EstablishedSite != null)
             .GroupBy(video => video.EstablishedSite!)
             .Select(group => new { Value = group.Key, Count = group.Count() })
@@ -97,7 +103,7 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             .ToListAsync(cancellationToken);
         var actors = await database.VideoActors
             .AsNoTracking()
-            .Where(actor => active.Any(video => video.Id == actor.VideoId))
+            .Where(actor => forActors.Any(video => video.Id == actor.VideoId))
             .GroupBy(actor => actor.Name)
             .Select(group => new { Value = group.Key, Count = group.Count() })
             .OrderByDescending(value => value.Count)
@@ -105,7 +111,7 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             .Take(FacetLimit)
             .ToListAsync(cancellationToken);
 
-        var quality = await active
+        var quality = await forQuality
             .GroupBy(video => video.Quality)
             .Select(group => new { Value = group.Key, Count = group.Count() })
             .ToListAsync(cancellationToken);
@@ -467,9 +473,14 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
 
     /// <summary>
     /// Discovery Date descending by default, so later enrichment never makes an old Video look
-    /// newly added. Title A-Z and best Video Quality first are the explicit alternatives.
+    /// newly added. Title A-Z, best Video Quality first and longest runtime first are the explicit
+    /// alternatives that hold for every Account; most recently played and best rated read this
+    /// Account's own Personal State, and put the Videos it has no such state for last.
     /// </summary>
-    private static IQueryable<VideoRow> Order(IQueryable<VideoRow> videos, LibrarySortOrder sort) =>
+    private IQueryable<VideoRow> Order(
+        IQueryable<VideoRow> videos,
+        LibrarySortOrder sort,
+        Guid accountId) =>
         sort switch
         {
             LibrarySortOrder.TitleAscending => videos
@@ -479,6 +490,29 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             // so the default order decides inside it rather than leaving it to the row order.
             LibrarySortOrder.QualityDescending => videos
                 .OrderByDescending(video => video.Quality)
+                .ThenByDescending(video => video.DiscoveryDate)
+                .ThenBy(video => video.Id),
+            // The runtime is the longest Available occurrence's, which is the same fact the Video's
+            // Quality is taken from. A missing value sorts below every present one.
+            LibrarySortOrder.LongestFirst => videos
+                .OrderByDescending(video => database.VideoFiles
+                    .Where(file => file.VideoId == video.Id &&
+                                   file.Availability == VideoFileAvailability.Available)
+                    .Max(file => (long?)file.DurationMilliseconds))
+                .ThenByDescending(video => video.DiscoveryDate)
+                .ThenBy(video => video.Id),
+            LibrarySortOrder.RecentlyPlayed => videos
+                .OrderByDescending(video => database.PersonalVideoStates
+                    .Where(state => state.AccountId == accountId && state.VideoId == video.Id)
+                    .Select(state => state.PlayStateChangedAt)
+                    .FirstOrDefault())
+                .ThenByDescending(video => video.DiscoveryDate)
+                .ThenBy(video => video.Id),
+            LibrarySortOrder.BestRated => videos
+                .OrderByDescending(video => database.PersonalVideoStates
+                    .Where(state => state.AccountId == accountId && state.VideoId == video.Id)
+                    .Select(state => state.PersonalRating)
+                    .FirstOrDefault())
                 .ThenByDescending(video => video.DiscoveryDate)
                 .ThenBy(video => video.Id),
             _ => videos.OrderByDescending(video => video.DiscoveryDate).ThenBy(video => video.Id),

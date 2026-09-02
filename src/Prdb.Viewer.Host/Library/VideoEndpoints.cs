@@ -33,22 +33,18 @@ public static class VideoEndpoints
             TypedResults.Ok(await discovery.GetAsync(
                 http.User.AccountId()!.Value,
                 http.ClientContextKey(),
-                new LibraryDiscoveryRequest
-                {
-                    Query = query,
-                    Sort = sort,
-                    Sites = Values(sites),
-                    Actors = Values(actors),
-                    UnknownSite = unknownSite,
-                    WorkIdentification = Parsed<IdentificationResolution>(work),
-                    ReviewStatus = Parsed<IdentificationReviewStatus>(review),
-                    Playability = Parsed<ClientVideoPlayability>(playability),
-                    Availability = Parsed<VideoAvailability>(availability),
-                    Quality = Parsed<VideoQualityBand>(quality),
-                    PlayState = Parsed<PersonalPlayState>(playState),
-                    Skip = skip,
-                    Take = take,
-                },
+                Request(
+                    query,
+                    sort,
+                    sites,
+                    actors,
+                    unknownSite,
+                    work,
+                    review,
+                    playability,
+                    availability,
+                    quality,
+                    playState) with { Skip = skip, Take = take },
                 cancellationToken)));
 
         library.MapGet("/videos/{videoId:guid}", async Task<Results<Ok<VideoDetail>, NotFound>> (
@@ -66,12 +62,36 @@ public static class VideoEndpoints
             return video is null ? TypedResults.NotFound() : TypedResults.Ok(video);
         });
 
+        // The facets take the same narrowing the Videos do, so a count says what choosing that
+        // value would leave rather than what the whole library holds.
         library.MapGet("/facets", async (
             HttpContext http,
             LibraryDiscovery discovery,
-            CancellationToken cancellationToken) =>
+            CancellationToken cancellationToken,
+            string? query = null,
+            string? sites = null,
+            string? actors = null,
+            bool unknownSite = false,
+            string? work = null,
+            string? review = null,
+            string? playability = null,
+            string? availability = null,
+            string? quality = null,
+            string? playState = null) =>
             TypedResults.Ok(await discovery.GetFacetsAsync(
                 http.User.AccountId()!.Value,
+                Request(
+                    query,
+                    LibrarySortOrder.Newest,
+                    sites,
+                    actors,
+                    unknownSite,
+                    work,
+                    review,
+                    playability,
+                    availability,
+                    quality,
+                    playState),
                 cancellationToken)));
 
         library.MapPut("/preferences/include-not-ready", async (
@@ -108,6 +128,33 @@ public static class VideoEndpoints
         .WithTags("Video Delivery")
         .AllowAnonymous();
     }
+
+    private static LibraryDiscoveryRequest Request(
+        string? query,
+        LibrarySortOrder sort,
+        string? sites,
+        string? actors,
+        bool unknownSite,
+        string? work,
+        string? review,
+        string? playability,
+        string? availability,
+        string? quality,
+        string? playState) =>
+        new()
+        {
+            Query = query,
+            Sort = sort,
+            Sites = Values(sites),
+            Actors = Values(actors),
+            UnknownSite = unknownSite,
+            WorkIdentification = Parsed<IdentificationResolution>(work),
+            ReviewStatus = Parsed<IdentificationReviewStatus>(review),
+            Playability = Parsed<ClientVideoPlayability>(playability),
+            Availability = Parsed<VideoAvailability>(availability),
+            Quality = Parsed<VideoQualityBand>(quality),
+            PlayState = Parsed<PersonalPlayState>(playState),
+        };
 
     /// <summary>
     /// A facet arrives as one comma-separated parameter, because values inside a facet combine

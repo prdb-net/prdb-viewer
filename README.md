@@ -419,11 +419,20 @@ Playability, availability, Video Quality and the Account's own Personal Play Sta
 combine with OR and the facets combine with AND, and Unknown Work Identification,
 Unknown Site and Review Needed are explicit values rather than the absence of
 one. Established Sites and Actors are offered with their counts, and so are the
-quality bands the library holds — a band it has none of is not offered.
+quality bands the library holds — a band it has none of is not offered. The
+counts follow the current narrowing: a Site's count says what choosing it would
+leave once the chosen Actors, bands and search have had their say, and a facet
+is never narrowed by its own values, because a second Site widens the set rather
+than narrowing it. The most populated eight values of a facet are offered at
+once and the rest wait behind one control; what is chosen is listed in its own
+row, each entry with the control that takes it out again, and on a narrow
+viewport the facet rows wait behind one control of their own until asked for.
 
 The default order is Discovery Date descending, so later enrichment never makes
-an old Video look newly added; Title A-Z and best quality first are the
-alternatives, the latter falling back to the default order inside one band.
+an old Video look newly added; Title A-Z, best quality first and longest first
+are the alternatives that hold for every Account, the quality order falling back
+to the default inside one band. Recently played and best rated order by the
+Account's own Personal State, and put the Videos it has none for last.
 
 Ordinary results contain a Video while it is Available and ready for direct
 play. When the current rules keep matches out, the view says how many and offers
@@ -437,7 +446,8 @@ play action would reach for is written into the corner of its preview — `4K`,
 ordinary thirty. A resolution is named the way a release is named rather than by
 its height alone, so a film with the bars cut off and a recording held upright
 are both the 1080p they are, and where inspection established no dimensions
-nothing is claimed. A Video's own page adds what that occurrence costs and
+nothing is claimed. The runtime sits in the opposite corner of the same picture.
+A Video's own page adds what that occurrence costs and
 carries — runtime, bitrate, audio layout and size — and repeats the quality line
 against each of its Video Files, so choosing between two occurrences of one Video
 is a choice between facts.

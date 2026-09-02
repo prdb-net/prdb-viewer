@@ -9,6 +9,24 @@ public enum LibrarySortOrder
 
     /// <summary>Video Quality descending, with the newest first inside one band.</summary>
     QualityDescending,
+
+    /// <summary>
+    /// The longest runtime among a Video's Available occurrences first. Videos whose runtime
+    /// inspection never established come last, newest first among themselves.
+    /// </summary>
+    LongestFirst,
+
+    /// <summary>
+    /// The Videos this Account played most recently first, by when their Personal Play State last
+    /// changed. Videos the Account never played come last, newest first among themselves.
+    /// </summary>
+    RecentlyPlayed,
+
+    /// <summary>
+    /// The highest Personal Rating first. Videos this Account has not rated come last, newest
+    /// first among themselves.
+    /// </summary>
+    BestRated,
 }
 
 /// <summary>

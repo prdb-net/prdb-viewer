@@ -1254,7 +1254,18 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    query?: string;
+                    sites?: string;
+                    actors?: string;
+                    unknownSite?: boolean;
+                    work?: string;
+                    review?: string;
+                    playability?: string;
+                    availability?: string;
+                    quality?: string;
+                    playState?: string;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -2230,7 +2241,7 @@ export interface components {
             count: number | string;
         };
         /** @enum {unknown} */
-        LibrarySortOrder: "Newest" | "TitleAscending" | "QualityDescending";
+        LibrarySortOrder: "Newest" | "TitleAscending" | "QualityDescending" | "LongestFirst" | "RecentlyPlayed" | "BestRated";
         /** @enum {unknown} */
         ObservedPlaybackOutcome: "Succeeded" | "Failed" | null;
         ObservedPlaybackOutcomeRequest: {

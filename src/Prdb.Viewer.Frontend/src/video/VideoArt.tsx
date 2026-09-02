@@ -1,11 +1,16 @@
 import type { VideoSummary } from '../api/client'
-import { highFrameRateLabel, qualitySource, resolutionLabel } from '../lib/quality'
+import {
+  formatRuntime,
+  highFrameRateLabel,
+  qualitySource,
+  resolutionLabel,
+} from '../lib/quality'
 
-/// A Video's art with what it is worth watching at written over it.
+/// A Video's art with what it is worth watching at, and how long it runs, written over it.
 ///
-/// The two belong together and are therefore built in one place: the Library, the personal shelves
-/// and the Video's own page all show the same picture, so they all say the same thing about its
-/// quality rather than each deciding for itself.
+/// The three belong together and are therefore built in one place: the Library, the personal
+/// shelves and the Video's own page all show the same picture, so they all say the same thing
+/// about its quality and its runtime rather than each deciding for itself.
 export function VideoArt({ video, large = false }: { video: VideoSummary, large?: boolean }) {
   return (
     <div className={large ? 'video-art large' : 'video-art'}>
@@ -24,10 +29,25 @@ export function VideoArt({ video, large = false }: { video: VideoSummary, large?
             aria-hidden="true"
           >▶</div>
           )}
+      {!large && <RuntimeOverlay video={video} />}
       <QualityOverlay video={video} />
       <ProgressOverlay video={video} />
     </div>
   )
+}
+
+/// How long the Video runs, in the corner of the picture where a runtime is looked for.
+///
+/// It read as prose beneath the title, in the same line as how this browser knew the Video would
+/// play, which is where nobody looks for it. The corner opposite the quality is where every video
+/// library puts it, so the line beneath the title is free for what only prose can say. The
+/// Video's own page states the runtime among its facts, so its larger picture does not repeat it.
+function RuntimeOverlay({ video }: { video: VideoSummary }) {
+  const source = qualitySource(video)
+  const runtime = formatRuntime(Number(source?.durationMilliseconds ?? 0))
+  if (!runtime) return null
+
+  return <span className="runtime-badge">{runtime}</span>
 }
 
 /// How far this Account got through the Video, drawn over its art.

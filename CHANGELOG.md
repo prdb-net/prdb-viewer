@@ -7,6 +7,55 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+The browsing screen shows Videos rather than controls. A library of forty Videos
+opened on seven rows of facet pills and forty cards each carrying nine controls
+and the same three sentences; on a phone the first Video was two screens down.
+The facets now offer their most populated values and keep the rest behind one
+control, what is chosen is listed in one row with the control that takes it out
+again, and a card says only what is exceptional about its Video. Nothing about
+configuration or the Backup Archive changes. The HTTP API gains three sort
+orders and lets the facets take the same narrowing the Videos do; nothing it
+already answered changes.
+
+### Changed
+
+- A card carries its runtime on the picture, opposite the quality, and its
+  Favourite and Watch Later controls on the picture too, where a thumb or a
+  pointer finds them; they show themselves on hover, on focus, wherever nothing
+  can hover, and whenever one of them is set. A Personal Rating is shown where
+  there is one and can be changed where it is shown; five empty stars on every
+  unrated card were a control nobody had asked for, forty times over, and the
+  Video's own page is where a first rating is given.
+- A card says only what distinguishes its Video. "prdb match", "from prdb" and
+  "expected to play smoothly here" were true of every card and told nobody
+  anything; the Site is said plainly, the Actors are named, and an Unknown
+  Video, a review, a Site recognised only locally or a file that will not play
+  here are still said in as many words. A title that is nothing but the Actors'
+  names is not followed by the Actors' names: the Site and the Discovery Date
+  take that line, because they are the two facts such a title leaves out.
+- The facets offer their eight most populated values at once and the rest
+  behind one control; a chosen value is always shown, wherever it ranks. What
+  is chosen is listed in its own row, each entry with the control that takes it
+  out again, beside one that clears everything. On a narrow viewport the facet
+  rows wait behind a Filters control until asked for, so the first Video is on
+  the first screen.
+- Facet counts follow the current narrowing. A count used to describe the whole
+  library whatever was chosen, so choosing an Actor left every Site claiming
+  the Videos it had before; it now says what choosing that value would leave,
+  and a facet is never narrowed by its own values, because a second Site widens
+  the set rather than narrowing it.
+- The Library can be ordered longest first, most recently played first and best
+  rated first, beside newest, title and best quality. The two personal orders
+  read the Account's own Personal State and put the Videos it has none for last.
+- The count, the sort order and the control that clears the narrowing share one
+  row above the facets; the count sat in the heading, the order under a label of
+  its own and the clearing control beside it, three places for what one row says.
+  The control that reveals more of a match says how much of it is on screen.
+- The browsing screen and the personal shelves take the whole width of a wide
+  screen, and a card grows with it, so a wide screen shows bigger pictures as
+  well as more of them; the measure stays on the prose. A card answers the
+  pointer as a whole, because the whole picture is the link.
+
 ## [0.11.0] - 2026-09-02
 
 Identification review stops asking about answers the library already has. A

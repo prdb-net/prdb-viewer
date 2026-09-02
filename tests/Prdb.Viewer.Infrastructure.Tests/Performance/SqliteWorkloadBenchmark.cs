@@ -113,7 +113,7 @@ public sealed class SqliteWorkloadBenchmark
         report.Add(await MeasureAsync("Library facets", store, async scope =>
             (await scope.ServiceProvider
                 .GetRequiredService<LibraryDiscovery>()
-                .GetFacetsAsync(accounts[0], TestContext.Current.CancellationToken)).Sites.Count));
+                .GetFacetsAsync(accounts[0], new LibraryDiscoveryRequest(), TestContext.Current.CancellationToken)).Sites.Count));
         report.Add(await MeasureAsync("Personal library shelves", store, async scope =>
             (await scope.ServiceProvider
                 .GetRequiredService<VideoCatalog>()

@@ -69,10 +69,11 @@ export const emptyFilters: LibraryFilters = {
   playState: [],
 }
 
-function libraryQuery(filters: LibraryFilters, skip: number, take: number) {
+/// The narrowing every Library question carries: what the search and the facets admit. The sort
+/// order and the page are not part of it, because the facets are counted over the whole match.
+function narrowingQuery(filters: LibraryFilters) {
   const parameters = new URLSearchParams()
   if (filters.query.trim()) parameters.set('query', filters.query.trim())
-  parameters.set('sort', filters.sort)
   if (filters.sites.length) parameters.set('sites', filters.sites.join(','))
   if (filters.actors.length) parameters.set('actors', filters.actors.join(','))
   if (filters.unknownSite) parameters.set('unknownSite', 'true')
@@ -82,6 +83,12 @@ function libraryQuery(filters: LibraryFilters, skip: number, take: number) {
   if (filters.availability.length) parameters.set('availability', filters.availability.join(','))
   if (filters.quality.length) parameters.set('quality', filters.quality.join(','))
   if (filters.playState.length) parameters.set('playState', filters.playState.join(','))
+  return parameters
+}
+
+function libraryQuery(filters: LibraryFilters, skip: number, take: number) {
+  const parameters = narrowingQuery(filters)
+  parameters.set('sort', filters.sort)
   parameters.set('skip', String(skip))
   parameters.set('take', String(take))
   return parameters.toString()
@@ -185,7 +192,8 @@ export const api = {
   videos: (filters: LibraryFilters, skip = 0, take = 60) =>
     request<LibraryPage>(`/api/library/videos?${libraryQuery(filters, skip, take)}`),
   video: (videoId: string) => request<VideoDetail>(`/api/library/videos/${videoId}`),
-  libraryFacets: () => request<LibraryFacets>('/api/library/facets'),
+  libraryFacets: (filters: LibraryFilters) =>
+    request<LibraryFacets>(`/api/library/facets?${narrowingQuery(filters).toString()}`),
   setIncludeNotReady: (included: boolean, csrfToken: string) =>
     mutate<LibraryPreferences>(
       '/api/library/preferences/include-not-ready',

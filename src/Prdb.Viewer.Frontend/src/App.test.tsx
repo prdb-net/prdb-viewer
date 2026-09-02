@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react'
+import { fireEvent, screen, within } from '@testing-library/react'
 
 import {
   claim,
@@ -250,8 +250,10 @@ describe('App', () => {
       'src',
       '/media/previews/01994dd4-2a0a-7000-8000-000000000021',
     )
-    expect(screen.getByText('prdb match')).toBeInTheDocument()
-    expect(screen.getByText('Known Site · from prdb')).toBeInTheDocument()
+    // A prdb match is the ordinary case, so the card does not say so; the Site and the Actor are
+    // what distinguish this Video and are said plainly.
+    expect(screen.queryByText('prdb match')).not.toBeInTheDocument()
+    expect(screen.getByText('Known Site')).toBeInTheDocument()
     expect(screen.getByText('Alex Doe')).toBeInTheDocument()
     expect(screen.getByText('Unknown Video')).toBeInTheDocument()
     expect(screen.getByText('Review needed')).toBeInTheDocument()
@@ -626,6 +628,100 @@ describe('App', () => {
       expect.stringContaining('sort=QualityDescending'),
       expect.anything(),
     ))
+  })
+
+  it('names what is chosen, takes it out again, and keeps the long tail of a facet behind one control', async () => {
+    signedInAs('User', (input) => {
+      if (isFacetRequest(input)) {
+        return json(noFacets({
+          sites: Array.from({ length: 10 }, (_, index) => ({ value: `Site ${index + 1}`, count: 10 - index })),
+        }))
+      }
+      return undefined
+    })
+
+    renderApp('/?sites=Site+9&query=known')
+
+    // The facets are counted against the same narrowing the Videos are.
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/api\/library\/facets\?.*query=known/),
+      expect.anything(),
+    ))
+
+    // What is chosen is said in one row, each with the control that takes it out again.
+    const chosen = await screen.findByRole('list', { name: 'Active filters' })
+    expect(chosen).toHaveTextContent('“known”')
+    expect(chosen).toHaveTextContent('Site 9')
+
+    // The most populated eight are offered; the ninth is shown anyway because it is chosen, and
+    // the tenth waits behind one control.
+    expect(screen.getByRole('button', { name: 'Site 8 (3)' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Site 9 (2)' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.queryByRole('button', { name: 'Site 10 (1)' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Show all 10' }))
+    expect(screen.getByRole('button', { name: 'Site 10 (1)' })).toBeInTheDocument()
+
+    fireEvent.click(within(chosen).getByRole('button', { name: 'Remove Site 9' }))
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/api\/library\/videos\?(?!.*sites=).*query=known/),
+      expect.anything(),
+    ))
+  })
+
+  it('says on a card only what is exceptional, and counts what is on screen against the match', async () => {
+    const named = libraryVideo({
+      id: '01994dd4-2a0a-7000-8000-000000000040',
+      displayTitle: 'Alex Doe And Sam Roe',
+      discoveryDate: '2026-08-27T12:00:00Z',
+      identification: identification({
+        work: claim({ resolution: 'Established', targetTitle: 'Alex Doe And Sam Roe' }),
+        site: claim({ resolution: 'Established', targetTitle: 'Known Site' }),
+        actors: ['Sam Roe', 'Alex Doe'],
+      }),
+      personalState: personalState({ personalRating: 4 }),
+    })
+    const plain = libraryVideo({
+      id: '01994dd4-2a0a-7000-8000-000000000041',
+      displayTitle: 'A Known Work',
+      identification: identification({
+        work: claim({ resolution: 'Established', targetTitle: 'A Known Work' }),
+        site: claim({ resolution: 'Established', targetTitle: 'Known Site' }),
+        actors: ['Alex Doe'],
+      }),
+    })
+    signedInAs('User', (input) => {
+      if (isLibraryRequest(input)) {
+        return json(libraryPage([named, plain], { totalMatches: 5, hasMore: true }))
+      }
+      return undefined
+    })
+
+    const rendered = renderApp()
+    expect(await screen.findByText('Alex Doe And Sam Roe')).toBeInTheDocument()
+
+    // The ordinary case is silent: no card says it is a prdb match or that it is expected to play.
+    expect(screen.queryByText('prdb match')).not.toBeInTheDocument()
+    expect(screen.queryByText(/expected to play/)).not.toBeInTheDocument()
+
+    // A title that is the Actors' names is not followed by the Actors' names; the Site and the
+    // Discovery Date take that line. The other card names its Actor.
+    const cards = rendered.container.querySelectorAll('.video-card')
+    expect(cards[0]).toHaveTextContent(new Date('2026-08-27T12:00:00Z').toLocaleDateString())
+    expect(within(cards[0] as HTMLElement).queryByText('Sam Roe, Alex Doe')).not.toBeInTheDocument()
+    expect(within(cards[1] as HTMLElement).getByText('Alex Doe')).toBeInTheDocument()
+
+    // The runtime is on the picture, and a Personal Rating is shown only where there is one.
+    expect(within(cards[0] as HTMLElement).getByText('10 s')).toBeInTheDocument()
+    expect(within(cards[0] as HTMLElement).getByRole('radio', { name: '4 of 5' })).toBeChecked()
+    expect(within(cards[1] as HTMLElement).queryByRole('radio')).not.toBeInTheDocument()
+
+    // Favourite and Watch Later are still on every card, as controls on the picture.
+    expect(within(cards[1] as HTMLElement).getByRole('button', { name: 'Favourite' })).toBeInTheDocument()
+
+    // How much of the match is on screen, beside the control that reveals more of it.
+    expect(screen.getByText('2 of 5 shown')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Show more' })).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('5 Videos')
   })
 
   it('qualifies this browser, then falls back to the next variant when one fails to decode', async () => {

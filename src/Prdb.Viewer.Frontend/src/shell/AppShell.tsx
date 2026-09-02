@@ -17,6 +17,9 @@ export function AppShell({ account }: { account: Account }) {
   const location = useLocation()
   const badges = useNavigationBadges(account)
   const drawerToggle = useRef<HTMLButtonElement>(null)
+  // A grid of Videos is the one thing here that gets better with every column a screen can hold,
+  // so the screens made of one take the whole width; prose and forms keep their measure.
+  const wide = ['/', '/continue', '/favourites', '/watch-later'].includes(location.pathname)
 
   // A narrow viewport navigates by opening the drawer, so arriving somewhere closes it again.
   useEffect(() => setDrawerOpen(false), [location.pathname])
@@ -77,7 +80,7 @@ export function AppShell({ account }: { account: Account }) {
           accessible way, so this stays a presentational surface rather than a control. */}
       <div className="drawer-scrim" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
 
-      <main className="app-content">
+      <main className={wide ? 'app-content wide' : 'app-content'}>
         <Outlet />
       </main>
     </div>
