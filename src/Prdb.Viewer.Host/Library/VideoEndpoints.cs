@@ -46,7 +46,8 @@ public static class VideoEndpoints
                     availability,
                     quality,
                     playState,
-                    shelf) with { Skip = skip, Take = take },
+                    shelf) with
+                { Skip = skip, Take = take },
                 cancellationToken)));
 
         library.MapGet("/videos/{videoId:guid}", async Task<Results<Ok<VideoDetail>, NotFound>> (
