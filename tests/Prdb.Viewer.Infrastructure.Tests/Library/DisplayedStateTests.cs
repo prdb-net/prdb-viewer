@@ -60,7 +60,8 @@ public sealed class DisplayedStateTests
         // ratio against what it has found so far would always read as complete.
         Assert.Null(scan.CompletedPercent);
 
-        foreach (var lane in Derived(lanes))
+        foreach (var lane in Derived(lanes)
+                     .Where(lane => lane.Category != BackgroundWorkCategory.SiteRecognition))
         {
             Assert.Equal(BackgroundWorkState.Completed, lane.State);
             Assert.Equal(BackgroundWorkPhases.Settled, lane.Phase);
@@ -72,6 +73,18 @@ public sealed class DisplayedStateTests
             // a percentage, and having advanced all of them it reads as complete.
             Assert.Equal(100, lane.CompletedPercent);
         }
+
+        // Site Recognition reads a Video File's own path to answer a question prdb has not
+        // answered. Every file here came back with its Site, so the lane ran and had nothing to
+        // do: nought of nought, which is a different fact from a lane that never started, and the
+        // one an installation whose catalogue knows its library should show.
+        var recognition = lanes[BackgroundWorkCategory.SiteRecognition];
+        Assert.Equal(BackgroundWorkState.Completed, recognition.State);
+        Assert.Equal(BackgroundWorkPhases.Settled, recognition.Phase);
+        Assert.Equal(0, recognition.DiscoveredCandidateCount);
+        Assert.Equal(0, recognition.CompletedItemCount);
+        Assert.Equal(0, recognition.IssueCount);
+        Assert.Null(recognition.CompletedPercent);
 
         // A settled run cannot be cancelled and is not waiting for anything, so neither a Cancel
         // button nor a waiting reason belongs on any of these rows.

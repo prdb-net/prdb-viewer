@@ -27,9 +27,16 @@ public sealed class SiteRecognitionRunner(
     protected override int BatchSize => 25;
 
     /// <summary>
-    /// The files prdb has already answered about and whose current path has not been read yet.
-    /// Waiting for that answer is what makes this local Site Recognition for files that did not
-    /// receive a full prdb match, rather than a race against the remote ladder.
+    /// The files prdb has already answered about, whose Video has no Site of its own yet, and
+    /// whose current path has not been read yet. Waiting for that answer is what makes this local
+    /// Site Recognition for files that did not receive a full prdb match, rather than a race
+    /// against the remote ladder — and skipping a Video whose Site is Established is what keeps it
+    /// to files whose question is still open. Reading the path of a Video prdb has already placed
+    /// answers a question nobody asked, and a path that names a second known site along the way —
+    /// a work title that happens to be a site's name, say — turns that into a review nobody can
+    /// resolve: the Site came with the Work Identification, so the review refuses every decision
+    /// but rejection. The same condition already governs
+    /// <see cref="RetryEarlierFailuresAsync"/>; it belongs here too.
     /// </summary>
     protected override IQueryable<VideoFileRow> Outstanding(Guid libraryDirectoryId) =>
         Database.VideoFiles.Where(file =>
@@ -37,6 +44,10 @@ public sealed class SiteRecognitionRunner(
             file.Availability == VideoFileAvailability.Available &&
             file.IdentifiedSha256 != null &&
             file.IdentifiedSha256 == file.Sha256 &&
+            !Database.IdentificationClaims.Any(claim =>
+                claim.VideoId == file.VideoId &&
+                claim.Dimension == IdentificationDimension.SiteRecognition &&
+                claim.Status == IdentificationClaimStatus.Current) &&
             (file.SiteRecognisedPath == null || file.SiteRecognisedPath != file.RelativePath));
 
     /// <summary>

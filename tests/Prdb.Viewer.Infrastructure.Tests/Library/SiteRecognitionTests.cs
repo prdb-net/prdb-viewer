@@ -127,6 +127,45 @@ public sealed class SiteRecognitionTests
     }
 
     [Fact]
+    public async Task A_path_naming_a_second_site_proposes_nothing_where_prdb_placed_the_Video()
+    {
+        // The case a real library produces: prdb identifies the work and carries its Site, and the
+        // file's own path names that Site and — through a work title that happens to be a site's
+        // name — a second one. Reading the path made the reading ambiguous, so it proposed both
+        // instead of confirming the one already established, and the review it opened had no
+        // decision to make: a Site that came with the Work Identification refuses every decision
+        // but rejection.
+        var prdb = new FixtureIdentificationClient()
+            .Conclusive("known site - other site.mp4", WorkId, "A Known Work", KnownSite);
+        var sites = new FixtureSiteDirectoryClient(KnownSite, OtherSite);
+        await using var store = await CreateAsync(prdb, sites);
+        var source = await SourceAsync(store, "known site - other site.mp4");
+        await LibraryPipeline.ActivateAsync(store, source);
+        await LibraryPipeline.SetCredentialAsync(store, "installation-key");
+
+        await LibraryPipeline.DrainAsync(store);
+
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        Assert.Empty(await database.IdentificationCandidates
+            .ToListAsync(TestContext.Current.CancellationToken));
+        var site = Assert.Single(await database.IdentificationClaims
+            .Where(claim => claim.Dimension == IdentificationDimension.SiteRecognition)
+            .ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(KnownSiteId, site.TargetKey);
+        Assert.Equal(IdentificationSource.PrdbIdentification, site.Source);
+        Assert.Equal(IdentificationClaimStatus.Current, site.Status);
+
+        var video = await database.Videos.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.False(video.ReviewNeeded);
+
+        // The path was not read at all, so it is not recorded as read either: if the Site is ever
+        // withdrawn, the question is open again and the path is there to answer it.
+        var file = await database.VideoFiles.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Null(file.SiteRecognisedPath);
+    }
+
+    [Fact]
     public async Task A_locally_recognised_site_gives_way_to_the_site_of_an_identified_work()
     {
         var prdb = new FixtureIdentificationClient().Unmatched("known site - scene.mp4");

@@ -175,6 +175,43 @@ public sealed class IdentificationTests
     }
 
     [Fact]
+    public async Task Evidence_agreeing_with_an_established_claim_confirms_it_rather_than_proposing_it()
+    {
+        var prdb = new FixtureIdentificationClient().Conclusive("first.mp4", WorkId, "A Known Work");
+        await using var store = await CreateAsync(prdb);
+        var source = await SourceAsync(store, ("first.mp4", [1, 2, 3, 4]));
+        await LibraryPipeline.ActivateAsync(store, source);
+        await LibraryPipeline.SetCredentialAsync(store, "installation-key");
+        await LibraryPipeline.DrainAsync(store);
+
+        // The same work, offered again on weaker evidence: a name match where the content match
+        // was. It says what the library already knows, so there is nothing to decide — and a
+        // candidate made of it would have put the Video into a review whose only honest answer is
+        // that both columns say the same thing.
+        prdb.Suggestive("first.mp4", WorkId, "A Known Work");
+        await LibraryPipeline.ReofferAsync(store, "first.mp4");
+
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        Assert.Empty(await database.IdentificationCandidates
+            .ToListAsync(TestContext.Current.CancellationToken));
+        var claim = Assert.Single(await database.IdentificationClaims
+            .Where(row => row.Dimension == IdentificationDimension.WorkIdentification)
+            .ToListAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(IdentificationClaimStatus.Current, claim.Status);
+        Assert.Equal(WorkId, claim.TargetKey);
+        Assert.Equal(IdentificationEvidenceClass.Conclusive, claim.EvidenceClass);
+
+        // Agreement is recorded where agreement belongs: the claim was confirmed again, later
+        // than it was established.
+        Assert.NotNull(claim.LastConfirmedAt);
+        Assert.True(claim.LastConfirmedAt > claim.EstablishedAt);
+
+        var video = await database.Videos.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.False(video.ReviewNeeded);
+    }
+
+    [Fact]
     public async Task Conflicting_conclusive_evidence_keeps_the_claim_and_asks_for_review()
     {
         var prdb = new FixtureIdentificationClient()

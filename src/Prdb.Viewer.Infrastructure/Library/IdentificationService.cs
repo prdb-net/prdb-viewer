@@ -396,6 +396,22 @@ public sealed class IdentificationService(
         string? matchedBy = null)
     {
         var current = Current(video, dimension);
+
+        // A proposal naming what is already established is the same answer arriving twice, not a
+        // decision. Local recognition reads a Video File's own path whether or not prdb has
+        // answered the same question, so this is ordinary rather than exceptional — and a
+        // candidate made of it can never be accepted: where the Site came with the Work
+        // Identification the review refuses every decision that would establish one. It is
+        // therefore recorded the way agreeing evidence is recorded everywhere else, by confirming
+        // the claim it agrees with. Its own words are not written over the claim's: the proposal
+        // agrees with what is established, it does not rename it.
+        if (current is not null &&
+            string.Equals(current.TargetKey, target.Key, StringComparison.OrdinalIgnoreCase))
+        {
+            current.LastConfirmedAt = Now();
+            return;
+        }
+
         var reason = current is null
             ? IdentificationReviewReason.SuggestiveEvidence
             : current.IsAdministrativeOverride

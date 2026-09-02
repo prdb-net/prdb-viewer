@@ -298,6 +298,105 @@ public sealed class SqlitePersistenceTests
         Assert.Equal(activated + LibraryScanSchedule.Interval, directories[2].NextScanDueAt);
     }
 
+    [Fact]
+    public async Task The_redundant_candidate_migration_closes_only_what_the_library_already_knows()
+    {
+        await using var database = await TestDatabase.CreateAsync(
+            targetMigration: "20260902090936_AddPeriodicLibraryScans");
+        var settled = Guid.CreateVersion7();
+        var contested = Guid.CreateVersion7();
+        var agreeing = Guid.CreateVersion7();
+        var disagreeing = Guid.CreateVersion7();
+        var confirmed = Guid.CreateVersion7();
+        var timestamp = DateTime.SpecifyKind(new DateTime(2026, 9, 2, 12, 0, 0), DateTimeKind.Utc);
+
+        await using (var scope = database.Scope())
+        {
+            var context = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+
+            // Two Videos whose Site is established, each carrying a proposal naming that same
+            // Site — the state the earlier releases left behind. One of them also carries a
+            // proposal naming a different Site, which is a real decision and stays open.
+            await context.Database.ExecuteSqlInterpolatedAsync($"""
+                INSERT INTO video
+                    (Id, DiscoveryDate, DisplayLabel, SearchText, Availability, BestClassification,
+                     Quality, HasEstablishedWork, ReviewNeeded, CaseVersion, ProjectedAt)
+                VALUES
+                    ({settled}, {timestamp}, {"settled"}, {"settled"}, {"Available"},
+                     {"BaselineCandidate"}, {0}, {true}, {true}, {3}, {timestamp}),
+                    ({contested}, {timestamp}, {"contested"}, {"contested"}, {"Available"},
+                     {"BaselineCandidate"}, {0}, {true}, {true}, {7}, {timestamp});
+
+                INSERT INTO identification_claim
+                    (Id, VideoId, Dimension, Status, TargetKey, TargetTitle, TargetUrl,
+                     EvidenceClass, Source, MatchedBy, IsAdministrativeOverride, EstablishedAt,
+                     LastConfirmedAt, EndedAt, Note, DecidedByAccountId, SupportingVideoFileId)
+                VALUES
+                    ({Guid.CreateVersion7()}, {settled}, {"SiteRecognition"}, {"Current"},
+                     {"site-a"}, {"Site A"}, NULL, {"Conclusive"}, {"PrdbIdentification"}, NULL,
+                     {false}, {timestamp}, {timestamp}, NULL, NULL, NULL, NULL),
+                    ({Guid.CreateVersion7()}, {contested}, {"SiteRecognition"}, {"Current"},
+                     {"site-a"}, {"Site A"}, NULL, {"Conclusive"}, {"PrdbIdentification"}, NULL,
+                     {false}, {timestamp}, {timestamp}, NULL, NULL, NULL, NULL);
+
+                INSERT INTO identification_candidate
+                    (Id, VideoId, Dimension, Status, TargetKey, TargetTitle, TargetUrl,
+                     EvidenceClass, Reason, Source, MatchedBy, Confidence, EvidenceKey,
+                     SupportingVideoFileId, PriorRejectionId, DecidedByAccountId, Note,
+                     CreatedAt, ResolvedAt)
+                VALUES
+                    ({confirmed}, {settled}, {"SiteRecognition"}, {"Pending"}, {"SITE-A"},
+                     {"Site A"}, NULL, {"Suggestive"}, {"SuggestiveEvidence"}, {"LocalInference"},
+                     NULL, NULL, {"LocalSiteName:site a"}, NULL, NULL, NULL, NULL,
+                     {timestamp}, NULL),
+                    ({agreeing}, {contested}, {"SiteRecognition"}, {"Pending"}, {"site-a"},
+                     {"Site A"}, NULL, {"Suggestive"}, {"SuggestiveEvidence"}, {"LocalInference"},
+                     NULL, NULL, {"LocalSiteName:site a"}, NULL, NULL, NULL, NULL,
+                     {timestamp}, NULL),
+                    ({disagreeing}, {contested}, {"SiteRecognition"}, {"Pending"}, {"site-b"},
+                     {"Site B"}, NULL, {"Suggestive"}, {"SuggestiveEvidence"}, {"LocalInference"},
+                     NULL, NULL, {"LocalSiteName:site b"}, NULL, NULL, NULL, NULL,
+                     {timestamp}, NULL);
+                """, TestContext.Current.CancellationToken);
+        }
+
+        await database.MigrateAsync();
+
+        await using var verificationScope = database.Scope();
+        var verification = verificationScope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var candidates = (await verification.IdentificationCandidates
+                .ToListAsync(TestContext.Current.CancellationToken))
+            .ToDictionary(candidate => candidate.Id);
+
+        // A proposal naming what its Video already has established is closed as overtaken, not as
+        // rejected: the evidence was never wrong, and rejecting it would suppress the same path
+        // until something materially stronger appeared.
+        Assert.Equal(IdentificationCandidateStatus.Superseded, candidates[confirmed].Status);
+        Assert.NotNull(candidates[confirmed].ResolvedAt);
+
+        // The comparison is the one the application makes, so a key that differs only in case is
+        // the same key here too.
+        Assert.Equal(IdentificationCandidateStatus.Superseded, candidates[agreeing].Status);
+
+        // A proposal naming a different Site is a decision an Administrator still has to make.
+        Assert.Equal(IdentificationCandidateStatus.Pending, candidates[disagreeing].Status);
+        Assert.Null(candidates[disagreeing].ResolvedAt);
+
+        var videos = (await verification.Videos
+                .ToListAsync(TestContext.Current.CancellationToken))
+            .ToDictionary(video => video.Id);
+
+        // What the library filters on is derived from the candidates that are still Pending, so it
+        // is recomputed rather than left saying what was true before.
+        Assert.False(videos[settled].ReviewNeeded);
+        Assert.True(videos[contested].ReviewNeeded);
+
+        // Both cases changed, so a screen holding either of them finds it stale and reads the
+        // refreshed case instead of deciding against candidates that are gone.
+        Assert.Equal(4, videos[settled].CaseVersion);
+        Assert.Equal(8, videos[contested].CaseVersion);
+    }
+
     private static async Task<object?> ScalarAsync(ViewerDbContext context, string sql)
     {
         await using var command = context.Database.GetDbConnection().CreateCommand();
