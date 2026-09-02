@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- The identification review says what an open case is asking for, above the
+  decisions rather than after one has been pressed. A case that refuses four of
+  its five decisions has already made the choice, and one whose candidate
+  proposes the identification that is already established leaves accepting it
+  nothing to establish; both reached an Administrator as a row of buttons that
+  named no answer, so finding the single decision a case still had meant reading
+  the colour of the four that did not. The case now names that decision, says
+  why the proposal adds nothing where it adds nothing, and says what the library
+  keeps and what still waits once the decision is made.
+
 ## [0.9.0] - 2026-09-02
 
 An identification review that says what the open case can do before anything is

@@ -495,6 +495,17 @@ describe('App', () => {
     }
     expect(screen.getByText(/second site truth/)).toBeInTheDocument()
     expect(screen.queryByLabelText('Target identifier')).not.toBeInTheDocument()
+
+    // Four refused decisions and one that is not are an answer, not a choice, so the case says
+    // which decision is left, why the proposal adds nothing, and what the library keeps afterwards.
+    expect(screen.getByText('“Reject candidate” is the only decision this case offers.'))
+      .toBeInTheDocument()
+    expect(screen.getByText(/proposes the Site Recognition that is already established/))
+      .toBeInTheDocument()
+    expect(screen.getByText(/leaves the Site Recognition established as “A Known Site”/))
+      .toBeInTheDocument()
+    expect(screen.getByText(/nothing else on this Video then waits for a decision/))
+      .toBeInTheDocument()
   })
 
   it('offers sign-in and an approval-gated registration request', async () => {

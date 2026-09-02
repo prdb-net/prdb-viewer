@@ -8,6 +8,7 @@ import {
   type IdentificationCase,
   type IdentificationConsequence,
   type IdentificationDecisionAction,
+  type IdentificationQueueItem,
 } from '../api/client'
 import { candidateOrigin, friendlyState, provenanceLabel } from '../lib/format'
 import { queryKeys } from '../queryKeys'
@@ -127,6 +128,9 @@ export function IdentificationPage({ account }: { account: Account }) {
     act(action, false)
   }
 
+  // What the open case is actually asking for, worked out once for the sentence that says it.
+  const advice = selected && openCase.data ? guidance(openCase.data, selected) : undefined
+
   return (
     <>
       <PageHeading
@@ -225,6 +229,16 @@ export function IdentificationPage({ account }: { account: Account }) {
               </li>
             ))}
           </ul>
+          {/* What the case is asking for, said before the decisions rather than left to be read off
+              which of them are still alive. A case that refuses four of its five decisions has
+              already made the choice, and one whose candidate repeats what is established has
+              nothing to add either way; both reached an Administrator as a row of buttons that
+              named no answer, so a case with one way out looked like an open question. */}
+          {advice && (
+            <p className="decision-guidance">
+              <strong>{advice.lead}</strong> {advice.rest}
+            </p>
+          )}
           {/* The decisions this case offers, in the shapes they are. Accepting what was proposed is
               the one an open case is normally closed with, so it leads; withdrawing knowledge the
               library has already established is the one that takes something away, so it is
@@ -332,6 +346,53 @@ function alreadyEstablished(
   proposed: string | null | undefined,
 ) {
   return resolution === 'Established' && Boolean(proposed) && established === proposed
+}
+
+/// What the open case is asking of the Administrator, in a sentence.
+///
+/// Two cases answer themselves. One refuses every decision but a single remaining one, and the only
+/// thing on the screen that said so was the colour of four disabled buttons. The other has a
+/// candidate proposing the identification that is already established, so there is nothing for
+/// accepting it to establish. Both are ordinary — local recognition reads a Video File's own path
+/// whether or not prdb has answered the same question — and both used to ask for a judgement the
+/// evidence had already made, without saying what pressing anything would do.
+function guidance(open: IdentificationCase, item: IdentificationQueueItem) {
+  const dimension = item.dimension
+  const claim = reviewedClaim(open, dimension)
+  // A split is not refused so much as unfinished: it waits for its Video Files to be ticked. So it
+  // counts as a decision the case offers whenever there is more than one file to separate, and the
+  // sentence does not claim to be the only way out while a real second one is a tick away.
+  const available = decisions.filter(({ action }) => action === 'SplitVideo'
+    ? open.videoFiles.length > 1
+    : refusalOf(open, dimension, action, []) === undefined)
+  const only = available.length === 1 ? available[0] : undefined
+  const repeats = alreadyEstablished(claim.resolution, claim.targetTitle, item.candidate.targetTitle)
+
+  if (!only && !repeats) return undefined
+
+  const rejecting = only === undefined || only.action === 'RejectCandidate'
+  const waiting = open.openCandidates
+    .filter((candidate) => candidate.id !== item.candidate.id).length
+  const standing = claim.resolution === 'Established'
+    ? `established as “${claim.targetTitle}”`
+    : 'Unknown'
+  const because = repeats
+    ? `The candidate proposes the ${friendlyState(dimension)} that is already established, so ` +
+      'accepting it would establish nothing new. '
+    : ''
+  const after = rejecting
+    ? `Rejecting it leaves the ${friendlyState(dimension)} ${standing}; ` + (waiting === 0
+      ? 'nothing else on this Video then waits for a decision.'
+      : `${waiting} other candidate${waiting === 1 ? '' : 's'} on this Video still ` +
+        `${waiting === 1 ? 'waits' : 'wait'} for a decision.`)
+    : ''
+
+  return {
+    lead: only
+      ? `“${only.label}” is the only decision this case offers.`
+      : '“Reject candidate” is the decision this case asks for.',
+    rest: `${because}${after}`.trim(),
+  }
 }
 
 /// The decisions a case can offer, in the order they are offered.
