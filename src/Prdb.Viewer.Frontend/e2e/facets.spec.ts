@@ -166,11 +166,6 @@ async function answerApi(page: Page) {
         hasMore: false,
         includesNotReadyForDirectPlay: false,
       } :
-      path === '/api/personal/library' ? {
-        continueWatching: [],
-        favourites: [],
-        watchLater: [],
-      } :
       []
 
     await route.fulfill({ json: body })

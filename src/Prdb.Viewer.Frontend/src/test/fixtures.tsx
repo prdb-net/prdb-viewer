@@ -182,9 +182,6 @@ export function signedInAs(
     if (isFacetRequest(input)) return json(noFacets())
     if (isVideoRequest(input)) return json(videoDetail(libraryVideo()))
     if (isLibraryRequest(input)) return json(libraryPage([libraryVideo()]))
-    if (input === '/api/personal/library') {
-      return json({ continueWatching: [], favourites: [], watchLater: [] })
-    }
     return json([])
   })
 }

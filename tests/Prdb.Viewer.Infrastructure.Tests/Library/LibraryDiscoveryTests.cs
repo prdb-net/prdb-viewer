@@ -557,6 +557,168 @@ public sealed class LibraryDiscoveryTests
             TestContext.Current.CancellationToken));
     }
 
+    [Fact]
+    public async Task A_personal_shelf_narrows_the_library_and_keeps_its_own_order_and_admission()
+    {
+        await using var store = await TestDatabase.CreateAsync(
+            mediaProbe: new ShelfProbe(),
+            hasher: new FixtureHasher(),
+            previewGenerator: new FixturePreviewGenerator(),
+            identificationClient: new FixtureIdentificationClient());
+        var accountId = await AccountAsync(store);
+        var otherAccountId = await AccountAsync(store, "other");
+        await SourceAsync(
+            store,
+            ("favourite.mp4", "mp4"),
+            ("queued-first.mp4", "mp4"),
+            ("queued-second.mkv", "matroska"),
+            ("watching.mp4", "mp4"),
+            ("dismissed.mp4", "mp4"),
+            ("nearly-done.mp4", "mp4"),
+            ("plain.mp4", "mp4"));
+        await LibraryPipeline.DrainAsync(store);
+
+        await using (var personal = store.Scope())
+        {
+            var database = personal.ServiceProvider.GetRequiredService<ViewerDbContext>();
+            var videos = await database.Videos
+                .Include(video => video.VideoFiles)
+                .ToDictionaryAsync(video => video.DisplayLabel, TestContext.Current.CancellationToken);
+            var now = DateTime.SpecifyKind(new DateTime(2026, 9, 2, 12, 0, 0), DateTimeKind.Utc);
+
+            database.PersonalVideoStates.AddRange(
+                new PersonalVideoStateRow
+                {
+                    AccountId = accountId,
+                    VideoId = videos["favourite"].Id,
+                    FavouriteAddedAt = now.AddDays(-2),
+                    UpdatedAt = now,
+                },
+                // Added to Watch Later first, and to Favourites last of all: the queue leads with
+                // it and the Favourites lead with it too, for opposite reasons.
+                new PersonalVideoStateRow
+                {
+                    AccountId = accountId,
+                    VideoId = videos["queued-first"].Id,
+                    WatchLaterAddedAt = now.AddDays(-3),
+                    FavouriteAddedAt = now,
+                    UpdatedAt = now,
+                },
+                // Not ready for direct play here, and on the shelf all the same.
+                new PersonalVideoStateRow
+                {
+                    AccountId = accountId,
+                    VideoId = videos["queued-second"].Id,
+                    WatchLaterAddedAt = now.AddDays(-1),
+                    UpdatedAt = now,
+                },
+                Watching(accountId, videos["watching"], now.AddMinutes(-30), progress: 30_000),
+                Watching(accountId, videos["dismissed"], now.AddHours(-1), progress: 30_000, dismissedAt: now),
+                Watching(accountId, videos["nearly-done"], now, progress: 58_000),
+                // Another Account's shelves are its own.
+                new PersonalVideoStateRow
+                {
+                    AccountId = otherAccountId,
+                    VideoId = videos["plain"].Id,
+                    FavouriteAddedAt = now,
+                    WatchLaterAddedAt = now,
+                    UpdatedAt = now,
+                });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        await using var scope = store.Scope();
+
+        // Favourites lead with what entered them last, and nothing is hidden from a shelf.
+        var favourites = await OnShelfAsync(scope, accountId, PersonalShelf.Favourites);
+        Assert.Equal(["queued-first", "favourite"], favourites.Videos.Select(video => video.DisplayTitle));
+        Assert.Equal(0, favourites.HiddenNotReadyForDirectPlay);
+        Assert.Equal(0, favourites.HiddenUnavailable);
+
+        // Watch Later is a queue, and a Video this client cannot play is still in it.
+        var watchLater = await OnShelfAsync(scope, accountId, PersonalShelf.WatchLater);
+        Assert.Equal(["queued-first", "queued-second"], watchLater.Videos.Select(video => video.DisplayTitle));
+        Assert.NotEqual(ClientVideoPlayability.ReadyForDirectPlay, watchLater.Videos[1].Playability);
+
+        // Continue Watching is the same rule the summary applies: in progress, not dismissed since,
+        // and short of the Completion End Zone.
+        var watching = await OnShelfAsync(scope, accountId, PersonalShelf.ContinueWatching);
+        Assert.Equal("watching", Assert.Single(watching.Videos).DisplayTitle);
+        Assert.True(watching.Videos[0].PersonalState.ContinueWatching);
+
+        // The shelf takes the same narrowing the Library does: a search, and an explicit
+        // playability filter that still decides for this view.
+        var searched = await Discovery(scope).GetAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            new LibraryDiscoveryRequest { Shelf = [PersonalShelf.WatchLater], Query = "second" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal("queued-second", Assert.Single(searched.Videos).DisplayTitle);
+        var playable = await Discovery(scope).GetAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            new LibraryDiscoveryRequest
+            {
+                Shelf = [PersonalShelf.WatchLater],
+                Playability = [ClientVideoPlayability.ReadyForDirectPlay],
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal("queued-first", Assert.Single(playable.Videos).DisplayTitle);
+
+        // Values inside the facet combine with OR, and the facets are counted inside the shelf.
+        var both = await Discovery(scope).GetAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            new LibraryDiscoveryRequest
+            {
+                Shelf = [PersonalShelf.Favourites, PersonalShelf.ContinueWatching],
+                Sort = LibrarySortOrder.ShelfOrder,
+            },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(
+            ["queued-first", "watching", "favourite"],
+            both.Videos.Select(video => video.DisplayTitle));
+        var facets = await Discovery(scope).GetFacetsAsync(
+            accountId,
+            new LibraryDiscoveryRequest { Shelf = [PersonalShelf.WatchLater] },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(2, facets.Quality.Sum(band => band.Count));
+
+        // The other Account's shelves are empty of this Account's references and vice versa.
+        Assert.Equal(
+            "plain",
+            Assert.Single((await OnShelfAsync(scope, otherAccountId, PersonalShelf.Favourites)).Videos).DisplayTitle);
+    }
+
+    private static PersonalVideoStateRow Watching(
+        Guid accountId,
+        VideoRow video,
+        DateTime activityAt,
+        long progress,
+        DateTime? dismissedAt = null) =>
+        new()
+        {
+            AccountId = accountId,
+            VideoId = video.Id,
+            PlayState = PersonalPlayState.InProgress,
+            PlayStateChangedAt = activityAt,
+            LastQualifiedActivityAt = activityAt,
+            PlaybackProgressMilliseconds = progress,
+            ProgressVideoFileId = video.VideoFiles.Single().Id,
+            ContinueWatchingDismissedAt = dismissedAt,
+            UpdatedAt = activityAt,
+        };
+
+    private static Task<LibraryPage> OnShelfAsync(
+        AsyncServiceScope scope,
+        Guid accountId,
+        PersonalShelf shelf) =>
+        Discovery(scope).GetAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            new LibraryDiscoveryRequest { Shelf = [shelf], Sort = LibrarySortOrder.ShelfOrder },
+            TestContext.Current.CancellationToken);
+
     private static LibraryDiscovery Discovery(AsyncServiceScope scope) =>
         scope.ServiceProvider.GetRequiredService<LibraryDiscovery>();
 
@@ -567,15 +729,15 @@ public sealed class LibraryDiscoveryTests
             new LibraryDiscoveryRequest { Query = query },
             TestContext.Current.CancellationToken);
 
-    private static async Task<Guid> AccountAsync(TestDatabase store)
+    private static async Task<Guid> AccountAsync(TestDatabase store, string username = "viewer")
     {
         await using var scope = store.Scope();
         var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
         var account = new AccountRow
         {
             Id = Guid.CreateVersion7(),
-            Username = "viewer",
-            NormalizedUsername = "viewer",
+            Username = username,
+            NormalizedUsername = username,
             PasswordHash = new string('h', 84),
             Authority = AccountAuthority.User,
             State = AccountState.Approved,
@@ -656,6 +818,20 @@ internal sealed class DimensionAwareProbe : IMediaProbe
 /// A probe that reports the runtime the file name implies, so a test about order by runtime has
 /// three Videos that genuinely differ in it.
 /// </summary>
+/// <summary>
+/// A minute of ready video in every file but the matroska one, so a shelf can hold a Video this
+/// client cannot play, and the Completion End Zone is a known six seconds from the end.
+/// </summary>
+internal sealed class ShelfProbe : IMediaProbe
+{
+    public Task<MediaProbeFacts?> InspectAsync(
+        string path,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult<MediaProbeFacts?>(Path.GetExtension(path) == ".mkv"
+            ? new MediaProbeFacts(FixtureProbe.Baseline with { ContainerFormat = "matroska", VideoCodec = "h264" }, 60_000)
+            : new MediaProbeFacts(FixtureProbe.Baseline, 60_000));
+}
+
 internal sealed class RuntimeAwareProbe : IMediaProbe
 {
     public Task<MediaProbeFacts?> InspectAsync(

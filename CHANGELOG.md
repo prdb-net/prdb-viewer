@@ -7,6 +7,48 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+Continue Watching, Favourites and Watch Later have what the browsing screen has.
+Each shelf used to be a list of everything on it, with no search, no filters, no
+order and no paging, and typing into the search field while one was open led
+away from it to the whole library. A shelf is now the library narrowed to it:
+the same search, facets, sort orders and paging, kept in the address, and the
+search searches the shelf that is open. Nothing about configuration or the
+Backup Archive changes. The HTTP API's library endpoints gain a `shelf` facet
+and a shelf order; the personal library endpoint that answered all three shelves
+at once is withdrawn.
+
+### Added
+
+- The search in the header searches where it is. On Continue Watching,
+  Favourites or Watch Later it searches that shelf and says so, and the shelf's
+  screen offers the whole library for the same words one link away. Everywhere
+  else it searches the whole library, as before.
+- The three shelves take the same narrowing the browsing screen does — the
+  search, every facet, the sort order and how much has been revealed — and keep
+  it in the address, so a search of the Favourites is a page that can be
+  returned to. The facet counts describe the shelf. A shelf with nothing
+  matching says so and offers the whole library; a shelf with nothing on it
+  still explains what would put something there.
+- Each shelf opens in the order it keeps: Continue Watching by what was watched
+  last, Favourites by what was added last, Watch Later oldest first, because it
+  is a queue. The order is named for what it is on that shelf and can be
+  exchanged for any of the library's.
+- The browsing screen offers the three shelves as a facet under **Yours**, so
+  unplayed Favourites from one Site is a question the library can answer. With
+  a shelf chosen, its order is offered beside the others without being imposed.
+
+### Changed
+
+- A shelf shows what was put on it whether or not this browser can play it, as
+  it did before, while the browsing screen keeps its admission rule. A card
+  still says when a Video will not play here.
+
+### Removed
+
+- The HTTP API no longer answers `GET /api/personal/library`. The three shelves
+  are answered by the library's own endpoints with the `shelf` facet, which is
+  what the browser now asks.
+
 ## [0.12.0] - 2026-09-02
 
 The browsing screen shows Videos rather than controls. A library of forty Videos

@@ -12,15 +12,6 @@ public static class PersonalStateEndpoints
     {
         var personal = routes.MapGroup("/api/personal").WithTags("Personal State");
 
-        personal.MapGet("/library", async (
-            VideoCatalog catalog,
-            HttpContext http,
-            CancellationToken cancellationToken) =>
-            TypedResults.Ok(await catalog.GetPersonalLibraryAsync(
-                http.User.AccountId()!.Value,
-                http.ClientContextKey(),
-                cancellationToken)));
-
         // The client's own qualification of this library's media configurations, and what it
         // observed when it played them. Both are Personal State scoped to the Account and the
         // client context the request speaks for.

@@ -1,7 +1,9 @@
 import { useEffect } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link, useLocation } from 'react-router'
 
 import { api, emptyFilters, type Account, type LibraryPage as LibraryPageResult } from '../api/client'
+import { shelves, type Shelf } from '../personal/shelves'
 import { usePersonalActions } from '../personal/usePersonalActions'
 import { queryKeys } from '../queryKeys'
 import { firstError, PageHeading, RequestError } from '../ui'
@@ -23,9 +25,16 @@ const emptyLibraryPollMilliseconds = 30_000
 /// The shared library: everything this Account's client can discover, narrowed by what the address
 /// says. It shows Videos and offers what belongs to a list — search results, facets, order and
 /// depth. What belongs to one Video belongs to that Video's own page.
-export function LibraryPage({ account }: { account: Account }) {
+///
+/// A Personal Shelf is this screen with the shelf pinned. The three shelves used to be a screen of
+/// their own that loaded everything on them and offered nothing to narrow it; the search in the
+/// header led away from them to the whole Library. A shelf is a way of narrowing the Library, so
+/// it has what the Library has, and the search stays on it.
+export function LibraryPage({ account, shelf }: { account: Account; shelf?: Shelf }) {
   const queryClient = useQueryClient()
-  const { filters, pages, narrow, toggle, clear, showMore, narrowed } = useLibraryFilters()
+  const location = useLocation()
+  const { filters, pages, narrow, toggle, clear, showMore, narrowed } = useLibraryFilters(shelf)
+  const description = shelf ? shelves[shelf] : undefined
   // The facets are counted against what is chosen, so a count says what choosing that value would
   // leave. The sort order is not part of what is chosen, so changing it does not ask again; and
   // the previous answer stays on screen while the next one arrives, so the rows do not empty and
@@ -64,14 +73,15 @@ export function LibraryPage({ account }: { account: Account }) {
   const empty = (videos.data?.pages[0]?.videos.length ?? 0) === 0
 
   useEffect(() => {
-    if (!empty || isFetching) return
+    // An empty shelf waits for the User, not for inspection, so it does not look again on its own.
+    if (!empty || isFetching || shelf) return
 
     const timer = window.setTimeout(() => void refetch(), emptyLibraryPollMilliseconds)
     return () => window.clearTimeout(timer)
-  }, [empty, isFetching, refetch])
+  }, [empty, isFetching, refetch, shelf])
 
   if (videos.isPending) {
-    return <p role="status">Opening the shared library…</p>
+    return <p role="status">{description ? 'Opening your library…' : 'Opening the shared library…'}</p>
   }
 
   if (videos.isError) {
@@ -84,13 +94,27 @@ export function LibraryPage({ account }: { account: Account }) {
   const page = revealed[revealed.length - 1]
   const shown = revealed.flatMap((slice) => slice.videos)
 
+  // The same words, asked of the whole Library: the address without the route that pinned the
+  // shelf. It is the one thing a shelf that came up short cannot answer by itself.
+  const wholeLibrary = { pathname: '/', search: location.search }
+
   return (
     <>
-      <PageHeading eyebrow="Library" title={narrowed ? 'Matching Videos' : 'Browse'}>
-        {narrowed
-          ? 'These are the Videos your search and filters admit.'
-          : 'Everything this browser can play, newest first.'}
-      </PageHeading>
+      {description
+        ? (
+          <PageHeading eyebrow="Yours" title={description.title}>
+            {narrowed
+              ? 'The Videos on this shelf your search and filters admit. Only you can see this.'
+              : description.explanation}
+          </PageHeading>
+          )
+        : (
+          <PageHeading eyebrow="Library" title={narrowed ? 'Matching Videos' : 'Browse'}>
+            {narrowed
+              ? 'These are the Videos your search and filters admit.'
+              : 'Everything this browser can play, newest first.'}
+          </PageHeading>
+          )}
 
       <LibraryControls
         filters={filters}
@@ -99,19 +123,46 @@ export function LibraryPage({ account }: { account: Account }) {
         toggle={toggle}
         clear={clear}
         narrowed={narrowed}
+        pinned={shelf}
         total={Number(page.totalMatches)}
       />
 
+      {description && narrowed && shown.length > 0 && (
+        <p className="scope-escape">
+          Only this shelf is searched. <Link to={wholeLibrary}>Search the whole library instead</Link>
+        </p>
+      )}
+
       {shown.length === 0 && (
         <div className="empty-library">
-          <strong>{narrowed ? 'Nothing matches' : 'No Videos yet'}</strong>
-          <p>{narrowed
-            ? 'Adjust the search or the filters.'
-            : 'Videos appear here as technical inspection completes.'}</p>
+          <strong>{narrowed ? 'Nothing matches' : description ? 'Nothing here yet' : 'No Videos yet'}</strong>
+          {narrowed
+            ? (
+              <p>
+                {description ? 'Nothing on this shelf matches. ' : ''}
+                Adjust the search or the filters
+                {description ? <>, or <Link to={wholeLibrary}>search the whole library</Link></> : ''}.
+              </p>
+              )
+            : description
+              ? (
+                <>
+                  {/* An empty shelf is a dead end otherwise: it explains what would put something here
+                      without offering the one screen anything is put here from. */}
+                  <p>{description.empty}</p>
+                  <p><Link className="quiet-button" to="/">Browse the library</Link></p>
+                </>
+                )
+              : <p>Videos appear here as technical inspection completes.</p>}
         </div>
       )}
 
-      <VideoGrid videos={shown} act={personal.act} pending={personal.pending} />
+      <VideoGrid
+        videos={shown}
+        act={personal.act}
+        pending={personal.pending}
+        dismissible={shelf === 'ContinueWatching'}
+      />
 
       <HiddenMatches
         page={page}

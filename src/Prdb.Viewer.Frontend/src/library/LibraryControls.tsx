@@ -2,6 +2,8 @@ import { useState, type ReactNode } from 'react'
 
 import type { LibraryFacets, LibraryFilters } from '../api/client'
 import { qualityBandLabel } from '../lib/quality'
+import { shelfNames, shelves, type Shelf } from '../personal/shelves'
+import type { FacetKey } from './useLibraryFilters'
 
 /// How many values a facet row offers before the rest wait behind one control.
 ///
@@ -17,6 +19,11 @@ const everyPlayability = ['ReadyForDirectPlay', 'CompatibilityUncertain', 'NotDi
 /// The sort order, what is chosen, and the facets. Search itself is not here: it belongs to the
 /// shell, because it is how the Library is reached from anywhere rather than something this
 /// screen owns.
+///
+/// The Personal Shelves are a facet like the others on the browsing screen, so unplayed Favourites
+/// from one Site is a question it can answer. On a shelf's own page the shelf is pinned: the heading
+/// says it, so the facet is not offered again and the shelf is not listed among what can be taken
+/// out.
 export function LibraryControls({
   filters,
   facets,
@@ -24,6 +31,7 @@ export function LibraryControls({
   toggle,
   clear,
   narrowed,
+  pinned,
   total,
 }: {
   filters: LibraryFilters
@@ -32,16 +40,23 @@ export function LibraryControls({
   /// Values inside one facet combine with OR, so a Site or an Actor is added to what is already
   /// chosen rather than replacing it. It goes through the address rather than through `narrow`,
   /// which would compute the new list from a render that a quick second click has already outrun.
-  toggle: (key: 'sites' | 'actors' | 'quality', value: string) => void
+  toggle: (key: FacetKey, value: string) => void
   clear: () => void
   narrowed: boolean
+  /// The shelf this screen is, when it is one.
+  pinned?: Shelf
   /// How many Videos the current narrowing admits.
   total: number
 }) {
   // On a narrow screen the facets wait behind one control, closed until asked for: what is chosen
   // is already said in the row above, and the Videos are what the screen is for.
   const [facetsOpen, setFacetsOpen] = useState(false)
-  const chosen = chosenFilters(filters, narrow, toggle)
+  const chosen = chosenFilters(filters, narrow, toggle, pinned)
+  // A shelf keeps an order of its own, named for what it is on that shelf; with several chosen
+  // the name has to cover them all.
+  const shelfOrder = pinned
+    ? shelves[pinned].order
+    : filters.shelf.length > 0 ? 'Shelf order' : undefined
 
   return (
     <div className="library-controls">
@@ -70,6 +85,7 @@ export function LibraryControls({
               <option value="LongestFirst">Longest first</option>
               <option value="RecentlyPlayed">Recently played</option>
               <option value="BestRated">Best rated</option>
+              {shelfOrder && <option value="ShelfOrder">{shelfOrder}</option>}
             </select>
           </label>
         </div>
@@ -96,6 +112,18 @@ export function LibraryControls({
       )}
 
       <div id="library-facets" className={facetsOpen ? 'facet-groups open' : 'facet-groups'}>
+        {!pinned && (
+          <FacetGroup label="Yours">
+            {shelfNames.map((shelf) => (
+              <FacetToggle
+                key={shelf}
+                label={shelves[shelf].title}
+                selected={filters.shelf.includes(shelf)}
+                onToggle={() => toggle('shelf', shelf)}
+              />
+            ))}
+          </FacetGroup>
+        )}
         <FacetGroup label="Only show">
           <FacetToggle
             label="Unknown work"
@@ -166,12 +194,22 @@ type ChosenFilter = { key: string; label: string; remove: () => void }
 function chosenFilters(
   filters: LibraryFilters,
   narrow: (change: Partial<LibraryFilters>) => void,
-  toggle: (key: 'sites' | 'actors' | 'quality', value: string) => void,
+  toggle: (key: FacetKey, value: string) => void,
+  pinned?: Shelf,
 ): ChosenFilter[] {
   const chosen: ChosenFilter[] = []
   const query = filters.query.trim()
 
   if (query) chosen.push({ key: 'query', label: `“${query}”`, remove: () => narrow({ query: '' }) })
+  if (!pinned) {
+    for (const shelf of filters.shelf) {
+      chosen.push({
+        key: `shelf:${shelf}`,
+        label: shelves[shelf as Shelf]?.title ?? shelf,
+        remove: () => toggle('shelf', shelf),
+      })
+    }
+  }
   if (filters.work.includes('Unknown')) {
     chosen.push({ key: 'work', label: 'Unknown work', remove: () => narrow({ work: [] }) })
   }

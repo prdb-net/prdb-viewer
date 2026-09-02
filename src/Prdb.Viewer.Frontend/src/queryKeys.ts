@@ -14,7 +14,6 @@ export const queryKeys = {
   video: (videoId: string) => ['video', videoId] as const,
   /// The facets are counted against the current narrowing, so they are keyed by it.
   libraryFacets: (narrowing: string) => ['library-facets', narrowing] as const,
-  personalLibrary: ['personal-library'] as const,
   playbackProfiles: ['playback-profiles'] as const,
   /// Mutation keys rather than query keys: they are how the subjects with something in flight are
   /// found in the mutation cache, so one row can be busy without the screen being busy.

@@ -116,12 +116,16 @@ public sealed class SqliteWorkloadBenchmark
                 .GetFacetsAsync(accounts[0], new LibraryDiscoveryRequest(), TestContext.Current.CancellationToken)).Sites.Count));
         report.Add(await MeasureAsync("Personal library shelves", store, async scope =>
             (await scope.ServiceProvider
-                .GetRequiredService<VideoCatalog>()
-                .GetPersonalLibraryAsync(
+                .GetRequiredService<LibraryDiscovery>()
+                .GetAsync(
                     accounts[0],
                     LibraryPipeline.ClientContext,
-                    TestContext.Current.CancellationToken))
-                .ContinueWatching.Count));
+                    new LibraryDiscoveryRequest
+                    {
+                        Shelf = [PersonalShelf.ContinueWatching],
+                        Sort = LibrarySortOrder.ShelfOrder,
+                    },
+                    TestContext.Current.CancellationToken)).Videos.Count));
         report.Add(await MeasureAsync("Background work status", store, async scope =>
             (await scope.ServiceProvider
                 .GetRequiredService<BackgroundWorkQuery>()

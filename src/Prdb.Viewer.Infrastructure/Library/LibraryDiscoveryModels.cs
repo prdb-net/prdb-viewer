@@ -38,6 +38,14 @@ public sealed record LibraryDiscoveryRequest
 
     public IReadOnlyList<PersonalPlayState> PlayState { get; init; } = [];
 
+    /// <summary>
+    /// The Personal Shelves to narrow to. A shelf is a personal reference rather than a discovery,
+    /// so a request that names one is answered without the admission rule: what the User put there
+    /// is shown whether or not this client can play it, and unavailable Videos stay in until the
+    /// Video is Removed.
+    /// </summary>
+    public IReadOnlyList<PersonalShelf> Shelf { get; init; } = [];
+
     /// <summary>True selects Videos with no Established Site, which is its own facet value.</summary>
     public bool UnknownSite { get; init; }
 

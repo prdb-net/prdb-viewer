@@ -99,9 +99,12 @@ compilation and connection setup — rather than a property of the data.
 
 Personal library shelves scale with what one Account has touched rather than
 with the library, which is what they are supposed to cost. At 54 ms for 400
-retained entries they are the slowest read here, and an Account with many
-thousands of Favourites would want the same paging treatment the library now
-has. No such Account exists yet, so the number is recorded rather than acted on.
+retained entries they were the slowest read here, and an Account with many
+thousands of Favourites would have wanted the same paging treatment the library
+has. Since ADR 0019 a shelf is the library narrowed to it — one more predicate
+over the Account's Personal State, paged like every other answer — so that cost
+is now the library's cost. The figures above predate the change and have not
+been taken again.
 
 ## History
 

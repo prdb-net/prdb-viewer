@@ -1173,6 +1173,7 @@ export interface paths {
                     availability?: string;
                     quality?: string;
                     playState?: string;
+                    shelf?: string;
                     skip?: number | string;
                     take?: number | string;
                 };
@@ -1265,6 +1266,7 @@ export interface paths {
                     availability?: string;
                     quality?: string;
                     playState?: string;
+                    shelf?: string;
                 };
                 header?: never;
                 path?: never;
@@ -1323,41 +1325,6 @@ export interface paths {
                 };
             };
         };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/personal/library": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PersonalLibrarySummary"];
-                    };
-                };
-            };
-        };
-        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -2241,7 +2208,7 @@ export interface components {
             count: number | string;
         };
         /** @enum {unknown} */
-        LibrarySortOrder: "Newest" | "TitleAscending" | "QualityDescending" | "LongestFirst" | "RecentlyPlayed" | "BestRated";
+        LibrarySortOrder: "Newest" | "TitleAscending" | "QualityDescending" | "LongestFirst" | "RecentlyPlayed" | "BestRated" | "ShelfOrder";
         /** @enum {unknown} */
         ObservedPlaybackOutcome: "Succeeded" | "Failed" | null;
         ObservedPlaybackOutcomeRequest: {
@@ -2252,11 +2219,6 @@ export interface components {
         };
         ObservedPlaybackOutcomeResponse: {
             recorded: boolean;
-        };
-        PersonalLibrarySummary: {
-            continueWatching: components["schemas"]["VideoSummary"][];
-            favourites: components["schemas"]["VideoSummary"][];
-            watchLater: components["schemas"]["VideoSummary"][];
         };
         /** @enum {unknown} */
         PersonalPlayState: "Unplayed" | "InProgress" | "Completed";

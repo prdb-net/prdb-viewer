@@ -290,6 +290,10 @@ _Avoid_: Continue Watching, playlist, viewing history
 A User-owned optional score from one to five for a Video. Setting the same score is idempotent, changing it replaces the previous score, and clearing it removes only the score; it is independent of Favourite, Watch Later, and playback activity.
 _Avoid_: Favourite, vote, shared rating
 
+**Personal Shelf**:
+One of the User-owned lists — Continue Watching, Favourites, Watch Later — taken as a way of narrowing the Library rather than a library of its own: a shelf admits the same search, facets, order and paging the Library does, keeps an order of its own, and shows what the User put there whether or not the current client can play it.
+_Avoid_: personal library, playlist, saved filter
+
 ### Discovery
 
 **Ordinary Discovery**:

@@ -55,9 +55,6 @@ describe('App', () => {
       if (input === '/api/admin/background-work/') {
         return json({ work: [], issues: [] })
       }
-      if (input === '/api/personal/library') {
-        return json({ continueWatching: [], favourites: [], watchLater: [] })
-      }
       if (input === '/api/personal/videos/01994dd4-2a0a-7000-8000-000000000010/playback-attempts') {
         return json({
           verdict: 'Started',
@@ -141,9 +138,6 @@ describe('App', () => {
       if (input === '/api/personal/playback-profiles') return json([])
       if (isFacetRequest(input)) return json(noFacets())
       if (isLibraryRequest(input)) return json(libraryPage([video]))
-      if (input === '/api/personal/library') {
-        return json({ continueWatching: [video], favourites: [], watchLater: [] })
-      }
       if (isVideoRequest(input)) return json(videoDetail(video))
       if (input === '/api/personal/videos/01994dd4-2a0a-7000-8000-000000000010/playback-attempts') {
         return json({
@@ -236,9 +230,6 @@ describe('App', () => {
             }),
           }),
         ]))
-      }
-      if (input === '/api/personal/library') {
-        return json({ continueWatching: [], favourites: [], watchLater: [] })
       }
       return json([])
     })
@@ -350,9 +341,6 @@ describe('App', () => {
       if (input === '/api/personal/playback-profiles') return json([])
       if (isFacetRequest(input)) return json(noFacets())
       if (isLibraryRequest(input)) return json(libraryPage([]))
-      if (input === '/api/personal/library') {
-        return json({ continueWatching: [], favourites: [], watchLater: [] })
-      }
       if (input === '/api/admin/identification/queue') {
         return json(decisions.length > 0 ? [] : [queueItem])
       }
@@ -548,9 +536,6 @@ describe('App', () => {
       }
       if (input === '/api/library/preferences/include-not-ready') {
         return json({ includesNotReadyForDirectPlay: true })
-      }
-      if (input === '/api/personal/library') {
-        return json({ continueWatching: [], favourites: [], watchLater: [] })
       }
       return json([])
     })
@@ -800,9 +785,6 @@ describe('App', () => {
       if (isFacetRequest(input)) return json(noFacets())
       if (isVideoRequest(input)) return json(videoDetail(video))
       if (isLibraryRequest(input)) return json(libraryPage([video]))
-      if (input === '/api/personal/library') {
-        return json({ continueWatching: [], favourites: [], watchLater: [] })
-      }
       return json([])
     })
 
@@ -889,9 +871,6 @@ describe('App', () => {
       }
       if (input === '/api/library/preferences/include-not-ready') {
         return json({ includesNotReadyForDirectPlay: false })
-      }
-      if (input === '/api/personal/library') {
-        return json({ continueWatching: [], favourites: [], watchLater: [] })
       }
       return json([])
     })
@@ -1026,9 +1005,6 @@ describe('App', () => {
       if (input === '/api/personal/playback-profiles') return json([])
       if (isFacetRequest(input)) return json(noFacets())
       if (isLibraryRequest(input)) return json(libraryPage([]))
-      if (input === '/api/personal/library') {
-        return json({ continueWatching: [], favourites: [], watchLater: [] })
-      }
       return json([])
     })
 

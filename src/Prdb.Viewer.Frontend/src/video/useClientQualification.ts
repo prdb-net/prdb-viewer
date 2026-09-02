@@ -32,7 +32,6 @@ export function useClientQualification(account: Account) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['videos'] })
       void queryClient.invalidateQueries({ queryKey: ['video'] })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.personalLibrary })
       void queryClient.invalidateQueries({ queryKey: queryKeys.playbackProfiles })
     },
   })

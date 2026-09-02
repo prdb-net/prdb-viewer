@@ -10,7 +10,7 @@ import { IdentificationPage } from './admin/IdentificationPage'
 import { SetupPage } from './admin/SetupPage'
 import { WorkPage } from './admin/WorkPage'
 import { LibraryPage } from './library/LibraryPage'
-import { PersonalShelfPage } from './personal/PersonalShelfPage'
+import { shelfNames, shelves } from './personal/shelves'
 import { queryKeys } from './queryKeys'
 import { AppShell } from './shell/AppShell'
 import { CenteredCard, Notice } from './ui'
@@ -65,9 +65,15 @@ function SignedIn({ account }: { account: Account }) {
       <Route element={<AppShell account={account} />}>
         <Route index element={<LibraryPage account={account} />} />
         <Route path="videos/:videoId" element={<VideoPage account={account} />} />
-        <Route path="continue" element={<PersonalShelfPage account={account} shelf="continueWatching" />} />
-        <Route path="favourites" element={<PersonalShelfPage account={account} shelf="favourites" />} />
-        <Route path="watch-later" element={<PersonalShelfPage account={account} shelf="watchLater" />} />
+        {/* A shelf is the Library narrowed to it, so it is the Library's screen with the shelf
+            pinned rather than a screen of its own. */}
+        {shelfNames.map((shelf) => (
+          <Route
+            key={shelf}
+            path={shelves[shelf].to.slice(1)}
+            element={<LibraryPage account={account} shelf={shelf} />}
+          />
+        ))}
         <Route path="account" element={<AccountPage account={account} />} />
         {administrator && (
           <Route path="admin">

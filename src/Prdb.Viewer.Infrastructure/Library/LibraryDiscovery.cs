@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Core.Personal;
 using Prdb.Viewer.Infrastructure.Persistence;
+using Prdb.Viewer.Infrastructure.Personal;
 
 namespace Prdb.Viewer.Infrastructure.Library;
 
@@ -45,7 +46,7 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
         var admitted = Admit(matched, request, preference, ready, attemptable);
         var total = await admitted.CountAsync(cancellationToken);
         var take = LibraryPaging.Clamp(request.Take);
-        var page = await Order(admitted, request.Sort, accountId)
+        var page = await Order(admitted, request, accountId)
             .Skip(Math.Max(0, request.Skip))
             .Take(take + 1)
             .Select(video => video.Id)
@@ -59,14 +60,15 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             ready,
             total,
             cancellationToken);
-        var hiddenUnavailable = request.Availability.Count > 0
+        // A Personal Shelf shows what the User put there, so nothing is kept out of one to count.
+        var hiddenUnavailable = request.Availability.Count > 0 || request.Shelf.Count > 0
             ? 0
             : await matched.CountAsync(
                 video => video.Availability == VideoAvailability.Unavailable,
                 cancellationToken);
 
         return new LibraryPage(
-            await LoadAsync(accountId, clientContextKey, ids, request.Sort, cancellationToken),
+            await LoadAsync(accountId, clientContextKey, ids, cancellationToken),
             total,
             hiddenNotReady,
             hiddenUnavailable,
@@ -147,7 +149,7 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             return null;
         }
 
-        var loaded = await LoadAsync(accountId, clientContextKey, [addressed.Value], LibrarySortOrder.Newest, cancellationToken);
+        var loaded = await LoadAsync(accountId, clientContextKey, [addressed.Value], cancellationToken);
 
         return loaded.Count == 0
             ? null
@@ -205,7 +207,7 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
         int total,
         CancellationToken cancellationToken)
     {
-        if (request.Playability.Count > 0 || preference)
+        if (request.Playability.Count > 0 || preference || request.Shelf.Count > 0)
         {
             return 0;
         }
@@ -381,13 +383,60 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
                     state.AccountId == accountId && state.VideoId == video.Id)));
         }
 
+        if (request.Shelf.Count > 0)
+        {
+            videos = videos.Where(OnShelf(accountId, request.Shelf));
+        }
+
         return videos;
+    }
+
+    /// <summary>
+    /// Whether this Account keeps the Video on one of the named Personal Shelves. Favourites and
+    /// Watch Later are the presence of their addition; Continue Watching is the rule
+    /// <see cref="PersonalStateService.ToSummary"/> applies in memory, translated so the database
+    /// can answer it: in progress, with qualifying activity later than any dismissal, at a resume
+    /// position that is past the start and short of the Completion End Zone of the file it is in.
+    /// The discovery tests hold the two readings to the same answers.
+    /// </summary>
+    private Expression<Func<VideoRow, bool>> OnShelf(Guid accountId, IReadOnlyList<PersonalShelf> shelves)
+    {
+        var favourites = shelves.Contains(PersonalShelf.Favourites);
+        var watchLater = shelves.Contains(PersonalShelf.WatchLater);
+        var continueWatching = shelves.Contains(PersonalShelf.ContinueWatching);
+        const long longestEndZoneMilliseconds = 300_000;
+
+        return video => database.PersonalVideoStates.Any(state =>
+            state.AccountId == accountId &&
+            state.VideoId == video.Id &&
+            ((favourites && state.FavouriteAddedAt != null) ||
+             (watchLater && state.WatchLaterAddedAt != null) ||
+             (continueWatching &&
+              state.PlayState == PersonalPlayState.InProgress &&
+              state.LastQualifiedActivityAt != null &&
+              (state.ContinueWatchingDismissedAt == null ||
+               state.LastQualifiedActivityAt > state.ContinueWatchingDismissedAt) &&
+              state.PlaybackProgressMilliseconds > 0 &&
+              database.VideoFiles
+                  .Where(file => file.Id == state.ProgressVideoFileId)
+                  .Select(file => file.DurationMilliseconds <= 0 ||
+                                  state.PlaybackProgressMilliseconds <
+                                  file.DurationMilliseconds -
+                                  (file.DurationMilliseconds / 10 < longestEndZoneMilliseconds
+                                      ? file.DurationMilliseconds / 10
+                                      : longestEndZoneMilliseconds))
+                  .FirstOrDefault())));
     }
 
     /// <summary>
     /// Narrows a match to what Ordinary Discovery actually shows for this client. An explicit
     /// filter decides for this view; otherwise the Account's preference does, and unavailable
     /// Videos stay out until asked for.
+    ///
+    /// A Personal Shelf is the exception the glossary allows: a personal reference is shown
+    /// whether or not this client can play it, and while its Video is merely unavailable, because
+    /// what someone put there is not the Library's decision to withhold. An explicit filter still
+    /// narrows a shelf, so "Favourites this browser can play" remains a question it can answer.
     /// </summary>
     private static IQueryable<VideoRow> Admit(
         IQueryable<VideoRow> videos,
@@ -396,11 +445,13 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
         Expression<Func<VideoRow, bool>> ready,
         Expression<Func<VideoRow, bool>> attemptable)
     {
+        var shelf = request.Shelf.Count > 0;
+
         if (request.Playability.Count > 0)
         {
             videos = videos.Where(PlayabilityFilter(request.Playability, ready, attemptable));
         }
-        else if (!preference)
+        else if (!preference && !shelf)
         {
             videos = videos.Where(ready);
         }
@@ -411,7 +462,9 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             return videos.Where(video => availability.Contains(video.Availability));
         }
 
-        return videos.Where(video => video.Availability == VideoAvailability.Available);
+        return shelf
+            ? videos
+            : videos.Where(video => video.Availability == VideoAvailability.Available);
     }
 
     /// <summary>
@@ -475,13 +528,14 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
     /// Discovery Date descending by default, so later enrichment never makes an old Video look
     /// newly added. Title A-Z, best Video Quality first and longest runtime first are the explicit
     /// alternatives that hold for every Account; most recently played and best rated read this
-    /// Account's own Personal State, and put the Videos it has no such state for last.
+    /// Account's own Personal State, and put the Videos it has no such state for last. Shelf order
+    /// is the order the chosen Personal Shelf keeps, and Newest where none is chosen.
     /// </summary>
     private IQueryable<VideoRow> Order(
         IQueryable<VideoRow> videos,
-        LibrarySortOrder sort,
+        LibraryDiscoveryRequest request,
         Guid accountId) =>
-        sort switch
+        request.Sort switch
         {
             LibrarySortOrder.TitleAscending => videos
                 .OrderBy(video => video.DisplayLabel)
@@ -515,8 +569,57 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
                     .FirstOrDefault())
                 .ThenByDescending(video => video.DiscoveryDate)
                 .ThenBy(video => video.Id),
+            // Watch Later is a queue, oldest addition first; every other shelf leads with what
+            // entered it last. A Video that is on none of the chosen shelves, which the Library can
+            // hold when the order is chosen without the facet, comes last.
+            LibrarySortOrder.ShelfOrder when request.Shelf is [PersonalShelf.WatchLater] => videos
+                .OrderBy(video => database.PersonalVideoStates
+                    .Where(state => state.AccountId == accountId && state.VideoId == video.Id)
+                    .Select(state => state.WatchLaterAddedAt)
+                    .FirstOrDefault() == null)
+                .ThenBy(video => database.PersonalVideoStates
+                    .Where(state => state.AccountId == accountId && state.VideoId == video.Id)
+                    .Select(state => state.WatchLaterAddedAt)
+                    .FirstOrDefault())
+                .ThenByDescending(video => video.DiscoveryDate)
+                .ThenBy(video => video.Id),
+            LibrarySortOrder.ShelfOrder when request.Shelf.Count > 0 => videos
+                .OrderByDescending(video => database.PersonalVideoStates
+                    .Where(state => state.AccountId == accountId && state.VideoId == video.Id)
+                    .Select(ShelfMoment(request.Shelf))
+                    .FirstOrDefault())
+                .ThenByDescending(video => video.DiscoveryDate)
+                .ThenBy(video => video.Id),
             _ => videos.OrderByDescending(video => video.DiscoveryDate).ThenBy(video => video.Id),
         };
+
+    /// <summary>
+    /// When a Personal State last entered one of the named shelves: the latest of the additions
+    /// and the qualifying activity that the chosen shelves are made of. A shelf that is not chosen,
+    /// or an entry the Video never made, counts as the beginning of time rather than as nothing,
+    /// because the database answers a comparison with nothing as nothing and would drop the Video
+    /// to the end for having one shelf fewer. Written as one expression so the database orders by it.
+    /// </summary>
+    private static Expression<Func<PersonalVideoStateRow, DateTime>> ShelfMoment(
+        IReadOnlyList<PersonalShelf> shelves)
+    {
+        var favourites = shelves.Contains(PersonalShelf.Favourites);
+        var watchLater = shelves.Contains(PersonalShelf.WatchLater);
+        var continueWatching = shelves.Contains(PersonalShelf.ContinueWatching);
+        var never = DateTime.MinValue;
+
+        return state =>
+            ((favourites ? state.FavouriteAddedAt : null) ?? never) >=
+            ((watchLater ? state.WatchLaterAddedAt : null) ?? never)
+                ? (((favourites ? state.FavouriteAddedAt : null) ?? never) >=
+                   ((continueWatching ? state.LastQualifiedActivityAt : null) ?? never)
+                    ? ((favourites ? state.FavouriteAddedAt : null) ?? never)
+                    : ((continueWatching ? state.LastQualifiedActivityAt : null) ?? never))
+                : (((watchLater ? state.WatchLaterAddedAt : null) ?? never) >=
+                   ((continueWatching ? state.LastQualifiedActivityAt : null) ?? never)
+                    ? ((watchLater ? state.WatchLaterAddedAt : null) ?? never)
+                    : ((continueWatching ? state.LastQualifiedActivityAt : null) ?? never));
+    }
 
     /// <summary>
     /// Loads the page's Videos with everything a card needs, including what this client may do with
@@ -527,7 +630,6 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
         Guid accountId,
         string clientContextKey,
         IReadOnlyList<Guid> ids,
-        LibrarySortOrder sort,
         CancellationToken cancellationToken)
     {
         if (ids.Count == 0)

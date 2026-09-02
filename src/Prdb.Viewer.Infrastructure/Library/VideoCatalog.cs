@@ -21,11 +21,6 @@ public sealed record VideoSummary(
     IReadOnlyList<PlaybackVariantView> VideoFiles,
     PersonalVideoStateSummary PersonalState);
 
-public sealed record PersonalLibrarySummary(
-    IReadOnlyList<VideoSummary> ContinueWatching,
-    IReadOnlyList<VideoSummary> Favourites,
-    IReadOnlyList<VideoSummary> WatchLater);
-
 public sealed class VideoCatalog(ViewerDbContext database, PlaybackPlanner planner)
 {
     public async Task<IReadOnlyList<VideoSummary>> GetAsync(
@@ -42,46 +37,6 @@ public sealed class VideoCatalog(ViewerDbContext database, PlaybackPlanner plann
         var plans = await planner.PlanAsync(accountId, clientContextKey, videos, cancellationToken);
 
         return videos.Select(video => Map(video, accountId, plans[video.Id])).ToArray();
-    }
-
-    public async Task<PersonalLibrarySummary> GetPersonalLibraryAsync(
-        Guid accountId,
-        string clientContextKey,
-        CancellationToken cancellationToken = default)
-    {
-        var videos = await QueryForAccount(accountId)
-            .Where(video =>
-                video.SurvivingVideoId == null &&
-                video.VideoFiles.Any(file => file.Availability != VideoFileAvailability.Removed) &&
-                video.PersonalStates.Any(state =>
-                    state.AccountId == accountId &&
-                    (state.LastQualifiedActivityAt != null ||
-                     state.FavouriteAddedAt != null ||
-                     state.WatchLaterAddedAt != null)))
-            .ToListAsync(cancellationToken);
-        var plans = await planner.PlanAsync(accountId, clientContextKey, videos, cancellationToken);
-        var entries = videos
-            .Select(video => new PersonalEntry(
-                Map(video, accountId, plans[video.Id]),
-                video.PersonalStates.Single(state => state.AccountId == accountId)))
-            .ToArray();
-
-        return new PersonalLibrarySummary(
-            entries
-                .Where(entry => entry.Video.PersonalState.ContinueWatching)
-                .OrderByDescending(entry => entry.State.LastQualifiedActivityAt)
-                .Select(entry => entry.Video)
-                .ToArray(),
-            entries
-                .Where(entry => entry.Video.PersonalState.Favourite)
-                .OrderByDescending(entry => entry.State.FavouriteAddedAt)
-                .Select(entry => entry.Video)
-                .ToArray(),
-            entries
-                .Where(entry => entry.Video.PersonalState.WatchLater)
-                .OrderBy(entry => entry.State.WatchLaterAddedAt)
-                .Select(entry => entry.Video)
-                .ToArray());
     }
 
     private IQueryable<VideoRow> QueryForAccount(Guid accountId) =>
@@ -132,6 +87,4 @@ public sealed class VideoCatalog(ViewerDbContext database, PlaybackPlanner plann
 
     private static DateTimeOffset AsOffset(DateTime value) =>
         new(DateTime.SpecifyKind(value, DateTimeKind.Utc));
-
-    private sealed record PersonalEntry(VideoSummary Video, PersonalVideoStateRow State);
 }

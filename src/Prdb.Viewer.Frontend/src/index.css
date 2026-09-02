@@ -221,6 +221,11 @@ p { color: #bdb8c7; line-height: 1.6; }
 .facet-more:hover { color: #efe8ff; border-color: rgb(205 183 255 / 45%); }
 
 .empty-library { margin-top: 1.5rem; padding: 1.4rem; border: 1px dashed rgb(255 255 255 / 15%); border-radius: 1rem; }
+/* A narrowed shelf says where else the same question can be asked, before the Videos rather than
+   after them, because the one who needs it is the one whose shelf came up short. */
+.scope-escape { margin: -.6rem 0 1.2rem; color: var(--muted); font-size: .85rem; }
+.scope-escape a { color: #cfc9d6; text-decoration: underline; text-underline-offset: .2rem; }
+.scope-escape a:hover { color: #efe8ff; }
 .empty-library p { margin: .35rem 0 0; }
 /* A card's width grows with the screen, so a wide screen shows bigger pictures as well as more of
    them rather than only more of the same small ones. */

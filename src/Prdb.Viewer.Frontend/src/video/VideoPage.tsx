@@ -70,7 +70,6 @@ export function VideoPage({ account }: { account: Account }) {
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.video(videoId) })
     void queryClient.invalidateQueries({ queryKey: ['videos'] })
-    void queryClient.invalidateQueries({ queryKey: queryKeys.personalLibrary })
   }
 
   const startPlayback = useMutation({

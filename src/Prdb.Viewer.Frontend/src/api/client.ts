@@ -53,6 +53,9 @@ export type LibraryFilters = {
   availability: string[]
   quality: string[]
   playState: string[]
+  /// The Personal Shelves to narrow to, by the API's names. A shelf page pins one here; the
+  /// browsing screen offers them as a facet like any other.
+  shelf: string[]
 }
 
 export const emptyFilters: LibraryFilters = {
@@ -67,6 +70,7 @@ export const emptyFilters: LibraryFilters = {
   availability: [],
   quality: [],
   playState: [],
+  shelf: [],
 }
 
 /// The narrowing every Library question carries: what the search and the facets admit. The sort
@@ -83,6 +87,7 @@ function narrowingQuery(filters: LibraryFilters) {
   if (filters.availability.length) parameters.set('availability', filters.availability.join(','))
   if (filters.quality.length) parameters.set('quality', filters.quality.join(','))
   if (filters.playState.length) parameters.set('playState', filters.playState.join(','))
+  if (filters.shelf.length) parameters.set('shelf', filters.shelf.join(','))
   return parameters
 }
 
@@ -93,7 +98,6 @@ function libraryQuery(filters: LibraryFilters, skip: number, take: number) {
   parameters.set('take', String(take))
   return parameters.toString()
 }
-export type PersonalLibrary = components['schemas']['PersonalLibrarySummary']
 export type PersonalVideoState = components['schemas']['PersonalVideoStateSummary']
 export type PlaybackAttempt = components['schemas']['PlaybackAttemptResult']
 export type PlaybackReportRequest = components['schemas']['PlaybackReportRequest']
@@ -201,7 +205,6 @@ export const api = {
       csrfToken,
       { included },
     ),
-  personalLibrary: () => request<PersonalLibrary>('/api/personal/library'),
   unassessedPlaybackProfiles: () =>
     request<UnassessedPlaybackProfile[]>('/api/personal/playback-profiles'),
   recordPlaybackAssessments: (

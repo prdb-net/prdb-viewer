@@ -27,6 +27,13 @@ public enum LibrarySortOrder
     /// first among themselves.
     /// </summary>
     BestRated,
+
+    /// <summary>
+    /// The order a Personal Shelf keeps: Continue Watching by latest qualifying activity, Favourites
+    /// by latest addition, Watch Later by earliest addition, because it is a queue. With several
+    /// shelves chosen, the latest entry into any of them leads; with none chosen it is Newest.
+    /// </summary>
+    ShelfOrder,
 }
 
 /// <summary>

@@ -28,7 +28,7 @@ public sealed class PersonalStateRouteTests
         Assert.Equal(
             HttpStatusCode.Unauthorized,
             (await anonymous.GetAsync(
-                "/api/personal/library",
+                "/api/library/videos?shelf=Favourites",
                 TestContext.Current.CancellationToken)).StatusCode);
 
         using var missingCsrf = await administrator.PostAsJsonAsync(
@@ -46,14 +46,15 @@ public sealed class PersonalStateRouteTests
             TestContext.Current.CancellationToken);
         favouriteResponse.EnsureSuccessStatusCode();
 
+        // A shelf is the Library narrowed to it, and each Account's shelf is its own.
         var administratorLibrary = await administrator.GetFromJsonAsync<JsonElement>(
-            "/api/personal/library",
+            "/api/library/videos?shelf=Favourites",
             TestContext.Current.CancellationToken);
-        Assert.Single(administratorLibrary.GetProperty("favourites").EnumerateArray());
+        Assert.Single(administratorLibrary.GetProperty("videos").EnumerateArray());
         var userLibrary = await user.GetFromJsonAsync<JsonElement>(
-            "/api/personal/library",
+            "/api/library/videos?shelf=Favourites",
             TestContext.Current.CancellationToken);
-        Assert.Empty(userLibrary.GetProperty("favourites").EnumerateArray());
+        Assert.Empty(userLibrary.GetProperty("videos").EnumerateArray());
 
         var attempt = await SendJsonAsync(
             administrator,
@@ -82,13 +83,13 @@ public sealed class PersonalStateRouteTests
         Assert.Equal("InProgress", report.GetProperty("personalState").GetProperty("playState").GetString());
 
         administratorLibrary = await administrator.GetFromJsonAsync<JsonElement>(
-            "/api/personal/library",
+            "/api/library/videos?shelf=ContinueWatching",
             TestContext.Current.CancellationToken);
-        Assert.Single(administratorLibrary.GetProperty("continueWatching").EnumerateArray());
+        Assert.Single(administratorLibrary.GetProperty("videos").EnumerateArray());
         userLibrary = await user.GetFromJsonAsync<JsonElement>(
-            "/api/personal/library",
+            "/api/library/videos?shelf=ContinueWatching",
             TestContext.Current.CancellationToken);
-        Assert.Empty(userLibrary.GetProperty("continueWatching").EnumerateArray());
+        Assert.Empty(userLibrary.GetProperty("videos").EnumerateArray());
 
         var rating = await SendJsonAsync(
             administrator,

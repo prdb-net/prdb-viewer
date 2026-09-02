@@ -187,7 +187,7 @@ public sealed class PersonalStateServiceTests
         var seeded = await SeedAsync(store);
         await using var scope = store.Scope();
         var service = scope.ServiceProvider.GetRequiredService<PersonalStateService>();
-        var catalogue = scope.ServiceProvider.GetRequiredService<VideoCatalog>();
+        var discovery = scope.ServiceProvider.GetRequiredService<LibraryDiscovery>();
 
         var favourite = await service.SetFavouriteAsync(
             seeded.FirstAccountId,
@@ -220,18 +220,10 @@ public sealed class PersonalStateServiceTests
                 6,
                 TestContext.Current.CancellationToken)).Verdict);
 
-        var personal = await catalogue.GetPersonalLibraryAsync(
-            seeded.FirstAccountId,
-            LibraryPipeline.ClientContext,
-            TestContext.Current.CancellationToken);
-        Assert.Single(personal.Favourites);
-        Assert.Single(personal.WatchLater);
-        var privateToOther = await catalogue.GetPersonalLibraryAsync(
-            seeded.SecondAccountId,
-            LibraryPipeline.ClientContext,
-            TestContext.Current.CancellationToken);
-        Assert.Empty(privateToOther.Favourites);
-        Assert.Empty(privateToOther.WatchLater);
+        Assert.Single((await OnShelfAsync(discovery, seeded.FirstAccountId, PersonalShelf.Favourites)).Videos);
+        Assert.Single((await OnShelfAsync(discovery, seeded.FirstAccountId, PersonalShelf.WatchLater)).Videos);
+        Assert.Empty((await OnShelfAsync(discovery, seeded.SecondAccountId, PersonalShelf.Favourites)).Videos);
+        Assert.Empty((await OnShelfAsync(discovery, seeded.SecondAccountId, PersonalShelf.WatchLater)).Videos);
     }
 
     [Fact]
@@ -339,7 +331,7 @@ public sealed class PersonalStateServiceTests
         var seeded = await SeedAsync(store);
         await using var scope = store.Scope();
         var service = scope.ServiceProvider.GetRequiredService<PersonalStateService>();
-        var catalogue = scope.ServiceProvider.GetRequiredService<VideoCatalog>();
+        var discovery = scope.ServiceProvider.GetRequiredService<LibraryDiscovery>();
         await service.SetFavouriteAsync(
             seeded.FirstAccountId,
             seeded.VideoId,
@@ -347,25 +339,28 @@ public sealed class PersonalStateServiceTests
             TestContext.Current.CancellationToken);
 
         await SetAvailabilityAsync(scope, seeded.VideoFileId, VideoFileAvailability.Missing);
-        var unavailable = Assert.Single((await catalogue.GetPersonalLibraryAsync(
-            seeded.FirstAccountId,
-            LibraryPipeline.ClientContext,
-            TestContext.Current.CancellationToken)).Favourites);
+        var unavailable = Assert.Single(
+            (await OnShelfAsync(discovery, seeded.FirstAccountId, PersonalShelf.Favourites)).Videos);
         Assert.Equal(VideoAvailability.Unavailable, unavailable.Availability);
         Assert.Empty(unavailable.VideoFiles);
 
         await SetAvailabilityAsync(scope, seeded.VideoFileId, VideoFileAvailability.Removed);
-        Assert.Empty((await catalogue.GetPersonalLibraryAsync(
-            seeded.FirstAccountId,
-            LibraryPipeline.ClientContext,
-            TestContext.Current.CancellationToken)).Favourites);
+        Assert.Empty((await OnShelfAsync(discovery, seeded.FirstAccountId, PersonalShelf.Favourites)).Videos);
 
         await SetAvailabilityAsync(scope, seeded.VideoFileId, VideoFileAvailability.Available);
-        Assert.Single((await catalogue.GetPersonalLibraryAsync(
-            seeded.FirstAccountId,
-            LibraryPipeline.ClientContext,
-            TestContext.Current.CancellationToken)).Favourites);
+        Assert.Single((await OnShelfAsync(discovery, seeded.FirstAccountId, PersonalShelf.Favourites)).Videos);
     }
+
+    /// <summary>A Personal Shelf, read the way the browser reads it: as the Library narrowed to it.</summary>
+    private static Task<LibraryPage> OnShelfAsync(
+        LibraryDiscovery discovery,
+        Guid accountId,
+        PersonalShelf shelf) =>
+        discovery.GetAsync(
+            accountId,
+            LibraryPipeline.ClientContext,
+            new LibraryDiscoveryRequest { Shelf = [shelf] },
+            TestContext.Current.CancellationToken);
 
     private static async Task SetAvailabilityAsync(
         AsyncServiceScope scope,
@@ -377,6 +372,12 @@ public sealed class PersonalStateServiceTests
             candidate => candidate.Id == videoFileId,
             TestContext.Current.CancellationToken);
         file.Availability = availability;
+        await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+        // Whatever changes a file's availability refreshes the Video's projection in the same unit
+        // of work (ADR 0013); the shelf reads the projection, so this stand-in for a scan does too.
+        await scope.ServiceProvider
+            .GetRequiredService<VideoProjection>()
+            .RefreshAsync(file.VideoId, TestContext.Current.CancellationToken);
         await database.SaveChangesAsync(TestContext.Current.CancellationToken);
         database.ChangeTracker.Clear();
     }

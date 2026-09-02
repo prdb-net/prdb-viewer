@@ -24,8 +24,8 @@ type PersonalActionVariables = {
 /// One Account's private organisation of a Video, from wherever it is offered.
 ///
 /// Every screen that shows a Video offers the same four, so they are written once and invalidate
-/// the same server state — the Library page, the addressed Video, and the personal shelves — from
-/// one place, rather than each screen learning how to refresh the others.
+/// the same server state — the Library and the shelves it is narrowed to, and the addressed Video —
+/// from one place, rather than each screen learning how to refresh the others.
 ///
 /// What is in flight is tracked per Video rather than per screen. A grid of sixty cards used to
 /// disable all of them while one card's Favourite was saving, which reads as an application that
@@ -49,7 +49,6 @@ export function usePersonalActions(account: Account) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['videos'] })
       void queryClient.invalidateQueries({ queryKey: ['video'] })
-      void queryClient.invalidateQueries({ queryKey: queryKeys.personalLibrary })
     },
   })
 

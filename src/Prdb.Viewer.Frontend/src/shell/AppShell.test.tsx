@@ -133,6 +133,60 @@ describe('The application shell', () => {
     vi.useRealTimers()
   })
 
+  it('searches the shelf that is open, and offers the whole library one link away', async () => {
+    signedInAs('User')
+    renderApp('/favourites')
+
+    await screen.findByRole('heading', { name: 'Favourites' })
+    // The shelf is the Library narrowed to it: the request says so, and the shelf's own order is
+    // the default rather than Newest.
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/shelf=Favourites.*sort=ShelfOrder|sort=ShelfOrder.*shelf=Favourites/),
+      expect.anything(),
+    ))
+    expect(screen.getByLabelText('Sort')).toHaveValue('ShelfOrder')
+    expect(screen.getByRole('option', { name: 'Recently added' })).toBeInTheDocument()
+    // The shelf is what is being narrowed, not a narrowing: it is not offered as a facet again and
+    // not listed as something to take out.
+    expect(screen.queryByRole('group', { name: 'Yours' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Active filters' })).not.toBeInTheDocument()
+
+    // Typing in the header searches this shelf rather than leading away from it.
+    const field = screen.getByLabelText('Search your Favourites')
+    fireEvent.change(field, { target: { value: 'beach' } })
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/query=beach.*shelf=Favourites|shelf=Favourites.*query=beach/),
+      expect.anything(),
+    ))
+    expect(await screen.findByRole('heading', { name: 'Favourites' })).toBeInTheDocument()
+
+    // The same words, asked of the whole Library, are one link away.
+    const escape = screen.getByRole('link', { name: 'Search the whole library instead' })
+    expect(escape).toHaveAttribute('href', '/?query=beach')
+    fireEvent.click(escape)
+    expect(await screen.findByRole('heading', { name: 'Matching Videos' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Search the library')).toHaveValue('beach')
+  })
+
+  it('offers the shelves as a facet of the whole library', async () => {
+    signedInAs('User')
+    renderApp()
+
+    await screen.findByRole('heading', { name: 'Browse' })
+    const yours = screen.getByRole('group', { name: 'Yours' })
+    fireEvent.click(within(yours).getByRole('button', { name: 'Watch Later' }))
+
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringContaining('shelf=WatchLater'),
+      expect.anything(),
+    ))
+    // What is chosen is listed, and the shelf's order becomes available without being imposed.
+    const active = await screen.findByRole('list', { name: 'Active filters' })
+    expect(within(active).getByRole('button', { name: 'Remove Watch Later' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Sort')).toHaveValue('Newest')
+    expect(screen.getByRole('option', { name: 'Shelf order' })).toBeInTheDocument()
+  })
+
   it('offers the Account as a destination rather than only as a header shortcut', async () => {
     signedInAs('User')
     renderApp()

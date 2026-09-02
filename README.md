@@ -415,7 +415,8 @@ other titles, then Sites and Actors, then file names. There is deliberately no
 stemming, typo correction or semantic matching.
 
 Filters cover Site, Actor, Work Identification, review status, Client Video
-Playability, availability, Video Quality and the Account's own Personal Play State. Values inside one facet
+Playability, availability, Video Quality, the Account's own Personal Play State
+and its Personal Shelves. Values inside one facet
 combine with OR and the facets combine with AND, and Unknown Work Identification,
 Unknown Site and Review Needed are explicit values rather than the absence of
 one. Established Sites and Actors are offered with their counts, and so are the
@@ -432,7 +433,19 @@ The default order is Discovery Date descending, so later enrichment never makes
 an old Video look newly added; Title A-Z, best quality first and longest first
 are the alternatives that hold for every Account, the quality order falling back
 to the default inside one band. Recently played and best rated order by the
-Account's own Personal State, and put the Videos it has none for last.
+Account's own Personal State, and put the Videos it has none for last. The shelf
+order is the order a Personal Shelf keeps.
+
+Continue Watching, Favourites and Watch Later are Personal Shelves: the library
+narrowed to what the Account keeps on them. Each has the same search, facets,
+orders and paging the browsing screen has, kept in its own address, and opens in
+the order it keeps — latest watched, latest added, and oldest added first for
+the queue. The search in the header searches the shelf that is open and says so;
+the shelf's screen offers the whole library for the same words one link away. A
+shelf shows what was put on it whether or not this browser can play it, and the
+card says when a Video will not play here; on the browsing screen the shelves
+are one facet among the others. See
+[ADR 0019](docs/adr/0019-treat-personal-shelves-as-narrowings-of-the-library.md).
 
 Ordinary results contain a Video while it is Available and ready for direct
 play. When the current rules keep matches out, the view says how many and offers

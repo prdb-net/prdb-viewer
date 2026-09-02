@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router'
 
 import { api, type Account } from '../api/client'
+import { shelfAt, shelves } from '../personal/shelves'
 import { queryKeys } from '../queryKeys'
 import { Brand } from '../ui'
 import { visibleGroups, type NavigationEntry } from './navigation'
@@ -19,7 +20,7 @@ export function AppShell({ account }: { account: Account }) {
   const drawerToggle = useRef<HTMLButtonElement>(null)
   // A grid of Videos is the one thing here that gets better with every column a screen can hold,
   // so the screens made of one take the whole width; prose and forms keep their measure.
-  const wide = ['/', '/continue', '/favourites', '/watch-later'].includes(location.pathname)
+  const wide = location.pathname === '/' || shelfAt(location.pathname) !== undefined
 
   // A narrow viewport navigates by opening the drawer, so arriving somewhere closes it again.
   useEffect(() => setDrawerOpen(false), [location.pathname])
@@ -108,6 +109,11 @@ const searchSettleMilliseconds = 250
 /// Search belongs to the chrome rather than to one screen: it is how the Library is reached from
 /// anywhere, and it puts what it finds in the URL so the result is the same page for everyone.
 ///
+/// It searches where it is. On the browsing screen and everywhere that is not a list of Videos, it
+/// searches the whole Library; on a Personal Shelf it searches that shelf, and says so, because
+/// someone who opened their Favourites and typed a word was looking for one of their Favourites.
+/// The shelf's screen offers the whole Library for the same words, one link away.
+///
 /// What is typed lives here rather than in the address, because a controlled field fed by a
 /// navigation loses the keystrokes that arrive before that navigation renders. The address stays
 /// the truth about what is being searched for; the field is what someone is still typing, and the
@@ -116,8 +122,10 @@ function GlobalSearch() {
   const [parameters] = useSearchParams()
   const location = useLocation()
   const navigate = useNavigate()
-  const onLibrary = location.pathname === '/'
-  const query = onLibrary ? (parameters.get('query') ?? '') : ''
+  const shelf = shelfAt(location.pathname)
+  const scope = shelf ? shelves[shelf].to : '/'
+  const onScope = location.pathname === scope
+  const query = onScope ? (parameters.get('query') ?? '') : ''
 
   const [typed, setTyped] = useState(query)
   /// What this field last put in the address. It tells a change made here apart from one made
@@ -136,7 +144,7 @@ function GlobalSearch() {
 
     const timer = window.setTimeout(() => {
       published.current = typed
-      const next = new URLSearchParams(onLibrary ? parameters : undefined)
+      const next = new URLSearchParams(onScope ? parameters : undefined)
       if (typed) {
         next.set('query', typed)
       } else {
@@ -145,22 +153,24 @@ function GlobalSearch() {
       next.delete('pages')
       // Refining one search does not fill the history with every keystroke, but arriving at the
       // Library from elsewhere is a step worth being able to go back from.
-      void navigate({ pathname: '/', search: next.toString() }, { replace: onLibrary })
+      void navigate({ pathname: scope, search: next.toString() }, { replace: onScope })
     }, searchSettleMilliseconds)
 
     return () => window.clearTimeout(timer)
-  }, [typed, onLibrary, parameters, navigate])
+  }, [typed, onScope, scope, parameters, navigate])
+
+  const name = shelf ? shelves[shelf].search : 'Search the library'
 
   return (
     <label className="global-search">
-      <span className="visually-hidden">Search the library</span>
+      <span className="visually-hidden">{name}</span>
       <input
         type="search"
         name="query"
         id="global-search"
         autoComplete="off"
         value={typed}
-        placeholder="Search title, site, actor or file name"
+        placeholder={shelf ? name : 'Search title, site, actor or file name'}
         onChange={(event) => setTyped(event.target.value)}
       />
     </label>

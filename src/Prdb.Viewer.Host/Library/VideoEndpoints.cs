@@ -28,6 +28,7 @@ public static class VideoEndpoints
             string? availability = null,
             string? quality = null,
             string? playState = null,
+            string? shelf = null,
             int skip = 0,
             int take = LibraryPaging.DefaultPageSize) =>
             TypedResults.Ok(await discovery.GetAsync(
@@ -44,7 +45,8 @@ public static class VideoEndpoints
                     playability,
                     availability,
                     quality,
-                    playState) with { Skip = skip, Take = take },
+                    playState,
+                    shelf) with { Skip = skip, Take = take },
                 cancellationToken)));
 
         library.MapGet("/videos/{videoId:guid}", async Task<Results<Ok<VideoDetail>, NotFound>> (
@@ -77,7 +79,8 @@ public static class VideoEndpoints
             string? playability = null,
             string? availability = null,
             string? quality = null,
-            string? playState = null) =>
+            string? playState = null,
+            string? shelf = null) =>
             TypedResults.Ok(await discovery.GetFacetsAsync(
                 http.User.AccountId()!.Value,
                 Request(
@@ -91,7 +94,8 @@ public static class VideoEndpoints
                     playability,
                     availability,
                     quality,
-                    playState),
+                    playState,
+                    shelf),
                 cancellationToken)));
 
         library.MapPut("/preferences/include-not-ready", async (
@@ -140,7 +144,8 @@ public static class VideoEndpoints
         string? playability,
         string? availability,
         string? quality,
-        string? playState) =>
+        string? playState,
+        string? shelf) =>
         new()
         {
             Query = query,
@@ -154,6 +159,7 @@ public static class VideoEndpoints
             Availability = Parsed<VideoAvailability>(availability),
             Quality = Parsed<VideoQualityBand>(quality),
             PlayState = Parsed<PersonalPlayState>(playState),
+            Shelf = Parsed<PersonalShelf>(shelf),
         };
 
     /// <summary>

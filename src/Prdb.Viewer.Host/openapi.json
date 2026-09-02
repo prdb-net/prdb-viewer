@@ -909,6 +909,13 @@
             }
           },
           {
+            "name": "shelf",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "skip",
             "in": "query",
             "schema": {
@@ -1058,6 +1065,13 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "shelf",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -1096,25 +1110,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/LibraryPreferencesSummary"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/personal/library": {
-      "get": {
-        "tags": [
-          "Personal State"
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PersonalLibrarySummary"
                 }
               }
             }
@@ -3207,7 +3202,8 @@
           "QualityDescending",
           "LongestFirst",
           "RecentlyPlayed",
-          "BestRated"
+          "BestRated",
+          "ShelfOrder"
         ]
       },
       "ObservedPlaybackOutcome": {
@@ -3252,34 +3248,6 @@
         "properties": {
           "recorded": {
             "type": "boolean"
-          }
-        }
-      },
-      "PersonalLibrarySummary": {
-        "required": [
-          "continueWatching",
-          "favourites",
-          "watchLater"
-        ],
-        "type": "object",
-        "properties": {
-          "continueWatching": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/VideoSummary"
-            }
-          },
-          "favourites": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/VideoSummary"
-            }
-          },
-          "watchLater": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/VideoSummary"
-            }
           }
         }
       },
