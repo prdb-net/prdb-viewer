@@ -7,6 +7,19 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-02
+
+An identification review that names the decision it is waiting for. A case whose
+Site came with the Work Identification refuses four of its five decisions, and
+the one it is left with was identified only by the colour of the four that were
+disabled; a candidate proposing what is already established has nothing for
+accepting it to add. Both now reach an Administrator as a sentence above the
+actions that names the decision, says why the proposal adds nothing where it
+adds nothing, and says what the library keeps and what still waits once the
+decision is made. Nothing about configuration, the HTTP API, the Backup Archive,
+or the stored data changes, so an upgrade from `0.9.0` is the new image and
+nothing else.
+
 ### Changed
 
 - The identification review says what an open case is asking for, above the
