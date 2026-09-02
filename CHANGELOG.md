@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-02
+
 The browsing screen shows Videos rather than controls. A library of forty Videos
 opened on seven rows of facet pills and forty cards each carrying nine controls
 and the same three sentences; on a phone the first Video was two screens down.
