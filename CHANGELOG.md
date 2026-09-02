@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-09-02
+
 Continue Watching, Favourites and Watch Later have what the browsing screen has.
 Each shelf used to be a list of everything on it, with no search, no filters, no
 order and no paging, and typing into the search field while one was open led
