@@ -7,6 +7,20 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-09-02
+
+Discovery that does not wait to be asked. A file copied into the mounted
+library becomes a Video on its own: every Active Library Directory falls due
+for another Library Scan six hours after the last one read it, and the
+Background work and Installation screens say when each one is next. Until now
+the row of `Scan` buttons was the whole of discovery, which made remembering to
+press one part of using the product. **It migrates**: the schedule of an
+existing installation is derived from the last Library Scan that finished
+beneath each Library Directory, so a library scanned recently waits out the
+rest of its period and one last scanned long ago is read shortly after the
+upgrade. Migrations are forward-only, so a return to `0.7.0` needs a copy of
+the application data taken before the upgrade.
+
 ### Added
 
 - A file copied into the mounted library is found without anyone asking for it.
