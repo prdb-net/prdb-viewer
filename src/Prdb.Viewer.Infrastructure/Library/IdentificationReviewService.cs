@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 using Microsoft.EntityFrameworkCore;
 
 using Prdb.Viewer.Core.Library;
@@ -898,9 +896,7 @@ public sealed class IdentificationReviewService(
                 work.Title,
                 work.SiteTitle,
                 work.SiteUrl,
-                work.ActorsJson is null
-                    ? []
-                    : JsonSerializer.Deserialize<string[]>(work.ActorsJson) ?? [],
+                RetainedActors.Names(work.ActorsJson),
                 work.ArtworkState == ProposedWorkArtworkState.Retained &&
                 work.PublicArtworkId is not null
                     ? $"/media/proposals/{work.PublicArtworkId}"

@@ -262,6 +262,7 @@ const laneOrder = [
   'PreviewGeneration',
   'Identification',
   'SiteRecognition',
+  'Enrichment',
 ]
 
 /// One row per lane, rather than one per run.

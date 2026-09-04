@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
+using Prdb.Viewer.Core.Access;
 using Prdb.Viewer.Core.Configuration;
 using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Infrastructure.Library;
@@ -40,6 +41,26 @@ internal static class LibraryPipeline
             .QueueInitialScan(directory, activatedAt);
         await database.SaveChangesAsync(TestContext.Current.CancellationToken);
         return directory.Id;
+    }
+
+    /// <summary>One approved Account, which every answer the Library gives is given to.</summary>
+    public static async Task<Guid> AccountAsync(TestDatabase store, string username = "viewer")
+    {
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var account = new AccountRow
+        {
+            Id = Guid.CreateVersion7(),
+            Username = username,
+            NormalizedUsername = username,
+            PasswordHash = new string('h', 84),
+            Authority = AccountAuthority.User,
+            State = AccountState.Approved,
+            RegisteredAt = DateTime.SpecifyKind(new DateTime(2026, 8, 1), DateTimeKind.Utc),
+        };
+        database.Accounts.Add(account);
+        await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+        return account.Id;
     }
 
     public static async Task SetCredentialAsync(TestDatabase store, string? credential)
@@ -106,7 +127,8 @@ internal static class LibraryPipeline
                 await RunAsync<HashingRunner>(store, runner => runner.RunNextSliceAsync) |
                 await RunAsync<PreviewGenerationRunner>(store, runner => runner.RunNextSliceAsync) |
                 await RunAsync<IdentificationRunner>(store, runner => runner.RunNextSliceAsync) |
-                await RunAsync<SiteRecognitionRunner>(store, runner => runner.RunNextSliceAsync);
+                await RunAsync<SiteRecognitionRunner>(store, runner => runner.RunNextSliceAsync) |
+                await RunAsync<EnrichmentRunner>(store, runner => runner.RunNextSliceAsync);
 
             if (!handled)
             {

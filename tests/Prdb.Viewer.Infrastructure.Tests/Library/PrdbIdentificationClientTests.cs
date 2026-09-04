@@ -52,6 +52,24 @@ public sealed class PrdbIdentificationClientTests
     }
 
     [Fact]
+    public async Task An_actor_arrives_with_the_identity_prdb_holds_for_them()
+    {
+        var prdb = new FakePrdb()
+            .Recognises("known.mp4", "A Known Work", "Example Site", 4, 0, "Alex Doe", "Sam Roe");
+
+        var result = await IdentifyAsync(prdb, (FirstFile, "known.mp4"));
+
+        // The name is what a facet shows; the identity is what an Actor's own page is reached by,
+        // and it is on the wire in every answer this client has ever received (ADR 0020).
+        var actors = Assert.Single(result.Results).Work?.Actors;
+        Assert.Equal(["Alex Doe", "Sam Roe"], actors?.Select(actor => actor.Name));
+        Assert.Equal(
+            [CatalogueEntry.Identifier("actor:Alex Doe").ToString(),
+             CatalogueEntry.Identifier("actor:Sam Roe").ToString()],
+            actors?.Select(actor => actor.Id));
+    }
+
+    [Fact]
     public async Task A_file_prdb_does_not_hold_comes_back_answered_rather_than_missing()
     {
         var prdb = new FakePrdb().Recognises("known.mp4", "A Known Work");

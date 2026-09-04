@@ -658,7 +658,13 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
     /// each of them. Only the page is loaded, which is the whole point of projecting the facts the
     /// filter needed.
     /// </summary>
-    private async Task<IReadOnlyList<VideoSummary>> LoadAsync(
+    /// <summary>
+    /// Loads named Videos as the Library presents them, in the order given, with this Account's
+    /// Personal State and this client's playback plan on each. It is public because an Actor's
+    /// page shows the same Videos the Library does, and two ways of building a Video card would be
+    /// one too many.
+    /// </summary>
+    public async Task<IReadOnlyList<VideoSummary>> LoadAsync(
         Guid accountId,
         string clientContextKey,
         IReadOnlyList<Guid> ids,

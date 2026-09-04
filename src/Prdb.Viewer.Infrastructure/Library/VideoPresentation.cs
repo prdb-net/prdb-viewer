@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Infrastructure.Persistence;
 
@@ -98,7 +96,11 @@ internal static class VideoPresentation
             ? metadata.Title
             : null;
 
-    public static IReadOnlyList<string> Actors(VideoRow video)
+    /// <summary>
+    /// The Actor Credits of the Video's Established Work Identification, with the identity each
+    /// one resolves to where the retained document carries one.
+    /// </summary>
+    public static IReadOnlyList<RetainedActor> ActorCredits(VideoRow video)
     {
         var work = IdentificationService.Current(video, IdentificationDimension.WorkIdentification);
 
@@ -109,15 +111,11 @@ internal static class VideoPresentation
             return [];
         }
 
-        try
-        {
-            return JsonSerializer.Deserialize<string[]>(json) ?? [];
-        }
-        catch (JsonException)
-        {
-            return [];
-        }
+        return RetainedActors.Deserialize(json);
     }
+
+    public static IReadOnlyList<string> Actors(VideoRow video) =>
+        ActorCredits(video).Select(actor => actor.Name).ToArray();
 
     public static DateTimeOffset? AsOffset(DateTime? value) =>
         value is null ? null : new DateTimeOffset(DateTime.SpecifyKind(value.Value, DateTimeKind.Utc));

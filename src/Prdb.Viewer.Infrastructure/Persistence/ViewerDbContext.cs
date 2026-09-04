@@ -33,6 +33,12 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<VideoActorRow> VideoActors => Set<VideoActorRow>();
 
+    public DbSet<ActorRow> Actors => Set<ActorRow>();
+
+    public DbSet<ActorAliasRow> ActorAliases => Set<ActorAliasRow>();
+
+    public DbSet<ActorImageRow> ActorImages => Set<ActorImageRow>();
+
     public DbSet<VideoFileRow> VideoFiles => Set<VideoFileRow>();
 
     public DbSet<VideoFileCandidateRow> VideoFileCandidates => Set<VideoFileCandidateRow>();
@@ -264,9 +270,59 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             actor.Property(row => row.NormalizedName).IsRequired();
             actor.HasIndex(row => new { row.VideoId, row.NormalizedName }).IsUnique();
             actor.HasIndex(row => row.NormalizedName);
+            // The Videos one Actor has here is the question their own page asks.
+            actor.HasIndex(row => row.PrdbActorId);
             actor.HasOne(row => row.Video)
                 .WithMany(row => row.ProjectedActors)
                 .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ActorRow>(actor =>
+        {
+            actor.ToTable("actor");
+            actor.HasKey(row => row.Id);
+            actor.Property(row => row.Id).ValueGeneratedNever();
+            actor.Property(row => row.PrdbActorId).IsRequired();
+            actor.Property(row => row.Name).IsRequired();
+            actor.Property(row => row.NormalizedName).IsRequired();
+            actor.Property(row => row.ProfileState).HasConversion<string>();
+            actor.HasIndex(row => row.PrdbActorId).IsUnique();
+            actor.HasIndex(row => row.NormalizedName);
+            actor.HasIndex(row => row.ProfileState);
+        });
+
+        builder.Entity<ActorAliasRow>(alias =>
+        {
+            alias.ToTable("actor_alias");
+            alias.HasKey(row => row.Id);
+            alias.Property(row => row.Id).ValueGeneratedNever();
+            alias.Property(row => row.Name).IsRequired();
+            alias.Property(row => row.NormalizedName).IsRequired();
+            alias.HasIndex(row => new { row.ActorId, row.NormalizedName }).IsUnique();
+            // Somebody searching types the name they know, which is not always the one prdb leads
+            // with, so an alias is searched exactly as a name is.
+            alias.HasIndex(row => row.NormalizedName);
+            alias.HasOne(row => row.Actor)
+                .WithMany(row => row.Aliases)
+                .HasForeignKey(row => row.ActorId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ActorImageRow>(image =>
+        {
+            image.ToTable("actor_image");
+            image.HasKey(row => row.Id);
+            image.Property(row => row.Id).ValueGeneratedNever();
+            image.Property(row => row.PrdbImageId).IsRequired();
+            image.Property(row => row.SourceUrl).IsRequired();
+            image.Property(row => row.State).HasConversion<string>();
+            image.HasIndex(row => new { row.ActorId, row.PrdbImageId }).IsUnique();
+            image.HasIndex(row => row.PublicImageId);
+            image.HasIndex(row => row.State);
+            image.HasOne(row => row.Actor)
+                .WithMany(row => row.Images)
+                .HasForeignKey(row => row.ActorId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

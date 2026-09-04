@@ -64,6 +64,60 @@ public sealed class PreviewDeliveryService(
     }
 
     /// <summary>
+    /// Serves one retained Actor Image. Addressed the same way a preview is, by a random
+    /// identifier rather than a remote URL, so opening an Actor's page never puts a User's browser
+    /// in touch with prdb.
+    /// </summary>
+    public async Task<PreviewDelivery?> OpenActorImageAsync(
+        Guid publicImageId,
+        CancellationToken cancellationToken = default)
+    {
+        var image = await database.ActorImages
+            .AsNoTracking()
+            .Where(row => row.PublicImageId == publicImageId &&
+                          row.State == ActorImageState.Retained &&
+                          row.RelativePath != null)
+            .Select(row => new
+            {
+                RelativePath = row.RelativePath!,
+                row.ContentType,
+                row.RetainedAt,
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (image is null)
+        {
+            return null;
+        }
+
+        var path = Path.GetFullPath(artifacts.ActorImageFullPath(image.RelativePath));
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(artifacts.ActorImagesRoot));
+
+        if (!path.StartsWith($"{root}{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        try
+        {
+            return new PreviewDelivery(
+                new FileStream(
+                    path,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    1024 * 32,
+                    FileOptions.Asynchronous | FileOptions.SequentialScan),
+                image.ContentType ?? "image/jpeg",
+                VideoPresentation.AsOffset(image.RetainedAt) ?? DateTimeOffset.MinValue);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Serves the retained picture of a proposed work. It is addressed the same way a preview is,
     /// by a random identifier rather than a remote URL, so that opening a review case never puts
     /// an Administrator's browser in touch with prdb.

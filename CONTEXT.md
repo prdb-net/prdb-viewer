@@ -200,6 +200,28 @@ _Avoid_: automatic correction, permanent identification
 A Video with no Established Work Identification. It may still have an Established Site Recognition, local file facts, Pending Identification Candidates, and an Identification Review Status of Review Needed.
 _Avoid_: unidentified file, unprocessed Video, Video without metadata
 
+### Actors
+
+**Actor**:
+A durable shared-library identity for one person prdb names as appearing in a Video, carried by prdb's own identifier and independent of the Videos that currently carry them. It is established only through an Established Work Identification; this installation never mints one of its own.
+_Avoid_: performer, cast member, actor name
+
+**Actor Credit**:
+One Video's naming of one person: the name as that Video's retained metadata spells it, together with the Actor it resolves to where prdb sent an identity. It is what the Library facets and counts by, so a credit whose name resolves to nobody still narrows the Library and simply leads nowhere.
+_Avoid_: Actor, cast, appearance
+
+**Actor Profile**:
+The last known prdb facts about an Actor — how they are described, their aliases, their external links, their bios and their pictures — retained so that an Actor's page reads through an outage or a rejected credential. Like the Site Directory it is regenerable rather than authoritative, and it never establishes, corrects, or disputes an Identification Claim.
+_Avoid_: Actor, biography, Shared Library Knowledge
+
+**Actor Image**:
+One picture belonging to an Actor Profile, held in application storage and served under this installation's own address by a random identifier. A browser is never sent to prdb for one.
+_Avoid_: preview, artwork, Actor Portrait
+
+**Actor Portrait**:
+The one Actor Image that stands for an Actor wherever they are named in a list. It is chosen from the Actor Profile's images rather than fetched separately, and an Actor whose pictures have not arrived has none.
+_Avoid_: Actor Image, thumbnail, preview
+
 ### Direct playback
 
 **Direct-Play Classification**:
@@ -281,6 +303,10 @@ _Avoid_: viewing history, Watch Later, manually curated list
 **Favourite**:
 A User-owned, explicitly maintained reference to a Video that remains independent of playback activity, completion, availability, and playability.
 _Avoid_: shared favourite, recommendation, rating
+
+**Favourite Actor**:
+A User-owned, explicitly maintained reference to an Actor. It is independent of the Videos that Actor has here, of playback activity, and of availability, and it is Personal State rather than Shared Library Knowledge. It is not a Personal Shelf, because it narrows nothing: it names a person rather than a set of Videos.
+_Avoid_: Favourite, Personal Shelf, recommendation
 
 **Watch Later**:
 A User-owned, explicitly maintained queue of Video references ordered from oldest to newest addition. Playback and completion do not alter its membership.

@@ -144,6 +144,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/media/actors/{imageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    imageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/access/state": {
         parameters: {
             query?: never;
@@ -1369,6 +1404,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/library/actors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    query?: string;
+                    sort?: components["schemas"]["ActorSortOrder"];
+                    skip?: number | string;
+                    take?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ActorIndexPage"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/library/actors/{actorId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    actorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ActorDetail"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/personal/playback-profiles": {
         parameters: {
             query?: never;
@@ -1880,6 +1999,77 @@ export interface components {
             /** Format: date-time */
             registeredAt: string;
         };
+        ActorDetail: {
+            actorId: string;
+            name: string;
+            profileState: components["schemas"]["ActorProfileState"];
+            /** Format: date-time */
+            profileFetchedAt: null | string;
+            genderLabel: null | string;
+            /** Format: date-time */
+            birthday: null | string;
+            birthdayPrecisionLabel: null | string;
+            /** Format: date-time */
+            deathday: null | string;
+            birthplace: null | string;
+            haircolourLabel: null | string;
+            eyecolourLabel: null | string;
+            breastTypeLabel: null | string;
+            /** Format: int32 */
+            heightCentimetres: null | number | string;
+            braSizeLabel: null | string;
+            /** Format: int32 */
+            waistCentimetres: null | number | string;
+            /** Format: int32 */
+            hipCentimetres: null | number | string;
+            nationalityLabel: null | string;
+            ethnicityLabel: null | string;
+            /** Format: int32 */
+            careerStart: null | number | string;
+            /** Format: int32 */
+            careerEnd: null | number | string;
+            tattoos: null | string;
+            piercings: null | string;
+            aliases: string[];
+            links: components["schemas"]["ActorLinkView"][];
+            bios: string[];
+            images: components["schemas"]["ActorImageView"][];
+            /** Format: int32 */
+            offeredImageCount: number | string;
+            videos: components["schemas"]["VideoSummary"][];
+            /** Format: int32 */
+            totalVideos: number | string;
+            creditedNames: string[];
+        };
+        ActorImageView: {
+            url: string;
+            kindLabel: null | string;
+        };
+        ActorIndexPage: {
+            actors: components["schemas"]["ActorSummary"][];
+            /** Format: int32 */
+            totalMatches: number | string;
+            hasMore: boolean;
+            /** Format: int32 */
+            awaitingProfiles: number | string;
+        };
+        ActorLinkView: {
+            url: string;
+            siteLabel: null | string;
+        };
+        /** @enum {unknown} */
+        ActorProfileState: "Pending" | "Retained" | "Unavailable";
+        /** @enum {unknown} */
+        ActorSortOrder: "Name" | "MostHere";
+        ActorSummary: {
+            actorId: string;
+            name: string;
+            portraitUrl: null | string;
+            genderLabel: null | string;
+            /** Format: int32 */
+            videoCount: number | string;
+            profileState: components["schemas"]["ActorProfileState"];
+        };
         BackgroundWorkActionResult: {
             verdict: components["schemas"]["BackgroundWorkActionVerdict"];
             issue?: null | components["schemas"]["WorkIssueSummary"];
@@ -1887,7 +2077,7 @@ export interface components {
         /** @enum {unknown} */
         BackgroundWorkActionVerdict: "Accepted" | "NotFound" | "AlreadySettled" | "Stale" | "NotApplicable";
         /** @enum {unknown} */
-        BackgroundWorkCategory: "LibraryScan" | "TechnicalInspection" | "Hashing" | "PreviewGeneration" | "Identification" | "SiteRecognition";
+        BackgroundWorkCategory: "LibraryScan" | "TechnicalInspection" | "Hashing" | "PreviewGeneration" | "Identification" | "SiteRecognition" | "Enrichment";
         BackgroundWorkPauseRequest: {
             paused: boolean;
         };

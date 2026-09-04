@@ -70,6 +70,23 @@ public sealed class SiteRecognitionRunner(
                 update => update.SetProperty(file => file.SiteRecognisedPath, (string?)null),
                 cancellationToken);
 
+    /// <summary>
+    /// Hands the Library Directory on to Enrichment, which asks prdb again about the works this
+    /// pass has now finished placing. It is last in the chain because it is the only lane that
+    /// wants every Video settled before it asks about them.
+    /// </summary>
+    protected override Task CompleteAsync(
+        BackgroundWorkRow work,
+        CancellationToken cancellationToken) =>
+        DerivedWorkQueue.QueueAsync(
+            Database,
+            work.LibraryDirectoryId,
+            work.ConfigurationGeneration,
+            BackgroundWorkCategory.Enrichment,
+            BackgroundWorkTrigger.FollowUpWork,
+            Now(),
+            cancellationToken);
+
     protected override async Task AdvanceAsync(
         BackgroundWorkRow work,
         IReadOnlyList<VideoFileRow> files,

@@ -12,11 +12,17 @@ public sealed record RemoteIdentificationRequest(
 
 public sealed record RemoteSite(string Id, string Title, string? Url);
 
+/// <summary>
+/// One Actor Credit as prdb sends it with a work: the name, and the Actor's own identity where
+/// prdb has one. The identity is prdb's and is never minted here (ADR 0020).
+/// </summary>
+public sealed record RemoteActor(string Name, string? Id);
+
 public sealed record RemoteWork(
     string PrdbVideoId,
     string Title,
     RemoteSite? Site,
-    IReadOnlyList<string> Actors,
+    IReadOnlyList<RemoteActor> Actors,
     string? ArtworkUrl,
     DateTime? ReleaseDate,
     long? DurationMilliseconds);

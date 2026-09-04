@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 using Microsoft.EntityFrameworkCore;
 
 using Prdb.Viewer.Core.Library;
@@ -557,7 +555,7 @@ public sealed class IdentificationService(
         retained.Title = work.Title;
         retained.SiteTitle = work.Site?.Title;
         retained.SiteUrl = work.Site?.Url;
-        retained.ActorsJson = work.Actors.Count == 0 ? null : JsonSerializer.Serialize(work.Actors);
+        retained.ActorsJson = Retained(work.Actors);
         retained.ArtworkUrl = work.ArtworkUrl;
         retained.ReleaseDate = work.ReleaseDate;
         retained.DurationMilliseconds = work.DurationMilliseconds;
@@ -573,16 +571,58 @@ public sealed class IdentificationService(
         return retained;
     }
 
+    /// <summary>
+    /// Rewrites what is retained about a Video's Established Work from a fresh prdb answer, and
+    /// records that the work has been asked about in its own right.
+    /// </summary>
+    /// <remarks>
+    /// It is the Enrichment lane's way in, and it decides nothing: an answer about a work this
+    /// Video is no longer identified as is dropped rather than applied, no claim moves, no
+    /// candidate is proposed, and no evidence is weighed. The facts are refreshed or they are not.
+    /// </remarks>
+    public async Task<bool> RefreshRetainedWorkAsync(
+        Guid videoId,
+        RemoteWork work,
+        CancellationToken cancellationToken = default)
+    {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var video = await LoadAsync(videoId, cancellationToken);
+
+        if (!RetainMetadata(video, work))
+        {
+            return false;
+        }
+
+        video.Metadata!.EnrichedAt = Now();
+
+        // The retained facts feed the discovery projection — the Actor Credits above all — so it
+        // is rebuilt inside the same transaction, as every other write path does (ADR 0013).
+        await projection.RefreshTrackedAsync(cancellationToken);
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
+
     private void RetainMetadata(VideoRow video, RemoteIdentification result)
     {
-        var work = result.Work;
+        if (result.Work is { } work)
+        {
+            RetainMetadata(video, work);
+        }
+    }
+
+    /// <summary>
+    /// Retains what prdb says about a work, but only while the Video is still identified as that
+    /// work. A corrected identification must not keep collecting the superseded work's facts.
+    /// </summary>
+    private bool RetainMetadata(VideoRow video, RemoteWork work)
+    {
         var current = Current(video, IdentificationDimension.WorkIdentification);
 
-        if (work is null ||
-            current is null ||
+        if (current is null ||
             !string.Equals(current.TargetKey, work.PrdbVideoId, StringComparison.OrdinalIgnoreCase))
         {
-            return;
+            return false;
         }
 
         var metadata = video.Metadata;
@@ -604,11 +644,12 @@ public sealed class IdentificationService(
         metadata.SiteId = work.Site?.Id;
         metadata.SiteTitle = work.Site?.Title;
         metadata.SiteUrl = work.Site?.Url;
-        metadata.ActorsJson = work.Actors.Count == 0 ? null : JsonSerializer.Serialize(work.Actors);
+        metadata.ActorsJson = Retained(work.Actors);
         metadata.ArtworkUrl = work.ArtworkUrl;
         metadata.ReleaseDate = work.ReleaseDate;
         metadata.DurationMilliseconds = work.DurationMilliseconds;
         metadata.FetchedAt = Now();
+        return true;
     }
 
     private static VideoRow Survivor(VideoRow left, VideoRow right)
@@ -650,6 +691,14 @@ public sealed class IdentificationService(
             RemoteMatchKind.Site => $"Site:{Path.GetFileName(file.RelativePath)}",
             _ => "None",
         };
+
+    /// <summary>
+    /// The Actor Credits of a remote work as a retained document holds them: the name prdb spells
+    /// and the identity it sent with it, and nothing prdb's Actor Profile is the place for.
+    /// </summary>
+    private static string? Retained(IReadOnlyList<RemoteActor> actors) =>
+        RetainedActors.Serialize(
+            actors.Select(actor => new RetainedActor(actor.Name, actor.Id)).ToArray());
 
     private DateTime Now() => timeProvider.GetUtcNow().UtcDateTime;
 }

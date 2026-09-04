@@ -21,7 +21,8 @@ public sealed class VideoProjection(ViewerDbContext database, TimeProvider timeP
         var label = VideoPresentation.DisplayLabel(video);
         var work = IdentificationService.Current(video, IdentificationDimension.WorkIdentification);
         var site = IdentificationService.Current(video, IdentificationDimension.SiteRecognition);
-        var actors = VideoPresentation.Actors(video);
+        var credits = VideoPresentation.ActorCredits(video);
+        var actors = credits.Select(actor => actor.Name).ToArray();
         var files = video.VideoFiles.ToArray();
         var available = files
             .Where(file => file.Availability == VideoFileAvailability.Available)
@@ -46,7 +47,7 @@ public sealed class VideoProjection(ViewerDbContext database, TimeProvider timeP
         video.Availability = AvailabilityOf(files);
         video.SearchText = SearchTextOf(label, title, video.EstablishedSite, actors, files);
         video.ProjectedAt = timeProvider.GetUtcNow().UtcDateTime;
-        RefreshActors(video, actors);
+        RefreshActors(video, credits);
     }
 
     /// <summary>
@@ -174,17 +175,29 @@ public sealed class VideoProjection(ViewerDbContext database, TimeProvider timeP
             .Include(video => video.IdentificationClaims)
             .Include(video => video.ProjectedActors);
 
-    private void RefreshActors(VideoRow video, IReadOnlyList<string> actors)
+    /// <summary>
+    /// Projects one Video's Actor Credits, matching an existing row by the Actor it resolves to
+    /// where there is one and by the name where there is not. prdb spelling a known Actor
+    /// differently must move the row rather than leave two of them for one person, and a credit
+    /// that resolves to nobody keeps behaving exactly as it did before Actors had an identity.
+    /// </summary>
+    private void RefreshActors(VideoRow video, IReadOnlyList<RetainedActor> credits)
     {
-        var wanted = actors
-            .Select(name => (Name: name, Normalized: LibrarySearchRule.Normalize(name)))
+        var wanted = credits
+            .Select(actor => (
+                actor.Name,
+                actor.ActorId,
+                Normalized: LibrarySearchRule.Normalize(actor.Name)))
             .Where(actor => actor.Normalized.Length > 0)
+            .DistinctBy(actor => actor.ActorId ?? actor.Normalized)
+            // One Video crediting two Actors under one name is a name this projection cannot tell
+            // apart, and the facet is keyed by the name. The first of them stands for both.
             .DistinctBy(actor => actor.Normalized)
             .ToArray();
 
         foreach (var existing in video.ProjectedActors.ToArray())
         {
-            if (!wanted.Any(actor => actor.Normalized == existing.NormalizedName))
+            if (!wanted.Any(actor => Matches(actor.ActorId, actor.Normalized, existing)))
             {
                 video.ProjectedActors.Remove(existing);
                 database.VideoActors.Remove(existing);
@@ -194,7 +207,7 @@ public sealed class VideoProjection(ViewerDbContext database, TimeProvider timeP
         foreach (var actor in wanted)
         {
             var existing = video.ProjectedActors
-                .SingleOrDefault(row => row.NormalizedName == actor.Normalized);
+                .FirstOrDefault(row => Matches(actor.ActorId, actor.Normalized, row));
 
             if (existing is null)
             {
@@ -202,15 +215,29 @@ public sealed class VideoProjection(ViewerDbContext database, TimeProvider timeP
                 {
                     Id = Guid.CreateVersion7(),
                     VideoId = video.Id,
+                    PrdbActorId = actor.ActorId,
                     Name = actor.Name,
                     NormalizedName = actor.Normalized,
                 });
                 continue;
             }
 
+            existing.PrdbActorId = actor.ActorId;
             existing.Name = actor.Name;
+            existing.NormalizedName = actor.Normalized;
         }
     }
+
+    /// <summary>
+    /// Whether a projected row stands for this credit. An identity answers on its own; without
+    /// one, the name does, and a row that already carries a different identity is not this credit
+    /// however it is spelled.
+    /// </summary>
+    private static bool Matches(string? actorId, string normalized, VideoActorRow row) =>
+        actorId is not null
+            ? string.Equals(row.PrdbActorId, actorId, StringComparison.OrdinalIgnoreCase) ||
+              (row.PrdbActorId is null && row.NormalizedName == normalized)
+            : row.PrdbActorId is null && row.NormalizedName == normalized;
 
     private static string SearchTextOf(
         string label,

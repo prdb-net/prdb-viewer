@@ -80,7 +80,124 @@ public sealed class VideoProjectionTests
             .ToListAsync(TestContext.Current.CancellationToken));
         Assert.Equal("Alex Doe", actor.Name);
         Assert.Equal("alex doe", actor.NormalizedName);
+
+        // The identity prdb sent with the credit, kept rather than reduced to its name.
+        Assert.Equal(FixtureIdentificationClient.Actor("Alex Doe").Id, actor.PrdbActorId);
     }
+
+    [Fact]
+    public async Task A_name_retained_before_actors_had_an_identity_still_projects()
+    {
+        await using var store = await IdentifiedAsync();
+
+        await ReprojectAsync(store, """["Alex Doe","Sam Roe"]""");
+
+        await using var scope = store.Scope();
+        var projected = await ActorsAsync(scope);
+        Assert.Equal(["Alex Doe", "Sam Roe"], projected.Select(actor => actor.Name));
+
+        // Nothing is invented: a document that never carried an identity does not gain one, and
+        // the facet these rows answer works exactly as it did.
+        Assert.All(projected, actor => Assert.Null(actor.PrdbActorId));
+    }
+
+    [Fact]
+    public async Task An_identity_arriving_later_lands_on_the_row_the_name_already_had()
+    {
+        await using var store = await IdentifiedAsync();
+        await ReprojectAsync(store, """["Alex Doe"]""");
+
+        await ReprojectAsync(
+            store,
+            """[{"name":"Alex Doe","actorId":"6f1a2c34-0000-4000-8000-00000000000a"}]""");
+
+        await using var scope = store.Scope();
+        var actor = Assert.Single(await ActorsAsync(scope));
+        Assert.Equal("6f1a2c34-0000-4000-8000-00000000000a", actor.PrdbActorId);
+        Assert.Equal("Alex Doe", actor.Name);
+    }
+
+    [Fact]
+    public async Task A_respelt_actor_moves_its_row_rather_than_leaving_two()
+    {
+        await using var store = await IdentifiedAsync();
+        await ReprojectAsync(
+            store,
+            """[{"name":"Alex Doe","actorId":"6f1a2c34-0000-4000-8000-00000000000a"}]""");
+
+        // The same person, spelled in full the second time prdb was asked.
+        await ReprojectAsync(
+            store,
+            """[{"name":"Alexandra Doe","actorId":"6f1a2c34-0000-4000-8000-00000000000a"}]""");
+
+        await using var scope = store.Scope();
+        var actor = Assert.Single(await ActorsAsync(scope));
+        Assert.Equal("Alexandra Doe", actor.Name);
+        Assert.Equal("alexandra doe", actor.NormalizedName);
+        Assert.Equal("6f1a2c34-0000-4000-8000-00000000000a", actor.PrdbActorId);
+    }
+
+    [Fact]
+    public async Task Two_actors_of_one_name_do_not_collide_in_the_projection()
+    {
+        await using var store = await IdentifiedAsync();
+
+        await ReprojectAsync(
+            store,
+            """[{"name":"Alex Doe","actorId":"6f1a2c34-0000-4000-8000-00000000000a"},""" +
+            """{"name":"Alex Doe","actorId":"6f1a2c34-0000-4000-8000-00000000000b"}]""");
+
+        // The facet is keyed by the name, which cannot tell these two apart. One row stands for
+        // the name, and the retained document keeps both credits for anything that can.
+        await using var scope = store.Scope();
+        var actor = Assert.Single(await ActorsAsync(scope));
+        Assert.Equal("Alex Doe", actor.Name);
+        Assert.Equal("6f1a2c34-0000-4000-8000-00000000000a", actor.PrdbActorId);
+    }
+
+    /// <summary>An installation with one identified Video, which is what an Actor needs.</summary>
+    private static async Task<TestDatabase> IdentifiedAsync()
+    {
+        var store = await CreateAsync(new FixtureIdentificationClient()
+            .Conclusive("first.mp4", WorkId, "A Known Work", new RemoteSite("s1", "Example Site", null)));
+        var source = Path.Combine(store.LibraryMountRoot.Path, "source");
+        Directory.CreateDirectory(source);
+        await File.WriteAllBytesAsync(
+            Path.Combine(source, "first.mp4"),
+            [1, 2, 3, 4],
+            TestContext.Current.CancellationToken);
+        await LibraryPipeline.ActivateAsync(store, source);
+        await LibraryPipeline.SetCredentialAsync(store, "installation-key");
+        await LibraryPipeline.DrainAsync(store);
+        return store;
+    }
+
+    /// <summary>
+    /// Rewrites the retained actor document and rebuilds the projection from it, which is what
+    /// every path that changes the metadata does.
+    /// </summary>
+    private static async Task ReprojectAsync(TestDatabase store, string actorsJson)
+    {
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var metadata = await database.VideoMetadata
+            .AsTracking()
+            .SingleAsync(TestContext.Current.CancellationToken);
+        metadata.ActorsJson = actorsJson;
+        await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await scope.ServiceProvider
+            .GetRequiredService<VideoProjection>()
+            .RefreshAsync(metadata.VideoId, TestContext.Current.CancellationToken);
+        await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<IReadOnlyList<VideoActorRow>> ActorsAsync(AsyncServiceScope scope) =>
+        await scope.ServiceProvider
+            .GetRequiredService<ViewerDbContext>()
+            .VideoActors
+            .OrderBy(actor => actor.NormalizedName)
+            .ToListAsync(TestContext.Current.CancellationToken);
 
     [Fact]
     public async Task A_complete_absence_reprojects_availability_and_readiness()

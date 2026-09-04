@@ -38,6 +38,7 @@ public sealed class DisplayedStateTests
         // one that finished with nothing to show.
         Assert.Equal(
             [
+                "Enrichment",
                 "Hashing",
                 "Identification",
                 "LibraryScan",

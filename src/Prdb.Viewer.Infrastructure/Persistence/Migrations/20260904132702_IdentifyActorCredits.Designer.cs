@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Prdb.Viewer.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using Prdb.Viewer.Infrastructure.Persistence;
 namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ViewerDbContext))]
-    partial class ViewerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260904132702_IdentifyActorCredits")]
+    partial class IdentifyActorCredits
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -63,187 +66,6 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("account", (string)null);
-                });
-
-            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ActorAliasRow", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("ActorId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("NormalizedName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PrdbSiteId")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NormalizedName");
-
-                    b.HasIndex("ActorId", "NormalizedName")
-                        .IsUnique();
-
-                    b.ToTable("actor_alias", (string)null);
-                });
-
-            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ActorImageRow", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid>("ActorId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ContentType")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Kind")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("KindLabel")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Position")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("PrdbImageId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<Guid?>("PublicImageId")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("RelativePath")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("RetainedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SourceUrl")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("State")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("PublicImageId");
-
-                    b.HasIndex("State");
-
-                    b.HasIndex("ActorId", "PrdbImageId")
-                        .IsUnique();
-
-                    b.ToTable("actor_image", (string)null);
-                });
-
-            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ActorRow", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("BiosJson")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("Birthday")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("BirthdayPrecisionLabel")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Birthplace")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("BraSizeLabel")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("BreastTypeLabel")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("CareerEnd")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("CareerStart")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("Deathday")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("EthnicityLabel")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("EyecolourLabel")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("FetchedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("GenderLabel")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("HaircolourLabel")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("HeightCentimetres")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("HipCentimetres")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("LinksJson")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("NationalityLabel")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("NormalizedName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("OfferedImageCount")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Piercings")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("PrdbActorId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ProfileState")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Tattoos")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("WaistCentimetres")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("NormalizedName");
-
-                    b.HasIndex("PrdbActorId")
-                        .IsUnique();
-
-                    b.HasIndex("ProfileState");
-
-                    b.ToTable("actor", (string)null);
                 });
 
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.BackgroundWorkRow", b =>
@@ -1310,9 +1132,6 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<long?>("DurationMilliseconds")
                         .HasColumnType("INTEGER");
 
-                    b.Property<DateTime?>("EnrichedAt")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("FetchedAt")
                         .HasColumnType("TEXT");
 
@@ -1576,28 +1395,6 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.ToTable("work_issue", (string)null);
                 });
 
-            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ActorAliasRow", b =>
-                {
-                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.ActorRow", "Actor")
-                        .WithMany("Aliases")
-                        .HasForeignKey("ActorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Actor");
-                });
-
-            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ActorImageRow", b =>
-                {
-                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.ActorRow", "Actor")
-                        .WithMany("Images")
-                        .HasForeignKey("ActorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Actor");
-                });
-
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.BackgroundWorkRow", b =>
                 {
                     b.HasOne("Prdb.Viewer.Infrastructure.Persistence.LibraryDirectoryRow", "LibraryDirectory")
@@ -1826,13 +1623,6 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Navigation("PersonalVideoStates");
 
                     b.Navigation("PlaybackAttempts");
-                });
-
-            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ActorRow", b =>
-                {
-                    b.Navigation("Aliases");
-
-                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PlaybackAttemptRow", b =>

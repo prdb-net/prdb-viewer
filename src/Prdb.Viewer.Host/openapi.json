@@ -94,6 +94,29 @@
         }
       }
     },
+    "/media/actors/{imageId}": {
+      "get": {
+        "tags": [
+          "Preview Delivery"
+        ],
+        "parameters": [
+          {
+            "name": "imageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/api/access/state": {
       "get": {
         "tags": [
@@ -1154,6 +1177,101 @@
         }
       }
     },
+    "/api/library/actors": {
+      "get": {
+        "tags": [
+          "Library"
+        ],
+        "parameters": [
+          {
+            "name": "query",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "default": "Name",
+              "$ref": "#/components/schemas/ActorSortOrder"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 0
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 60
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActorIndexPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/library/actors/{actorId}": {
+      "get": {
+        "tags": [
+          "Library"
+        ],
+        "parameters": [
+          {
+            "name": "actorId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActorDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/personal/playback-profiles": {
       "get": {
         "tags": [
@@ -1674,6 +1792,363 @@
           }
         }
       },
+      "ActorDetail": {
+        "required": [
+          "actorId",
+          "name",
+          "profileState",
+          "profileFetchedAt",
+          "genderLabel",
+          "birthday",
+          "birthdayPrecisionLabel",
+          "deathday",
+          "birthplace",
+          "haircolourLabel",
+          "eyecolourLabel",
+          "breastTypeLabel",
+          "heightCentimetres",
+          "braSizeLabel",
+          "waistCentimetres",
+          "hipCentimetres",
+          "nationalityLabel",
+          "ethnicityLabel",
+          "careerStart",
+          "careerEnd",
+          "tattoos",
+          "piercings",
+          "aliases",
+          "links",
+          "bios",
+          "images",
+          "offeredImageCount",
+          "videos",
+          "totalVideos",
+          "creditedNames"
+        ],
+        "type": "object",
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "profileState": {
+            "$ref": "#/components/schemas/ActorProfileState"
+          },
+          "profileFetchedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "genderLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "birthday": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "birthdayPrecisionLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "deathday": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "birthplace": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "haircolourLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "eyecolourLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "breastTypeLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "heightCentimetres": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "braSizeLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "waistCentimetres": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hipCentimetres": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "nationalityLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "ethnicityLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "careerStart": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "careerEnd": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "tattoos": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "piercings": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "aliases": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActorLinkView"
+            }
+          },
+          "bios": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActorImageView"
+            }
+          },
+          "offeredImageCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "videos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VideoSummary"
+            }
+          },
+          "totalVideos": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "creditedNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ActorImageView": {
+        "required": [
+          "url",
+          "kindLabel"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "kindLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ActorIndexPage": {
+        "required": [
+          "actors",
+          "totalMatches",
+          "hasMore",
+          "awaitingProfiles"
+        ],
+        "type": "object",
+        "properties": {
+          "actors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActorSummary"
+            }
+          },
+          "totalMatches": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasMore": {
+            "type": "boolean"
+          },
+          "awaitingProfiles": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "ActorLinkView": {
+        "required": [
+          "url",
+          "siteLabel"
+        ],
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "siteLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "ActorProfileState": {
+        "enum": [
+          "Pending",
+          "Retained",
+          "Unavailable"
+        ]
+      },
+      "ActorSortOrder": {
+        "enum": [
+          "Name",
+          "MostHere"
+        ]
+      },
+      "ActorSummary": {
+        "required": [
+          "actorId",
+          "name",
+          "portraitUrl",
+          "genderLabel",
+          "videoCount",
+          "profileState"
+        ],
+        "type": "object",
+        "properties": {
+          "actorId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "portraitUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "genderLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "videoCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "profileState": {
+            "$ref": "#/components/schemas/ActorProfileState"
+          }
+        }
+      },
       "BackgroundWorkActionResult": {
         "required": [
           "verdict"
@@ -1711,7 +2186,8 @@
           "Hashing",
           "PreviewGeneration",
           "Identification",
-          "SiteRecognition"
+          "SiteRecognition",
+          "Enrichment"
         ]
       },
       "BackgroundWorkPauseRequest": {
