@@ -24,6 +24,8 @@ export function AppShell({ account }: { account: Account }) {
   const wide = location.pathname === '/' || shelfAt(location.pathname) !== undefined
 
   // A narrow viewport navigates by opening the drawer, so arriving somewhere closes it again.
+  // Arriving is the external event this synchronises with, which is what an effect is for.
+  // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => setDrawerOpen(false), [location.pathname])
 
   /// An open drawer covers the screen, so it answers Escape the way anything covering the screen
@@ -210,6 +212,7 @@ function AccountMenu({ account }: { account: Account }) {
 
   // Following the link inside it has arrived somewhere; the menu it was chosen from has no reason
   // to stay over the screen it led to.
+  // oxlint-disable-next-line react/set-state-in-effect
   useEffect(() => setOpen(false), [location.pathname])
 
   /// An open menu answers Escape and a press beside it, and Escape returns the focus to the

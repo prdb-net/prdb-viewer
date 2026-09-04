@@ -18,6 +18,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - The pictures on an Actor's page are one shape. prdb's pictures of one Actor
   come in several aspect ratios, and letting each keep its own left the rows
   ragged.
+- Playback that falls back to another Video File is reported as that file.
+  Automatic fallback stays inside one Playback Attempt and moves the player to
+  the next Video File without restarting it, but the five-second report was sent
+  by a timer installed once, which went on naming the Video File the attempt
+  started on. Watching time was therefore attributed to a file that had stopped
+  playing, which is the one thing a Playback Attempt is supposed to keep
+  straight.
 
 ## [0.16.0] - 2026-09-04
 

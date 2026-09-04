@@ -34,8 +34,21 @@ public sealed class CsrfEndpointFilter : IEndpointFilter
     }
 }
 
+/// <summary>
+/// The mark a protected endpoint carries, so that the protection can be asserted over the whole
+/// route table at once.
+/// </summary>
+/// <remarks>
+/// An endpoint filter is wrapped around the request delegate and leaves no trace an inspection
+/// could find, so without this the only way to know a state-changing endpoint is protected is to
+/// read it. That is exactly the knowledge a new endpoint is added without.
+/// </remarks>
+public sealed class CsrfProtectedMetadata;
+
 public static class CsrfEndpointConventionExtensions
 {
     public static RouteHandlerBuilder RequireCsrf(this RouteHandlerBuilder builder) =>
-        builder.AddEndpointFilter<CsrfEndpointFilter>();
+        builder
+            .AddEndpointFilter<CsrfEndpointFilter>()
+            .WithMetadata(new CsrfProtectedMetadata());
 }
