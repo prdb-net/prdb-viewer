@@ -49,7 +49,9 @@ internal static class VideoPresentation
         new(
             ClaimView(video, IdentificationDimension.WorkIdentification),
             ClaimView(video, IdentificationDimension.SiteRecognition),
-            Actors(video),
+            ActorCredits(video)
+                .Select(actor => new ActorCreditView(actor.Name, actor.ActorId))
+                .ToArray(),
             AsOffset(video.Metadata?.FetchedAt));
 
     public static IdentificationClaimView ClaimView(

@@ -69,10 +69,17 @@ public sealed record IdentificationClaimView(
     DateTimeOffset? EstablishedAt,
     DateTimeOffset? LastConfirmedAt);
 
+/// <summary>
+/// One Actor Credit as a screen shows it: the name this Video's metadata spells, and the Actor it
+/// resolves to where prdb sent an identity. A credit with no identity is still shown and still
+/// filters the Library; it simply has nothing to open (ADR 0020).
+/// </summary>
+public sealed record ActorCreditView(string Name, string? ActorId);
+
 public sealed record IdentificationSummary(
     IdentificationClaimView Work,
     IdentificationClaimView Site,
-    IReadOnlyList<string> Actors,
+    IReadOnlyList<ActorCreditView> Actors,
     DateTimeOffset? MetadataFetchedAt);
 
 /// <summary>

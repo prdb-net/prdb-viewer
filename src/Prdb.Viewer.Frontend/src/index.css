@@ -639,3 +639,25 @@ body.filters-open .app-content {
 @media (prefers-reduced-motion: reduce) {
   .app-navigation, .filter-sheet, body.filters-open .app-content { transition: none; }
 }
+
+/* An Actor: the portrait and what prdb knows beside it, then the Videos. */
+.actor-detail { display: grid; grid-template-columns: minmax(0, 18rem) minmax(0, 1fr); gap: 1.5rem; align-items: start; margin-top: 1rem; }
+.actor-portrait img { width: 100%; border-radius: 1rem; background: var(--surface); }
+.actor-portrait small { display: block; margin-top: .5rem; }
+.actor-placeholder { display: grid; place-items: center; aspect-ratio: 3 / 4; border-radius: 1rem; background: var(--surface); color: var(--muted); font-size: 3rem; }
+.actor-facts .fact-list { margin-top: 0; }
+.actor-aliases { margin: 1rem 0 0; font-size: .88rem; }
+.actor-links { display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0 0; padding: 0; list-style: none; }
+.actor-links a { display: inline-block; padding: .2rem .6rem; border: 1px solid var(--line); border-radius: 999px; font-size: .8rem; }
+.actor-bios { margin-top: 1.5rem; max-width: 48rem; color: var(--muted); font-size: .9rem; line-height: 1.6; }
+.actor-gallery, .actor-videos { margin-top: 2rem; }
+.actor-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .75rem; margin-top: 1rem; }
+.actor-gallery-grid img { width: 100%; border-radius: .75rem; background: var(--surface); }
+.actor-more { margin-top: 1rem; font-size: .88rem; }
+
+@media (width <= 46rem) {
+  .actor-detail { grid-template-columns: minmax(0, 1fr); }
+  .actor-portrait { max-width: 16rem; }
+}
+.actor-credits a { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: .2rem; }
+.actor-credits a:hover, .actor-credits a:focus-visible { text-decoration-color: currentcolor; }

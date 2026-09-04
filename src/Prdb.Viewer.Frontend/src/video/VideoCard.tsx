@@ -140,9 +140,10 @@ function CardFacts({ video, source }: {
     work && work.resolution !== 'Established' ? { kind: 'unknown', label: 'Unknown Video' } : undefined,
     review ? { kind: 'review', label: 'Review needed' } : undefined,
   ].filter((flag) => flag !== undefined)
-  const line = titleNamesActors(video.displayTitle, actors)
+  const names = actors.map((actor) => actor.name)
+  const line = titleNamesActors(video.displayTitle, names)
     ? [siteName, formatDay(video.discoveryDate)]
-    : [siteName, actors.length > 0 ? actors.join(', ') : undefined]
+    : [siteName, names.length > 0 ? names.join(', ') : undefined]
   const state = video.personalState.playState
   const progress = Number(video.personalState.playbackProgressMilliseconds ?? 0)
 

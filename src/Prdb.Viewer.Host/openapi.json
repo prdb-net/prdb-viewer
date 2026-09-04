@@ -1792,6 +1792,24 @@
           }
         }
       },
+      "ActorCreditView": {
+        "required": [
+          "name",
+          "actorId"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "actorId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "ActorDetail": {
         "required": [
           "actorId",
@@ -3323,7 +3341,7 @@
           "actors": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/ActorCreditView"
             }
           },
           "metadataFetchedAt": {

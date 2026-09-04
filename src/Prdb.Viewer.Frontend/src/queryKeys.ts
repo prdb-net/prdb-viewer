@@ -12,6 +12,9 @@ export const queryKeys = {
   /// under one entry, so revealing more adds a page rather than replacing the search.
   videos: (filters: string) => ['videos', filters] as const,
   video: (videoId: string) => ['video', videoId] as const,
+  actor: (actorId: string) => ['actor', actorId] as const,
+  /// Like the Library's, the index's pages live under one entry per search and order.
+  actors: (query: string, sort: string) => ['actors', query, sort] as const,
   /// The facets are counted against the current narrowing, so they are keyed by it.
   // Looking for a value inside a facet changes the answer without changing the narrowing, so it
   // belongs in the key beside it rather than folded into it.

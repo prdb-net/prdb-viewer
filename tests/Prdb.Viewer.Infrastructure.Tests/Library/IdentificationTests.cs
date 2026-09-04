@@ -81,7 +81,7 @@ public sealed class IdentificationTests
         Assert.Equal(
             IdentificationReviewStatus.Clear,
             summary.Identification.Work.ReviewStatus);
-        Assert.Equal(["Alex Doe"], summary.Identification.Actors);
+        Assert.Equal(["Alex Doe"], summary.Identification.Actors.Select(actor => actor.Name));
         Assert.Equal("Known Site", summary.Identification.Site.TargetTitle);
     }
 

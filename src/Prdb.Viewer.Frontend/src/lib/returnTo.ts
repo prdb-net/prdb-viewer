@@ -47,6 +47,11 @@ function destinationLabel(address: string) {
   // The Library is the shell's index route, and "Back to Browse" is nobody's name for it.
   if (path === '/') return 'the library'
 
+  // The two screens that are about one thing rather than about a list of them. Neither is in the
+  // navigation, because neither is a destination anybody sets out for.
+  if (path.startsWith('/videos/')) return 'the Video'
+  if (path.startsWith('/actors/')) return 'the Actor'
+
   const entry = navigation
     .flatMap((group) => group.entries)
     .find((candidate) => candidate.to === path)

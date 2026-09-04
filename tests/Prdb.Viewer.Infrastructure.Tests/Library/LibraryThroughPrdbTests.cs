@@ -44,7 +44,12 @@ public sealed class LibraryThroughPrdbTests
         Assert.Equal(IdentificationResolution.Established, summary.Identification.Work.Resolution);
         Assert.Equal(IdentificationReviewStatus.Clear, summary.Identification.Work.ReviewStatus);
         Assert.Equal("Known Site", summary.Identification.Site.TargetTitle);
-        Assert.Equal(["Alex Doe", "Sam Roe"], summary.Identification.Actors);
+        Assert.Equal(
+            ["Alex Doe", "Sam Roe"],
+            summary.Identification.Actors.Select(actor => actor.Name));
+
+        // The identity travels with the name, which is what makes each of them a way in.
+        Assert.All(summary.Identification.Actors, actor => Assert.NotNull(actor.ActorId));
     }
 
     /// <summary>

@@ -1999,6 +1999,10 @@ export interface components {
             /** Format: date-time */
             registeredAt: string;
         };
+        ActorCreditView: {
+            name: string;
+            actorId: null | string;
+        };
         ActorDetail: {
             actorId: string;
             name: string;
@@ -2333,7 +2337,7 @@ export interface components {
         IdentificationSummary: {
             work: components["schemas"]["IdentificationClaimView"];
             site: components["schemas"]["IdentificationClaimView"];
-            actors: string[];
+            actors: components["schemas"]["ActorCreditView"][];
             /** Format: date-time */
             metadataFetchedAt: null | string;
         };

@@ -149,13 +149,25 @@ export function offeredDecisions(
 }
 
 export function identification(overrides: Record<string, unknown> = {}) {
+  const { actors, ...rest } = overrides
+
   return {
     work: claim(),
     site: claim({ dimension: 'SiteRecognition' }),
-    actors: [],
+    actors: credits(actors),
     metadataFetchedAt: null,
-    ...overrides,
+    ...rest,
   }
+}
+
+/// Actor Credits as the API sends them. A test that only cares about the names writes the names,
+/// and gets credits that resolve to nobody — which is a real state, and the one where a name is
+/// printed rather than linked. A test about the link writes the credit whole.
+export function credits(actors: unknown): { name: string; actorId: string | null }[] {
+  if (!Array.isArray(actors)) return []
+
+  return actors.map((actor) =>
+    typeof actor === 'string' ? { name: actor, actorId: null } : actor)
 }
 
 export function libraryVideo(overrides: Record<string, unknown> = {}) {
