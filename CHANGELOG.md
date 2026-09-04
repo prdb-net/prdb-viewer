@@ -5,7 +5,12 @@ All notable user-visible changes to `prdb-viewer` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.16.1] - 2026-09-04
+
+Three fixes and no new behaviour: two things an Actor's page showed that it
+should not have, and one report that named the wrong Video File. The first two
+were found by looking at a real installation, the third by a review of the
+repository.
 
 ### Fixed
 
