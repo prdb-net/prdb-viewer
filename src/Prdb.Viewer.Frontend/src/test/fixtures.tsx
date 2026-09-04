@@ -149,13 +149,25 @@ export function offeredDecisions(
 }
 
 export function identification(overrides: Record<string, unknown> = {}) {
+  const { actors, ...rest } = overrides
+
   return {
     work: claim(),
     site: claim({ dimension: 'SiteRecognition' }),
-    actors: [],
+    actors: credits(actors),
     metadataFetchedAt: null,
-    ...overrides,
+    ...rest,
   }
+}
+
+/// Actor Credits as the API sends them. A test that only cares about the names writes the names,
+/// and gets credits that resolve to nobody — which is a real state, and the one where a name is
+/// printed rather than linked. A test about the link writes the credit whole.
+export function credits(actors: unknown): { name: string; actorId: string | null }[] {
+  if (!Array.isArray(actors)) return []
+
+  return actors.map((actor) =>
+    typeof actor === 'string' ? { name: actor, actorId: null } : actor)
 }
 
 export function libraryVideo(overrides: Record<string, unknown> = {}) {
@@ -182,10 +194,10 @@ export async function waitForVideo(container: HTMLElement) {
 /// The answers every screen needs before it can render, with room for the one a test is about.
 export function signedInAs(
   authority: 'Administrator' | 'User',
-  answer: (input: unknown) => Promise<Response> | undefined = () => undefined,
+  answer: (input: unknown, init?: RequestInit) => Promise<Response> | undefined = () => undefined,
 ) {
-  vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-    const specific = answer(input)
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+    const specific = answer(input, init)
     if (specific) return specific
 
     if (input === '/api/access/state') return json({ claimed: true, signedIn: true })

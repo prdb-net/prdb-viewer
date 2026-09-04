@@ -65,6 +65,187 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.ToTable("account", (string)null);
                 });
 
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ActorAliasRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrdbSiteId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName");
+
+                    b.HasIndex("ActorId", "NormalizedName")
+                        .IsUnique();
+
+                    b.ToTable("actor_alias", (string)null);
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ActorImageRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("ActorId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContentType")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("KindLabel")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PrdbImageId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("PublicImageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RelativePath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RetainedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublicImageId");
+
+                    b.HasIndex("State");
+
+                    b.HasIndex("ActorId", "PrdbImageId")
+                        .IsUnique();
+
+                    b.ToTable("actor_image", (string)null);
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ActorRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BiosJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("Birthday")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BirthdayPrecisionLabel")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Birthplace")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BraSizeLabel")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BreastTypeLabel")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("CareerEnd")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CareerStart")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("Deathday")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EthnicityLabel")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EyecolourLabel")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("FetchedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GenderLabel")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("HaircolourLabel")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("HeightCentimetres")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("HipCentimetres")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LinksJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NationalityLabel")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("OfferedImageCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Piercings")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrdbActorId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProfileState")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tattoos")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("WaistCentimetres")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName");
+
+                    b.HasIndex("PrdbActorId")
+                        .IsUnique();
+
+                    b.HasIndex("ProfileState");
+
+                    b.ToTable("actor", (string)null);
+                });
+
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.BackgroundWorkRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -569,6 +750,24 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.ToTable("observed_playback_outcome", (string)null);
                 });
 
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PersonalActorStateRow", b =>
+                {
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PrdbActorId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FavouriteAddedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("AccountId", "PrdbActorId");
+
+                    b.HasIndex("AccountId");
+
+                    b.ToTable("personal_actor_state", (string)null);
+                });
+
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PersonalVideoStateRow", b =>
                 {
                     b.Property<Guid>("AccountId")
@@ -891,12 +1090,17 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PrdbActorId")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("VideoId")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedName");
+
+                    b.HasIndex("PrdbActorId");
 
                     b.HasIndex("VideoId", "NormalizedName")
                         .IsUnique();
@@ -1110,6 +1314,53 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.ToTable("video_file", (string)null);
                 });
 
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.VideoImageRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ContentType")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PrdbImageId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("PublicImageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RelativePath")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RetainedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("State")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("VideoId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PublicImageId");
+
+                    b.HasIndex("State");
+
+                    b.HasIndex("VideoId", "PrdbImageId")
+                        .IsUnique();
+
+                    b.ToTable("video_image", (string)null);
+                });
+
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.VideoMetadataRow", b =>
                 {
                     b.Property<Guid>("VideoId")
@@ -1121,17 +1372,38 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("ArtworkUrl")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("DurationFileCount")
+                        .HasColumnType("INTEGER");
+
                     b.Property<long?>("DurationMilliseconds")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long?>("DurationSpreadMilliseconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("EnrichedAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("FetchedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NetworkTitle")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NetworkUrl")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("PrdbVideoId")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("QualityOverviewJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("ReleaseDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReleaseNamesJson")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SiteId")
@@ -1387,6 +1659,28 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.ToTable("work_issue", (string)null);
                 });
 
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ActorAliasRow", b =>
+                {
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.ActorRow", "Actor")
+                        .WithMany("Aliases")
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Actor");
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ActorImageRow", b =>
+                {
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.ActorRow", "Actor")
+                        .WithMany("Images")
+                        .HasForeignKey("ActorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Actor");
+                });
+
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.BackgroundWorkRow", b =>
                 {
                     b.HasOne("Prdb.Viewer.Infrastructure.Persistence.LibraryDirectoryRow", "LibraryDirectory")
@@ -1455,6 +1749,17 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Navigation("Account");
 
                     b.Navigation("VideoFile");
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PersonalActorStateRow", b =>
+                {
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.AccountRow", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
                 });
 
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PersonalVideoStateRow", b =>
@@ -1577,6 +1882,17 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Navigation("Video");
                 });
 
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.VideoImageRow", b =>
+                {
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.VideoRow", "Video")
+                        .WithMany("WorkImages")
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Video");
+                });
+
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.VideoMetadataRow", b =>
                 {
                     b.HasOne("Prdb.Viewer.Infrastructure.Persistence.VideoRow", "Video")
@@ -1617,6 +1933,13 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Navigation("PlaybackAttempts");
                 });
 
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ActorRow", b =>
+                {
+                    b.Navigation("Aliases");
+
+                    b.Navigation("Images");
+                });
+
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PlaybackAttemptRow", b =>
                 {
                     b.Navigation("Reports");
@@ -1644,6 +1967,8 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Navigation("ProjectedActors");
 
                     b.Navigation("VideoFiles");
+
+                    b.Navigation("WorkImages");
                 });
 #pragma warning restore 612, 618
         }

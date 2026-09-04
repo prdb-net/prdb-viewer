@@ -44,7 +44,74 @@ public sealed class LibraryThroughPrdbTests
         Assert.Equal(IdentificationResolution.Established, summary.Identification.Work.Resolution);
         Assert.Equal(IdentificationReviewStatus.Clear, summary.Identification.Work.ReviewStatus);
         Assert.Equal("Known Site", summary.Identification.Site.TargetTitle);
-        Assert.Equal(["Alex Doe", "Sam Roe"], summary.Identification.Actors);
+        Assert.Equal(
+            ["Alex Doe", "Sam Roe"],
+            summary.Identification.Actors.Select(actor => actor.Name));
+
+        // The identity travels with the name, which is what makes each of them a way in.
+        Assert.All(summary.Identification.Actors, actor => Assert.NotNull(actor.ActorId));
+    }
+
+    [Fact]
+    public async Task The_rest_of_the_works_facts_reach_the_Videos_own_page()
+    {
+        var prdb = new FakePrdb().Recognises("first.mp4", "A Known Work", "Known Site");
+        await using var store = await CreateAsync(prdb);
+        await ScanAsync(store, "first.mp4");
+
+        await using var scope = store.Scope();
+        var summary = Assert.Single(await BrowsingAsync(store, scope));
+        var detail = await scope.ServiceProvider
+            .GetRequiredService<LibraryDiscovery>()
+            .GetVideoAsync(
+                Guid.CreateVersion7(),
+                LibraryPipeline.ClientContext,
+                summary.Id,
+                TestContext.Current.CancellationToken);
+
+        var work = detail?.Work;
+        Assert.NotNull(work);
+        Assert.Equal("Known Site Network", work.NetworkTitle);
+        Assert.Equal(["A.Known.Work.1080p.WEB-DL"], work.ReleaseNames);
+        Assert.Equal(["3840×2160", "1920×1080"], work.Resolutions);
+        Assert.Equal(["h264", "av1"], work.VideoCodecs);
+        Assert.Equal(4_000, work.DurationSpreadMilliseconds);
+        Assert.Equal(3, work.DurationFileCount);
+
+        // prdb's pictures of the work, held here and served from here. The whole way from the
+        // catalogue's answer to bytes this installation owns runs through the fake transport, so
+        // what is asserted is the contract rather than an assumption about it.
+        Assert.Equal(2, work.ImageUrls.Count);
+        Assert.All(work.ImageUrls, url => Assert.StartsWith("/media/works/", url));
+
+        var served = await scope.ServiceProvider
+            .GetRequiredService<PreviewDeliveryService>()
+            .OpenWorkImageAsync(
+                Guid.Parse(work.ImageUrls[0]["/media/works/".Length..]),
+                TestContext.Current.CancellationToken);
+        Assert.NotNull(served);
+        await served.Content.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task An_unknown_video_has_no_work_facts_to_show()
+    {
+        await using var store = await CreateAsync(new FakePrdb());
+        await ScanAsync(store, "first.mp4");
+
+        await using var scope = store.Scope();
+        var summary = Assert.Single(await BrowsingAsync(store, scope));
+        var detail = await scope.ServiceProvider
+            .GetRequiredService<LibraryDiscovery>()
+            .GetVideoAsync(
+                Guid.CreateVersion7(),
+                LibraryPipeline.ClientContext,
+                summary.Id,
+                TestContext.Current.CancellationToken);
+
+        // Nothing is claimed about a work nobody has identified, so the section is absent rather
+        // than empty.
+        Assert.Null(detail?.Work);
     }
 
     /// <summary>

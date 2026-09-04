@@ -90,6 +90,20 @@ public sealed class BackupTests
                 TestContext.Current.CancellationToken);
             Assert.NotNull(personal.FavouriteAddedAt);
             Assert.Equal(4, personal.PersonalRating);
+
+            // A Favourite Actor is Personal State and cannot be obtained again, so it is the one
+            // thing this installation keeps about Actors that the archive carries. The profile
+            // and the pictures beside it are regenerable and deliberately are not (ADR 0020).
+            var keptActor = await database.PersonalActorStates.SingleAsync(
+                TestContext.Current.CancellationToken);
+            Assert.Equal(
+                FixtureIdentificationClient.Actor("Alex Doe").Id,
+                keptActor.PrdbActorId);
+            Assert.Equal(account.Id, keptActor.AccountId);
+
+            // It references prdb's identifier rather than a local row, which is what lets it be
+            // restored before the Enrichment lane has fetched a single profile.
+            Assert.Empty(await database.Actors.ToListAsync(TestContext.Current.CancellationToken));
             Assert.Equal(account.Id, personal.AccountId);
 
             var claim = await database.IdentificationClaims.SingleAsync(
@@ -372,6 +386,11 @@ public sealed class BackupTests
                 accountId,
                 videoId,
                 4,
+                TestContext.Current.CancellationToken);
+            await personal.SetFavouriteActorAsync(
+                accountId,
+                FixtureIdentificationClient.Actor("Alex Doe").Id!,
+                selected: true,
                 TestContext.Current.CancellationToken);
         }
 

@@ -8,6 +8,7 @@ import {
   type PlaybackFailureCategory,
   type PlaybackVariant,
   type VideoSummary,
+  type WorkFacts,
 } from '../api/client'
 import {
   fileFormat,
@@ -318,6 +319,10 @@ export function VideoPage({ account }: { account: Account }) {
         </aside>
       </div>
 
+      {detail.data?.work && (
+        <WorkFactsSection facts={detail.data.work} previewed={video.previewUrl !== null} />
+      )}
+
       <section className="variants" aria-labelledby="variants-title">
         <div className="section-heading">
           <h3 id="variants-title">Video Files</h3>
@@ -345,6 +350,84 @@ export function VideoPage({ account }: { account: Account }) {
         />
       )}
     </>
+  )
+}
+
+/// What prdb says about the work, beyond what the Video's own facts already say.
+///
+/// It sits between the Video and its Video Files because that is the order somebody deciding what
+/// to watch reads in: what it is, then what it came from, then what else exists of it. The last is
+/// the one with a consequence — "this library has the 720p and prdb knows a 4K" is a reason to go
+/// looking, which is where this stops being a fact sheet.
+function WorkFactsSection({ facts, previewed }: { facts: WorkFacts; previewed: boolean }) {
+  const resolutions = facts.resolutions ?? []
+  const codecs = facts.videoCodecs ?? []
+  const releaseNames = facts.releaseNames ?? []
+  const images = facts.imageUrls ?? []
+  const spread = Number(facts.durationSpreadMilliseconds ?? 0)
+  const files = Number(facts.durationFileCount ?? 0)
+  const nothing = !facts.networkTitle &&
+    releaseNames.length === 0 &&
+    resolutions.length === 0 &&
+    codecs.length === 0 &&
+    images.length === 0 &&
+    !(spread > 0 && files > 1)
+
+  if (nothing) return null
+
+  return (
+    <section className="work-facts" aria-labelledby="work-facts-title">
+      <div className="section-heading">
+        <h3 id="work-facts-title">What prdb knows</h3>
+      </div>
+
+      <dl className="fact-list">
+        {facts.networkTitle && (
+          <div>
+            <dt>Network</dt>
+            <dd>
+              {facts.networkUrl
+                ? (
+                  <a href={facts.networkUrl} target="_blank" rel="noreferrer noopener">
+                    {facts.networkTitle} ↗
+                  </a>
+                  )
+                : facts.networkTitle}
+            </dd>
+          </div>
+        )}
+        {resolutions.length > 0 && (
+          <div><dt>Known in</dt><dd>{resolutions.join(', ')}</dd></div>
+        )}
+        {codecs.length > 0 && (
+          <div><dt>Encoded as</dt><dd>{codecs.join(', ')}</dd></div>
+        )}
+        {/* The spread cannot be read without the count, so neither is shown without the other. */}
+        {spread > 0 && files > 1 && (
+          <div>
+            <dt>Length agreement</dt>
+            <dd>±{formatDuration(spread)} across {files} files</dd>
+          </div>
+        )}
+      </dl>
+
+      {releaseNames.length > 0 && (
+        <div className="release-names">
+          <h4>Released as</h4>
+          <ul>{releaseNames.map((name) => <li key={name}><code>{name}</code></li>)}</ul>
+        </div>
+      )}
+
+      {images.length > 0 && (
+        <div className="work-gallery">
+          {/* Which picture is which, said once rather than captioned on every one. */}
+          <h4>{previewed ? 'prdb’s pictures of this work' : 'Pictures of this work'}</h4>
+          <div className="work-gallery-grid">
+            {images.map((url) => <img key={url} src={url} alt="" loading="lazy" />)}
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 

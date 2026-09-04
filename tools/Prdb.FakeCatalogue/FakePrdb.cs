@@ -32,6 +32,10 @@ public sealed class FakePrdb : HttpMessageHandler
         @"^/videos/([^/]+)/artwork\.bmp$",
         RegexOptions.Compiled);
 
+    private static readonly Regex ActorImagePath = new(
+        @"^/actors/([^/]+)/[^/]+\.bmp$",
+        RegexOptions.Compiled);
+
     private readonly Dictionary<string, CatalogueEntry> catalogue =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -68,6 +72,12 @@ public sealed class FakePrdb : HttpMessageHandler
     public bool IncludeUnusableSite { get; set; }
 
     public int RequestCount { get; private set; }
+
+    /// <summary>Every batch of works the Enrichment lane asked about, as it asked.</summary>
+    public List<JsonNode> VideoBatchRequests { get; } = [];
+
+    /// <summary>Every batch of Actors it asked about.</summary>
+    public List<JsonNode> ActorBatchRequests { get; } = [];
 
     /// <summary>Recognises one file name, the way prdb recognises content it holds.</summary>
     public FakePrdb Recognises(
@@ -106,7 +116,7 @@ public sealed class FakePrdb : HttpMessageHandler
 
         var path = request.RequestUri?.AbsolutePath;
 
-        if (path is not null && Artwork(path) is { } artwork)
+        if (path is not null && (Artwork(path) ?? ActorImage(path)) is { } artwork)
         {
             return new HttpResponseMessage(HttpStatusCode.OK)
             {
@@ -120,6 +130,8 @@ public sealed class FakePrdb : HttpMessageHandler
         return path switch
         {
             "/videos/identify" => await IdentifyAsync(request, cancellationToken),
+            "/videos/batch" => await VideosByIdsAsync(request, cancellationToken),
+            "/actors/batch" => await ActorsByIdsAsync(request, cancellationToken),
             "/sites" => Respond(HttpStatusCode.OK, Sites(request.RequestUri!)),
             "/rate-limit" => Respond(HttpStatusCode.OK, CatalogueAnswers.RateLimit()),
             _ => Respond(HttpStatusCode.NotFound, """{"title":"No such endpoint."}"""),
@@ -145,6 +157,17 @@ public sealed class FakePrdb : HttpMessageHandler
         return entry is null ? null : CatalogueAnswers.Artwork(entry.Title);
     }
 
+    /// <summary>
+    /// The pictures an Actor's profile points at. Same credential-free transport as a work's, so
+    /// the whole way from a credit to a picture an installation holds is exercised.
+    /// </summary>
+    private byte[]? ActorImage(string path)
+    {
+        var match = ActorImagePath.Match(path);
+
+        return match.Success ? CatalogueAnswers.Artwork(match.Value) : null;
+    }
+
     private async Task<HttpResponseMessage> IdentifyAsync(
         HttpRequestMessage request,
         CancellationToken cancellationToken)
@@ -153,6 +176,31 @@ public sealed class FakePrdb : HttpMessageHandler
         IdentifyRequests.Add(JsonNode.Parse(body)!);
 
         return Respond(HttpStatusCode.OK, CatalogueAnswers.Identify(body, catalogue));
+    }
+
+    /// <summary>
+    /// The Enrichment lane's question: what does prdb say about these works now. It is answered
+    /// from the same catalogue the identification ladder reads, because it is the same catalogue.
+    /// </summary>
+    private async Task<HttpResponseMessage> VideosByIdsAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        var body = await request.Content!.ReadAsStringAsync(cancellationToken);
+        VideoBatchRequests.Add(JsonNode.Parse(body)!);
+
+        return Respond(HttpStatusCode.OK, CatalogueAnswers.VideosByIds(body, catalogue));
+    }
+
+    /// <summary>What prdb says about the Actors a work credits.</summary>
+    private async Task<HttpResponseMessage> ActorsByIdsAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        var body = await request.Content!.ReadAsStringAsync(cancellationToken);
+        ActorBatchRequests.Add(JsonNode.Parse(body)!);
+
+        return Respond(HttpStatusCode.OK, CatalogueAnswers.ActorsByIds(body, catalogue));
     }
 
     private string Sites(Uri uri)

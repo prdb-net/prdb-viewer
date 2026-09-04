@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+
 using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Host.Access;
 using Prdb.Viewer.Host.Library;
@@ -5,6 +7,9 @@ using Prdb.Viewer.Infrastructure.Library;
 using Prdb.Viewer.Infrastructure.Personal;
 
 namespace Prdb.Viewer.Host.Personal;
+
+/// <summary>Whether this Account now keeps the Actor.</summary>
+public sealed record FavouriteActorResult(bool Favourite);
 
 public static class PersonalStateEndpoints
 {
@@ -131,6 +136,37 @@ public static class PersonalStateEndpoints
                 videoId,
                 selected: false,
                 cancellationToken)))
+            .RequireCsrf();
+
+        // An Actor is not a Video, so this is not a Personal Video State mutation and does not
+        // answer with one. It answers with what it decided, which is what the screen reads back:
+        // an empty body would be a body the client cannot parse.
+        personal.MapPut("/actors/{actorId:guid}/favourite", async Task<Results<Ok<FavouriteActorResult>, NotFound>> (
+            Guid actorId,
+            PersonalStateService service,
+            HttpContext http,
+            CancellationToken cancellationToken) =>
+            await service.SetFavouriteActorAsync(
+                http.User.AccountId()!.Value,
+                actorId.ToString(),
+                selected: true,
+                cancellationToken)
+                ? TypedResults.Ok(new FavouriteActorResult(true))
+                : TypedResults.NotFound())
+            .RequireCsrf();
+
+        personal.MapDelete("/actors/{actorId:guid}/favourite", async Task<Results<Ok<FavouriteActorResult>, NotFound>> (
+            Guid actorId,
+            PersonalStateService service,
+            HttpContext http,
+            CancellationToken cancellationToken) =>
+            await service.SetFavouriteActorAsync(
+                http.User.AccountId()!.Value,
+                actorId.ToString(),
+                selected: false,
+                cancellationToken)
+                ? TypedResults.Ok(new FavouriteActorResult(false))
+                : TypedResults.NotFound())
             .RequireCsrf();
 
         personal.MapPut("/videos/{videoId:guid}/watch-later", async (

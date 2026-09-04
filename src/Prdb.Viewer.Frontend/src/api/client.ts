@@ -40,6 +40,12 @@ export type ClientVideoPlayability = components['schemas']['ClientVideoPlayabili
 export type UnassessedPlaybackProfile = components['schemas']['UnassessedPlaybackProfile']
 export type ClientPlaybackAssessmentReport = components['schemas']['ClientPlaybackAssessmentReport']
 export type PlaybackFailureCategory = components['schemas']['PlaybackFailureCategory']
+export type ActorDetail = components['schemas']['ActorDetail']
+export type ActorIndexPage = components['schemas']['ActorIndexPage']
+export type ActorSummary = components['schemas']['ActorSummary']
+export type ActorSortOrder = components['schemas']['ActorSortOrder']
+export type WorkFacts = components['schemas']['WorkFacts']
+export type FavouriteActorResult = components['schemas']['FavouriteActorResult']
 
 export type LibraryFilters = {
   query: string
@@ -211,6 +217,20 @@ export const api = {
   videos: (filters: LibraryFilters, skip = 0, take = 60) =>
     request<LibraryPage>(`/api/library/videos?${libraryQuery(filters, skip, take)}`),
   video: (videoId: string) => request<VideoDetail>(`/api/library/videos/${videoId}`),
+  actor: (actorId: string) => request<ActorDetail>(`/api/library/actors/${actorId}`),
+  setFavouriteActor: (actorId: string, selected: boolean, csrfToken: string) =>
+    mutate<FavouriteActorResult>(
+      `/api/personal/actors/${actorId}/favourite`,
+      selected ? 'PUT' : 'DELETE',
+      csrfToken,
+    ),
+  actors: (query: string, sort: ActorSortOrder, skip = 0, take = 60) =>
+    request<ActorIndexPage>(`/api/library/actors?${new URLSearchParams({
+      ...(query ? { query } : {}),
+      sort,
+      skip: String(skip),
+      take: String(take),
+    }).toString()}`),
   libraryFacets: (filters: LibraryFilters, search?: FacetSearch) =>
     request<LibraryFacets>(`/api/library/facets?${facetQuery(filters, search).toString()}`),
   setIncludeNotReady: (included: boolean, csrfToken: string) =>

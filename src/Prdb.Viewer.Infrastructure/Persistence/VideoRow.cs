@@ -78,6 +78,9 @@ public sealed class VideoRow
 
     public VideoMetadataRow? Metadata { get; set; }
 
+    /// <summary>The pictures prdb offers for this Video's Established Work.</summary>
+    public ICollection<VideoImageRow> WorkImages { get; set; } = [];
+
     public ICollection<VideoFileRow> VideoFiles { get; set; } = [];
 
     public ICollection<IdentificationClaimRow> IdentificationClaims { get; set; } = [];

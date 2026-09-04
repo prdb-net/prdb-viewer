@@ -76,8 +76,6 @@ public static class CatalogueAnswers
                 continue;
             }
 
-            var site = Site(entry);
-
             results.Add(new JsonObject
             {
                 ["ref"] = reference,
@@ -85,33 +83,187 @@ public static class CatalogueAnswers
                 ["matchedBy"] = entry.MatchedBy,
                 ["videoId"] = entry.VideoId.ToString(),
                 ["candidates"] = new JsonArray(),
-                ["site"] = site,
-                ["video"] = new JsonObject
-                {
-                    ["id"] = entry.VideoId.ToString(),
-                    ["title"] = entry.Title,
-                    ["site"] = (JsonNode)site.DeepClone(),
-                    ["actors"] = new JsonArray(entry.Actors
-                        .Select(actor => (JsonNode)new JsonObject
-                        {
-                            ["id"] = CatalogueEntry.Identifier($"actor:{actor}").ToString(),
-                            ["name"] = actor,
-                        })
-                        .ToArray()),
-                    ["durationMs"] = 12_345_000,
-                    ["releaseDate"] = "2025-06-01",
-                    // The picture prdb offers for the work. An installation retains it rather than
-                    // pointing a browser here, so the address only has to be one this tool answers.
-                    ["images"] = new JsonArray(new JsonObject
-                    {
-                        ["id"] = CatalogueEntry.Identifier($"image:{entry.Title}").ToString(),
-                        ["url"] = $"{artworkBaseUrl}/videos/{entry.VideoId}/artwork.bmp",
-                    }),
-                },
+                ["site"] = Site(entry),
+                ["video"] = VideoDetail(entry, artworkBaseUrl),
             });
         }
 
         return new JsonObject { ["results"] = results }.ToJsonString();
+    }
+
+    /// <summary>
+    /// Everything prdb says about one work. It is the same document whether it arrives as the
+    /// detail of an identification or as an answer to <c>POST /videos/batch</c>, so both are built
+    /// here and a test cannot see a difference the real API does not have.
+    /// </summary>
+    public static JsonObject VideoDetail(CatalogueEntry entry, string artworkBaseUrl)
+    {
+        var site = Site(entry);
+        // The network is the one fact that relates two Sites, so the stand-in has one.
+        site["network"] = new JsonObject
+        {
+            ["id"] = CatalogueEntry.Identifier($"network:{entry.SiteTitle}").ToString(),
+            ["title"] = $"{entry.SiteTitle} Network",
+            ["url"] = $"https://example.invalid/{CatalogueEntry.Identifier($"network:{entry.SiteTitle}")}",
+        };
+
+        return new JsonObject
+        {
+            ["id"] = entry.VideoId.ToString(),
+            ["title"] = entry.Title,
+            ["site"] = site,
+            ["preNames"] = new JsonArray(new JsonObject
+            {
+                ["id"] = CatalogueEntry.Identifier($"prename:{entry.Title}").ToString(),
+                ["title"] = $"{entry.Title.Replace(' ', '.')}.1080p.WEB-DL",
+            }),
+            ["durationSpreadMs"] = 4_000,
+            ["durationFileCount"] = 3,
+            ["qualityOverview"] = new JsonObject
+            {
+                ["resolutions"] = new JsonArray(
+                    new JsonObject { ["width"] = 3840, ["height"] = 2160, ["fileCount"] = 1 },
+                    new JsonObject { ["width"] = 1920, ["height"] = 1080, ["fileCount"] = 2 }),
+                ["videoCodecs"] = new JsonArray(
+                    new JsonObject { ["codec"] = "h264", ["fileCount"] = 2 },
+                    new JsonObject { ["codec"] = "av1", ["fileCount"] = 1 }),
+            },
+            ["actors"] = new JsonArray(entry.Actors
+                .Select(actor => (JsonNode)new JsonObject
+                {
+                    ["id"] = CatalogueEntry.Identifier($"actor:{actor}").ToString(),
+                    ["name"] = actor,
+                })
+                .ToArray()),
+            ["durationMs"] = 12_345_000,
+            ["releaseDate"] = "2025-06-01",
+            // The pictures prdb offers for the work. An installation retains them rather than
+            // pointing a browser here, so the addresses only have to be ones this tool answers.
+            ["images"] = new JsonArray(
+                new JsonObject
+                {
+                    ["id"] = CatalogueEntry.Identifier($"image:{entry.Title}").ToString(),
+                    ["url"] = $"{artworkBaseUrl}/videos/{entry.VideoId}/artwork.bmp",
+                },
+                new JsonObject
+                {
+                    ["id"] = CatalogueEntry.Identifier($"image:{entry.Title}:2").ToString(),
+                    ["url"] = $"{artworkBaseUrl}/videos/{entry.VideoId}/artwork.bmp",
+                }),
+        };
+    }
+
+    /// <summary>
+    /// The answer to <c>POST /actors/batch</c>: a bare array of Actor documents, built from the
+    /// names the catalogue's works credit. An Actor is described sparsely on purpose — a real
+    /// catalogue holds a name and a handful of fields for most people, and a screen that only
+    /// looks right against a complete profile is a screen that is wrong in production.
+    /// </summary>
+    public static string ActorsByIds(
+        string requestBody,
+        IReadOnlyDictionary<string, CatalogueEntry> catalogue,
+        string artworkBaseUrl = "http://127.0.0.1:5080")
+    {
+        var asked = (JsonNode.Parse(requestBody)!["ids"]?.AsArray() ?? [])
+            .Select(id => id?.GetValue<string>())
+            .OfType<string>()
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var named = catalogue.Values
+            .SelectMany(entry => entry.Actors)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(actor => asked.Contains(CatalogueEntry.Identifier($"actor:{actor}").ToString()))
+            // One Actor prdb has nothing to say about, which is the third state every screen has
+            // to draw: named by a Video, reachable, and with no profile behind them at all.
+            .Where(actor => !Unlisted.Contains(actor))
+            .Select(actor => (JsonNode)ActorDetail(actor, artworkBaseUrl))
+            .ToArray();
+
+        return new JsonArray(named).ToJsonString();
+    }
+
+    /// <summary>Everything this stand-in says about one Actor.</summary>
+    public static JsonObject ActorDetail(string name, string artworkBaseUrl)
+    {
+        var id = CatalogueEntry.Identifier($"actor:{name}");
+        var detail = new JsonObject
+        {
+            ["id"] = id.ToString(),
+            ["name"] = name,
+            ["images"] = new JsonArray(
+                new JsonObject
+                {
+                    ["id"] = CatalogueEntry.Identifier($"actor-image:{name}:1").ToString(),
+                    ["imageType"] = 1,
+                    ["imageTypeLabel"] = "Thumbnail",
+                    ["url"] = $"{artworkBaseUrl}/actors/{id}/thumbnail.bmp",
+                },
+                new JsonObject
+                {
+                    ["id"] = CatalogueEntry.Identifier($"actor-image:{name}:2").ToString(),
+                    ["imageType"] = 2,
+                    ["imageTypeLabel"] = "Poster",
+                    ["url"] = $"{artworkBaseUrl}/actors/{id}/poster.bmp",
+                }),
+            ["aliases"] = new JsonArray(),
+            ["links"] = new JsonArray(),
+            ["bios"] = new JsonArray(),
+        };
+
+        // One Actor the catalogue knows well, and the rest as sparsely as a real one holds them.
+        if (Described.Contains(name))
+        {
+            detail["genderLabel"] = "Female";
+            detail["birthday"] = "1994-03-17";
+            detail["birthdayTypeLabel"] = "Exact";
+            detail["birthplace"] = "Example City";
+            detail["haircolorLabel"] = "Brown";
+            detail["eyecolorLabel"] = "Green";
+            detail["height"] = 170;
+            detail["nationalityLabel"] = "Example Nation";
+            detail["ethnicityLabel"] = "Example Ethnicity";
+            detail["careerStart"] = 2014;
+            detail["tattoos"] = "A small star behind the left ear.";
+            detail["aliases"] = new JsonArray(new JsonObject { ["name"] = $"{name} X" });
+            detail["links"] = new JsonArray(new JsonObject
+            {
+                ["externalSiteLabel"] = "Twitter",
+                ["url"] = $"https://example.invalid/{id}",
+            });
+            detail["bios"] = new JsonArray(new JsonObject
+            {
+                ["id"] = CatalogueEntry.Identifier($"bio:{name}").ToString(),
+                ["text"] = $"{name} has been in front of a camera since 2014.",
+            });
+        }
+
+        return detail;
+    }
+
+    /// <summary>The Actors this stand-in describes fully. Everyone else is a name and pictures.</summary>
+    private static readonly HashSet<string> Described =
+        new(StringComparer.OrdinalIgnoreCase) { "Alex Doe", "Robin Fay" };
+
+    /// <summary>The Actors it answers nothing at all about, so the empty page is exercised too.</summary>
+    private static readonly HashSet<string> Unlisted =
+        new(StringComparer.OrdinalIgnoreCase) { "Jules Poe" };
+
+    /// <summary>The answer to <c>POST /videos/batch</c>: a bare array of work documents.</summary>
+    public static string VideosByIds(
+        string requestBody,
+        IReadOnlyDictionary<string, CatalogueEntry> catalogue,
+        string artworkBaseUrl = "http://127.0.0.1:5080")
+    {
+        var asked = (JsonNode.Parse(requestBody)!["ids"]?.AsArray() ?? [])
+            .Select(id => Guid.TryParse(id?.GetValue<string>(), out var parsed) ? parsed : Guid.Empty)
+            .Where(id => id != Guid.Empty)
+            .ToHashSet();
+
+        return new JsonArray(catalogue.Values
+            .DistinctBy(entry => entry.VideoId)
+            .Where(entry => asked.Contains(entry.VideoId))
+            .Select(entry => (JsonNode)VideoDetail(entry, artworkBaseUrl))
+            .ToArray())
+            .ToJsonString();
     }
 
     /// <summary>

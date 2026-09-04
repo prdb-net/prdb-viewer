@@ -288,6 +288,52 @@ public sealed class PersonalStateService(
             state => state.FavouriteAddedAt = selected ? state.FavouriteAddedAt ?? UtcNow() : null,
             cancellationToken);
 
+    /// <summary>
+    /// Adds or removes an Actor from this Account's own list. It is idempotent, like every other
+    /// personal reference: setting what is already set changes nothing and answers the same way.
+    /// </summary>
+    /// <remarks>
+    /// The Actor has to be one this installation knows, so a favourite cannot be filed against an
+    /// identifier nothing here has ever heard of. It does not have to have a profile: an Actor
+    /// exists here the moment a credit resolves to them.
+    /// </remarks>
+    public async Task<bool> SetFavouriteActorAsync(
+        Guid accountId,
+        string prdbActorId,
+        bool selected,
+        CancellationToken cancellationToken = default)
+    {
+        if (!await database.Actors.AnyAsync(
+                actor => actor.PrdbActorId == prdbActorId,
+                cancellationToken))
+        {
+            return false;
+        }
+
+        var held = await database.PersonalActorStates
+            .AsTracking()
+            .SingleOrDefaultAsync(
+                row => row.AccountId == accountId && row.PrdbActorId == prdbActorId,
+                cancellationToken);
+
+        if (selected && held is null)
+        {
+            database.PersonalActorStates.Add(new PersonalActorStateRow
+            {
+                AccountId = accountId,
+                PrdbActorId = prdbActorId,
+                FavouriteAddedAt = UtcNow(),
+            });
+        }
+        else if (!selected && held is not null)
+        {
+            database.PersonalActorStates.Remove(held);
+        }
+
+        await database.SaveChangesAsync(cancellationToken);
+        return true;
+    }
+
     public Task<PersonalStateMutationResult> SetWatchLaterAsync(
         Guid accountId,
         Guid videoId,

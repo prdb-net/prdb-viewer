@@ -311,7 +311,14 @@ public sealed class LibraryDiscoveryTests
             prdbVideoId,
             [],
             remoteSite,
-            new RemoteWork(prdbVideoId, title, remoteSite, [actor], null, null, 12_345));
+            new RemoteWork(
+                prdbVideoId,
+                title,
+                remoteSite,
+                [FixtureIdentificationClient.Actor(actor)],
+                null,
+                null,
+                12_345));
     }
 
     [Fact]

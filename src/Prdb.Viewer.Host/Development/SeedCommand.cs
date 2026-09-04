@@ -382,7 +382,8 @@ public static class SeedCommand
                 await SliceAsync<HashingRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken) |
                 await SliceAsync<PreviewGenerationRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken) |
                 await SliceAsync<IdentificationRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken) |
-                await SliceAsync<SiteRecognitionRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken);
+                await SliceAsync<SiteRecognitionRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken) |
+                await SliceAsync<EnrichmentRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken);
 
             if (!advanced)
             {
@@ -436,6 +437,19 @@ public static class SeedCommand
                 $"  {lane.Category,-20} {lane.State,-10} " +
                 $"{lane.CompletedItemCount}/{lane.DiscoveredCandidateCount}");
         }
+
+        var catalogue = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var actors = await catalogue.Actors.CountAsync(cancellationToken);
+        var described = await catalogue.Actors.CountAsync(
+            actor => actor.ProfileState == ActorProfileState.Retained,
+            cancellationToken);
+        var pictures = await catalogue.ActorImages.CountAsync(
+            image => image.State == ActorImageState.Retained,
+            cancellationToken);
+
+        await output.WriteLineAsync();
+        await output.WriteLineAsync(
+            $"Actors: {actors}, of which {described} have a profile, holding {pictures} pictures.");
 
         if (status.Issues.Count > 0)
         {

@@ -639,3 +639,57 @@ body.filters-open .app-content {
 @media (prefers-reduced-motion: reduce) {
   .app-navigation, .filter-sheet, body.filters-open .app-content { transition: none; }
 }
+
+/* An Actor: the portrait and what prdb knows beside it, then the Videos. */
+.actor-detail { display: grid; grid-template-columns: minmax(0, 18rem) minmax(0, 1fr); gap: 1.5rem; align-items: start; margin-top: 1rem; }
+.actor-portrait img { width: 100%; border-radius: 1rem; background: var(--surface); }
+.actor-portrait small { display: block; margin-top: .5rem; }
+/* Narrower than a portrait, because a picture that is not there should not be the largest thing
+   on the page. */
+.actor-portrait:has(.actor-placeholder) { max-width: 12rem; }
+.actor-placeholder { display: grid; place-items: center; aspect-ratio: 3 / 4; border-radius: 1rem; background: var(--surface); color: var(--muted); font-size: 3rem; }
+/* A fact list spread across a wide screen puts the label and its value at opposite ends of the
+   window, with a metre of nothing between them. It is a column of facts, so it is a column. */
+.actor-facts { max-width: 34rem; }
+.actor-facts .fact-list { margin-top: 0; }
+.actor-aliases { margin: 1rem 0 0; font-size: .88rem; }
+.actor-links { display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0 0; padding: 0; list-style: none; }
+.actor-links a { display: inline-block; padding: .2rem .6rem; border: 1px solid var(--line); border-radius: 999px; font-size: .8rem; }
+.actor-bios { margin-top: 1.5rem; max-width: 48rem; color: var(--muted); font-size: .9rem; line-height: 1.6; }
+.actor-gallery, .actor-videos { margin-top: 2rem; }
+.actor-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .75rem; margin-top: 1rem; }
+.actor-gallery-grid img { width: 100%; border-radius: .75rem; background: var(--surface); }
+.actor-more { margin-top: 1rem; font-size: .88rem; }
+
+@media (width <= 46rem) {
+  .actor-detail { grid-template-columns: minmax(0, 1fr); }
+  .actor-portrait { max-width: 16rem; }
+}
+.actor-credits a { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: .2rem; }
+.actor-credits a:hover, .actor-credits a:focus-visible { text-decoration-color: currentcolor; }
+
+/* The index of Actors: read like the Library, drawn like a wall of faces. */
+/* The count belongs beside the control it describes rather than at the far edge of the window. */
+.actor-index-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; margin-top: 1rem; }
+.actor-awaiting { margin: .75rem 0 0; font-size: .85rem; }
+.actor-index { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(8rem, 9vw, 12rem), 1fr)); gap: 1rem; margin-top: 1rem; }
+.actor-card { display: flex; flex-direction: column; gap: .35rem; padding: .6rem; border: 1px solid rgb(255 255 255 / 8%); border-radius: 1rem; background: var(--surface); color: inherit; text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
+.actor-card:hover, .actor-card:focus-visible { border-color: rgb(205 183 255 / 35%); transform: translateY(-2px); }
+.actor-card img, .actor-card .actor-placeholder { width: 100%; aspect-ratio: 3 / 4; border-radius: .75rem; object-fit: cover; }
+.actor-card .actor-placeholder { display: grid; place-items: center; font-size: 2rem; }
+.actor-card-name { font-size: .9rem; line-height: 1.3; }
+.actor-card small { color: var(--muted); }
+.actor-card { position: relative; }
+.actor-card .actor-link { display: flex; flex-direction: column; gap: .35rem; color: inherit; text-decoration: none; }
+.actor-favourite { position: absolute; top: .9rem; right: .9rem; opacity: 0; }
+.actor-card:hover .actor-favourite, .actor-card:focus-within .actor-favourite, .actor-favourite.selected, .actor-favourite:focus-visible { opacity: 1; }
+.page-heading .quiet-button svg { vertical-align: -.15em; margin-right: .3rem; }
+
+/* What prdb knows about the work, beside what this installation knows about the file. */
+.work-facts { margin-top: 2rem; }
+.work-facts .fact-list { max-width: 32rem; }
+.work-facts h4 { margin: 1.25rem 0 .5rem; font-size: .85rem; color: var(--muted); }
+.release-names ul { margin: 0; padding-left: 1.1rem; }
+.release-names code { font-size: .82rem; word-break: break-all; }
+.work-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .75rem; }
+.work-gallery-grid img { width: 100%; border-radius: .75rem; background: var(--surface); }

@@ -49,6 +49,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IdentificationRunner>();
         services.AddScoped<SiteDirectory>();
         services.AddScoped<SiteRecognitionRunner>();
+        services.AddScoped<EnrichmentRunner>();
         services.AddScoped<IdentificationService>();
         services.AddScoped<IdentificationReviewService>();
         services.AddScoped<PreviewDeliveryService>();
@@ -57,6 +58,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<ClientPlaybackService>();
         services.AddScoped<VideoCatalog>();
         services.AddScoped<LibraryDiscovery>();
+        services.AddScoped<ActorDiscovery>();
         services.AddScoped<LibraryPreferences>();
         services.AddScoped<VideoDeliveryService>();
         services.AddScoped<PersonalStateService>();
@@ -65,7 +67,12 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<IPreviewImageGenerator, FfmpegPreviewImageGenerator>();
         services.AddScoped<IPrdbIdentificationClient, PrdbIdentificationClient>();
         services.AddScoped<IPrdbSiteDirectoryClient, PrdbSiteDirectoryClient>();
-        services.AddScoped<IProposedWorkArtworkClient, ProposedWorkArtworkClient>();
+        services.AddScoped<IPrdbWorkDetailClient, PrdbWorkDetailClient>();
+        services.AddScoped<IPrdbActorProfileClient, PrdbActorProfileClient>();
+        services.AddScoped<ActorProfileRetention>();
+        services.AddScoped<ActorImageRetention>();
+        services.AddScoped<WorkImageRetention>();
+        services.AddScoped<IRetainedImageClient, RetainedImageClient>();
         services.AddScoped<ProposedWorkArtworkRetention>();
         services.AddTransient<ProductUserAgentHandler>();
         services.AddHttpClient(PrdbConnectionVerifier.TransportName)
@@ -77,7 +84,7 @@ public static class PersistenceServiceCollectionExtensions
             .RedactLoggedHeaders(["X-Api-Key"]);
         // ADR 0010: artwork travels on a transport proven to carry no credential, which is why it
         // may follow a redirect where the credentialed one may not.
-        services.AddHttpClient(ProposedWorkArtworkClient.TransportName)
+        services.AddHttpClient(RetainedImageClient.TransportName)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
             {
                 AllowAutoRedirect = true,

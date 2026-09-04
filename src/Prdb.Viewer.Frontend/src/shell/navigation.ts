@@ -36,6 +36,7 @@ export const navigation: NavigationGroup[] = [
     title: 'Library',
     entries: [
       { to: '/', label: 'Browse', end: true },
+      { to: '/actors', label: 'Actors', end: true },
       { to: '/continue', label: 'Continue Watching' },
       { to: '/favourites', label: 'Favourites' },
       { to: '/watch-later', label: 'Watch Later' },

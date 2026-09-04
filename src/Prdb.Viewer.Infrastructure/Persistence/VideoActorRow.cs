@@ -13,6 +13,13 @@ public sealed class VideoActorRow
 
     public VideoRow Video { get; set; } = null!;
 
+    /// <summary>
+    /// The Actor this credit resolves to, as prdb identifies them. Null where the retained
+    /// metadata names somebody without an identity, which is every document written before Actors
+    /// had one; such a credit still facets and still counts, and simply leads nowhere (ADR 0020).
+    /// </summary>
+    public string? PrdbActorId { get; set; }
+
     /// <summary>The Actor as the metadata spells them, which is what a facet shows.</summary>
     public required string Name { get; set; }
 

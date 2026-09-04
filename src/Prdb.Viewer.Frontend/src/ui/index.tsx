@@ -92,3 +92,16 @@ export function submitting(handler: (form: HTMLFormElement) => void) {
     handler(event.currentTarget)
   }
 }
+
+/// The mark a personal reference is kept under, wherever one is offered: a Video's card, an
+/// Actor's card, an Actor's own page.
+export function HeartIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+      <path
+        d="M12 21s-7.5-4.6-9.5-9.2C1 8 3.4 4.5 7 4.5c2 0 3.5 1.1 5 2.9 1.5-1.8 3-2.9 5-2.9 3.6 0 6 3.5 4.5 7.3C19.5 16.4 12 21 12 21z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}

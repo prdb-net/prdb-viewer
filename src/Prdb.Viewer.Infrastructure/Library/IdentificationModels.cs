@@ -12,14 +12,56 @@ public sealed record RemoteIdentificationRequest(
 
 public sealed record RemoteSite(string Id, string Title, string? Url);
 
+/// <summary>The network a Site belongs to, which is the one fact that relates two Sites.</summary>
+public sealed record RemoteNetwork(string Title, string? Url);
+
+/// <summary>One picture prdb offers for a work, in the order prdb offers them.</summary>
+public sealed record RemoteWorkImage(string Id, string Url);
+
+/// <summary>
+/// How much the files prdb has seen of a work disagree about its length, and over how many of them
+/// that was taken. The spread cannot be read without the count.
+/// </summary>
+public sealed record RemoteDurationConsensus(long? SpreadMilliseconds, int? FileCount);
+
+/// <summary>
+/// The resolutions and codecs prdb knows a work in, most files first. It is what says whether a
+/// better copy of this Video exists at all.
+/// </summary>
+public sealed record RemoteQualityOverview(
+    IReadOnlyList<string> Resolutions,
+    IReadOnlyList<string> VideoCodecs);
+
+/// <summary>
+/// One Actor Credit as prdb sends it with a work: the name, and the Actor's own identity where
+/// prdb has one. The identity is prdb's and is never minted here (ADR 0020).
+/// </summary>
+public sealed record RemoteActor(string Name, string? Id);
+
 public sealed record RemoteWork(
     string PrdbVideoId,
     string Title,
     RemoteSite? Site,
-    IReadOnlyList<string> Actors,
+    IReadOnlyList<RemoteActor> Actors,
     string? ArtworkUrl,
     DateTime? ReleaseDate,
-    long? DurationMilliseconds);
+    long? DurationMilliseconds)
+{
+    public RemoteNetwork? Network { get; init; }
+
+    /// <summary>
+    /// The release names prdb holds for the work. They are what a file on disk is usually named
+    /// after, and the most direct answer to "why is this file called that".
+    /// </summary>
+    public IReadOnlyList<string> ReleaseNames { get; init; } = [];
+
+    /// <summary>Every picture prdb offers, oldest first, of which <c>ArtworkUrl</c> is the first.</summary>
+    public IReadOnlyList<RemoteWorkImage> Images { get; init; } = [];
+
+    public RemoteDurationConsensus? Duration { get; init; }
+
+    public RemoteQualityOverview? QualityOverview { get; init; }
+}
 
 /// <summary>What the remote ladder made of one Video File.</summary>
 public sealed record RemoteIdentification(
@@ -63,10 +105,17 @@ public sealed record IdentificationClaimView(
     DateTimeOffset? EstablishedAt,
     DateTimeOffset? LastConfirmedAt);
 
+/// <summary>
+/// One Actor Credit as a screen shows it: the name this Video's metadata spells, and the Actor it
+/// resolves to where prdb sent an identity. A credit with no identity is still shown and still
+/// filters the Library; it simply has nothing to open (ADR 0020).
+/// </summary>
+public sealed record ActorCreditView(string Name, string? ActorId);
+
 public sealed record IdentificationSummary(
     IdentificationClaimView Work,
     IdentificationClaimView Site,
-    IReadOnlyList<string> Actors,
+    IReadOnlyList<ActorCreditView> Actors,
     DateTimeOffset? MetadataFetchedAt);
 
 /// <summary>

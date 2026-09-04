@@ -19,6 +19,10 @@ public sealed class DerivedArtifactStore(ViewerDatabaseLocation location)
 
     private const string ArtworkDirectoryName = "artwork";
 
+    private const string ActorDirectoryName = "actors";
+
+    private const string WorkDirectoryName = "works";
+
     public string PreviewsRoot { get; } = Path.Combine(location.DataDirectory, PreviewDirectoryName);
 
     /// <summary>
@@ -66,6 +70,50 @@ public sealed class DerivedArtifactStore(ViewerDatabaseLocation location)
         "image/bmp" => ".bmp",
         _ => ".jpg",
     };
+
+    /// <summary>
+    /// Where the pictures prdb offers for Actors are held. Retained rather than generated, and
+    /// regenerable all the same: a lost file is asked for again, and a User's browser is never
+    /// sent to prdb for one.
+    /// </summary>
+    public string ActorImagesRoot { get; } = Path.Combine(location.DataDirectory, ActorDirectoryName);
+
+    /// <summary>
+    /// The stored location of one Actor Image, sharded like a preview, with the extension
+    /// following what arrived rather than what was hoped for.
+    /// </summary>
+    public static string ActorImageRelativePath(Guid imageId, string contentType)
+    {
+        var name = imageId.ToString("n");
+
+        return $"{name[..2]}/{name}{ArtworkExtension(contentType)}";
+    }
+
+    public string ActorImageFullPath(string relativePath) =>
+        Path.Combine(ActorImagesRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+
+    public void EnsureActorImageDirectory(string relativePath) =>
+        Directory.CreateDirectory(Path.GetDirectoryName(ActorImageFullPath(relativePath))!);
+
+    /// <summary>
+    /// Where the pictures prdb offers for Established Works are held. Distinct from the previews
+    /// this installation generates: one is the catalogue's picture of the work, the other is this
+    /// installation's picture of the file it holds.
+    /// </summary>
+    public string WorkImagesRoot { get; } = Path.Combine(location.DataDirectory, WorkDirectoryName);
+
+    public static string WorkImageRelativePath(Guid imageId, string contentType)
+    {
+        var name = imageId.ToString("n");
+
+        return $"{name[..2]}/{name}{ArtworkExtension(contentType)}";
+    }
+
+    public string WorkImageFullPath(string relativePath) =>
+        Path.Combine(WorkImagesRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+
+    public void EnsureWorkImageDirectory(string relativePath) =>
+        Directory.CreateDirectory(Path.GetDirectoryName(WorkImageFullPath(relativePath))!);
 
     public string ArtworkFullPath(string relativePath) =>
         Path.Combine(ArtworkRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));

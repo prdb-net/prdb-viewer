@@ -115,27 +115,7 @@ public sealed class PrdbIdentificationClient(
                 .Where(candidate => candidate is not null)
                 .Select(candidate => candidate!.Value.ToString())
                 .ToArray(),
-            Site(result.Site?.Id, result.Site?.Title, result.Site?.Url),
-            Work(result.Video));
+            RemoteWorkFacts.Site(result.Site?.Id, result.Site?.Title, result.Site?.Url),
+            RemoteWorkFacts.Of(result.Video));
     }
-
-    private static RemoteSite? Site(Guid? id, string? title, string? url) =>
-        id is null || string.IsNullOrWhiteSpace(title)
-            ? null
-            : new RemoteSite(id.Value.ToString(), title, url);
-
-    private static RemoteWork? Work(VideoDetailDto? video) =>
-        video?.Id is null || string.IsNullOrWhiteSpace(video.Title)
-            ? null
-            : new RemoteWork(
-                video.Id.Value.ToString(),
-                video.Title,
-                Site(video.Site?.Id, video.Site?.Title, video.Site?.Url),
-                (video.Actors ?? [])
-                    .Select(actor => actor.Name)
-                    .OfType<string>()
-                    .ToArray(),
-                (video.Images ?? []).Select(image => image.Url).FirstOrDefault(),
-                video.ReleaseDate?.DateTime,
-                video.DurationMs);
 }

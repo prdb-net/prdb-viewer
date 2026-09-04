@@ -81,7 +81,44 @@ public sealed record LibraryPage(
 /// asked for when it differs from the one answered, so the view can say that the link led to the
 /// Video this one was merged into rather than silently showing something else.
 /// </summary>
-public sealed record VideoDetail(VideoSummary Video, Guid? SupersededVideoId);
+public sealed record VideoDetail(
+    VideoSummary Video,
+    Guid? SupersededVideoId,
+    /// <summary>
+    /// What prdb says about the work this Video is identified as, beyond what a card needs. Null
+    /// where the Video is Unknown, or where prdb has said nothing further about it.
+    /// </summary>
+    WorkFacts? Work = null);
+
+/// <summary>
+/// The rest of what one identification answer carried: the Site's network, the release names a
+/// file on disk is usually named after, what prdb knows the work in, and the catalogue's own
+/// pictures of it.
+/// </summary>
+/// <remarks>
+/// It belongs to a Video's own page rather than to <see cref="VideoSummary"/>: a card needs a
+/// title, a picture and a state, and putting this on every one of sixty would cost the Library a
+/// join per card for something no card shows.
+/// </remarks>
+public sealed record WorkFacts(
+    string? NetworkTitle,
+    string? NetworkUrl,
+    IReadOnlyList<string> ReleaseNames,
+    /// <summary>
+    /// How far the files prdb has seen disagree about the length, over how many of them. Neither
+    /// can be read without the other.
+    /// </summary>
+    long? DurationSpreadMilliseconds,
+    int? DurationFileCount,
+    /// <summary>The resolutions prdb knows this work in, most files first.</summary>
+    IReadOnlyList<string> Resolutions,
+    IReadOnlyList<string> VideoCodecs,
+    /// <summary>
+    /// prdb's own pictures of the work, at addresses in this installation. They are a different
+    /// thing from the preview, which is this installation's picture of the file it holds.
+    /// </summary>
+    IReadOnlyList<string> ImageUrls,
+    DateTimeOffset? FetchedAt);
 
 /// <summary>
 /// One media configuration this Account's client has not answered for yet, with everything Media

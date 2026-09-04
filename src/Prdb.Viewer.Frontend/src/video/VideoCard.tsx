@@ -12,6 +12,7 @@ import {
 import { withReturnTo } from '../lib/returnTo'
 import { StarRating } from '../personal/StarRating'
 import type { PersonalAction, PersonalPending } from '../personal/usePersonalActions'
+import { HeartIcon } from '../ui'
 import { VideoArt } from './VideoArt'
 
 /// One Video as the Library shows it.
@@ -140,9 +141,10 @@ function CardFacts({ video, source }: {
     work && work.resolution !== 'Established' ? { kind: 'unknown', label: 'Unknown Video' } : undefined,
     review ? { kind: 'review', label: 'Review needed' } : undefined,
   ].filter((flag) => flag !== undefined)
-  const line = titleNamesActors(video.displayTitle, actors)
+  const names = actors.map((actor) => actor.name)
+  const line = titleNamesActors(video.displayTitle, names)
     ? [siteName, formatDay(video.discoveryDate)]
-    : [siteName, actors.length > 0 ? actors.join(', ') : undefined]
+    : [siteName, names.length > 0 ? names.join(', ') : undefined]
   const state = video.personalState.playState
   const progress = Number(video.personalState.playbackProgressMilliseconds ?? 0)
 
@@ -183,16 +185,7 @@ function plain(text: string) {
   return text.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, ' ').trim()
 }
 
-function HeartIcon() {
-  return (
-    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
-      <path
-        d="M12 21s-7.5-4.6-9.5-9.2C1 8 3.4 4.5 7 4.5c2 0 3.5 1.1 5 2.9 1.5-1.8 3-2.9 5-2.9 3.6 0 6 3.5 4.5 7.3C19.5 16.4 12 21 12 21z"
-        fill="currentColor"
-      />
-    </svg>
-  )
-}
+
 
 function BookmarkIcon() {
   return (

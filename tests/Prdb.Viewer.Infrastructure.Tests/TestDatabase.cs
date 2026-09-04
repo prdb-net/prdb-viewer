@@ -37,6 +37,9 @@ internal sealed class TestDatabase : IAsyncDisposable
         IPreviewImageGenerator? previewGenerator = null,
         IPrdbIdentificationClient? identificationClient = null,
         IPrdbSiteDirectoryClient? siteDirectoryClient = null,
+        IPrdbWorkDetailClient? workDetailClient = null,
+        IPrdbActorProfileClient? actorProfileClient = null,
+        IRetainedImageClient? retainedImageClient = null,
         FakePrdb? prdb = null,
         string? targetMigration = null)
     {
@@ -95,6 +98,28 @@ internal sealed class TestDatabase : IAsyncDisposable
             services.AddSingleton(siteDirectoryClient ?? new FixtureSiteDirectoryClient());
         }
 
+        if (workDetailClient is not null || prdb is null)
+        {
+            // Same rule for the Enrichment lane, which every drained pipeline now runs.
+            services.RemoveAll<IPrdbWorkDetailClient>();
+            services.AddSingleton(workDetailClient ?? new FixtureWorkDetailClient());
+        }
+
+        if (actorProfileClient is not null || prdb is null)
+        {
+            services.RemoveAll<IPrdbActorProfileClient>();
+            services.AddSingleton(actorProfileClient ?? new FixtureActorProfileClient());
+        }
+
+        if (retainedImageClient is not null || prdb is null)
+        {
+            // No test ever reaches the open internet for a picture either. Without this the
+            // default client resolves whatever address a fixture invented, which is a DNS failure
+            // that takes seconds and then records the picture as unavailable.
+            services.RemoveAll<IRetainedImageClient>();
+            services.AddSingleton(retainedImageClient ?? new FixtureRetainedImageClient());
+        }
+
         var database = new TestDatabase(directory, services.BuildServiceProvider());
         if (targetMigration is null)
         {
@@ -123,8 +148,16 @@ internal sealed class TestDatabase : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        // Only this installation's pool. `ClearAllPools` reaches every other test running beside
+        // this one, and a test that happened to be opening a connection at that moment failed on
+        // it — rarely, in whichever test was unlucky, which is the worst kind of flake to read.
+        var connectionString = Location.ConnectionString;
         await provider.DisposeAsync();
-        SqliteConnection.ClearAllPools();
+
+        using (var connection = new SqliteConnection(connectionString))
+        {
+            SqliteConnection.ClearPool(connection);
+        }
 
         if (System.IO.Directory.Exists(Directory))
         {

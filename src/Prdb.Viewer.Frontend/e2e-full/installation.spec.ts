@@ -32,6 +32,8 @@ test('the browsing screen shows what the lanes established', async ({ page }) =>
 })
 
 test('a facet row is drawn from the library the server actually holds', async ({ page }) => {
+  await openFilters(page)
+
   // Counts, not just names. A facet row that draws the right labels over the wrong numbers is a
   // screen that lies quietly, and no test that pins its own answers can see it.
   //
@@ -68,11 +70,14 @@ test('what a card says a Video is worth watching at survives the round trip', as
 })
 
 test('choosing a quality band narrows the list at the server', async ({ page }) => {
+  await openFilters(page)
   await page.getByRole('button', { name: 'SD (2)' }).click()
 
   await expect(page.locator('.video-card')).toHaveCount(2)
   expect(new URL(page.url()).searchParams.get('quality')).toBe('StandardDefinition')
-  await expect(page.getByText('2 matching')).toBeVisible()
+  // The toolbar's count. The open sheet carries the same number at its foot, which is the point
+  // of it — the reader narrowing sees what it leaves without closing the sheet to look.
+  await expect(page.locator('.library-toolbar .result-count')).toHaveText('2 matching')
 
   // And ordering by it is the server's answer too, not a sort the screen did to a page.
   await page.goto('/?sort=QualityDescending')
@@ -82,13 +87,14 @@ test('choosing a quality band narrows the list at the server', async ({ page }) 
 })
 
 test('choosing a Site narrows the list at the server', async ({ page }) => {
+  await openFilters(page)
   await page.getByRole('button', { name: 'Example Pictures (2)' }).click()
 
   await expect(page.locator('.video-title')).toHaveText(['The Second Film', 'The First Film'])
   expect(new URL(page.url()).searchParams.get('sites')).toBe('Example Pictures')
 
   // The heading counts the whole match rather than the page, and it is the server's number.
-  await expect(page.getByText('2 matching')).toBeVisible()
+  await expect(page.locator('.library-toolbar .result-count')).toHaveText('2 matching')
 })
 
 test('the address a choice wrote is enough to reproduce the screen', async ({ page }) => {
@@ -98,6 +104,8 @@ test('the address a choice wrote is enough to reproduce the screen', async ({ pa
   await page.locator('.video-card').first().waitFor()
 
   await expect(page.locator('.video-title')).toHaveText(['The Second Film', 'The First Film'])
+
+  await openFilters(page)
   await expect(page.locator('button.facet[aria-pressed="true"]')).toHaveText(['Alex Doe (2)'])
 })
 
@@ -168,6 +176,58 @@ test('the Installation screen reports the connection it actually made', async ({
   await expect(page.getByText('/libraries', { exact: true })).toBeVisible()
 })
 
+test('an Actor is opened from a Video, played from, kept, and found again', async ({ page }) => {
+  // The whole contract this effort added, end to end against a real installation: the identity
+  // the catalogue sent, the profile a lane fetched, the pictures another lane brought in, and the
+  // Personal State a third screen wrote.
+  await page.getByRole('link', { name: 'The First Film' }).click()
+  const credit = page.locator('.actor-credits a').first()
+  const name = (await credit.textContent())!.trim()
+  await credit.click()
+
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+
+  // Their Videos are the body of the page, and every picture on it is served from here.
+  await expect(page.locator('.video-card').first()).toBeVisible()
+  for (const source of await page.locator('.actor-detail img, .actor-gallery-grid img')
+    .evaluateAll((images) => images.map((image) => image.getAttribute('src')))) {
+    expect(source).toMatch(/^\/media\/actors\//)
+  }
+
+  // What prdb knows, held locally: the stand-in describes this Actor fully.
+  await expect(page.locator('.actor-facts')).toContainText('Example City')
+
+  await page.getByRole('button', { name: 'Make a Favourite' }).click()
+  // The Actor's own control, not the heart on one of their Video cards.
+  await expect(page.locator('.page-heading').getByRole('button', { name: 'Favourite' }))
+    .toHaveAttribute('aria-pressed', 'true')
+
+  // And the index knows it, from the server rather than from what the last screen remembered.
+  await page.goto('/actors')
+  const card = page.locator('.actor-card', { hasText: name })
+  await expect(card).toBeVisible()
+  await expect(card.locator('button.actor-favourite')).toHaveAttribute('aria-pressed', 'true')
+  await expect(card).toContainText('Videos here')
+})
+
+test('a Video says what prdb knows about the work beyond its title', async ({ page }) => {
+  await page.getByRole('link', { name: 'The First Film' }).click()
+  const facts = page.locator('.work-facts')
+  await expect(facts).toBeVisible()
+
+  // The network, the release name a file is usually called after, and what prdb knows the work
+  // in — all of it carried by the identification answer the lane already paid for.
+  await expect(facts).toContainText('Network')
+  await expect(facts).toContainText('The.First.Film.1080p.WEB-DL')
+  await expect(facts).toContainText('3840×2160')
+
+  // prdb's pictures of the work, held here rather than pointed at.
+  for (const source of await facts.locator('img')
+    .evaluateAll((images) => images.map((image) => image.getAttribute('src')))) {
+    expect(source).toMatch(/^\/media\/works\//)
+  }
+})
+
 function facets(page: Page, group: 'Sites' | 'Actors' | 'Quality') {
   return page.locator(`[aria-label="${group}"] button.facet`)
 }
@@ -179,8 +239,18 @@ async function signIn(page: Page) {
   // Scoped to the form: the panel's own tab carries the same name, and a click on it would only
   // reselect the tab already showing.
   await page.locator('form').getByRole('button', { name: 'Sign in' }).click()
-  await page.locator('button.facet').first().waitFor()
   await settled(page)
+}
+
+/// The facets, which wait behind one control rather than standing beside the Videos.
+///
+/// This suite used to sign in by waiting for a facet button to appear. Since the filter sheet
+/// stopped covering what it narrows, that button exists from the first render and is hidden until
+/// Filters is pressed — so every case here was waiting sixty seconds for something that was never
+/// going to become visible on its own.
+async function openFilters(page: Page) {
+  await page.getByRole('button', { name: /^Filters/ }).click()
+  await page.locator('button.facet').first().waitFor()
 }
 
 /// The library, whole.

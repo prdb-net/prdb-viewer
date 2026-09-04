@@ -48,6 +48,35 @@ app.MapPost("/videos/identify", async (HttpRequest request) =>
         "application/json");
 });
 
+// What the Enrichment lane asks: what does prdb say about these works now. Same catalogue, same
+// documents — the lane's whole point is that this question is cheaper than identifying again.
+app.MapPost("/videos/batch", async (HttpRequest request) =>
+{
+    using var reader = new StreamReader(request.Body);
+    var body = await reader.ReadToEndAsync();
+    var here = $"{request.Scheme}://{request.Host}";
+
+    return Results.Content(
+        CatalogueAnswers.VideosByIds(body, catalogue, here),
+        "application/json");
+});
+
+// What prdb says about the Actors those works credit.
+app.MapPost("/actors/batch", async (HttpRequest request) =>
+{
+    using var reader = new StreamReader(request.Body);
+    var body = await reader.ReadToEndAsync();
+    var here = $"{request.Scheme}://{request.Host}";
+
+    return Results.Content(
+        CatalogueAnswers.ActorsByIds(body, catalogue, here),
+        "application/json");
+});
+
+// An Actor's pictures, held by the installation and served back under its own address.
+app.MapGet("/actors/{actorId:guid}/{name}.bmp", (Guid actorId, string name) =>
+    Results.Bytes(CatalogueAnswers.Artwork($"{actorId}:{name}"), "image/bmp"));
+
 // The picture the identify answer points at. A viewer retains it and serves it back under its own
 // address, so this is asked for once per work rather than once per screen.
 app.MapGet("/videos/{videoId:guid}/artwork.bmp", (Guid videoId) =>

@@ -91,6 +91,19 @@ internal sealed class FixturePreviewGenerator(Func<string, bool>? generates = nu
 /// </summary>
 internal sealed class FixtureIdentificationClient : IPrdbIdentificationClient
 {
+    /// <summary>
+    /// The Actor prdb sends with a work, named and identified. The identity is derived from the
+    /// name so two tests naming the same Actor mean the same Actor, which is what a test about
+    /// their page needs and what a random one could not give it.
+    /// </summary>
+    public static RemoteActor Actor(string name)
+    {
+        var digest = System.Security.Cryptography.MD5.HashData(
+            System.Text.Encoding.UTF8.GetBytes(name.ToLowerInvariant()));
+
+        return new RemoteActor(name, new Guid(digest).ToString());
+    }
+
     private readonly Dictionary<string, Func<Guid, RemoteIdentification>> answers = new(
         StringComparer.OrdinalIgnoreCase);
 
@@ -120,7 +133,30 @@ internal sealed class FixtureIdentificationClient : IPrdbIdentificationClient
             prdbVideoId,
             [],
             site,
-            new RemoteWork(prdbVideoId, title, site, ["Alex Doe"], null, null, 12_345)));
+            new RemoteWork(prdbVideoId, title, site, [Actor("Alex Doe")], null, null, 12_345)));
+
+    /// <summary>Recognises a file, and names who prdb says is in it.</summary>
+    public FixtureIdentificationClient Credits(
+        string fileName,
+        string prdbVideoId,
+        string title,
+        IReadOnlyList<string> actors,
+        RemoteSite? site = null) =>
+        Answer(fileName, id => new RemoteIdentification(
+            id,
+            RemoteMatchKind.OsHash,
+            RemoteMatchConfidence.Exact,
+            prdbVideoId,
+            [],
+            site,
+            new RemoteWork(
+                prdbVideoId,
+                title,
+                site,
+                actors.Select(Actor).ToArray(),
+                null,
+                null,
+                12_345)));
 
     public FixtureIdentificationClient Suggestive(
         string fileName,
@@ -196,4 +232,148 @@ internal sealed class FixtureConnectionVerifier(
         string credential,
         CancellationToken cancellationToken = default) =>
         Task.FromResult(outcome);
+}
+
+/// <summary>
+/// A stand-in for the works prdb answers with when the Enrichment lane asks about them. A test
+/// that says nothing about enrichment gets an installation prdb has nothing further to add to.
+/// </summary>
+internal sealed class FixtureWorkDetailClient : IPrdbWorkDetailClient
+{
+    private readonly Dictionary<string, RemoteWork> works = new(StringComparer.OrdinalIgnoreCase);
+
+    public WorkDetailFetchStatus Status { get; set; } = WorkDetailFetchStatus.Fetched;
+
+    public int Calls { get; private set; }
+
+    public List<string> Asked { get; } = [];
+
+    public FixtureWorkDetailClient Answers(RemoteWork work)
+    {
+        works[work.PrdbVideoId] = work;
+        return this;
+    }
+
+    public Task<WorkDetailFetchResult> FetchAsync(
+        string credential,
+        IReadOnlyList<string> prdbVideoIds,
+        CancellationToken cancellationToken = default)
+    {
+        Calls++;
+        Asked.AddRange(prdbVideoIds);
+
+        if (Status != WorkDetailFetchStatus.Fetched)
+        {
+            return Task.FromResult(new WorkDetailFetchResult(Status, [], "The fixture refused."));
+        }
+
+        return Task.FromResult(new WorkDetailFetchResult(
+            WorkDetailFetchStatus.Fetched,
+            prdbVideoIds
+                .Select(id => works.GetValueOrDefault(id))
+                .OfType<RemoteWork>()
+                .ToArray()));
+    }
+}
+
+/// <summary>
+/// A stand-in for what prdb says about an Actor. A test that says nothing about profiles gets an
+/// installation whose Actors are names and nothing more, which is a real state and the one every
+/// screen has to draw anyway.
+/// </summary>
+internal sealed class FixtureActorProfileClient : IPrdbActorProfileClient
+{
+    private readonly Dictionary<string, RemoteActorProfile> profiles =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public ActorProfileFetchStatus Status { get; set; } = ActorProfileFetchStatus.Fetched;
+
+    public int Calls { get; private set; }
+
+    public List<string> Asked { get; } = [];
+
+    public FixtureActorProfileClient Answers(RemoteActorProfile profile)
+    {
+        profiles[profile.Id] = profile;
+        return this;
+    }
+
+    /// <summary>One Actor as prdb holds them, named and described.</summary>
+    public FixtureActorProfileClient Describes(
+        string actorId,
+        string name,
+        IReadOnlyList<RemoteActorImage>? images = null,
+        IReadOnlyList<RemoteActorAlias>? aliases = null) =>
+        Answers(new RemoteActorProfile(
+            actorId,
+            name,
+            "Female",
+            new DateTime(1994, 3, 17, 0, 0, 0, DateTimeKind.Utc),
+            "Exact",
+            null,
+            "Example City",
+            "Brown",
+            "Green",
+            null,
+            170,
+            null,
+            null,
+            null,
+            "Example Nation",
+            null,
+            2014,
+            null,
+            "A small star behind the left ear.",
+            null,
+            images ?? [],
+            aliases ?? [],
+            [new RemoteActorLink("https://example.invalid/actor", "Twitter")],
+            [$"{name} has been in front of a camera since 2014."]));
+
+    public Task<ActorProfileFetchResult> FetchAsync(
+        string credential,
+        IReadOnlyList<string> prdbActorIds,
+        CancellationToken cancellationToken = default)
+    {
+        Calls++;
+        Asked.AddRange(prdbActorIds);
+
+        if (Status != ActorProfileFetchStatus.Fetched)
+        {
+            return Task.FromResult(new ActorProfileFetchResult(Status, [], "The fixture refused."));
+        }
+
+        return Task.FromResult(new ActorProfileFetchResult(
+            ActorProfileFetchStatus.Fetched,
+            prdbActorIds
+                .Select(id => profiles.GetValueOrDefault(id))
+                .OfType<RemoteActorProfile>()
+                .ToArray()));
+    }
+}
+
+/// <summary>
+/// A stand-in for the pictures prdb offers, over the transport that carries no credential. It
+/// answers with a one-pixel PNG, or with nothing at all, which are the two cases the retention has
+/// to tell apart.
+/// </summary>
+internal sealed class FixtureRetainedImageClient : IRetainedImageClient
+{
+    private static readonly byte[] Png =
+    [
+        0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+    ];
+
+    public bool Answers { get; set; } = true;
+
+    public List<string> Asked { get; } = [];
+
+    public Task<RetainedImage> FetchAsync(string url, CancellationToken cancellationToken = default)
+    {
+        Asked.Add(url);
+
+        return Task.FromResult(Answers
+            ? new RetainedImage(Png, "image/png")
+            : new RetainedImage(null, null));
+    }
 }

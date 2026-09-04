@@ -7,6 +7,50 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+Actors have a page of their own. They had been strings: prdb has always sent
+them with an identity, a gender, a birthday and their pictures, and the viewer
+kept the names alone — so pressing an Actor narrowed a list and there was
+nothing to open. There is now an Actor behind each credit, an index to browse
+them from, everything prdb knows about them held locally, every picture prdb
+offers served from this installation, and a Favourite Actor per Account. The
+same answer had been carrying the Site's network, the release names a file is
+usually called after, and what prdb knows the work in; a Video's page says all
+of it now. **This release migrates**, and writes Backup Archive format 2.
+
+### Added
+
+- An Actor has an address of their own. Their page leads with the Videos this
+  library holds them in — playable from where they are read — and states what
+  prdb knows beside them: gender, birthday, birthplace, colouring,
+  measurements, nationality, career, tattoos and piercings, their other
+  credited names, their links, and their bios. Nothing is stated where nothing
+  is known, because an Actor prdb holds a name and four fields for is the
+  common case and must not read as a page that failed to load.
+- An index of Actors, in the Library group of the navigation: a wall of faces,
+  searched by name or by any name they are also credited under, ordered by name
+  or by how many Videos they have here. The search in the header searches it
+  while it is open, the way it already searches an open shelf.
+- Every picture prdb offers for an Actor is held by the installation and served
+  from its own address. A browser is never sent to prdb for one, and a page
+  whose pictures have not arrived says which of the two reasons applies.
+- A Favourite Actor, per Account, beside Favourite and Watch Later. It is
+  carried by a Backup Archive; the profile beside it is not, because that can
+  be fetched again and this cannot.
+- A Video's page says what prdb knows about the work beyond its title: the
+  Site's network, the release names it is held under, how far the files prdb
+  has seen disagree about its length, the resolutions and codecs it is known
+  in — which is what says whether a better copy than this one exists — and
+  prdb's own pictures of it, distinct from the preview generated here.
+- A new Enrichment lane asks prdb again about works this library already knows,
+  which is how a library identified before this release gains its Actors. It
+  costs no hashing and no matching, and after the backfill it keeps running as
+  a slow refresh.
+
+### Changed
+
+- Backup Archive format 2 carries each Account's Favourite Actors. A format 1
+  archive restores unchanged and carries none.
+
 An identification review can now be acted on by somebody who was not there when
 the candidate was made. It was correct and undecidable: it said what was
 proposed and what was established, and it never showed the Video, never said
