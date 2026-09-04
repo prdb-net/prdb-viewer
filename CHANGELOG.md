@@ -7,13 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
-The Sites and Actors of a facet can be looked through. A facet answers with its
-fifty most populated values, and until now the rest of a long one could not be
-reached at all: the control beside it offered to show them all and showed the
-fifty it had. Both facets now carry a field that asks the installation for what
-matches, so the Site that never arrived is one that can still be chosen. The
-HTTP API's facets endpoint gains two optional parameters and two fields, and the
-schema gains one column. **This release migrates.**
+## [0.15.0] - 2026-09-04
+
+The Sites and Actors of a facet can be looked through, and the account sits
+behind the one control its corner is for. A facet answers with its fifty most
+populated values, and until now the rest of a long one could not be reached at
+all: the control beside it offered to show them all and showed the fifty it had.
+Both facets now carry a field that asks the installation for what matches, so
+the Site that never arrived is one that can still be chosen. In the header, the
+name and `Sign out` no longer stand side by side as two controls for one
+subject; an avatar opens a small menu that holds both, and carries the name on
+every width. The HTTP API's facets endpoint gains two optional parameters and
+two fields, and the schema gains one column. **This release migrates.**
 
 ### Added
 
