@@ -5,7 +5,7 @@ All notable user-visible changes to `prdb-viewer` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.16.0] - 2026-09-04
 
 Actors have a page of their own. They had been strings: prdb has always sent
 them with an identity, a gender, a birthday and their pictures, and the viewer
