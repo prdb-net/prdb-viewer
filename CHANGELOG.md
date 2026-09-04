@@ -7,6 +7,51 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+A browser pass over every screen, and the twelve corrections it found. The
+filter sheet is the visible one: beside the Videos it was drawn over the last
+column of them and over the sort control, and its own groups were spread down
+its height as though something had failed to load. Elsewhere the pass mostly
+gave screens back the facts they were already holding — who is asking for
+access and since when, which lane runs before which, where a recovery code
+comes from — and stopped offering controls that had nothing to act on.
+
+### Changed
+
+- The filter sheet no longer covers what it narrows. Standing beside the
+  Videos it is a column rather than a cover, so the content gives up exactly
+  the width it takes; on a wide screen the last column of Videos and the sort
+  control were underneath it until it was closed. Its facet groups now stack
+  from the top instead of being stretched down the sheet.
+- An empty Personal Shelf no longer draws Filters and Sort above its own empty
+  state. It is empty because nothing has been put on it, and no narrowing of it
+  will ever say otherwise. A shelf emptied by its own filters keeps them,
+  because taking one out is what is left to do, and so does the shared library,
+  which can hold Videos the current rules keep out.
+- The Favourites and Watch Later empty states name the control that fills them.
+- A Discovery Date is written with its month as a word. `toLocaleDateString()`
+  with nothing said gave `9/4/2026`, which is two different days depending on
+  who is reading it.
+- The lanes on Background work are in the order a Video File goes through them,
+  starting with the Library Scan every other lane waits on. They used to arrive
+  newest run first, which moved the rows around as lanes ran.
+- An Account that is waiting says when it asked and which email it gave. The
+  API had answered with both all along, and the decision the screen exists for
+  was offered against a username alone.
+- `Recovery code` is drawn as the favour it is rather than as the decision
+  `Approve` is.
+- The navigation carries the count of Accounts waiting for approval, the way it
+  already carries the identification queue.
+- The Recover tab says an Administrator issues a one-time recovery code, the
+  way Request access already says who approves it.
+- The Installation screen is called that once it is opened, and shows the
+  Library Directories it has before the form for another one. Adding one is
+  offered the way replacing the API key is, so the rarer action no longer
+  stands over the directory the installation actually reads.
+- A review candidate's evidence says whose judgement each half is. "Suggestive
+  evidence, matched by Filename with Exact confidence" put our reading of the
+  evidence and the catalogue's reading of the match in one sentence, where they
+  contradicted each other.
+
 ## [0.15.0] - 2026-09-04
 
 The Sites and Actors of a facet can be looked through, and the account sits

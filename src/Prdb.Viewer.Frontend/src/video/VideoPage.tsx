@@ -11,6 +11,7 @@ import {
 } from '../api/client'
 import {
   fileFormat,
+  formatDay,
   formatDuration,
   friendlyState,
   playabilityLabel,
@@ -271,7 +272,7 @@ export function VideoPage({ account }: { account: Account }) {
             {quality.map((fact) => (
               <div key={fact.label}><dt>{fact.label}</dt><dd>{fact.value}</dd></div>
             ))}
-            <div><dt>Discovered</dt><dd>{new Date(video.discoveryDate).toLocaleDateString()}</dd></div>
+            <div><dt>Discovered</dt><dd>{formatDay(video.discoveryDate)}</dd></div>
             <div><dt>Availability</dt><dd>{friendlyState(video.availability)}</dd></div>
             <div><dt>Playability</dt><dd>{playabilityLabel(video.playability)}</dd></div>
             <div><dt>Play state</dt><dd>{friendlyState(video.personalState.playState)}</dd></div>

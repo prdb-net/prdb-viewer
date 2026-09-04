@@ -126,18 +126,26 @@ export function LibraryPage({ account, shelf }: { account: Account; shelf?: Shel
           </PageHeading>
           )}
 
-      <LibraryControls
-        filters={filters}
-        facets={facets.data}
-        narrow={narrow}
-        toggle={toggle}
-        clear={clear}
-        narrowed={narrowed}
-        pinned={shelf}
-        total={Number(page.totalMatches)}
-        finding={finding}
-        find={setFinding}
-      />
+      {/* An empty shelf is empty because this Account has put nothing on it, and no narrowing of
+          it will ever say otherwise, so it offered a row of controls that could only answer the
+          same way. The shared Library is not the same case: it can hold Videos the current rules
+          keep out, and Filters is the way to them — so it keeps its controls even with nothing on
+          screen. A shelf emptied by its own filters keeps them too, because taking one out is
+          exactly what is left to do. */}
+      {(!description || shown.length > 0 || narrowed) && (
+        <LibraryControls
+          filters={filters}
+          facets={facets.data}
+          narrow={narrow}
+          toggle={toggle}
+          clear={clear}
+          narrowed={narrowed}
+          pinned={shelf}
+          total={Number(page.totalMatches)}
+          finding={finding}
+          find={setFinding}
+        />
+      )}
 
       {description && narrowed && shown.length > 0 && (
         <p className="scope-escape">

@@ -250,6 +250,20 @@ function Scheduled({ directories, paused }: {
   )
 }
 
+/// The order the lanes are read in: the order a Video File goes through them.
+///
+/// It matches `BackgroundWorkCategory` in the Core, which is that order for the same reason. The
+/// endpoint answers newest run first, which put the Library Scan — the lane every other one waits
+/// on — last, and moved the rows around whenever a lane happened to run.
+const laneOrder = [
+  'LibraryScan',
+  'TechnicalInspection',
+  'Hashing',
+  'PreviewGeneration',
+  'Identification',
+  'SiteRecognition',
+]
+
 /// One row per lane, rather than one per run.
 ///
 /// The endpoint answers with the last fifty runs, newest first — a history, which is the right
@@ -269,7 +283,9 @@ function lanes(work: BackgroundWorkSummary[]): BackgroundWorkSummary[] {
     }
   }
 
-  return [...newest.values()]
+  return [...newest.values()].sort((one, other) =>
+    laneOrder.indexOf(one.category) - laneOrder.indexOf(other.category) ||
+    one.libraryDirectoryName.localeCompare(other.libraryDirectoryName))
 }
 
 /// When this lane last did something, so a run that just happened is not mistaken for one from

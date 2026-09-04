@@ -1,5 +1,6 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 
+import { formatDay } from './lib/format'
 import {
   claim,
   identification,
@@ -100,9 +101,10 @@ describe('App', () => {
     expect(await screen.findByRole('heading', { name: 'Browse' })).toBeInTheDocument()
     expect(screen.getByText('Sample Video')).toBeInTheDocument()
 
-    // Configuration is a destination, reached from the navigation the shell always shows.
+    // The installation is a destination, reached from the navigation the shell always shows,
+    // and it is called there what the navigation calls it.
     fireEvent.click(screen.getByRole('link', { name: 'Installation' }))
-    expect(await screen.findByRole('heading', { name: 'Configuration' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: 'Installation' })).toBeInTheDocument()
     expect(screen.queryByText('Sample Video')).not.toBeInTheDocument()
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
@@ -735,7 +737,7 @@ describe('App', () => {
     // A title that is the Actors' names is not followed by the Actors' names; the Site and the
     // Discovery Date take that line. The other card names its Actor.
     const cards = rendered.container.querySelectorAll('.video-card')
-    expect(cards[0]).toHaveTextContent(new Date('2026-08-27T12:00:00Z').toLocaleDateString())
+    expect(cards[0]).toHaveTextContent(formatDay('2026-08-27T12:00:00Z')!)
     expect(within(cards[0] as HTMLElement).queryByText('Sam Roe, Alex Doe')).not.toBeInTheDocument()
     expect(within(cards[1] as HTMLElement).getByText('Alex Doe')).toBeInTheDocument()
 

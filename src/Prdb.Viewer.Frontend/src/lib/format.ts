@@ -157,6 +157,20 @@ export function nextScanDue(value: string | null | undefined, now: number = Date
   return at <= now ? 'now' : timeAgo(value, now)
 }
 
+/// A day, named rather than numbered.
+///
+/// `toLocaleDateString()` with nothing said gives the browser's own order — `9/4/2026`, which is
+/// the fourth of September to one reader and the ninth of April to the next, and the application
+/// is in English wherever it runs. A month written as a word cannot be read the wrong way round.
+export function formatDay(value: string | null | undefined) {
+  if (!value) return undefined
+
+  const at = new Date(value)
+  if (Number.isNaN(at.getTime())) return undefined
+
+  return at.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 /// The instant itself, for the title a relative time carries.
 export function exactTime(value: string | null | undefined) {
   if (!value) return undefined
