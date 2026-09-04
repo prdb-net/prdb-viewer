@@ -2,6 +2,7 @@ import { Link } from 'react-router'
 
 import type { VideoSummary } from '../api/client'
 import {
+  formatDay,
   formatDuration,
   friendlyState,
   playbackUnavailableReason,
@@ -136,7 +137,7 @@ function CardFacts({ video, source }: {
     review ? { kind: 'review', label: 'Review needed' } : undefined,
   ].filter((flag) => flag !== undefined)
   const line = titleNamesActors(video.displayTitle, actors)
-    ? [siteName, new Date(video.discoveryDate).toLocaleDateString()]
+    ? [siteName, formatDay(video.discoveryDate)]
     : [siteName, actors.length > 0 ? actors.join(', ') : undefined]
   const state = video.personalState.playState
   const progress = Number(video.personalState.playbackProgressMilliseconds ?? 0)

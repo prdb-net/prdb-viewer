@@ -264,7 +264,11 @@ function AccountMenu({ account }: { account: Account }) {
   )
 }
 
-type NavigationBadges = { operationalAttention: number; identificationQueue: number }
+type NavigationBadges = {
+  operationalAttention: number
+  identificationQueue: number
+  accountsWaiting: number
+}
 
 /// What the navigation needs to count, asked for only where it can be answered.
 ///
@@ -285,10 +289,21 @@ function useNavigationBadges(account: Account): NavigationBadges {
     enabled: administrator,
     refetchInterval: 60_000,
   })
+  // A request for access waits for a person, the same way a candidate does. The Accounts screen
+  // opened with "1 request waiting for approval" while the navigation that leads to it said
+  // nothing, so the one section that cannot act on its own was the one nothing pointed at.
+  const accounts = useQuery({
+    queryKey: queryKeys.accounts,
+    queryFn: api.accounts,
+    enabled: administrator,
+    refetchInterval: 60_000,
+  })
 
   return {
     operationalAttention: Number(work.data?.operationalAttentionCount ?? 0),
     identificationQueue: queue.data?.length ?? 0,
+    accountsWaiting:
+      accounts.data?.filter((candidate) => candidate.state === 'PendingApproval').length ?? 0,
   }
 }
 

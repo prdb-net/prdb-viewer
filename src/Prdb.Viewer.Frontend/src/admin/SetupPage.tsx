@@ -21,6 +21,8 @@ export function SetupPage({ account }: { account: Account }) {
   const [stage, setStage] = useState<LibraryDirectoryStage>()
   /// Whether the Administrator asked to replace a key that is already verified.
   const [replacing, setReplacing] = useState(false)
+  /// Whether they asked to add a directory beside the ones already configured.
+  const [adding, setAdding] = useState(false)
   const verify = useMutation({
     mutationFn: (credential: string) => api.verifyPrdb(credential, account.csrfToken),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: queryKeys.configuration }),
@@ -41,6 +43,7 @@ export function SetupPage({ account }: { account: Account }) {
     mutationFn: (stageId: string) => api.activateLibraryDirectory(stageId, account.csrfToken),
     onSuccess: () => {
       setStage(undefined)
+      setAdding(false)
       void queryClient.invalidateQueries({ queryKey: queryKeys.configuration })
     },
   })
@@ -53,8 +56,8 @@ export function SetupPage({ account }: { account: Account }) {
   return (
     <>
       <PageHeading
-        eyebrow="Installation"
-        title="Configuration"
+        eyebrow="Administrator"
+        title="Installation"
         actions={current && (
           <span className={`state-badge ${current.status === 'Configured' ? 'ready' : ''}`}>
             {friendlyState(current.status)}
@@ -134,27 +137,10 @@ export function SetupPage({ account }: { account: Account }) {
               <div><strong>Library Directory</strong><small>{current.libraryDirectories.length > 0 ? 'Active' : 'Required'}</small></div>
             </div>
             <p>Select a readable directory mounted beneath <code>{current.libraryMountRoot}</code>. The container mount remains the Installation Operator's responsibility.</p>
-            <form onSubmit={submitting((form) => stageDirectory.mutate(
-              values<{ name: string; containerPath: string }>(form, ['name', 'containerPath']),
-            ))}>
-              <Field name="name" label="Display name" placeholder="Main Library" required />
-              <Field name="containerPath" label="Container path" list="library-directory-candidates" placeholder={`${current.libraryMountRoot}/main`} required />
-              <datalist id="library-directory-candidates">
-                {candidates.data?.containerPaths.map((path) => <option key={path} value={path} />)}
-              </datalist>
-              <SubmitButton pending={stageDirectory.isPending}>Validate directory</SubmitButton>
-            </form>
-            {stage?.verdict === 'Staged' && stage.stageId && (
-              <div className="confirmation">
-                <p><strong>{stage.name}</strong><br /><code>{stage.containerPath}</code></p>
-                <button
-                  className="primary-button"
-                  onClick={() => activate.mutate(stage.stageId!)}
-                  disabled={activate.isPending}
-                >Activate validated directory</button>
-              </div>
-            )}
-            {stage && stage.verdict !== 'Staged' && <Notice kind="error">{directoryStageMessage(stage.verdict)}</Notice>}
+            {/* What is configured comes before what could be added. An empty form standing over
+                the directory this installation actually reads made the rarer action — a second
+                directory — look like the thing the step is for, and left the state of the first
+                one to be scrolled to. Adding one is offered the way replacing the API key is. */}
             {current.libraryDirectories.map((directory) => (
               <ConfiguredDirectory
                 key={directory.id}
@@ -167,6 +153,48 @@ export function SetupPage({ account }: { account: Account }) {
                 }}
               />
             ))}
+            {current.libraryDirectories.length > 0 && !adding
+              ? (
+                <button
+                  className="quiet-button inline-button"
+                  onClick={() => setAdding(true)}
+                >Add another directory</button>
+                )
+              : (
+                <form onSubmit={submitting((form) => stageDirectory.mutate(
+                  values<{ name: string; containerPath: string }>(form, ['name', 'containerPath']),
+                ))}>
+                  <Field name="name" label="Display name" placeholder="Main Library" required />
+                  <Field name="containerPath" label="Container path" list="library-directory-candidates" placeholder={`${current.libraryMountRoot}/main`} required />
+                  <datalist id="library-directory-candidates">
+                    {candidates.data?.containerPaths.map((path) => <option key={path} value={path} />)}
+                  </datalist>
+                  <div className="row-actions">
+                    <SubmitButton pending={stageDirectory.isPending}>Validate directory</SubmitButton>
+                    {current.libraryDirectories.length > 0 && (
+                      <button
+                        type="button"
+                        className="quiet-button"
+                        onClick={() => {
+                          setAdding(false)
+                          setStage(undefined)
+                        }}
+                      >Cancel</button>
+                    )}
+                  </div>
+                </form>
+                )}
+            {stage?.verdict === 'Staged' && stage.stageId && (
+              <div className="confirmation">
+                <p><strong>{stage.name}</strong><br /><code>{stage.containerPath}</code></p>
+                <button
+                  className="primary-button"
+                  onClick={() => activate.mutate(stage.stageId!)}
+                  disabled={activate.isPending}
+                >Activate validated directory</button>
+              </div>
+            )}
+            {stage && stage.verdict !== 'Staged' && <Notice kind="error">{directoryStageMessage(stage.verdict)}</Notice>}
           </section>
         </div>
       )}

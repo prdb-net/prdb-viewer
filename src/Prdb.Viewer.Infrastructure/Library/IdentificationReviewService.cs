@@ -683,6 +683,12 @@ public sealed class IdentificationReviewService(
     /// What an Administrator is told the proposal rests on. A locally derived proposal says so,
     /// because reading a name out of a path is not the same evidence as a remote match.
     /// </summary>
+    /// <remarks>
+    /// The evidence class and the remote confidence are two different judgements — what this
+    /// installation may establish from the match, and how far the catalogue trusts the match
+    /// itself — and read as one sentence they contradicted each other: "Suggestive evidence,
+    /// matched by Filename with Exact confidence". Each is now attributed to whoever made it.
+    /// </remarks>
     private static string EvidenceSummary(IdentificationCandidateRow candidate)
     {
         var origin = candidate.Source == IdentificationSource.LocalInference
@@ -692,7 +698,7 @@ public sealed class IdentificationReviewService(
         return candidate.MatchedBy is null
             ? $"{origin}: {candidate.EvidenceClass} evidence"
             : $"{origin}: {candidate.EvidenceClass} evidence, matched by {candidate.MatchedBy}" +
-              (candidate.Confidence is null ? "" : $" with {candidate.Confidence} confidence");
+              (candidate.Confidence is null ? "" : $", a match {origin} rates {candidate.Confidence}");
     }
 
     private static string StateOf(VideoRow video, IdentificationDimension dimension)

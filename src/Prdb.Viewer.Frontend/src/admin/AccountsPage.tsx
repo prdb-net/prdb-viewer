@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useMutationState, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api, type Account, type AccountSummary } from '../api/client'
-import { accountStateLabel } from '../lib/format'
+import { accountStateLabel, exactTime, formatDay } from '../lib/format'
 import { queryKeys } from '../queryKeys'
 import { firstError, Notice, PageHeading, RequestError } from '../ui'
 
@@ -126,13 +126,23 @@ function AccountRow({ account, currentAccountId, pending, act }: {
       <div>
         <strong>{account.username}</strong>
         <small>{account.authority} · {accountStateLabel(account.state)}{self ? ' · you' : ''}</small>
+        {/* Who is asking, and since when. The decision this screen exists for was offered against
+            a username alone, while the API had already answered with both of these. */}
+        <small>
+          <time dateTime={account.registeredAt} title={exactTime(account.registeredAt)}>
+            {account.state === 'PendingApproval' ? 'Asked' : 'Registered'} {formatDay(account.registeredAt)}
+          </time>
+          {account.email ? ` · ${account.email}` : ''}
+        </small>
       </div>
       <div className="row-actions">
         {account.state === 'PendingApproval' && (
           <button onClick={() => act('approve')} disabled={pending}>Approve</button>
         )}
         {account.state === 'Approved' && (
-          <button onClick={() => act('recover')} disabled={pending}>Recovery code</button>
+          <button className="quiet-button" onClick={() => act('recover')} disabled={pending}>
+            Recovery code
+          </button>
         )}
         {/* Disabling was a one-way door: approval needs a waiting request, and a disabled Account
             has none, so nothing could return it. */}

@@ -15,6 +15,9 @@
      the margin beside it. */
   --content-inset: clamp(1rem, 3vw, 2.5rem);
   --surface: rgb(26 24 32 / 78%);
+  /* How wide the filter sheet is where it stands beside the Videos. The content gives up the
+     same width while it is open, so the two are one number rather than two that drift apart. */
+  --filter-sheet-width: 24rem;
   --line: rgb(255 255 255 / 9%);
   --accent: #cdb7ff;
   --muted: #928c9b;
@@ -191,6 +194,14 @@ p { color: #bdb8c7; line-height: 1.6; }
 /* A grid of Videos is the one thing that gets better with every column a screen can hold. The
    measure stays on the heading's prose, which has its own cap. */
 .app-content.wide { width: 100%; }
+/* Beside the grid the sheet is a column rather than a cover, so the content gives up the width it
+   takes. Without this the sheet was drawn over the last column of Videos — the answer to the
+   filter being chosen — and over the sort control, which was then unreachable until it closed.
+   The narrow viewport puts the sheet over the Videos deliberately and takes this back. */
+body.filters-open .app-content {
+  padding-right: calc(var(--filter-sheet-width) + var(--content-inset));
+  transition: padding-right .18s ease-out;
+}
 
 /* --- Page furniture ------------------------------------------------------------------------ */
 
@@ -283,7 +294,7 @@ p { color: #bdb8c7; line-height: 1.6; }
   bottom: 0;
   z-index: 5;
   display: flex;
-  width: min(24rem, 100%);
+  width: min(var(--filter-sheet-width), 100%);
   flex-direction: column;
   border-left: 1px solid var(--line);
   background: #16151b;
@@ -303,7 +314,10 @@ p { color: #bdb8c7; line-height: 1.6; }
 .sheet-footer .primary-button { width: auto; margin: 0 0 0 auto; padding: .6rem 1.2rem; }
 /* The sheet scrolls its facets and keeps its heading and its count where they are, so a long list
    of Sites never pushes the count of what they leave out of sight. */
-.facet-groups { display: grid; gap: .8rem; flex: 1 1 auto; overflow-y: auto; padding: 1rem 1.1rem; }
+/* The rows stand where their group ends. A grid that is taller than its rows stretches them by
+   default, which spread five short groups down the whole sheet and read as five things adrift
+   rather than as one list. */
+.facet-groups { display: grid; align-content: start; gap: .8rem; flex: 1 1 auto; overflow-y: auto; padding: 1rem 1.1rem; }
 /* A sheet has no room for a column of labels beside the values, so the label stands over its row. */
 .facet-group { display: block; }
 .facet-label { display: block; padding: 0 0 .35rem; color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
@@ -484,6 +498,7 @@ p { color: #bdb8c7; line-height: 1.6; }
 /* `.account-row button` is one selector more specific than `.danger-button`, so a row's own
    destructive button still has to say so here. */
 .account-row .danger-button { color: #ffd9da; background: rgb(240 91 92 / 20%); }
+.account-row .quiet-button { color: #d9d4e0; background: #302b38; }
 .scan-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin: 0 0 .5rem; }
 .scan-schedule { margin: 0 0 1rem; }
 .work-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .9rem 0; border-top: 1px solid var(--line); }
@@ -580,6 +595,8 @@ p { color: #bdb8c7; line-height: 1.6; }
   .filter-sheet.open { transform: translateY(0); }
   .filter-scrim.open { display: block; position: fixed; inset: var(--header-height) 0 0; z-index: 4; background: rgb(0 0 0 / 45%); }
   body.filters-open { overflow: hidden; }
+  /* The sheet comes up over the Videos here, so the content gives up no width to it. */
+  body.filters-open .app-content { padding-right: var(--content-inset); }
   .video-grid { grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .7rem; }
   .shell { padding: 1rem; }
   .card { border-radius: 1.3rem; }
@@ -592,5 +609,5 @@ p { color: #bdb8c7; line-height: 1.6; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .app-navigation, .filter-sheet { transition: none; }
+  .app-navigation, .filter-sheet, body.filters-open .app-content { transition: none; }
 }

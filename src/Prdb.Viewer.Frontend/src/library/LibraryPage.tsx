@@ -126,18 +126,24 @@ export function LibraryPage({ account, shelf }: { account: Account; shelf?: Shel
           </PageHeading>
           )}
 
-      <LibraryControls
-        filters={filters}
-        facets={facets.data}
-        narrow={narrow}
-        toggle={toggle}
-        clear={clear}
-        narrowed={narrowed}
-        pinned={shelf}
-        total={Number(page.totalMatches)}
-        finding={finding}
-        find={setFinding}
-      />
+      {/* Nothing to narrow is not a narrowing question. An empty shelf offered Filters and Sort
+          over none of anything, which is a row of controls that can only ever answer the same
+          way. A shelf that came up empty because of the filters keeps them, because taking one
+          out is exactly what is left to do. */}
+      {(shown.length > 0 || narrowed) && (
+        <LibraryControls
+          filters={filters}
+          facets={facets.data}
+          narrow={narrow}
+          toggle={toggle}
+          clear={clear}
+          narrowed={narrowed}
+          pinned={shelf}
+          total={Number(page.totalMatches)}
+          finding={finding}
+          find={setFinding}
+        />
+      )}
 
       {description && narrowed && shown.length > 0 && (
         <p className="scope-escape">

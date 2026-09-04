@@ -68,6 +68,9 @@ export function AccessPanel() {
         <form onSubmit={submitting((form) => recover.mutate(
           values<RecoverRequest>(form, ['username', 'recoveryCode', 'newPassword']),
         ))}>
+          {/* Where the code comes from. Without this the form asks for something a person has no
+              way of producing, and the screen that issues it is one they cannot reach. */}
+          <p>An Administrator issues a one-time recovery code. Ask for one, then choose a new password here.</p>
           <Field name="username" label="Username" autoComplete="username" required />
           <Field name="recoveryCode" label="Recovery code" autoComplete="off" required />
           <Field name="newPassword" label="New password" type="password" autoComplete="new-password" minLength={12} required />

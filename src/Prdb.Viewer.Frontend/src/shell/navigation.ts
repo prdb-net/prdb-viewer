@@ -10,7 +10,7 @@ export type NavigationEntry = {
   /// Which Accounts see this entry at all. Authority decides visibility here as well as at the
   /// API, because an entry that leads to a refused request is worse than no entry.
   authority?: Account['authority']
-  badge?: 'operationalAttention' | 'identificationQueue'
+  badge?: 'operationalAttention' | 'identificationQueue' | 'accountsWaiting'
   /// True when the route matches only its exact path. The Library is the shell's index route and
   /// would otherwise stay marked while any of its children is open.
   end?: boolean
@@ -63,7 +63,12 @@ export const navigation: NavigationGroup[] = [
         authority: 'Administrator',
         badge: 'operationalAttention',
       },
-      { to: '/admin/accounts', label: 'Accounts', authority: 'Administrator' },
+      {
+        to: '/admin/accounts',
+        label: 'Accounts',
+        authority: 'Administrator',
+        badge: 'accountsWaiting',
+      },
     ],
   },
 ]
