@@ -31,7 +31,9 @@ public sealed record ActorSummary(
     string? PortraitUrl,
     string? GenderLabel,
     int VideoCount,
-    ActorProfileState ProfileState);
+    ActorProfileState ProfileState,
+    /// <summary>Whether this Account has made them a Favourite Actor. Personal State.</summary>
+    bool Favourite);
 
 public sealed record ActorIndexPage(
     IReadOnlyList<ActorSummary> Actors,
@@ -91,4 +93,6 @@ public sealed record ActorDetail(
     /// keyed by, so this is what a link from here into the Library has to carry — prdb may lead
     /// with a name no Video here uses.
     /// </summary>
-    IReadOnlyList<string> CreditedNames);
+    IReadOnlyList<string> CreditedNames,
+    /// <summary>Whether this Account has made them a Favourite Actor. Personal State.</summary>
+    bool Favourite);

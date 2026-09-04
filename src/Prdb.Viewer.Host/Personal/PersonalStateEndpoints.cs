@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+
 using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Host.Access;
 using Prdb.Viewer.Host.Library;
@@ -131,6 +133,36 @@ public static class PersonalStateEndpoints
                 videoId,
                 selected: false,
                 cancellationToken)))
+            .RequireCsrf();
+
+        // An Actor is not a Video, so this is not a Personal Video State mutation and does not
+        // answer with one: it says whether the Actor is one this installation knows.
+        personal.MapPut("/actors/{actorId:guid}/favourite", async Task<Results<Ok, NotFound>> (
+            Guid actorId,
+            PersonalStateService service,
+            HttpContext http,
+            CancellationToken cancellationToken) =>
+            await service.SetFavouriteActorAsync(
+                http.User.AccountId()!.Value,
+                actorId.ToString(),
+                selected: true,
+                cancellationToken)
+                ? TypedResults.Ok()
+                : TypedResults.NotFound())
+            .RequireCsrf();
+
+        personal.MapDelete("/actors/{actorId:guid}/favourite", async Task<Results<Ok, NotFound>> (
+            Guid actorId,
+            PersonalStateService service,
+            HttpContext http,
+            CancellationToken cancellationToken) =>
+            await service.SetFavouriteActorAsync(
+                http.User.AccountId()!.Value,
+                actorId.ToString(),
+                selected: false,
+                cancellationToken)
+                ? TypedResults.Ok()
+                : TypedResults.NotFound())
             .RequireCsrf();
 
         personal.MapPut("/videos/{videoId:guid}/watch-later", async (

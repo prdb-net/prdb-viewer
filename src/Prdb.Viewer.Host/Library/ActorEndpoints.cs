@@ -12,6 +12,7 @@ public static class ActorEndpoints
         var library = routes.MapGroup("/api/library").WithTags("Library");
 
         library.MapGet("/actors", async (
+            HttpContext http,
             ActorDiscovery actors,
             CancellationToken cancellationToken,
             string? query = null,
@@ -19,6 +20,7 @@ public static class ActorEndpoints
             int skip = 0,
             int take = LibraryPaging.DefaultPageSize) =>
             TypedResults.Ok(await actors.IndexAsync(
+                http.User.AccountId()!.Value,
                 new ActorIndexRequest
                 {
                     Query = query,

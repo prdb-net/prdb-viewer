@@ -1815,6 +1815,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/personal/actors/{actorId}/favourite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    actorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    actorId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/personal/videos/{videoId}/watch-later": {
         parameters: {
             query?: never;
@@ -2044,6 +2112,7 @@ export interface components {
             /** Format: int32 */
             totalVideos: number | string;
             creditedNames: string[];
+            favourite: boolean;
         };
         ActorImageView: {
             url: string;
@@ -2073,6 +2142,7 @@ export interface components {
             /** Format: int32 */
             videoCount: number | string;
             profileState: components["schemas"]["ActorProfileState"];
+            favourite: boolean;
         };
         BackgroundWorkActionResult: {
             verdict: components["schemas"]["BackgroundWorkActionVerdict"];

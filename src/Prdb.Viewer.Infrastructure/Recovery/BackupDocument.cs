@@ -34,6 +34,13 @@ public sealed class BackupDocument
 
     public required IReadOnlyList<PersonalVideoStateRow> PersonalVideoStates { get; init; }
 
+    /// <summary>
+    /// Each Account's Favourite Actors. It is the one thing this installation keeps about Actors
+    /// that a Backup Archive carries: the profile beside it is regenerable from prdb and this is
+    /// not (ADR 0020). Absent from a format 1 archive, which is why it is not required.
+    /// </summary>
+    public IReadOnlyList<PersonalActorStateRow> PersonalActorStates { get; init; } = [];
+
     public required IReadOnlyList<PlaybackAttemptRow> PlaybackAttempts { get; init; }
 
     public required IReadOnlyList<PlaybackReportRow> PlaybackReports { get; init; }

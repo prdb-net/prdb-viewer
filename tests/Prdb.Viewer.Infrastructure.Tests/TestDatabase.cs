@@ -148,8 +148,16 @@ internal sealed class TestDatabase : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        // Only this installation's pool. `ClearAllPools` reaches every other test running beside
+        // this one, and a test that happened to be opening a connection at that moment failed on
+        // it — rarely, in whichever test was unlucky, which is the worst kind of flake to read.
+        var connectionString = Location.ConnectionString;
         await provider.DisposeAsync();
-        SqliteConnection.ClearAllPools();
+
+        using (var connection = new SqliteConnection(connectionString))
+        {
+            SqliteConnection.ClearPool(connection);
+        }
 
         if (System.IO.Directory.Exists(Directory))
         {

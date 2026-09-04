@@ -5,9 +5,10 @@ import { api, type Account, type ActorDetail } from '../api/client'
 import { formatDay } from '../lib/format'
 import { usePersonalActions } from '../personal/usePersonalActions'
 import { queryKeys } from '../queryKeys'
-import { PageHeading, RequestError } from '../ui'
+import { HeartIcon, PageHeading, RequestError } from '../ui'
 import { VideoGrid } from '../video/VideoCard'
 import { returnTo } from '../lib/returnTo'
+import { useFavouriteActor } from './useFavouriteActor'
 
 /// One Actor, addressed rather than found.
 ///
@@ -24,6 +25,7 @@ export function ActorPage({ account }: { account: Account }) {
     retry: false,
   })
   const personal = usePersonalActions(account)
+  const favourite = useFavouriteActor(account)
   const back = returnTo(parameters) ?? { to: '/actors', label: 'the Actors' }
   const actor = detail.data
 
@@ -57,7 +59,19 @@ export function ActorPage({ account }: { account: Account }) {
       <PageHeading
         eyebrow="Actor"
         title={actor.name}
-        actions={<Link className="quiet-button" to={back.to}>Back to {back.label}</Link>}
+        actions={
+          <>
+            <button
+              className={actor.favourite ? 'quiet-button selected' : 'quiet-button'}
+              aria-pressed={actor.favourite}
+              onClick={() => favourite.act(actor.actorId, !actor.favourite)}
+              disabled={favourite.pending(actor.actorId)}
+            >
+              <HeartIcon /> {actor.favourite ? 'Favourite' : 'Make a Favourite'}
+            </button>
+            <Link className="quiet-button" to={back.to}>Back to {back.label}</Link>
+          </>
+        }
       />
 
       <div className="actor-detail">
@@ -166,7 +180,9 @@ export function ActorPage({ account }: { account: Account }) {
         )}
       </section>
 
-      {personal.failed && <RequestError error={personal.error} />}
+      {(personal.failed || favourite.failed) && (
+        <RequestError error={personal.error ?? favourite.error} />
+      )}
     </>
   )
 }

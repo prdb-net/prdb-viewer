@@ -25,6 +25,7 @@ public sealed class ActorDiscovery(ViewerDbContext database, LibraryDiscovery li
     public const int VideosOnAPage = 60;
 
     public async Task<ActorIndexPage> IndexAsync(
+        Guid accountId,
         ActorIndexRequest request,
         CancellationToken cancellationToken = default)
     {
@@ -79,6 +80,9 @@ public sealed class ActorDiscovery(ViewerDbContext database, LibraryDiscovery li
                     .ThenBy(image => image.Position)
                     .Select(image => image.PublicImageId)
                     .FirstOrDefault(),
+                Favourite = database.PersonalActorStates.Any(state =>
+                    state.AccountId == accountId &&
+                    state.PrdbActorId == row.Actor.PrdbActorId),
             })
             .ToListAsync(cancellationToken);
 
@@ -90,7 +94,8 @@ public sealed class ActorDiscovery(ViewerDbContext database, LibraryDiscovery li
                     PortraitUrl(row.Portrait),
                     row.GenderLabel,
                     row.Videos,
-                    row.ProfileState))
+                    row.ProfileState,
+                    row.Favourite))
                 .ToArray(),
             total,
             page.Count > take,
@@ -169,7 +174,11 @@ public sealed class ActorDiscovery(ViewerDbContext database, LibraryDiscovery li
             actor.OfferedImageCount,
             await library.LoadAsync(accountId, clientContextKey, ids, cancellationToken),
             total,
-            creditedNames);
+            creditedNames,
+            await database.PersonalActorStates.AnyAsync(
+                state => state.AccountId == accountId &&
+                         state.PrdbActorId == actor.PrdbActorId,
+                cancellationToken));
     }
 
     private static string? PortraitUrl(Guid? publicImageId) =>

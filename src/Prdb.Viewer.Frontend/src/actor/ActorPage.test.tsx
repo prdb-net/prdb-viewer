@@ -52,6 +52,7 @@ describe('ActorPage', () => {
       videos: [],
       totalVideos: 0,
       creditedNames: ['Alex Doe'],
+      favourite: false,
       ...overrides,
     }
   }
@@ -155,6 +156,29 @@ describe('ActorPage', () => {
     // The way out is the way back in.
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Alex Doe' })).toBeTruthy())
     expect(screen.getByRole('link', { name: 'Back to the Video' })).toBeTruthy()
+  })
+
+  it('keeps an Actor without keeping any of their Videos', async () => {
+    const asked: { url: string; method?: string }[] = []
+    signedInAs('User', (input, init?: RequestInit) => {
+      if (typeof input === 'string' && input === `/api/library/actors/${actorId}`) {
+        return json(actor())
+      }
+      if (typeof input === 'string' && input.includes('/favourite')) {
+        asked.push({ url: input, method: init?.method })
+        return json({})
+      }
+      return undefined
+    })
+
+    renderApp(`/actors/${actorId}`)
+    fireEvent.click(await screen.findByRole('button', { name: /Make a Favourite/ }))
+
+    // A Favourite Actor is a reference to a person, not to a set of Videos. It is Personal State,
+    // and it is the one thing kept about an Actor that a Backup Archive carries.
+    await waitFor(() => expect(asked).toHaveLength(1))
+    expect(asked[0].url).toBe(`/api/personal/actors/${actorId}/favourite`)
+    expect(asked[0].method).toBe('PUT')
   })
 
   it('says so when the link names nobody this library credits', async () => {

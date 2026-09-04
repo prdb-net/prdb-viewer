@@ -194,10 +194,10 @@ export async function waitForVideo(container: HTMLElement) {
 /// The answers every screen needs before it can render, with room for the one a test is about.
 export function signedInAs(
   authority: 'Administrator' | 'User',
-  answer: (input: unknown) => Promise<Response> | undefined = () => undefined,
+  answer: (input: unknown, init?: RequestInit) => Promise<Response> | undefined = () => undefined,
 ) {
-  vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
-    const specific = answer(input)
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+    const specific = answer(input, init)
     if (specific) return specific
 
     if (input === '/api/access/state') return json({ claimed: true, signedIn: true })

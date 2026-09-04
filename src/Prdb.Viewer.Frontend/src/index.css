@@ -672,3 +672,8 @@ body.filters-open .app-content {
 .actor-card .actor-placeholder { display: grid; place-items: center; font-size: 2rem; }
 .actor-card-name { font-size: .9rem; line-height: 1.3; }
 .actor-card small { color: var(--muted); }
+.actor-card { position: relative; }
+.actor-card .actor-link { display: flex; flex-direction: column; gap: .35rem; color: inherit; text-decoration: none; }
+.actor-favourite { position: absolute; top: .9rem; right: .9rem; opacity: 0; }
+.actor-card:hover .actor-favourite, .actor-card:focus-within .actor-favourite, .actor-favourite.selected, .actor-favourite:focus-visible { opacity: 1; }
+.page-heading .quiet-button svg { vertical-align: -.15em; margin-right: .3rem; }

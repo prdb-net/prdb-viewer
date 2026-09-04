@@ -17,6 +17,7 @@ describe('ActorsPage', () => {
       genderLabel: null,
       videoCount: 3,
       profileState: 'Retained',
+      favourite: false,
       ...overrides,
     }
   }
@@ -86,6 +87,27 @@ describe('ActorsPage', () => {
     fireEvent.change(screen.getByLabelText('Sort'), { target: { value: 'MostHere' } })
 
     await waitFor(() => expect(asked.some((url) => url.includes('sort=MostHere'))).toBe(true))
+  })
+
+  it('makes an Actor a Favourite from the index', async () => {
+    const asked: { url: string; method?: string }[] = []
+    signedInAs('User', (input, init?: RequestInit) => {
+      if (typeof input === 'string' && input.startsWith('/api/library/actors?')) {
+        return json(index([actor()]))
+      }
+      if (typeof input === 'string' && input.includes('/favourite')) {
+        asked.push({ url: input, method: init?.method })
+        return json({})
+      }
+      return undefined
+    })
+
+    renderApp('/actors')
+    fireEvent.click(await screen.findByRole('button', { name: 'Favourite Alex Doe' }))
+
+    await waitFor(() => expect(asked).toHaveLength(1))
+    expect(asked[0].url).toBe('/api/personal/actors/01994dd4-2a0a-7000-8000-0000000000a1/favourite')
+    expect(asked[0].method).toBe('PUT')
   })
 
   it('says what an empty library and an empty search each mean', async () => {

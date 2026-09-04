@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Infrastructure.Library;
+using Prdb.Viewer.Infrastructure.Personal;
 
 using Xunit;
 
@@ -141,6 +142,77 @@ public sealed class ActorDiscoveryTests
             accountId));
     }
 
+    [Fact]
+    public async Task An_account_keeps_an_actor_without_keeping_any_of_their_videos()
+    {
+        await using var store = await CreateAsync(new FixtureActorProfileClient());
+        var accountId = await LibraryOfAsync(store);
+        var actorId = ActorIdOf("Alex Doe");
+
+        await using (var scope = store.Scope())
+        {
+            var personal = scope.ServiceProvider.GetRequiredService<PersonalStateService>();
+            Assert.True(await personal.SetFavouriteActorAsync(
+                accountId,
+                actorId,
+                selected: true,
+                TestContext.Current.CancellationToken));
+
+            // Idempotent, like every other personal reference.
+            Assert.True(await personal.SetFavouriteActorAsync(
+                accountId,
+                actorId,
+                selected: true,
+                TestContext.Current.CancellationToken));
+        }
+
+        Assert.True((await ActorAsync(store, actorId, accountId))!.Favourite);
+        var index = await IndexAsync(store, new ActorIndexRequest(), accountId);
+        Assert.Equal([true, false], index.Actors.Select(actor => actor.Favourite));
+
+        // Nobody else's list is touched by it.
+        await using (var scope = store.Scope())
+        {
+            var other = await LibraryPipeline.AccountAsync(store, "somebody-else");
+            var theirs = await scope.ServiceProvider
+                .GetRequiredService<ActorDiscovery>()
+                .IndexAsync(other, new ActorIndexRequest(), TestContext.Current.CancellationToken);
+            Assert.All(theirs.Actors, actor => Assert.False(actor.Favourite));
+        }
+
+        await using (var scope = store.Scope())
+        {
+            await scope.ServiceProvider
+                .GetRequiredService<PersonalStateService>()
+                .SetFavouriteActorAsync(
+                    accountId,
+                    actorId,
+                    selected: false,
+                    TestContext.Current.CancellationToken);
+        }
+
+        Assert.False((await ActorAsync(store, actorId, accountId))!.Favourite);
+    }
+
+    [Fact]
+    public async Task An_actor_this_installation_has_never_heard_of_cannot_be_kept()
+    {
+        await using var store = await CreateAsync(new FixtureActorProfileClient());
+        var accountId = await LibraryOfAsync(store);
+
+        await using var scope = store.Scope();
+
+        // A favourite filed against an identifier nothing here knows would be a reference to
+        // nothing, restored into nothing, and shown nowhere.
+        Assert.False(await scope.ServiceProvider
+            .GetRequiredService<PersonalStateService>()
+            .SetFavouriteActorAsync(
+                accountId,
+                "6f1a2c34-0000-4000-8000-0000000000ff",
+                selected: true,
+                TestContext.Current.CancellationToken));
+    }
+
     private static async Task<ActorDetail?> ActorAsync(
         TestDatabase store,
         string actorId,
@@ -159,13 +231,14 @@ public sealed class ActorDiscoveryTests
 
     private static async Task<ActorIndexPage> IndexAsync(
         TestDatabase store,
-        ActorIndexRequest request)
+        ActorIndexRequest request,
+        Guid accountId = default)
     {
         await using var scope = store.Scope();
 
         return await scope.ServiceProvider
             .GetRequiredService<ActorDiscovery>()
-            .IndexAsync(request, TestContext.Current.CancellationToken);
+            .IndexAsync(accountId, request, TestContext.Current.CancellationToken);
     }
 
     /// <summary>

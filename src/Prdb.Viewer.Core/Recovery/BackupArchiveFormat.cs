@@ -27,14 +27,20 @@ public static class BackupArchiveFormat
     public static ReadOnlySpan<byte> Magic => "PRDBVBAK"u8;
 
     /// <summary>The Backup Archive format this product version writes.</summary>
-    public const int CurrentVersion = 1;
+    /// <remarks>
+    /// Version 2 adds each Account's Favourite Actors. It is read by name rather than by position,
+    /// so a version 1 archive restores into this version unchanged and simply carries none.
+    /// Counting up rather than leaving the number alone is what lets an older product version say
+    /// which product wrote the archive instead of failing on a field it does not know.
+    /// </remarks>
+    public const int CurrentVersion = 2;
 
     /// <summary>
     /// The earlier formats this product version restores directly. An archive older than this range
     /// names the next intermediate version an operator must use; a newer one is refused before any
     /// mutation rather than guessed at.
     /// </summary>
-    public static readonly int[] DirectlySupportedVersions = [1];
+    public static readonly int[] DirectlySupportedVersions = [1, 2];
 
     public const int SaltBytes = 16;
     public const int NonceBytes = 12;

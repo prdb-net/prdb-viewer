@@ -226,6 +226,9 @@ public sealed class BackupService(
             PersonalVideoStates = await database.PersonalVideoStates
                 .AsNoTracking()
                 .ToListAsync(cancellationToken),
+            PersonalActorStates = await database.PersonalActorStates
+                .AsNoTracking()
+                .ToListAsync(cancellationToken),
             PlaybackAttempts = await database.PlaybackAttempts
                 .AsNoTracking()
                 .ToListAsync(cancellationToken),
@@ -284,6 +287,9 @@ public sealed class BackupService(
             document.IdentificationCandidates.Any(candidate => !videos.Contains(candidate.VideoId)) ||
             document.PersonalVideoStates.Any(state =>
                 !accounts.Contains(state.AccountId) || !videos.Contains(state.VideoId)) ||
+            // A Favourite Actor names prdb's identifier, which outlives the profile the archive
+            // deliberately leaves out, so the only thing that could be dangling is the Account.
+            document.PersonalActorStates.Any(state => !accounts.Contains(state.AccountId)) ||
             document.PlaybackAttempts.Any(attempt =>
                 !accounts.Contains(attempt.AccountId) || !videos.Contains(attempt.VideoId)) ||
             document.PlaybackReports.Any(report => !attempts.Contains(report.PlaybackAttemptId)) ||
@@ -317,6 +323,7 @@ public sealed class BackupService(
         !await database.Videos.AnyAsync(cancellationToken) &&
         !await database.VideoFiles.AnyAsync(cancellationToken) &&
         !await database.PersonalVideoStates.AnyAsync(cancellationToken) &&
+        !await database.PersonalActorStates.AnyAsync(cancellationToken) &&
         !await database.BackgroundWork.AnyAsync(cancellationToken);
 
     /// <summary>
@@ -377,6 +384,9 @@ public sealed class BackupService(
         database.IdentificationCandidates.AddRange(document.IdentificationCandidates);
         database.IdentificationDecisions.AddRange(document.IdentificationDecisions);
         database.PersonalVideoStates.AddRange(document.PersonalVideoStates);
+        // Restored before any Actor Profile exists, which is exactly why it references prdb's
+        // identifier rather than a local row: the lane fills the profile in afterwards.
+        database.PersonalActorStates.AddRange(document.PersonalActorStates);
         database.PlaybackAttempts.AddRange(document.PlaybackAttempts);
         database.PlaybackReports.AddRange(document.PlaybackReports);
         database.PlaybackAttemptVideoFiles.AddRange(document.PlaybackAttemptVideoFiles);

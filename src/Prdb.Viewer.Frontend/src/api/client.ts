@@ -216,6 +216,12 @@ export const api = {
     request<LibraryPage>(`/api/library/videos?${libraryQuery(filters, skip, take)}`),
   video: (videoId: string) => request<VideoDetail>(`/api/library/videos/${videoId}`),
   actor: (actorId: string) => request<ActorDetail>(`/api/library/actors/${actorId}`),
+  setFavouriteActor: (actorId: string, selected: boolean, csrfToken: string) =>
+    mutate<void>(
+      `/api/personal/actors/${actorId}/favourite`,
+      selected ? 'PUT' : 'DELETE',
+      csrfToken,
+    ),
   actors: (query: string, sort: ActorSortOrder, skip = 0, take = 60) =>
     request<ActorIndexPage>(`/api/library/actors?${new URLSearchParams({
       ...(query ? { query } : {}),

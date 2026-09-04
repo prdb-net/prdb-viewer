@@ -67,7 +67,7 @@ function SignedIn({ account }: { account: Account }) {
       <Route element={<AppShell account={account} />}>
         <Route index element={<LibraryPage account={account} />} />
         <Route path="videos/:videoId" element={<VideoPage account={account} />} />
-        <Route path="actors" element={<ActorsPage />} />
+        <Route path="actors" element={<ActorsPage account={account} />} />
         <Route path="actors/:actorId" element={<ActorPage account={account} />} />
         {/* A shelf is the Library narrowed to it, so it is the Library's screen with the shelf
             pinned rather than a screen of its own. */}

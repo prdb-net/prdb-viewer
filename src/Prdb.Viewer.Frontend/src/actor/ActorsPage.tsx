@@ -2,9 +2,10 @@ import { useEffect } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
 
-import { api, type ActorSortOrder, type ActorSummary } from '../api/client'
+import { api, type Account, type ActorSortOrder, type ActorSummary } from '../api/client'
 import { queryKeys } from '../queryKeys'
-import { PageHeading, RequestError } from '../ui'
+import { HeartIcon, PageHeading, RequestError } from '../ui'
+import { useFavouriteActor } from './useFavouriteActor'
 
 const pageSize = 60
 
@@ -22,8 +23,9 @@ const orders: { value: ActorSortOrder; label: string }[] = [
 /// The one question that is not the Library's is what this looks like before the profiles have
 /// arrived: every Actor a name and a count and no picture, which is a plausible grid of grey
 /// rectangles. It says how many are still waiting rather than leaving that to be guessed.
-export function ActorsPage() {
+export function ActorsPage({ account }: { account: Account }) {
   const [parameters, setParameters] = useSearchParams()
+  const favourite = useFavouriteActor(account)
   const query = parameters.get('query') ?? ''
   const sort = (parameters.get('sort') as ActorSortOrder | null) ?? 'Name'
   const pages = Math.max(1, Number(parameters.get('pages') ?? 1) || 1)
@@ -116,7 +118,9 @@ export function ActorsPage() {
           )
         : (
           <div className="actor-index">
-            {shown.map((actor) => <ActorCard key={actor.actorId} actor={actor} />)}
+            {shown.map((actor) => (
+              <ActorCard key={actor.actorId} actor={actor} favourite={favourite} />
+            ))}
           </div>
           )}
 
@@ -140,16 +144,33 @@ export function ActorsPage() {
 
 /// One Actor in the index: their picture, their name, and the only number on this screen that
 /// means anything to the person reading it — how many Videos they have *here*.
-function ActorCard({ actor }: { actor: ActorSummary }) {
+function ActorCard({ actor, favourite }: {
+  actor: ActorSummary
+  favourite: ReturnType<typeof useFavouriteActor>
+}) {
   const videos = Number(actor.videoCount)
 
   return (
-    <Link className="actor-card" to={`/actors/${actor.actorId}`}>
-      {actor.portraitUrl
-        ? <img src={actor.portraitUrl} alt="" loading="lazy" />
-        : <span className="actor-placeholder" aria-hidden="true">☺</span>}
-      <span className="actor-card-name">{actor.name}</span>
-      <small>{videos === 1 ? '1 Video here' : `${videos} Videos here`}</small>
-    </Link>
+    <article className="actor-card">
+      <Link className="actor-link" to={`/actors/${actor.actorId}`}>
+        {actor.portraitUrl
+          ? <img src={actor.portraitUrl} alt="" loading="lazy" />
+          : <span className="actor-placeholder" aria-hidden="true">☺</span>}
+        <span className="actor-card-name">{actor.name}</span>
+        <small>{videos === 1 ? '1 Video here' : `${videos} Videos here`}</small>
+      </Link>
+      {/* On the picture, as on a Video's card, and shown whenever it is set: a card that is a
+          Favourite says so without being asked. */}
+      <button
+        className={actor.favourite ? 'art-action actor-favourite selected' : 'art-action actor-favourite'}
+        aria-pressed={actor.favourite}
+        aria-label={`Favourite ${actor.name}`}
+        title="Favourite"
+        onClick={() => favourite.act(actor.actorId, !actor.favourite)}
+        disabled={favourite.pending(actor.actorId)}
+      >
+        <HeartIcon />
+      </button>
+    </article>
   )
 }

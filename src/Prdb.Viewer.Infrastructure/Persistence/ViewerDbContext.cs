@@ -55,6 +55,8 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<PersonalVideoStateRow> PersonalVideoStates => Set<PersonalVideoStateRow>();
 
+    public DbSet<PersonalActorStateRow> PersonalActorStates => Set<PersonalActorStateRow>();
+
     public DbSet<PlaybackAttemptRow> PlaybackAttempts => Set<PlaybackAttemptRow>();
 
     public DbSet<PlaybackReportRow> PlaybackReports => Set<PlaybackReportRow>();
@@ -275,6 +277,18 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             actor.HasOne(row => row.Video)
                 .WithMany(row => row.ProjectedActors)
                 .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PersonalActorStateRow>(favourite =>
+        {
+            favourite.ToTable("personal_actor_state");
+            favourite.HasKey(row => new { row.AccountId, row.PrdbActorId });
+            favourite.Property(row => row.PrdbActorId).IsRequired();
+            favourite.HasIndex(row => row.AccountId);
+            favourite.HasOne(row => row.Account)
+                .WithMany()
+                .HasForeignKey(row => row.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
