@@ -3,6 +3,7 @@ using System.Net;
 using Prdb.Sdk;
 using Prdb.Sdk.Generated.Models;
 
+using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Infrastructure.Configuration;
 
 namespace Prdb.Viewer.Infrastructure.Library;
@@ -138,20 +139,20 @@ public sealed class PrdbActorProfileClient(
             : new RemoteActorProfile(
                 actor.Id.Value.ToString(),
                 actor.Name,
-                Trimmed(actor.GenderLabel),
+                ActorFacts.Stated(actor.GenderLabel),
                 actor.Birthday?.DateTime,
                 Trimmed(actor.BirthdayTypeLabel),
                 actor.Deathday?.DateTime,
                 Trimmed(actor.Birthplace),
-                Trimmed(actor.HaircolorLabel),
-                Trimmed(actor.EyecolorLabel),
-                Trimmed(actor.BreastTypeLabel),
+                ActorFacts.Stated(actor.HaircolorLabel),
+                ActorFacts.Stated(actor.EyecolorLabel),
+                ActorFacts.Stated(actor.BreastTypeLabel),
                 actor.Height,
                 Trimmed(actor.BraSizeLabel),
                 actor.WaistSize,
                 actor.HipSize,
-                Trimmed(actor.NationalityLabel),
-                Trimmed(actor.EthnicityLabel),
+                ActorFacts.Stated(actor.NationalityLabel),
+                ActorFacts.Stated(actor.EthnicityLabel),
                 actor.CareerStart,
                 actor.CareerEnd,
                 Trimmed(actor.Tattoos),

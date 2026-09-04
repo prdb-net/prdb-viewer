@@ -77,6 +77,54 @@ public sealed class ActorDiscoveryTests
     }
 
     [Fact]
+    public async Task What_prdb_has_no_answer_for_is_not_answered_with()
+    {
+        var profiles = new FixtureActorProfileClient().Answers(new RemoteActorProfile(
+            ActorIdOf("Alex Doe"),
+            "Alex Doe",
+            "Unknown",
+            null,
+            null,
+            null,
+            null,
+            "Brown",
+            "unknown",
+            null,
+            null,
+            null,
+            null,
+            null,
+            "Unknown",
+            null,
+            null,
+            null,
+            null,
+            null,
+            [],
+            [],
+            [],
+            []));
+        await using var store = await CreateAsync(profiles);
+        var accountId = await LibraryOfAsync(store);
+
+        var actor = await ActorAsync(store, ActorIdOf("Alex Doe"), accountId);
+
+        Assert.NotNull(actor);
+
+        // prdb sends its enumerations with a label rather than as a number, and the label for a
+        // value it does not hold is the word "Unknown". Kept, it becomes a row on the Actor's page
+        // reading "Nationality — Unknown", which says nothing and takes the place of one that
+        // would. It is refused on the way in and again on the way out, because a profile fetched
+        // before that rule existed has the word stored.
+        Assert.Null(actor.GenderLabel);
+        Assert.Null(actor.EyecolourLabel);
+        Assert.Null(actor.NationalityLabel);
+
+        // And what prdb did say is untouched.
+        Assert.Equal("Brown", actor.HaircolourLabel);
+    }
+
+    [Fact]
     public async Task The_index_offers_the_actors_this_library_credits_and_says_who_is_waiting()
     {
         await using var store = await CreateAsync(new FixtureActorProfileClient()

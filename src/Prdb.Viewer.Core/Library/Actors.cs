@@ -42,3 +42,21 @@ public static class ActorImageKind
 
     public const int Face = 3;
 }
+
+/// <summary>
+/// What counts as something prdb actually said about an Actor.
+/// </summary>
+/// <remarks>
+/// prdb sends its enumerations with a label rather than as a number, which is why nothing here
+/// translates one — but the label for a value it does not hold is the word "Unknown", not an empty
+/// field. Kept as it arrives, that becomes a line on an Actor's page reading "Nationality —
+/// Unknown", which is a row that says nothing and takes the place of one that would.
+/// </remarks>
+public static class ActorFacts
+{
+    public static string? Stated(string? label) =>
+        string.IsNullOrWhiteSpace(label) ||
+        label.Trim().Equals("Unknown", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : label.Trim();
+}

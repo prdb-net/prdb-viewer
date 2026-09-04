@@ -657,8 +657,10 @@ body.filters-open .app-content {
 .actor-links a { display: inline-block; padding: .2rem .6rem; border: 1px solid var(--line); border-radius: 999px; font-size: .8rem; }
 .actor-bios { margin-top: 1.5rem; max-width: 48rem; color: var(--muted); font-size: .9rem; line-height: 1.6; }
 .actor-gallery, .actor-videos { margin-top: 2rem; }
+/* One shape for the grid. prdb's pictures of one Actor come in several aspect ratios, and letting
+   each keep its own left the rows ragged — a wall of faces reads as a wall or it reads as debris. */
 .actor-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); gap: .75rem; margin-top: 1rem; }
-.actor-gallery-grid img { width: 100%; border-radius: .75rem; background: var(--surface); }
+.actor-gallery-grid img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: .75rem; background: var(--surface); }
 .actor-more { margin-top: 1rem; font-size: .88rem; }
 
 @media (width <= 46rem) {

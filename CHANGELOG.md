@@ -5,6 +5,20 @@ All notable user-visible changes to `prdb-viewer` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- An Actor's page no longer states what prdb has no answer for. prdb sends its
+  enumerations with a label rather than as a number, and the label for a value
+  it does not hold is the word `Unknown` — so a page kept a row reading
+  `Nationality — Unknown`, which says nothing and takes the place of a row that
+  would. It is refused when the profile is fetched and again when it is read,
+  because a profile fetched before this has the word stored.
+- The pictures on an Actor's page are one shape. prdb's pictures of one Actor
+  come in several aspect ratios, and letting each keep its own left the rows
+  ragged.
+
 ## [0.16.0] - 2026-09-04
 
 Actors have a page of their own. They had been strings: prdb has always sent
