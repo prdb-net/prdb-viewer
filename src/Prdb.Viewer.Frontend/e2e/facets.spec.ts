@@ -76,11 +76,57 @@ test.describe('Facets chosen within one batch', () => {
     await clickTogether(page, ['Alpha Site', 'Beta Site'])
 
     // ADR 0004: the address has to reproduce what the User was looking at. Reloading it is the
-    // only way to find out whether it really does.
+    // only way to find out whether it really does. The sheet is not part of what the address
+    // carries — it is closed again on arrival — so it is opened again to read the facets back.
     await page.reload()
+    await page.getByRole('button', { name: /^Filters/ }).click()
     await page.locator('button.facet').first().waitFor()
 
     await expect(pressed(page)).toHaveText(['Alpha Site (4)', 'Beta Site (3)'])
+  })
+})
+
+/// That the facets are out of the way until they are asked for.
+///
+/// Whether they are is decided in the stylesheet, and jsdom loads no stylesheet: a unit test finds
+/// every facet button in the document and calls them all visible. Only a browser can say that the
+/// browsing screen opens on Videos.
+test.describe('The facets wait behind one control', () => {
+  test('the Videos have the screen until Filters is pressed', async ({ page }) => {
+    await answerApi(page)
+    await page.goto('/')
+
+    const filters = page.getByRole('button', { name: /^Filters/ })
+    await filters.waitFor()
+    await expect(page.locator('button.facet').first()).toBeHidden()
+    await expect(filters).toHaveAttribute('aria-expanded', 'false')
+
+    await filters.click()
+
+    await expect(page.locator('button.facet').first()).toBeVisible()
+    await expect(filters).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  test('Escape closes the sheet and gives the focus back', async ({ page }) => {
+    await open(page)
+
+    await page.keyboard.press('Escape')
+
+    await expect(page.locator('button.facet').first()).toBeHidden()
+    await expect(page.getByRole('button', { name: /^Filters/ })).toBeFocused()
+  })
+
+  test('a chosen facet is still named while the sheet is shut', async ({ page }) => {
+    await open(page)
+    await clickTogether(page, ['Alpha Site'])
+
+    await page.getByRole('button', { name: 'Done' }).click()
+
+    // The sheet is what is out of the way, not the narrowing: what it left behind is said in the
+    // row that stays, and the control that opened it counts it.
+    await expect(page.locator('button.facet').first()).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Remove Alpha Site' })).toBeVisible()
+    await expect(page.getByRole('button', { name: /^Filters/ })).toHaveText('Filters (1)')
   })
 })
 
@@ -126,7 +172,10 @@ function pressed(page: Page) {
 async function open(page: Page, query = '') {
   await answerApi(page)
   await page.goto(`/${query}`)
-  // The facets arrive on their own request, so nothing can be clicked until they are drawn.
+  // The facets wait in a sheet until they are asked for, so the screen has to be put in the state
+  // these tests are about before anything can be clicked in it.
+  await page.getByRole('button', { name: /^Filters/ }).click()
+  // They arrive on their own request, so nothing can be clicked until they are drawn.
   await page.locator('button.facet').first().waitFor()
 }
 

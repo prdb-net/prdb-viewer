@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 
 import type { LibraryFacets, LibraryFilters } from '../api/client'
 import { qualityBandLabel } from '../lib/quality'
@@ -48,143 +48,214 @@ export function LibraryControls({
   /// How many Videos the current narrowing admits.
   total: number
 }) {
-  // On a narrow screen the facets wait behind one control, closed until asked for: what is chosen
-  // is already said in the row above, and the Videos are what the screen is for.
+  // The facets wait behind one control, closed until asked for: what is chosen is already said in
+  // the row above, and the Videos are what the screen is for. This used to be true only on a narrow
+  // screen, and a wide one is not the exception it looked like — the same five groups filled the
+  // upper two thirds of it, so the browsing screen opened on one row of Videos.
   const [facetsOpen, setFacetsOpen] = useState(false)
+  const filtersToggle = useRef<HTMLButtonElement>(null)
   const chosen = chosenFilters(filters, narrow, toggle, pinned)
   // A shelf keeps an order of its own, named for what it is on that shelf; with several chosen
   // the name has to cover them all.
   const shelfOrder = pinned
     ? shelves[pinned].order
     : filters.shelf.length > 0 ? 'Shelf order' : undefined
+  // How many Videos this is, said the same way wherever it is said.
+  const matches = `${total} ${narrowed ? 'matching' : total === 1 ? 'Video' : 'Videos'}`
+
+  /// An open sheet is something covering the screen, so it answers Escape the way the navigation
+  /// drawer does and gives the focus back to the control that opened it. The body carries the open
+  /// state as well, because on a narrow viewport the sheet covers what it is narrowing and that
+  /// must not scroll underneath it.
+  useEffect(() => {
+    if (!facetsOpen) return
+
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setFacetsOpen(false)
+      filtersToggle.current?.focus()
+    }
+
+    document.body.classList.add('filters-open')
+    window.addEventListener('keydown', dismiss)
+    return () => {
+      document.body.classList.remove('filters-open')
+      window.removeEventListener('keydown', dismiss)
+    }
+  }, [facetsOpen])
+
+  const close = () => {
+    setFacetsOpen(false)
+    filtersToggle.current?.focus()
+  }
 
   return (
-    <div className="library-controls">
-      <div className="library-toolbar">
-        <span className="result-count" role="status">
-          {total} {narrowed ? 'matching' : total === 1 ? 'Video' : 'Videos'}
-        </span>
-        <div className="toolbar-actions">
-          <button
-            className="quiet-button filters-toggle"
-            aria-expanded={facetsOpen}
-            aria-controls="library-facets"
-            onClick={() => setFacetsOpen((open) => !open)}
-          >
-            Filters{chosen.length > 0 && ` (${chosen.length})`}
-          </button>
-          <label className="sort-field">
-            <span>Sort</span>
-            <select
-              value={filters.sort}
-              onChange={(event) => narrow({ sort: event.target.value as LibraryFilters['sort'] })}
+    <>
+      <div className="library-controls">
+        <div className="library-toolbar">
+          <span className="result-count" role="status">{matches}</span>
+          <div className="toolbar-actions">
+            <button
+              ref={filtersToggle}
+              className="quiet-button filters-toggle"
+              aria-expanded={facetsOpen}
+              aria-haspopup="dialog"
+              aria-controls="library-facets"
+              onClick={() => setFacetsOpen((open) => !open)}
             >
-              <option value="Newest">Newest</option>
-              <option value="TitleAscending">Title A–Z</option>
-              <option value="QualityDescending">Best quality first</option>
-              <option value="LongestFirst">Longest first</option>
-              <option value="RecentlyPlayed">Recently played</option>
-              <option value="BestRated">Best rated</option>
-              {shelfOrder && <option value="ShelfOrder">{shelfOrder}</option>}
-            </select>
-          </label>
+              Filters{chosen.length > 0 && ` (${chosen.length})`}
+            </button>
+            <label className="sort-field">
+              <span>Sort</span>
+              <select
+                value={filters.sort}
+                onChange={(event) => narrow({ sort: event.target.value as LibraryFilters['sort'] })}
+              >
+                <option value="Newest">Newest</option>
+                <option value="TitleAscending">Title A–Z</option>
+                <option value="QualityDescending">Best quality first</option>
+                <option value="LongestFirst">Longest first</option>
+                <option value="RecentlyPlayed">Recently played</option>
+                <option value="BestRated">Best rated</option>
+                {shelfOrder && <option value="ShelfOrder">{shelfOrder}</option>}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        {/* What is chosen, in one row, each with the control that takes it out again. The pills
+            below say the same thing, but across several rows and only for the values on offer. */}
+        {chosen.length > 0 && (
+          <ul className="active-filters" aria-label="Active filters">
+            {chosen.map((filter) => (
+              <li key={filter.key}>
+                <button
+                  className="active-filter"
+                  aria-label={`Remove ${filter.label}`}
+                  onClick={filter.remove}
+                >
+                  {filter.label}
+                  <span className="remove" aria-hidden="true">×</span>
+                </button>
+              </li>
+            ))}
+            <li><button className="clear-filters" onClick={clear}>Clear all</button></li>
+          </ul>
+        )}
+      </div>
+
+      {/* Closing by clicking beside the sheet is a convenience its own controls already provide in
+          an accessible way, so this stays a presentational surface rather than a control. */}
+      <div
+        className={facetsOpen ? 'filter-scrim open' : 'filter-scrim'}
+        onClick={() => setFacetsOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* The sheet stands beside the bar rather than inside it. The bar blurs what passes beneath
+          it, and an element that filters its backdrop becomes the frame its fixed descendants are
+          placed against — inside it, the sheet was pinned to a bar two lines high rather than to
+          the viewport. */}
+      <div
+        id="library-facets"
+        className={facetsOpen ? 'filter-sheet open' : 'filter-sheet'}
+        role="dialog"
+        aria-label="Filters"
+      >
+        <div className="sheet-heading">
+          <strong>Filters</strong>
+          <button className="sheet-close" onClick={close}>
+            <span aria-hidden="true">×</span>
+            <span className="visually-hidden">Close the filters</span>
+          </button>
+        </div>
+
+        <div className="facet-groups">
+          {!pinned && (
+            <FacetGroup label="Yours">
+              {shelfNames.map((shelf) => (
+                <FacetToggle
+                  key={shelf}
+                  label={shelves[shelf].title}
+                  selected={filters.shelf.includes(shelf)}
+                  onToggle={() => toggle('shelf', shelf)}
+                />
+              ))}
+            </FacetGroup>
+          )}
+          <FacetGroup label="Only show">
+            <FacetToggle
+              label="Unknown work"
+              selected={filters.work.includes('Unknown')}
+              onToggle={(selected) => narrow({ work: selected ? ['Unknown'] : [] })}
+            />
+            <FacetToggle
+              label="Unknown site"
+              selected={filters.unknownSite}
+              onToggle={(selected) => narrow({ unknownSite: selected })}
+            />
+            <FacetToggle
+              label="Needs review"
+              selected={filters.review.includes('ReviewNeeded')}
+              onToggle={(selected) => narrow({ review: selected ? ['ReviewNeeded'] : [] })}
+            />
+            <FacetToggle
+              label="Unplayed"
+              selected={filters.playState.includes('Unplayed')}
+              onToggle={(selected) => narrow({ playState: selected ? ['Unplayed'] : [] })}
+            />
+            <FacetToggle
+              label="Unsupported only"
+              selected={filters.playability.includes('NotDirectlyPlayable')}
+              onToggle={(selected) => narrow({ playability: selected ? ['NotDirectlyPlayable'] : [] })}
+            />
+          </FacetGroup>
+          {/* The bands the library actually holds, best first. A band it has none of is not offered:
+              Video Quality is what the library holds rather than what this browser would be shown, so
+              a band with a count has Videos in it whatever the browser. */}
+          <FacetValues
+            label="Quality"
+            values={(facets?.quality ?? []).flatMap((band) => {
+              const name = qualityBandLabel(band.value)
+              return name ? [{ value: band.value, name, count: Number(band.count) }] : []
+            })}
+            selected={filters.quality}
+            onToggle={(value) => toggle('quality', value)}
+          />
+          <FacetValues
+            label="Sites"
+            values={(facets?.sites ?? []).map((site) => ({
+              value: site.value,
+              name: site.value,
+              count: Number(site.count),
+            }))}
+            selected={filters.sites}
+            onToggle={(value) => toggle('sites', value)}
+          />
+          <FacetValues
+            label="Actors"
+            values={(facets?.actors ?? []).map((actor) => ({
+              value: actor.value,
+              name: actor.value,
+              count: Number(actor.count),
+            }))}
+            selected={filters.actors}
+            onToggle={(value) => toggle('actors', value)}
+          />
+        </div>
+
+        {/* What the narrowing being assembled admits, beside the control that leaves it. The
+            count is in the toolbar too, and on a narrow viewport the sheet covers it, which is
+            exactly where the answer to "did that help?" is worth having. */}
+        <div className="sheet-footer">
+          <span className="result-count">{matches}</span>
+          {chosen.length > 0 && (
+            <button className="clear-filters" onClick={clear}>Clear all</button>
+          )}
+          <button className="primary-button" onClick={close}>Done</button>
         </div>
       </div>
-
-      {/* What is chosen, in one row, each with the control that takes it out again. The pills
-          below say the same thing, but across several rows and only for the values on offer. */}
-      {chosen.length > 0 && (
-        <ul className="active-filters" aria-label="Active filters">
-          {chosen.map((filter) => (
-            <li key={filter.key}>
-              <button
-                className="active-filter"
-                aria-label={`Remove ${filter.label}`}
-                onClick={filter.remove}
-              >
-                {filter.label}
-                <span className="remove" aria-hidden="true">×</span>
-              </button>
-            </li>
-          ))}
-          <li><button className="clear-filters" onClick={clear}>Clear all</button></li>
-        </ul>
-      )}
-
-      <div id="library-facets" className={facetsOpen ? 'facet-groups open' : 'facet-groups'}>
-        {!pinned && (
-          <FacetGroup label="Yours">
-            {shelfNames.map((shelf) => (
-              <FacetToggle
-                key={shelf}
-                label={shelves[shelf].title}
-                selected={filters.shelf.includes(shelf)}
-                onToggle={() => toggle('shelf', shelf)}
-              />
-            ))}
-          </FacetGroup>
-        )}
-        <FacetGroup label="Only show">
-          <FacetToggle
-            label="Unknown work"
-            selected={filters.work.includes('Unknown')}
-            onToggle={(selected) => narrow({ work: selected ? ['Unknown'] : [] })}
-          />
-          <FacetToggle
-            label="Unknown site"
-            selected={filters.unknownSite}
-            onToggle={(selected) => narrow({ unknownSite: selected })}
-          />
-          <FacetToggle
-            label="Needs review"
-            selected={filters.review.includes('ReviewNeeded')}
-            onToggle={(selected) => narrow({ review: selected ? ['ReviewNeeded'] : [] })}
-          />
-          <FacetToggle
-            label="Unplayed"
-            selected={filters.playState.includes('Unplayed')}
-            onToggle={(selected) => narrow({ playState: selected ? ['Unplayed'] : [] })}
-          />
-          <FacetToggle
-            label="Unsupported only"
-            selected={filters.playability.includes('NotDirectlyPlayable')}
-            onToggle={(selected) => narrow({ playability: selected ? ['NotDirectlyPlayable'] : [] })}
-          />
-        </FacetGroup>
-        {/* The bands the library actually holds, best first. A band it has none of is not offered:
-            Video Quality is what the library holds rather than what this browser would be shown, so
-            a band with a count has Videos in it whatever the browser. */}
-        <FacetValues
-          label="Quality"
-          values={(facets?.quality ?? []).flatMap((band) => {
-            const name = qualityBandLabel(band.value)
-            return name ? [{ value: band.value, name, count: Number(band.count) }] : []
-          })}
-          selected={filters.quality}
-          onToggle={(value) => toggle('quality', value)}
-        />
-        <FacetValues
-          label="Sites"
-          values={(facets?.sites ?? []).map((site) => ({
-            value: site.value,
-            name: site.value,
-            count: Number(site.count),
-          }))}
-          selected={filters.sites}
-          onToggle={(value) => toggle('sites', value)}
-        />
-        <FacetValues
-          label="Actors"
-          values={(facets?.actors ?? []).map((actor) => ({
-            value: actor.value,
-            name: actor.value,
-            count: Number(actor.count),
-          }))}
-          selected={filters.actors}
-          onToggle={(value) => toggle('actors', value)}
-        />
-      </div>
-    </div>
+    </>
   )
 }
 

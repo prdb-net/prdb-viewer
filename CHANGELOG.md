@@ -7,6 +7,21 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Changed
+
+- The facets wait behind the `Filters` control on every screen, not only on a
+  narrow one. A wide screen was not the exception it looked like: the five
+  groups filled its upper two thirds, so the browsing screen and each Personal
+  Shelf opened on a single row of Videos. They now open as a sheet — beside the
+  grid where there is room for a column, up over the Videos where there is not
+  — which answers Escape, gives the focus back to the control that opened it,
+  and says how many Videos the narrowing being assembled admits.
+- What is chosen stays out of the sheet. The row that names each chosen filter
+  with the control that takes it out again, the count of what they leave, the
+  sort order and the control that opens the facets stay put while the Videos
+  scroll past, so narrowing a long list no longer begins with a scroll back to
+  the top.
+
 ### Fixed
 
 - The sort order's list opens in the colours of the rest of the application. The
