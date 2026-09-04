@@ -425,9 +425,16 @@ counts follow the current narrowing: a Site's count says what choosing it would
 leave once the chosen Actors, bands and search have had their say, and a facet
 is never narrowed by its own values, because a second Site widens the set rather
 than narrowing it. The most populated eight values of a facet are offered at
-once and the rest wait behind one control; what is chosen is listed in its own
-row, each entry with the control that takes it out again, and on a narrow
-viewport the facet rows wait behind one control of their own until asked for.
+once and the rest wait behind one control.
+
+The facets themselves wait behind one control until they are asked for, because
+the screen is for the Videos: a sheet that comes in beside the grid where there
+is room for a column and up over it where there is not, and that answers Escape
+and gives the focus back to the control that opened it. What is chosen does not
+wait with them. It is listed in a row that stays, each entry with the control
+that takes it out again, beside the count of what they leave and the control
+that opens them again; and that row stays put while the Videos scroll past, so
+narrowing a deep list does not begin with a scroll back to the top.
 
 The default order is Discovery Date descending, so later enrichment never makes
 an old Video look newly added; Title A-Z, best quality first and longest first
