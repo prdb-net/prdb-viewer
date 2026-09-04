@@ -62,4 +62,58 @@ public sealed class PreviewDeliveryService(
             return null;
         }
     }
+
+    /// <summary>
+    /// Serves the retained picture of a proposed work. It is addressed the same way a preview is,
+    /// by a random identifier rather than a remote URL, so that opening a review case never puts
+    /// an Administrator's browser in touch with prdb.
+    /// </summary>
+    public async Task<PreviewDelivery?> OpenProposedWorkArtworkAsync(
+        Guid publicArtworkId,
+        CancellationToken cancellationToken = default)
+    {
+        var artwork = await database.ProposedWorks
+            .AsNoTracking()
+            .Where(work => work.PublicArtworkId == publicArtworkId &&
+                           work.ArtworkState == ProposedWorkArtworkState.Retained &&
+                           work.ArtworkRelativePath != null)
+            .Select(work => new
+            {
+                RelativePath = work.ArtworkRelativePath!,
+                work.ArtworkContentType,
+                work.ArtworkRetainedAt,
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (artwork is null)
+        {
+            return null;
+        }
+
+        var path = Path.GetFullPath(artifacts.ArtworkFullPath(artwork.RelativePath));
+        var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(artifacts.ArtworkRoot));
+
+        if (!path.StartsWith($"{root}{Path.DirectorySeparatorChar}", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        try
+        {
+            return new PreviewDelivery(
+                new FileStream(
+                    path,
+                    FileMode.Open,
+                    FileAccess.Read,
+                    FileShare.Read,
+                    1024 * 32,
+                    FileOptions.Asynchronous | FileOptions.SequentialScan),
+                artwork.ArtworkContentType ?? "image/jpeg",
+                VideoPresentation.AsOffset(artwork.ArtworkRetainedAt) ?? DateTimeOffset.MinValue);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
 }

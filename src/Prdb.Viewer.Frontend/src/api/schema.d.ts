@@ -74,6 +74,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/media/proposals/{artworkId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    artworkId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/media/videos/{deliveryId}": {
         parameters: {
             query?: never;
@@ -1961,6 +1996,8 @@ export interface components {
             evidenceSummary: string;
             /** Format: uuid */
             supportingVideoFileId: null | string;
+            proposal: null | components["schemas"]["IdentificationProposalView"];
+            decisions: components["schemas"]["IdentificationDecisionOutlook"][];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -2022,6 +2059,11 @@ export interface components {
         };
         /** @enum {unknown} */
         IdentificationDecisionAction: "AcceptCandidate" | "AssignDirectly" | "ReplaceClaim" | "RejectCandidate" | "RevokeClaim" | "SplitVideo";
+        IdentificationDecisionOutlook: {
+            action: components["schemas"]["IdentificationDecisionAction"];
+            refusal: null | string;
+            outcome: string;
+        };
         IdentificationDecisionRequest: {
             action: components["schemas"]["IdentificationDecisionAction"];
             dimension: components["schemas"]["IdentificationDimension"];
@@ -2061,6 +2103,20 @@ export interface components {
         IdentificationDimension: "WorkIdentification" | "SiteRecognition";
         /** @enum {unknown} */
         IdentificationEvidenceClass: "Insufficient" | "Suggestive" | "Conclusive";
+        IdentificationProposalView: {
+            title: string;
+            siteTitle: null | string;
+            siteUrl: null | string;
+            actors: string[];
+            artworkUrl: null | string;
+            artworkState: components["schemas"]["ProposedWorkArtworkState"];
+            /** Format: date-time */
+            releaseDate: null | string;
+            /** Format: int64 */
+            durationMilliseconds: null | number | string;
+            /** Format: date-time */
+            fetchedAt: string;
+        };
         IdentificationQueueItem: {
             /** Format: uuid */
             videoId: string;
@@ -2336,6 +2392,8 @@ export interface components {
         PrdbCredentialRequest: {
             credential: null | string;
         };
+        /** @enum {unknown} */
+        ProposedWorkArtworkState: "None" | "Pending" | "Retained" | "Unavailable";
         QueueLibraryScanResult: {
             verdict: components["schemas"]["QueueLibraryScanVerdict"];
             /** Format: uuid */

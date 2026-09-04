@@ -61,10 +61,21 @@ public sealed class IdentificationService(
         }
         else if (workEvidence == IdentificationEvidenceClass.Suggestive)
         {
+            // The answer that produced these proposals carried the details of at most one work.
+            // Whichever target names it gets them; the others are an identifier and a title, and
+            // the review says so rather than showing one work's Actors beside another's name.
+            var described = await RetainProposedWorkAsync(result.Work, cancellationToken);
+
             foreach (var candidate in ProposedWorkTargets(result))
             {
                 Propose(video, IdentificationDimension.WorkIdentification, candidate, workEvidence,
-                    result, file, evidenceKey);
+                    result, file, evidenceKey,
+                    proposedWorkId: described is not null && string.Equals(
+                        described.PrdbVideoId,
+                        candidate.Key,
+                        StringComparison.OrdinalIgnoreCase)
+                        ? described.Id
+                        : null);
             }
         }
 
@@ -393,7 +404,8 @@ public sealed class IdentificationService(
         VideoFileRow? file,
         string evidenceKey,
         IdentificationSource source = IdentificationSource.PrdbIdentification,
-        string? matchedBy = null)
+        string? matchedBy = null,
+        Guid? proposedWorkId = null)
     {
         var current = Current(video, dimension);
 
@@ -460,6 +472,7 @@ public sealed class IdentificationService(
             Confidence = result?.Confidence.ToString(),
             EvidenceKey = evidenceKey,
             SupportingVideoFileId = file?.Id,
+            ProposedWorkId = proposedWorkId,
             PriorRejectionId = rejected?.Id,
             CreatedAt = Now(),
         };
@@ -500,6 +513,65 @@ public sealed class IdentificationService(
             candidate.Status == IdentificationCandidateStatus.Pending)
             ? IdentificationReviewStatus.ReviewNeeded
             : IdentificationReviewStatus.Clear;
+
+    /// <summary>
+    /// Keeps what prdb said about a work a candidate proposes, so that the review can compare the
+    /// Video against the work rather than a file name against a title.
+    /// </summary>
+    /// <remarks>
+    /// The facts are keyed by the remote work, not by the candidate: two Videos proposing the same
+    /// one share them, and one picture is fetched rather than two. A later answer refreshes them.
+    /// A changed picture is asked for again, and until it arrives nothing is served: the retained
+    /// file is still there, but it is no longer the picture prdb offers for this work, and a review
+    /// that says a picture has not arrived is more use than one showing the wrong one.
+    /// </remarks>
+    private async Task<ProposedWorkRow?> RetainProposedWorkAsync(
+        RemoteWork? work,
+        CancellationToken cancellationToken)
+    {
+        if (work is null)
+        {
+            return null;
+        }
+
+        var retained = await database.ProposedWorks
+            .AsTracking()
+            .SingleOrDefaultAsync(row => row.PrdbVideoId == work.PrdbVideoId, cancellationToken);
+
+        if (retained is null)
+        {
+            retained = new ProposedWorkRow
+            {
+                Id = Guid.CreateVersion7(),
+                PrdbVideoId = work.PrdbVideoId,
+                Title = work.Title,
+            };
+            database.ProposedWorks.Add(retained);
+        }
+
+        var changedArtwork = !string.Equals(
+            retained.ArtworkUrl,
+            work.ArtworkUrl,
+            StringComparison.Ordinal);
+
+        retained.Title = work.Title;
+        retained.SiteTitle = work.Site?.Title;
+        retained.SiteUrl = work.Site?.Url;
+        retained.ActorsJson = work.Actors.Count == 0 ? null : JsonSerializer.Serialize(work.Actors);
+        retained.ArtworkUrl = work.ArtworkUrl;
+        retained.ReleaseDate = work.ReleaseDate;
+        retained.DurationMilliseconds = work.DurationMilliseconds;
+        retained.FetchedAt = Now();
+
+        if (changedArtwork)
+        {
+            retained.ArtworkState = work.ArtworkUrl is null
+                ? ProposedWorkArtworkState.None
+                : ProposedWorkArtworkState.Pending;
+        }
+
+        return retained;
+    }
 
     private void RetainMetadata(VideoRow video, RemoteIdentification result)
     {

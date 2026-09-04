@@ -69,6 +69,35 @@ public sealed record IdentificationSummary(
     IReadOnlyList<string> Actors,
     DateTimeOffset? MetadataFetchedAt);
 
+/// <summary>
+/// What the proposal is being compared against: the work prdb says this is, in its own terms.
+/// Comparing two pictures is the decision; comparing a file name to a title is a guess.
+/// </summary>
+public sealed record IdentificationProposalView(
+    string Title,
+    string? SiteTitle,
+    string? SiteUrl,
+    IReadOnlyList<string> Actors,
+    // An address in this installation, never at prdb. Null unless a picture is actually held.
+    string? ArtworkUrl,
+    ProposedWorkArtworkState ArtworkState,
+    DateTimeOffset? ReleaseDate,
+    long? DurationMilliseconds,
+    DateTimeOffset FetchedAt);
+
+/// <summary>
+/// One decision this case offers for one candidate, and what the installation looks like once it
+/// is taken — said before it is taken rather than in a preview it is too late to read.
+/// </summary>
+/// <remarks>
+/// A refused decision carries its reason here instead of leaving it to be read off a disabled
+/// button, so a reason belongs to the control it locks rather than to the row.
+/// </remarks>
+public sealed record IdentificationDecisionOutlook(
+    IdentificationDecisionAction Action,
+    string? Refusal,
+    string Outcome);
+
 public sealed record IdentificationCandidateView(
     Guid Id,
     IdentificationDimension Dimension,
@@ -80,6 +109,8 @@ public sealed record IdentificationCandidateView(
     IdentificationSource Source,
     string EvidenceSummary,
     Guid? SupportingVideoFileId,
+    IdentificationProposalView? Proposal,
+    IReadOnlyList<IdentificationDecisionOutlook> Decisions,
     DateTimeOffset CreatedAt,
     DateTimeOffset? ResolvedAt);
 

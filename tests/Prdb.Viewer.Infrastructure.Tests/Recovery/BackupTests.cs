@@ -260,16 +260,75 @@ public sealed class BackupTests
     }
 
     /// <summary>
+    /// A pending candidate travels; the facts prdb offered about the work it proposes do not.
+    /// Those are regenerable, so the archive leaves them out the way it leaves out previews and
+    /// the Site Directory — and a candidate that arrived still pointing at them would be a
+    /// reference into a table the archive deliberately did not bring.
+    /// </summary>
+    [Fact]
+    public async Task A_restored_candidate_keeps_its_proposal_and_drops_the_facts_behind_it()
+    {
+        await using var source = await PopulatedAsync(
+            new FixtureIdentificationClient().Suggestive("first.mp4", WorkId, "A Guessed Work"));
+        var archivePath = Path.Combine(source.Directory, "installation.prdbviewer");
+
+        await using (var scope = source.Scope())
+        {
+            Assert.NotNull(await scope.ServiceProvider
+                .GetRequiredService<ViewerDbContext>()
+                .IdentificationCandidates
+                .AsNoTracking()
+                .Select(candidate => candidate.ProposedWorkId)
+                .SingleAsync(TestContext.Current.CancellationToken));
+
+            var created = await scope.ServiceProvider
+                .GetRequiredService<BackupService>()
+                .CreateAsync(archivePath, Passphrase, TestContext.Current.CancellationToken);
+            Assert.True(created.Created, created.Reason);
+        }
+
+        await using var target = await TestDatabase.CreateAsync(
+            mediaProbe: new FixtureProbe(),
+            hasher: new FixtureHasher(),
+            previewGenerator: new FixturePreviewGenerator(),
+            identificationClient: new FixtureIdentificationClient());
+
+        await using (var scope = target.Scope())
+        {
+            var restored = await scope.ServiceProvider
+                .GetRequiredService<BackupService>()
+                .RestoreAsync(archivePath, Passphrase, TestContext.Current.CancellationToken);
+            Assert.Equal(RestoreVerdict.Restored, restored.Verdict);
+        }
+
+        await using (var scope = target.Scope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+            var candidate = await database.IdentificationCandidates
+                .AsNoTracking()
+                .SingleAsync(TestContext.Current.CancellationToken);
+
+            // The proposal's own words are the candidate's, so they travel with it.
+            Assert.Equal("A Guessed Work", candidate.TargetTitle);
+            Assert.Equal(IdentificationCandidateStatus.Pending, candidate.Status);
+            Assert.Null(candidate.ProposedWorkId);
+            Assert.Empty(await database.ProposedWorks.ToListAsync(
+                TestContext.Current.CancellationToken));
+        }
+    }
+
+    /// <summary>
     /// An installation with an Administrator, a configured connection, a scanned and identified
     /// Video, and one Account's private organisation — the state a Backup Archive must return.
     /// </summary>
-    private static async Task<TestDatabase> PopulatedAsync()
+    private static async Task<TestDatabase> PopulatedAsync(
+        FixtureIdentificationClient? prdb = null)
     {
         var store = await TestDatabase.CreateAsync(
             mediaProbe: new FixtureProbe(),
             hasher: new FixtureHasher(),
             previewGenerator: new FixturePreviewGenerator(),
-            identificationClient: new FixtureIdentificationClient()
+            identificationClient: prdb ?? new FixtureIdentificationClient()
                 .Conclusive("first.mp4", WorkId, "A Known Work"));
         var source = Path.Combine(store.LibraryMountRoot.Path, "source");
         Directory.CreateDirectory(source);

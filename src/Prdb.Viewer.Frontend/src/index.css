@@ -520,17 +520,43 @@ body.filters-open .app-content {
 .review-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .8rem; border: 1px solid rgb(255 255 255 / 8%); border-radius: .9rem; }
 .review-item small { display: block; margin-top: .2rem; color: var(--muted); }
 .review-case { margin-top: 1.2rem; padding: 1rem; border: 1px solid rgb(255 255 255 / 12%); border-radius: 1rem; background: rgb(18 16 24 / 70%); }
-.comparison { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); margin: .8rem 0; }
+/* The two sides of the decision, each led by its picture. A file name beside a title is a guess;
+   the comparison the review exists for is the one the eye makes between two pictures, so each
+   column is wide enough to draw one at the size the Video's own page uses. */
+.comparison { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); margin: .8rem 0; align-items: start; }
+.compared { min-width: 0; display: grid; gap: .5rem; align-content: start; }
+.compared p { margin: 0; }
+.compared > .quiet-button { justify-self: start; }
+/* Large enough to compare two pictures by eye, and no larger: at a wide viewport an uncapped
+   column drew each of them at nearly seven hundred pixels, which is a billboard rather than a
+   comparison, and pushed the decisions off the screen the case exists to reach. */
+.compared-art { display: grid; gap: .4rem; max-width: 26rem; }
+.compared-art small { color: var(--muted); font-size: .78rem; }
+.compared-art .video-preview.large { aspect-ratio: 16 / 9; }
+.compared-art .video-placeholder.large { font-size: 1.6rem; }
+/* Both readings as facts rather than as a paragraph: an Administrator compares a Site to a Site
+   and a cast to a cast, which means finding each of them in the same place on both sides rather
+   than reading a sentence for it. */
+.compared-facts { display: grid; gap: .3rem; margin: 0; }
+.compared-facts > div { display: grid; grid-template-columns: 5rem minmax(0, 1fr); gap: .6rem; }
+.compared-facts dt { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; }
+.compared-facts dd { margin: 0; font-size: .85rem; overflow-wrap: anywhere; }
 .case-files { display: grid; gap: .4rem; margin: .8rem 0; padding: 0; list-style: none; }
 .case-files code { color: var(--accent); }
 .case-files small { display: block; color: var(--muted); }
 .assign-target { display: grid; gap: .6rem; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); }
 /* An action this case does not offer is not one that is about to become available, so it does not
    wait for anything: it is refused, and the cursor says so rather than promising patience. */
-.row-actions .unavailable:disabled { cursor: not-allowed; }
-/* Why a decision is unavailable belongs under the actions themselves. A disabled button carries a
-   title no pointer ever reaches, so a tooltip would have said it to nobody. */
-.review-case > .muted { margin: .6rem 0 0; }
+.decisions .unavailable:disabled { cursor: not-allowed; }
+/* One decision, with what it leaves behind written under it. The five controls said what they do
+   to the candidate and nothing about what the installation looks like afterwards, and the reasons
+   the locked ones were locked sat under the whole row, where they read as a remark about the case
+   rather than as the explanation of one control. Both now belong to the control they are about. */
+.decisions { display: grid; gap: .7rem; margin-top: 1.2rem; }
+.decision { display: grid; grid-template-columns: minmax(11rem, auto) minmax(0, 1fr); gap: .3rem 1rem; align-items: start; }
+.decision button { margin-top: 0; width: 100%; }
+.decision p { margin: 0; color: var(--muted); font-size: .82rem; }
+.decision.unavailable p { color: #b8b2c2; font-style: italic; }
 /* The sentence that says what the case is asking for stands with the decisions rather than among
    the prose: it is the one line an Administrator reads before pressing anything. */
 .decision-guidance { margin: 1rem 0 0; padding: .7rem .9rem; border-left: 2px solid var(--accent); border-radius: .4rem; color: var(--muted); background: rgb(255 255 255 / 4%); font-size: .85rem; }
@@ -575,6 +601,8 @@ body.filters-open .app-content {
   body.drawer-open { overflow: hidden; }
   .drawer-open .drawer-scrim { display: block; position: fixed; inset: var(--header-height) 0 0; z-index: 3; background: rgb(0 0 0 / 45%); }
   .video-detail { grid-template-columns: 1fr; }
+  /* No room for a sentence beside a button, so it goes under the one it explains. */
+  .decision { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 40rem) {

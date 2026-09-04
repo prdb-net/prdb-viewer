@@ -1,6 +1,8 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace Prdb.FakeCatalogue;
 
@@ -26,6 +28,10 @@ namespace Prdb.FakeCatalogue;
 /// </summary>
 public sealed class FakePrdb : HttpMessageHandler
 {
+    private static readonly Regex ArtworkPath = new(
+        @"^/videos/([^/]+)/artwork\.bmp$",
+        RegexOptions.Compiled);
+
     private readonly Dictionary<string, CatalogueEntry> catalogue =
         new(StringComparer.OrdinalIgnoreCase);
 
@@ -98,13 +104,45 @@ public sealed class FakePrdb : HttpMessageHandler
             return Respond(HttpStatusCode.OK, RawBody);
         }
 
-        return request.RequestUri?.AbsolutePath switch
+        var path = request.RequestUri?.AbsolutePath;
+
+        if (path is not null && Artwork(path) is { } artwork)
+        {
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(artwork)
+                {
+                    Headers = { ContentType = new MediaTypeHeaderValue("image/bmp") },
+                },
+            };
+        }
+
+        return path switch
         {
             "/videos/identify" => await IdentifyAsync(request, cancellationToken),
-            "/sites" => Respond(HttpStatusCode.OK, Sites(request.RequestUri)),
+            "/sites" => Respond(HttpStatusCode.OK, Sites(request.RequestUri!)),
             "/rate-limit" => Respond(HttpStatusCode.OK, CatalogueAnswers.RateLimit()),
             _ => Respond(HttpStatusCode.NotFound, """{"title":"No such endpoint."}"""),
         };
+    }
+
+    /// <summary>
+    /// The picture an identify answer points at. It travels on the credential-free artwork
+    /// transport, which this stands in for as well, so the whole way from a proposal to a picture
+    /// an installation holds is exercised rather than assumed.
+    /// </summary>
+    private byte[]? Artwork(string path)
+    {
+        var match = ArtworkPath.Match(path);
+
+        if (!match.Success || !Guid.TryParse(match.Groups[1].Value, out var videoId))
+        {
+            return null;
+        }
+
+        var entry = catalogue.Values.FirstOrDefault(candidate => candidate.VideoId == videoId);
+
+        return entry is null ? null : CatalogueAnswers.Artwork(entry.Title);
     }
 
     private async Task<HttpResponseMessage> IdentifyAsync(

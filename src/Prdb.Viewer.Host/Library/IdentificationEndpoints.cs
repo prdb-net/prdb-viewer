@@ -61,5 +61,27 @@ public static class IdentificationEndpoints
         })
         .WithTags("Preview Delivery")
         .AllowAnonymous();
+
+        // A proposal's picture is served from application storage under a random identifier, the
+        // way a preview is, so that the review case is one origin rather than two and prdb never
+        // sees which installation opened which case.
+        routes.MapGet("/media/proposals/{artworkId:guid}", async (
+            Guid artworkId,
+            PreviewDeliveryService previews,
+            CancellationToken cancellationToken) =>
+        {
+            var artwork = await previews.OpenProposedWorkArtworkAsync(artworkId, cancellationToken);
+
+            return artwork is null
+                ? Results.NotFound()
+                : Results.Stream(
+                    artwork.Content,
+                    artwork.ContentType,
+                    fileDownloadName: null,
+                    lastModified: artwork.LastModified,
+                    enableRangeProcessing: false);
+        })
+        .WithTags("Preview Delivery")
+        .AllowAnonymous();
     }
 }

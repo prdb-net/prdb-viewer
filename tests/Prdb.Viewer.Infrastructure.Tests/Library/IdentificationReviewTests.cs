@@ -579,6 +579,93 @@ public sealed class IdentificationReviewTests
         Assert.Equal(Core.Personal.PlaybackReportVerdict.Accepted, report.Verdict);
     }
 
+    /// <summary>
+    /// What each decision leaves behind, said before it is taken. The controls stated what they do
+    /// to the candidate and nothing about what the installation looks like afterwards, and a
+    /// refused one left its reason to be read off a disabled button.
+    /// </summary>
+    [Fact]
+    public async Task Every_decision_a_case_offers_says_what_it_leaves_behind()
+    {
+        var prdb = new FixtureIdentificationClient().Suggestive("first.mp4", WorkId, "A Guessed Work");
+        await using var store = await CreateAsync(prdb, ("first.mp4", [1, 2, 3, 4]));
+
+        await using var scope = store.Scope();
+        var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
+        var open = (await review.GetQueueAsync(TestContext.Current.CancellationToken)).Single();
+        var identificationCase = await review.GetCaseAsync(
+            open.VideoId,
+            TestContext.Current.CancellationToken);
+        var offered = identificationCase!.OpenCandidates.Single().Decisions;
+
+        // One Video File, so a split is not among the decisions this case has to offer.
+        Assert.Equal(
+            [
+                IdentificationDecisionAction.AcceptCandidate,
+                IdentificationDecisionAction.RejectCandidate,
+                IdentificationDecisionAction.AssignDirectly,
+                IdentificationDecisionAction.ReplaceClaim,
+                IdentificationDecisionAction.RevokeClaim,
+            ],
+            offered.Select(decision => decision.Action));
+
+        var accept = offered.Single(decision =>
+            decision.Action == IdentificationDecisionAction.AcceptCandidate);
+        Assert.Null(accept.Refusal);
+        Assert.Contains("becomes Established \u201cA Guessed Work\u201d", accept.Outcome);
+        Assert.Contains("browsable under that title", accept.Outcome);
+        Assert.Contains("The Site Recognition stays Unknown", accept.Outcome);
+        Assert.Contains("leaves the review queue", accept.Outcome);
+
+        var reject = offered.Single(decision =>
+            decision.Action == IdentificationDecisionAction.RejectCandidate);
+        Assert.Null(reject.Refusal);
+        Assert.Contains("The Work Identification stays Unknown", reject.Outcome);
+        // What a rejected candidate does the next time the lane runs is decided by the evidence
+        // behind it, and the screen could not say so because nothing stated it.
+        Assert.Contains("does not come back while the evidence behind it stays the same", reject.Outcome);
+
+        // Nothing is established here yet, so the two decisions that change an established claim
+        // carry the reason they cannot be taken rather than leaving it to a disabled button.
+        var replace = offered.Single(decision =>
+            decision.Action == IdentificationDecisionAction.ReplaceClaim);
+        Assert.Contains("Assign directly is the decision that establishes one", replace.Refusal);
+        var revoke = offered.Single(decision =>
+            decision.Action == IdentificationDecisionAction.RevokeClaim);
+        Assert.Contains("to withdraw", revoke.Refusal);
+    }
+
+    /// <summary>
+    /// A decision whose target is known before it is taken is the one whose merge can be named in
+    /// advance. Accepting a candidate another Video already carries merges the two, and the case
+    /// says so beside the control rather than in the preview that follows pressing it.
+    /// </summary>
+    [Fact]
+    public async Task Accepting_a_work_another_Video_carries_says_it_merges_them()
+    {
+        var prdb = new FixtureIdentificationClient()
+            .Conclusive("first.mp4", WorkId, "A Known Work")
+            .Suggestive("second.mp4", WorkId, "A Known Work");
+        await using var store = await CreateAsync(
+            prdb,
+            ("first.mp4", [1, 2, 3, 4]),
+            ("second.mp4", [5, 6, 7, 8]));
+
+        await using var scope = store.Scope();
+        var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
+        var open = (await review.GetQueueAsync(TestContext.Current.CancellationToken)).Single();
+        var identificationCase = await review.GetCaseAsync(
+            open.VideoId,
+            TestContext.Current.CancellationToken);
+        var accept = identificationCase!.OpenCandidates
+            .Single()
+            .Decisions
+            .Single(decision => decision.Action == IdentificationDecisionAction.AcceptCandidate);
+
+        Assert.Contains("the two Videos merge into one", accept.Outcome);
+        Assert.Contains("needs a note", accept.Outcome);
+    }
+
     private static async Task<TestDatabase> CreateAsync(
         FixtureIdentificationClient prdb,
         params (string Name, byte[] Content)[] files)

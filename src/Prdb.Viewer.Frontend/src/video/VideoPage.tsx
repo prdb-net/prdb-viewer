@@ -25,6 +25,7 @@ import {
   qualityLabel,
   qualitySource,
 } from '../lib/quality'
+import { returnTo } from '../lib/returnTo'
 import { StarRating } from '../personal/StarRating'
 import { usePersonalActions } from '../personal/usePersonalActions'
 import { queryKeys } from '../queryKeys'
@@ -64,6 +65,9 @@ export function VideoPage({ account }: { account: Account }) {
     retry: false,
   })
   const personal = usePersonalActions(account)
+  // Where this Video was opened from, so the way out is the way back in rather than the top of an
+  // unnarrowed library. A Video reached by its own address has no such place and says so.
+  const back = returnTo(parameters) ?? { to: '/', label: 'the library' }
   const [playing, setPlaying] = useState<PlaybackSession>()
   const [failure, setFailure] = useState<TerminalPlaybackFailure>()
   const video = detail.data?.video
@@ -199,7 +203,7 @@ export function VideoPage({ account }: { account: Account }) {
         <PageHeading title="This Video is not here">
           It may have been removed from the library, or the link may be wrong.
         </PageHeading>
-        <Link className="quiet-button" to="/">Back to the library</Link>
+        <Link className="quiet-button" to={back.to}>Back to {back.label}</Link>
       </>
     )
   }
@@ -217,7 +221,7 @@ export function VideoPage({ account }: { account: Account }) {
       <PageHeading
         eyebrow="Video"
         title={video.displayTitle}
-        actions={<Link className="quiet-button" to="/">Back to the library</Link>}
+        actions={<Link className="quiet-button" to={back.to}>Back to {back.label}</Link>}
       />
 
       {detail.data?.supersededVideoId && (

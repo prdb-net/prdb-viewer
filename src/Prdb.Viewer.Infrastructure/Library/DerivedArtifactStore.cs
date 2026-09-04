@@ -17,7 +17,16 @@ public sealed class DerivedArtifactStore(ViewerDatabaseLocation location)
 {
     private const string PreviewDirectoryName = "previews";
 
+    private const string ArtworkDirectoryName = "artwork";
+
     public string PreviewsRoot { get; } = Path.Combine(location.DataDirectory, PreviewDirectoryName);
+
+    /// <summary>
+    /// Where the pictures prdb offers for proposed works are held. They are retained rather than
+    /// generated, but they are regenerable all the same: a lost file is asked for again, and the
+    /// Administrator's browser is never sent to prdb for one.
+    /// </summary>
+    public string ArtworkRoot { get; } = Path.Combine(location.DataDirectory, ArtworkDirectoryName);
 
     /// <summary>
     /// The stored, directory-relative location of a Video File's preview, sharded so that one
@@ -35,6 +44,34 @@ public sealed class DerivedArtifactStore(ViewerDatabaseLocation location)
 
     public void EnsurePreviewDirectory(string relativePath) =>
         Directory.CreateDirectory(Path.GetDirectoryName(PreviewFullPath(relativePath))!);
+
+    /// <summary>
+    /// The stored location of one proposed work's picture, sharded like a preview. The extension
+    /// follows what arrived rather than what was hoped for: prdb offers JPEG, PNG and WebP, and a
+    /// file named for the wrong one is a lie on disk.
+    /// </summary>
+    public static string ArtworkRelativePath(Guid proposedWorkId, string contentType)
+    {
+        var name = proposedWorkId.ToString("n");
+
+        return $"{name[..2]}/{name}{ArtworkExtension(contentType)}";
+    }
+
+    private static string ArtworkExtension(string contentType) => contentType.ToLowerInvariant() switch
+    {
+        "image/png" => ".png",
+        "image/webp" => ".webp",
+        "image/gif" => ".gif",
+        "image/avif" => ".avif",
+        "image/bmp" => ".bmp",
+        _ => ".jpg",
+    };
+
+    public string ArtworkFullPath(string relativePath) =>
+        Path.Combine(ArtworkRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+
+    public void EnsureArtworkDirectory(string relativePath) =>
+        Directory.CreateDirectory(Path.GetDirectoryName(ArtworkFullPath(relativePath))!);
 
     /// <summary>
     /// Writes and synchronises a probe file, which is the observation the Capacity rules require

@@ -11,6 +11,7 @@ import {
   libraryPage,
   libraryVideo,
   noFacets,
+  offeredDecisions,
   personalState,
   renderApp,
   signedInAs,
@@ -309,21 +310,58 @@ describe('App', () => {
         targetUrl: null,
         evidenceClass: 'Suggestive',
         reason: 'SuggestiveEvidence',
+        source: 'PrdbIdentification',
         evidenceSummary: 'Suggestive evidence, matched by Filename',
         supportingVideoFileId: '01994dd4-2a0a-7000-8000-000000000032',
+        proposal: null,
+        // The queue's copy of a candidate carries no decisions: they belong to the case, which is
+        // the only place they can be taken.
+        decisions: [],
         createdAt: '2026-08-28T10:00:00Z',
         resolvedAt: null,
       },
       affectedVideoFileCount: 1,
       reason: 'The evidence is only suggestive.',
     }
+    // The same candidate as the case describes it: what prdb says the proposed work is, and every
+    // decision with what it leaves behind or the reason it cannot be taken.
+    const reviewed = {
+      ...queueItem.candidate,
+      proposal: {
+        title: 'A Guessed Work',
+        siteTitle: 'Example Pictures',
+        siteUrl: null,
+        actors: ['Alex Doe'],
+        artworkUrl: '/media/proposals/01994dd4-2a0a-7000-8000-000000000033',
+        artworkState: 'Retained',
+        releaseDate: '2025-06-01T00:00:00Z',
+        durationMilliseconds: 3_600_000,
+        fetchedAt: '2026-08-28T10:00:00Z',
+      },
+      decisions: offeredDecisions([
+        {
+          action: 'AcceptCandidate',
+          outcome: 'The Work Identification becomes Established "A Guessed Work" as an Administrative Override.',
+        },
+        { action: 'RejectCandidate' },
+        { action: 'AssignDirectly' },
+        {
+          action: 'ReplaceClaim',
+          refusal: 'Nothing is established as the Work Identification yet. Assign directly is the decision that establishes one.',
+        },
+        {
+          action: 'RevokeClaim',
+          refusal: 'Nothing is established as the Work Identification to withdraw.',
+        },
+      ]),
+    }
     const openCase = {
       videoId: queueItem.videoId,
       caseVersion: 3,
       displayLabel: 'unknown-file',
-      previewUrl: null,
+      previewUrl: '/media/previews/01994dd4-2a0a-7000-8000-000000000034',
       identification: identification({ work: claim({ reviewStatus: 'ReviewNeeded' }) }),
-      openCandidates: [queueItem.candidate],
+      openCandidates: [reviewed],
       candidateHistory: [],
       videoFiles: [variant()],
       decisions: [],
@@ -393,6 +431,29 @@ describe('App', () => {
     expect(await screen.findByText('The evidence is only suggestive, so it can propose a candidate.'))
       .toBeInTheDocument()
 
+    // Deciding whether this file is that work means looking at both, so the case shows the Video's
+    // own preview frame beside the picture prdb holds for the work it proposes.
+    expect(screen.getByRole('img', { name: 'Preview frame of unknown-file' }))
+      .toHaveAttribute('src', '/media/previews/01994dd4-2a0a-7000-8000-000000000034')
+    expect(screen.getByRole('img', { name: 'Artwork prdb holds for A Guessed Work' }))
+      .toHaveAttribute('src', '/media/proposals/01994dd4-2a0a-7000-8000-000000000033')
+    // And what the proposal is being compared against, in the terms a Site and a cast are compared
+    // in rather than as a sentence to read them out of.
+    expect(screen.getByText('Example Pictures')).toBeInTheDocument()
+    expect(screen.getByText('Alex Doe')).toBeInTheDocument()
+
+    // Playing it is the Video's own page, which owns playback and every fallback decision. The
+    // link carries the way back, so watching enough of the file to decide does not cost the case.
+    expect(screen.getByRole('link', { name: 'Open this Video' })).toHaveAttribute(
+      'href',
+      `/videos/${queueItem.videoId}?from=${encodeURIComponent(`/admin/identification?candidate=${queueItem.candidate.id}`)}`,
+    )
+
+    // What accepting leaves behind, said before it is taken rather than in a preview that only
+    // appears once the decision has been asked for.
+    expect(screen.getByText(/becomes Established "A Guessed Work" as an Administrative Override/))
+      .toBeInTheDocument()
+
     // A target belongs to the decisions that read one, so the fields wait to be asked for and
     // naming a target is not a step every other decision appears to need.
     expect(screen.queryByLabelText('Target identifier')).not.toBeInTheDocument()
@@ -419,6 +480,8 @@ describe('App', () => {
   })
 
   it('refuses the site decisions a case does not offer, and says why', async () => {
+    const siteRefusal = 'This Site Recognition came with the Work Identification. ' +
+      'Correct that instead of establishing a second site truth.'
     const candidate = {
       id: '01994dd4-2a0a-7000-8000-000000000041',
       dimension: 'SiteRecognition',
@@ -430,6 +493,24 @@ describe('App', () => {
       source: 'LocalInference',
       evidenceSummary: 'Local: Suggestive evidence, matched by the file’s own path',
       supportingVideoFileId: '01994dd4-2a0a-7000-8000-000000000042',
+      // Read out of a Video File's own path rather than answered by prdb, so there is no remote
+      // work to compare against and the proposal is its own name.
+      proposal: null,
+      decisions: offeredDecisions([
+        {
+          action: 'AcceptCandidate',
+          refusal: siteRefusal,
+        },
+        {
+          action: 'RejectCandidate',
+          outcome: 'The Site Recognition stays established as "A Known Site", and this proposal ' +
+            'does not come back while the evidence behind it stays the same. This Video then ' +
+            'leaves the review queue.',
+        },
+        { action: 'AssignDirectly', refusal: siteRefusal },
+        { action: 'ReplaceClaim', refusal: siteRefusal },
+        { action: 'RevokeClaim', refusal: siteRefusal },
+      ]),
       createdAt: '2026-09-02T10:00:00Z',
       resolvedAt: null,
     }
@@ -485,19 +566,29 @@ describe('App', () => {
     for (const label of ['Accept candidate', 'Assign directly', 'Replace claim', 'Revoke claim']) {
       expect(screen.getByRole('button', { name: label })).toBeDisabled()
     }
-    expect(screen.getByText(/second site truth/)).toBeInTheDocument()
+    // A reason belongs to the control it locks. One sentence under the whole row read as a remark
+    // about the case; four refused decisions carry it four times, each beside the button it is
+    // the explanation of.
+    expect(screen.getAllByText(siteRefusal)).toHaveLength(4)
     expect(screen.queryByLabelText('Target identifier')).not.toBeInTheDocument()
 
     // Four refused decisions and one that is not are an answer, not a choice, so the case says
-    // which decision is left, why the proposal adds nothing, and what the library keeps afterwards.
+    // which decision is left and why the proposal adds nothing.
     expect(screen.getByText('“Reject candidate” is the only decision this case offers.'))
       .toBeInTheDocument()
     expect(screen.getByText(/proposes the Site Recognition that is already established/))
       .toBeInTheDocument()
-    expect(screen.getByText(/leaves the Site Recognition established as “A Known Site”/))
+    // And the one decision it does offer says what the installation looks like afterwards.
+    expect(screen.getByText(/stays established as "A Known Site"/)).toBeInTheDocument()
+    expect(screen.getByText(/leaves the review queue/)).toBeInTheDocument()
+
+    // Nothing was generated for this Video and prdb answered with a name rather than a work, so
+    // each side says which of the two it is rather than leaving an empty frame.
+    expect(screen.getByText('No preview frame has been generated for this Video yet.'))
       .toBeInTheDocument()
-    expect(screen.getByText(/nothing else on this Video then waits for a decision/))
-      .toBeInTheDocument()
+    expect(screen.getByText(
+      'prdb answered with an identifier for this work and no details to compare against.',
+    )).toBeInTheDocument()
   })
 
   it('offers sign-in and an approval-gated registration request', async () => {

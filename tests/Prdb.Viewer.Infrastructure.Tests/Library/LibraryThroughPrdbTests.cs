@@ -222,6 +222,98 @@ public sealed class LibraryThroughPrdbTests
         Assert.Equal("Known Site", summary.Identification.Site.TargetTitle);
     }
 
+    /// <summary>
+    /// What a review case compares the Video against. prdb answers a name match with the work's
+    /// own title, Site, cast and picture, and until now every one of them was thrown away: only a
+    /// title and an identifier reached the candidate, so an Administrator was asked to weigh a
+    /// file name against a title. The picture is retained here rather than linked, so opening a
+    /// case never puts a browser in touch with prdb.
+    /// </summary>
+    [Fact]
+    public async Task A_proposal_carries_the_work_prdb_describes_and_a_picture_held_here()
+    {
+        var prdb = new FakePrdb().Recognises(
+            "first.mp4",
+            "A Guessed Work",
+            "Known Site",
+            matchedBy: 2,
+            actors: ["Alex Doe", "Sam Roe"]);
+        await using var store = await CreateAsync(prdb);
+        await ScanAsync(store, "first.mp4");
+
+        await using var scope = store.Scope();
+        var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
+        var open = (await review.GetQueueAsync(TestContext.Current.CancellationToken)).Single();
+        var identificationCase = await review.GetCaseAsync(
+            open.VideoId,
+            TestContext.Current.CancellationToken);
+        var proposal = identificationCase!.OpenCandidates.Single().Proposal;
+
+        Assert.NotNull(proposal);
+        Assert.Equal("A Guessed Work", proposal.Title);
+        Assert.Equal("Known Site", proposal.SiteTitle);
+        Assert.Equal(["Alex Doe", "Sam Roe"], proposal.Actors);
+        Assert.Equal(ProposedWorkArtworkState.Retained, proposal.ArtworkState);
+        Assert.NotNull(proposal.ArtworkUrl);
+        Assert.StartsWith("/media/proposals/", proposal.ArtworkUrl);
+
+        // The address the case gives out is one this installation answers, and it answers with the
+        // bytes rather than a redirect to where they came from.
+        var artworkId = Guid.Parse(proposal.ArtworkUrl.Split('/').Last());
+        var delivered = await scope.ServiceProvider
+            .GetRequiredService<PreviewDeliveryService>()
+            .OpenProposedWorkArtworkAsync(artworkId, TestContext.Current.CancellationToken);
+
+        Assert.NotNull(delivered);
+        await using (delivered.Content)
+        {
+            using var held = new MemoryStream();
+            await delivered.Content.CopyToAsync(held, TestContext.Current.CancellationToken);
+            Assert.Equal(CatalogueAnswers.Artwork("A Guessed Work"), held.ToArray());
+        }
+    }
+
+    /// <summary>
+    /// A picture prdb offers in a format that can carry markup is not retained. Anything served
+    /// back under this installation's own address is a document in its own origin, and a catalogue
+    /// is not a place to accept one from; the proposal stays decidable on its words.
+    /// </summary>
+    [Fact]
+    public async Task A_picture_that_could_carry_markup_is_not_retained()
+    {
+        var prdb = new FakePrdb().Recognises("first.mp4", "A Guessed Work", matchedBy: 2);
+        await using var store = await CreateAsync(prdb);
+        await ScanAsync(store, "first.mp4");
+
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var work = await database.ProposedWorks
+            .AsTracking()
+            .SingleAsync(TestContext.Current.CancellationToken);
+        work.ArtworkUrl = "https://prdb.invalid/artwork.svg";
+        work.ArtworkState = ProposedWorkArtworkState.Pending;
+        await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        await scope.ServiceProvider
+            .GetRequiredService<ProposedWorkArtworkRetention>()
+            .RetainAsync(TestContext.Current.CancellationToken);
+
+        await using var reading = store.Scope();
+        var after = await reading.ServiceProvider
+            .GetRequiredService<ViewerDbContext>()
+            .ProposedWorks
+            .AsNoTracking()
+            .SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(ProposedWorkArtworkState.Unavailable, after.ArtworkState);
+        // The picture prdb offered before this one was retained and is still on disk, but it is no
+        // longer the picture prdb offers for this work, so it stops being served.
+        Assert.Null(await reading.ServiceProvider
+            .GetRequiredService<PreviewDeliveryService>()
+            .OpenProposedWorkArtworkAsync(
+                after.PublicArtworkId!.Value,
+                TestContext.Current.CancellationToken));
+    }
+
     private static Task<TestDatabase> CreateAsync(FakePrdb prdb) =>
         TestDatabase.CreateAsync(
             mediaProbe: new FixtureProbe(),
