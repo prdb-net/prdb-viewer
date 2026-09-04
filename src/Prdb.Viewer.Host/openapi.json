@@ -48,6 +48,29 @@
         }
       }
     },
+    "/media/proposals/{artworkId}": {
+      "get": {
+        "tags": [
+          "Preview Delivery"
+        ],
+        "parameters": [
+          {
+            "name": "artworkId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/media/videos/{deliveryId}": {
       "get": {
         "tags": [
@@ -2112,6 +2135,8 @@
           "source",
           "evidenceSummary",
           "supportingVideoFileId",
+          "proposal",
+          "decisions",
           "createdAt",
           "resolvedAt"
         ],
@@ -2154,6 +2179,22 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "proposal": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IdentificationProposalView"
+              }
+            ]
+          },
+          "decisions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationDecisionOutlook"
+            }
           },
           "createdAt": {
             "type": "string",
@@ -2437,6 +2478,28 @@
           "SplitVideo"
         ]
       },
+      "IdentificationDecisionOutlook": {
+        "required": [
+          "action",
+          "refusal",
+          "outcome"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/IdentificationDecisionAction"
+          },
+          "refusal": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "outcome": {
+            "type": "string"
+          }
+        }
+      },
       "IdentificationDecisionRequest": {
         "required": [
           "action",
@@ -2608,6 +2671,72 @@
           "Suggestive",
           "Conclusive"
         ]
+      },
+      "IdentificationProposalView": {
+        "required": [
+          "title",
+          "siteTitle",
+          "siteUrl",
+          "actors",
+          "artworkUrl",
+          "artworkState",
+          "releaseDate",
+          "durationMilliseconds",
+          "fetchedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "siteTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "siteUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "actors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "artworkUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "artworkState": {
+            "$ref": "#/components/schemas/ProposedWorkArtworkState"
+          },
+          "releaseDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "durationMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "fetchedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "IdentificationQueueItem": {
         "required": [
@@ -3778,6 +3907,14 @@
             ]
           }
         }
+      },
+      "ProposedWorkArtworkState": {
+        "enum": [
+          "None",
+          "Pending",
+          "Retained",
+          "Unavailable"
+        ]
       },
       "QueueLibraryScanResult": {
         "required": [

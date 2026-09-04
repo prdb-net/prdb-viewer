@@ -65,6 +65,8 @@ public static class PersistenceServiceCollectionExtensions
         services.AddSingleton<IPreviewImageGenerator, FfmpegPreviewImageGenerator>();
         services.AddScoped<IPrdbIdentificationClient, PrdbIdentificationClient>();
         services.AddScoped<IPrdbSiteDirectoryClient, PrdbSiteDirectoryClient>();
+        services.AddScoped<IProposedWorkArtworkClient, ProposedWorkArtworkClient>();
+        services.AddScoped<ProposedWorkArtworkRetention>();
         services.AddTransient<ProductUserAgentHandler>();
         services.AddHttpClient(PrdbConnectionVerifier.TransportName)
             .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
@@ -73,6 +75,15 @@ public static class PersistenceServiceCollectionExtensions
             })
             .AddHttpMessageHandler<ProductUserAgentHandler>()
             .RedactLoggedHeaders(["X-Api-Key"]);
+        // ADR 0010: artwork travels on a transport proven to carry no credential, which is why it
+        // may follow a redirect where the credentialed one may not.
+        services.AddHttpClient(ProposedWorkArtworkClient.TransportName)
+            .ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+            {
+                AllowAutoRedirect = true,
+                MaxAutomaticRedirections = 5,
+            })
+            .AddHttpMessageHandler<ProductUserAgentHandler>();
 
         return services;
     }

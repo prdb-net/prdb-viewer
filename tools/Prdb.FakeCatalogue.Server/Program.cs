@@ -41,8 +41,22 @@ app.MapPost("/videos/identify", async (HttpRequest request) =>
 {
     using var reader = new StreamReader(request.Body);
     var body = await reader.ReadToEndAsync();
+    var here = $"{request.Scheme}://{request.Host}";
 
-    return Results.Content(CatalogueAnswers.Identify(body, catalogue), "application/json");
+    return Results.Content(
+        CatalogueAnswers.Identify(body, catalogue, here),
+        "application/json");
+});
+
+// The picture the identify answer points at. A viewer retains it and serves it back under its own
+// address, so this is asked for once per work rather than once per screen.
+app.MapGet("/videos/{videoId:guid}/artwork.bmp", (Guid videoId) =>
+{
+    var entry = catalogue.Values.FirstOrDefault(candidate => candidate.VideoId == videoId);
+
+    return entry is null
+        ? Results.NotFound()
+        : Results.Bytes(CatalogueAnswers.Artwork(entry.Title), "image/bmp");
 });
 
 app.MapGet("/sites", (int? page, int? pageSize) =>

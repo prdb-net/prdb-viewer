@@ -20,6 +20,15 @@ public sealed class IdentificationCandidateRow
 
     public string? TargetUrl { get; set; }
 
+    /// <summary>
+    /// What prdb says about the work this candidate proposes, when the answer that produced it
+    /// carried details for that work. It is what the review compares the Video against: a title
+    /// beside a file name is a guess, and the Site, the Actors and the picture are the difference.
+    /// </summary>
+    public Guid? ProposedWorkId { get; set; }
+
+    public ProposedWorkRow? ProposedWork { get; set; }
+
     public IdentificationEvidenceClass EvidenceClass { get; set; }
 
     public IdentificationReviewReason Reason { get; set; }

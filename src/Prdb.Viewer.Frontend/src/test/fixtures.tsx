@@ -134,6 +134,20 @@ export function claim(overrides: Record<string, unknown> = {}) {
   }
 }
 
+/// The decisions a review case offers for one candidate, with what each of them leaves behind.
+///
+/// The server works these out, because the rules that refuse a decision are the rules that apply
+/// it, so a case fixture without them is a case the screen has nothing to draw under its buttons.
+export function offeredDecisions(
+  offered: { action: string; refusal?: string; outcome?: string }[],
+) {
+  return offered.map((one) => ({
+    action: one.action,
+    refusal: one.refusal ?? null,
+    outcome: one.outcome ?? `${one.action} leaves this Video where it is.`,
+  }))
+}
+
 export function identification(overrides: Record<string, unknown> = {}) {
   return {
     work: claim(),

@@ -122,6 +122,9 @@ export type IdentificationConsequence = components['schemas']['IdentificationCon
 export type IdentificationDecisionRequest = components['schemas']['IdentificationDecisionRequest']
 export type IdentificationDecisionResult = components['schemas']['IdentificationDecisionResult']
 export type IdentificationDecisionAction = components['schemas']['IdentificationDecisionAction']
+export type IdentificationCandidate = components['schemas']['IdentificationCandidateView']
+export type IdentificationProposal = components['schemas']['IdentificationProposalView']
+export type IdentificationDecisionOutlook = components['schemas']['IdentificationDecisionOutlook']
 
 /// Which browser and device this is. Client Playback Assessments and Observed Playback Outcomes
 /// belong to one such context and expire when it materially changes, which is exactly what happens

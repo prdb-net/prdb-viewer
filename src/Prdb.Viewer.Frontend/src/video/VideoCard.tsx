@@ -9,6 +9,7 @@ import {
   playableSource,
   siteProvenanceLabel,
 } from '../lib/format'
+import { withReturnTo } from '../lib/returnTo'
 import { StarRating } from '../personal/StarRating'
 import type { PersonalAction, PersonalPending } from '../personal/usePersonalActions'
 import { VideoArt } from './VideoArt'
@@ -25,10 +26,13 @@ import { VideoArt } from './VideoArt'
 /// times and distinguished nothing; the ordinary case is now silent, and what a card states is an
 /// exception — an Unknown Video, a review, a Site recognised only locally, a file that will not
 /// play here.
-export function VideoCard({ video, act, pending, dismissible = false }: {
+export function VideoCard({ video, act, pending, from, dismissible = false }: {
   video: VideoSummary
   act: PersonalAction
   pending: PersonalPending
+  /// The address this card is being shown at, so the Video it leads to can come back to the
+  /// narrowing the reader was actually looking at rather than to the top of the Library.
+  from: string
   dismissible?: boolean
 }) {
   // This card is busy only while one of its own actions is in flight, not while any card's is.
@@ -43,7 +47,7 @@ export function VideoCard({ video, act, pending, dismissible = false }: {
 
   return (
     <article className="video-card">
-      <Link to={`/videos/${video.id}`} className="video-link">
+      <Link to={withReturnTo(`/videos/${video.id}`, from)} className="video-link">
         <VideoArt video={video} />
         <strong className="video-title">{video.displayTitle}</strong>
       </Link>
@@ -94,7 +98,7 @@ export function VideoCard({ video, act, pending, dismissible = false }: {
             className={video.playability === 'CompatibilityUncertain'
               ? 'primary-button uncertain'
               : 'primary-button'}
-            to={`/videos/${video.id}?play=1`}
+            to={`${withReturnTo(`/videos/${video.id}`, from)}&play=1`}
           >
             {video.playability === 'CompatibilityUncertain'
               ? 'Try Direct Play'
@@ -198,10 +202,11 @@ function BookmarkIcon() {
   )
 }
 
-export function VideoGrid({ videos, act, pending, dismissible = false }: {
+export function VideoGrid({ videos, act, pending, from, dismissible = false }: {
   videos: VideoSummary[]
   act: PersonalAction
   pending: PersonalPending
+  from: string
   dismissible?: boolean
 }) {
   return (
@@ -212,6 +217,7 @@ export function VideoGrid({ videos, act, pending, dismissible = false }: {
           video={video}
           act={act}
           pending={pending}
+          from={from}
           dismissible={dismissible}
         />
       ))}

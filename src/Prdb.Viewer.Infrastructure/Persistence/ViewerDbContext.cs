@@ -58,6 +58,8 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<SiteDirectoryEntryRow> SiteDirectoryEntries => Set<SiteDirectoryEntryRow>();
 
+    public DbSet<ProposedWorkRow> ProposedWorks => Set<ProposedWorkRow>();
+
     public DbSet<ClientPlaybackAssessmentRow> ClientPlaybackAssessments =>
         Set<ClientPlaybackAssessmentRow>();
 
@@ -327,6 +329,25 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
                 .WithMany(row => row.IdentificationCandidates)
                 .HasForeignKey(row => row.VideoId)
                 .OnDelete(DeleteBehavior.Cascade);
+            // The retained facts outlive the candidate that first needed them: a rejected proposal
+            // leaves them behind for the next Video that proposes the same work.
+            candidate.HasOne(row => row.ProposedWork)
+                .WithMany()
+                .HasForeignKey(row => row.ProposedWorkId)
+                .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        builder.Entity<ProposedWorkRow>(work =>
+        {
+            work.ToTable("proposed_work");
+            work.HasKey(row => row.Id);
+            work.Property(row => row.Id).ValueGeneratedNever();
+            work.Property(row => row.PrdbVideoId).IsRequired();
+            work.Property(row => row.Title).IsRequired();
+            work.Property(row => row.ArtworkState).HasConversion<string>();
+            work.HasIndex(row => row.PrdbVideoId).IsUnique();
+            work.HasIndex(row => row.PublicArtworkId).IsUnique();
+            work.HasIndex(row => row.ArtworkState);
         });
 
         builder.Entity<IdentificationDecisionRow>(decision =>

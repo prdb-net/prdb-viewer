@@ -181,6 +181,7 @@ export function LibraryPage({ account, shelf }: { account: Account; shelf?: Shel
         videos={shown}
         act={personal.act}
         pending={personal.pending}
+        from={`${location.pathname}${location.search}`}
         dismissible={shelf === 'ContinueWatching'}
       />
 

@@ -7,16 +7,52 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
-A browser pass over every screen, and the twelve corrections it found. The
-filter sheet is the visible one: beside the Videos it was drawn over the last
-column of them and over the sort control, and its own groups were spread down
-its height as though something had failed to load. Elsewhere the pass mostly
-gave screens back the facts they were already holding — who is asking for
-access and since when, which lane runs before which, where a recovery code
-comes from — and stopped offering controls that had nothing to act on.
+An identification review can now be acted on by somebody who was not there when
+the candidate was made. It was correct and undecidable: it said what was
+proposed and what was established, and it never showed the Video, never said
+what the work being proposed actually is, and never said what the installation
+would look like after the decision it was asking for. It now stands the Video's
+own picture beside the picture prdb holds for the proposed work, with the same
+facts under each, and writes under every decision what it establishes, what
+stops being true, and what is left waiting afterwards. Alongside it, a browser
+pass over every screen and the twelve corrections it found — the filter sheet
+being the visible one, drawn over the last column of Videos and over the sort
+control, with its own groups spread down its height as though something had
+failed to load. **This release migrates.**
+
+### Added
+
+- A review case shows the Video it is about: its preview frame, the facts the
+  installation already holds about it, and a link to the Video's own page,
+  which owns playback. Deciding whether a file is a work means looking at it,
+  and doing that used to mean leaving the queue and finding your way back.
+- A review case shows what the proposal is being compared against: the title,
+  Site, cast, release date and runtime prdb holds for the proposed work, and
+  its picture. prdb had been answering with all of it and the installation kept
+  none of it, so an Administrator was asked to weigh a file name against a
+  title. The picture is retained here and served from this installation, so
+  opening a case never puts a browser in touch with prdb — and a picture in a
+  format that can carry markup is refused rather than served back under our own
+  address.
+- Every decision a case offers says what it leaves behind before it is taken:
+  what becomes Established, what stops being current, whether two Videos merge,
+  whether a note is required, and whether the Video then leaves the review
+  queue. What a rejected candidate does the next time the lane runs is part of
+  that — the same evidence stays suppressed until materially stronger evidence
+  appears — and nothing on the screen had ever said so.
+- A link into a Video carries where it was followed from, so `Back to the
+  library` returns to the search, facets and sort that were actually open
+  rather than to the top of an unnarrowed library. The Video's own page had
+  been a one-way door since 0.6.1.
 
 ### Changed
 
+- An open review case takes the queue's place instead of standing underneath
+  it. The queue listed the case and the case then repeated it directly below,
+  so one Video appeared twice with two different sets of controls.
+- The reason a decision is refused sits beside the control it locks. One
+  sentence under the whole row read as a general remark about the case, and the
+  disabled buttons it explained carried a tooltip no pointer ever reaches.
 - The filter sheet no longer covers what it narrows. Standing beside the
   Videos it is a column rather than a cover, so the content gives up exactly
   the width it takes; on a wide screen the last column of Videos and the sort

@@ -362,6 +362,15 @@ public sealed class BackupService(
             file.PreviewGeneratedAt = null;
         }
 
+        // What prdb says about a proposed work is regenerable, so a Backup Archive leaves it out
+        // the way it leaves out previews and the Site Directory — and a candidate restored into an
+        // installation that has not asked prdb yet cannot point at it. The proposal's own words
+        // travel with the candidate; the facts behind them arrive again when the lane next runs.
+        foreach (var candidate in document.IdentificationCandidates)
+        {
+            candidate.ProposedWorkId = null;
+        }
+
         database.VideoFiles.AddRange(document.VideoFiles);
         database.VideoMetadata.AddRange(document.VideoMetadata);
         database.IdentificationClaims.AddRange(document.IdentificationClaims);

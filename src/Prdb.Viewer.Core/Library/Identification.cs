@@ -63,3 +63,16 @@ public enum IdentificationDecisionAction
     RevokeClaim,
     SplitVideo,
 }
+
+/// <summary>
+/// Whether the picture prdb offers for a proposed work is held by this installation. A review
+/// screen shows a retained picture and never sends an Administrator's browser to prdb, so a
+/// proposal whose picture has not arrived says so rather than leaving a broken frame.
+/// </summary>
+public enum ProposedWorkArtworkState
+{
+    None,
+    Pending,
+    Retained,
+    Unavailable,
+}

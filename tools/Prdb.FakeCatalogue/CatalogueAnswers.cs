@@ -54,7 +54,8 @@ public static class CatalogueAnswers
     /// </summary>
     public static string Identify(
         string requestBody,
-        IReadOnlyDictionary<string, CatalogueEntry> catalogue)
+        IReadOnlyDictionary<string, CatalogueEntry> catalogue,
+        string artworkBaseUrl = "http://127.0.0.1:5080")
     {
         var request = JsonNode.Parse(requestBody)!;
         var results = new JsonArray();
@@ -97,7 +98,15 @@ public static class CatalogueAnswers
                             ["name"] = actor,
                         })
                         .ToArray()),
-                    ["durationSeconds"] = 12_345,
+                    ["durationMs"] = 12_345_000,
+                    ["releaseDate"] = "2025-06-01",
+                    // The picture prdb offers for the work. An installation retains it rather than
+                    // pointing a browser here, so the address only has to be one this tool answers.
+                    ["images"] = new JsonArray(new JsonObject
+                    {
+                        ["id"] = CatalogueEntry.Identifier($"image:{entry.Title}").ToString(),
+                        ["url"] = $"{artworkBaseUrl}/videos/{entry.VideoId}/artwork.bmp",
+                    }),
                 },
             });
         }
@@ -148,6 +157,56 @@ public static class CatalogueAnswers
 
     private static JsonObject Site(CatalogueEntry entry) =>
         SiteItem(entry.SiteId, entry.SiteTitle);
+
+    /// <summary>
+    /// A picture for one work: a small uncompressed bitmap whose colour follows the title, so the
+    /// four seeded films are told apart at a glance and a review case has two pictures to compare.
+    /// </summary>
+    /// <remarks>
+    /// BMP rather than PNG because it needs no compression and no checksum, and rather than SVG
+    /// because a viewer that retains a picture and serves it back under its own address refuses
+    /// the one format that can carry markup.
+    /// </remarks>
+    public static byte[] Artwork(string title)
+    {
+        const int width = 160;
+        const int height = 90;
+        var seed = CatalogueEntry.Identifier($"image:{title}").ToByteArray();
+        var stride = (width * 3) + ((4 - ((width * 3) % 4)) % 4);
+        var pixels = new byte[stride * height];
+
+        for (var y = 0; y < height; y++)
+        {
+            for (var x = 0; x < width; x++)
+            {
+                // A flat ground with one diagonal band across it, so the picture reads as a
+                // picture rather than as a failed load.
+                var band = (x + y) % 40 < 12;
+                var offset = (y * stride) + (x * 3);
+                pixels[offset] = Shade(seed[0], band);
+                pixels[offset + 1] = Shade(seed[1], band);
+                pixels[offset + 2] = Shade(seed[2], band);
+            }
+        }
+
+        var file = new byte[54 + pixels.Length];
+        file[0] = (byte)'B';
+        file[1] = (byte)'M';
+        BitConverter.GetBytes(file.Length).CopyTo(file, 2);
+        BitConverter.GetBytes(54).CopyTo(file, 10);
+        BitConverter.GetBytes(40).CopyTo(file, 14);
+        BitConverter.GetBytes(width).CopyTo(file, 18);
+        BitConverter.GetBytes(height).CopyTo(file, 22);
+        BitConverter.GetBytes((short)1).CopyTo(file, 26);
+        BitConverter.GetBytes((short)24).CopyTo(file, 28);
+        BitConverter.GetBytes(pixels.Length).CopyTo(file, 34);
+        pixels.CopyTo(file, 54);
+
+        return file;
+    }
+
+    private static byte Shade(byte channel, bool band) =>
+        (byte)Math.Clamp(60 + (channel / 2) + (band ? 70 : 0), 0, 255);
 
     private static JsonObject Window(int limit) =>
         new()
