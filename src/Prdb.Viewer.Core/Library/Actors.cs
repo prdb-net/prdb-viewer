@@ -17,8 +17,8 @@ public enum ActorProfileState
 }
 
 /// <summary>
-/// Whether an Actor Image's bytes are held here. A picture is served from this installation's own
-/// origin or not at all; the browser is never sent to prdb for one.
+/// Whether a retained picture's bytes are held here — an Actor's, or a work's. A picture is served
+/// from this installation's own origin or not at all; the browser is never sent to prdb for one.
 /// </summary>
 public enum ActorImageState
 {

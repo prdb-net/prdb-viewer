@@ -96,12 +96,38 @@ public static class CatalogueAnswers
     /// detail of an identification or as an answer to <c>POST /videos/batch</c>, so both are built
     /// here and a test cannot see a difference the real API does not have.
     /// </summary>
-    public static JsonObject VideoDetail(CatalogueEntry entry, string artworkBaseUrl) =>
-        new()
+    public static JsonObject VideoDetail(CatalogueEntry entry, string artworkBaseUrl)
+    {
+        var site = Site(entry);
+        // The network is the one fact that relates two Sites, so the stand-in has one.
+        site["network"] = new JsonObject
+        {
+            ["id"] = CatalogueEntry.Identifier($"network:{entry.SiteTitle}").ToString(),
+            ["title"] = $"{entry.SiteTitle} Network",
+            ["url"] = $"https://example.invalid/{CatalogueEntry.Identifier($"network:{entry.SiteTitle}")}",
+        };
+
+        return new JsonObject
         {
             ["id"] = entry.VideoId.ToString(),
             ["title"] = entry.Title,
-            ["site"] = Site(entry),
+            ["site"] = site,
+            ["preNames"] = new JsonArray(new JsonObject
+            {
+                ["id"] = CatalogueEntry.Identifier($"prename:{entry.Title}").ToString(),
+                ["title"] = $"{entry.Title.Replace(' ', '.')}.1080p.WEB-DL",
+            }),
+            ["durationSpreadMs"] = 4_000,
+            ["durationFileCount"] = 3,
+            ["qualityOverview"] = new JsonObject
+            {
+                ["resolutions"] = new JsonArray(
+                    new JsonObject { ["width"] = 3840, ["height"] = 2160, ["fileCount"] = 1 },
+                    new JsonObject { ["width"] = 1920, ["height"] = 1080, ["fileCount"] = 2 }),
+                ["videoCodecs"] = new JsonArray(
+                    new JsonObject { ["codec"] = "h264", ["fileCount"] = 2 },
+                    new JsonObject { ["codec"] = "av1", ["fileCount"] = 1 }),
+            },
             ["actors"] = new JsonArray(entry.Actors
                 .Select(actor => (JsonNode)new JsonObject
                 {
@@ -111,14 +137,21 @@ public static class CatalogueAnswers
                 .ToArray()),
             ["durationMs"] = 12_345_000,
             ["releaseDate"] = "2025-06-01",
-            // The picture prdb offers for the work. An installation retains it rather than
-            // pointing a browser here, so the address only has to be one this tool answers.
-            ["images"] = new JsonArray(new JsonObject
-            {
-                ["id"] = CatalogueEntry.Identifier($"image:{entry.Title}").ToString(),
-                ["url"] = $"{artworkBaseUrl}/videos/{entry.VideoId}/artwork.bmp",
-            }),
+            // The pictures prdb offers for the work. An installation retains them rather than
+            // pointing a browser here, so the addresses only have to be ones this tool answers.
+            ["images"] = new JsonArray(
+                new JsonObject
+                {
+                    ["id"] = CatalogueEntry.Identifier($"image:{entry.Title}").ToString(),
+                    ["url"] = $"{artworkBaseUrl}/videos/{entry.VideoId}/artwork.bmp",
+                },
+                new JsonObject
+                {
+                    ["id"] = CatalogueEntry.Identifier($"image:{entry.Title}:2").ToString(),
+                    ["url"] = $"{artworkBaseUrl}/videos/{entry.VideoId}/artwork.bmp",
+                }),
         };
+    }
 
     /// <summary>
     /// The answer to <c>POST /actors/batch</c>: a bare array of Actor documents, built from the

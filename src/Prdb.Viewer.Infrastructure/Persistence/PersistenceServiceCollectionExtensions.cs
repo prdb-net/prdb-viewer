@@ -71,6 +71,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IPrdbActorProfileClient, PrdbActorProfileClient>();
         services.AddScoped<ActorProfileRetention>();
         services.AddScoped<ActorImageRetention>();
+        services.AddScoped<WorkImageRetention>();
         services.AddScoped<IRetainedImageClient, RetainedImageClient>();
         services.AddScoped<ProposedWorkArtworkRetention>();
         services.AddTransient<ProductUserAgentHandler>();

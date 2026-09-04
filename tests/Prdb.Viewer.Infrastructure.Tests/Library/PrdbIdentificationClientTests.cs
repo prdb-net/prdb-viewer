@@ -70,6 +70,30 @@ public sealed class PrdbIdentificationClientTests
     }
 
     [Fact]
+    public async Task The_rest_of_what_the_answer_carries_is_read_rather_than_dropped()
+    {
+        var prdb = new FakePrdb().Recognises("known.mp4", "A Known Work", "Example Site");
+
+        var work = (await IdentifyAsync(prdb, (FirstFile, "known.mp4"))).Results.Single().Work;
+
+        Assert.NotNull(work);
+
+        // One identification answer pays for all of this, and all of it used to be thrown away in
+        // the line that read the title.
+        Assert.Equal("Example Site Network", work.Network?.Title);
+        Assert.Equal(["A.Known.Work.1080p.WEB-DL"], work.ReleaseNames);
+        Assert.Equal(4_000, work.Duration?.SpreadMilliseconds);
+        Assert.Equal(3, work.Duration?.FileCount);
+        Assert.Equal(["3840×2160", "1920×1080"], work.QualityOverview?.Resolutions);
+        Assert.Equal(["h264", "av1"], work.QualityOverview?.VideoCodecs);
+        Assert.Equal(2, work.Images.Count);
+
+        // The first image is what the review case has always compared against, so it stays where
+        // the rest of the code already looks for it.
+        Assert.Equal(work.Images[0].Url, work.ArtworkUrl);
+    }
+
+    [Fact]
     public async Task A_file_prdb_does_not_hold_comes_back_answered_rather_than_missing()
     {
         var prdb = new FakePrdb().Recognises("known.mp4", "A Known Work");

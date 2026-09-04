@@ -19,6 +19,7 @@ public sealed class IdentificationRunner(
     IPrdbIdentificationClient client,
     IdentificationService identification,
     ProposedWorkArtworkRetention artwork,
+    WorkImageRetention workImages,
     WorkIssueRecorder issues,
     TimeProvider timeProvider) : VideoFileWorkRunner(database, issues, timeProvider)
 {
@@ -202,6 +203,10 @@ public sealed class IdentificationRunner(
         // here rather than at prdb. A picture that does not arrive leaves the proposal decidable on
         // its words, so this never holds the lane and never raises an issue of its own.
         await artwork.RetainAsync(cancellationToken);
+
+        // And the pictures of the works this batch established, for the same reason and with the
+        // same disposition: a picture that does not arrive costs a gallery, not an Administrator.
+        await workImages.RetainAsync(cancellationToken);
 
         var answered = result.Results.Select(identified => identified.VideoFileId).ToHashSet();
         var unanswered = files

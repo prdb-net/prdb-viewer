@@ -677,3 +677,12 @@ body.filters-open .app-content {
 .actor-favourite { position: absolute; top: .9rem; right: .9rem; opacity: 0; }
 .actor-card:hover .actor-favourite, .actor-card:focus-within .actor-favourite, .actor-favourite.selected, .actor-favourite:focus-visible { opacity: 1; }
 .page-heading .quiet-button svg { vertical-align: -.15em; margin-right: .3rem; }
+
+/* What prdb knows about the work, beside what this installation knows about the file. */
+.work-facts { margin-top: 2rem; }
+.work-facts .fact-list { max-width: 32rem; }
+.work-facts h4 { margin: 1.25rem 0 .5rem; font-size: .85rem; color: var(--muted); }
+.release-names ul { margin: 0; padding-left: 1.1rem; }
+.release-names code { font-size: .82rem; word-break: break-all; }
+.work-gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr)); gap: .75rem; }
+.work-gallery-grid img { width: 100%; border-radius: .75rem; background: var(--surface); }

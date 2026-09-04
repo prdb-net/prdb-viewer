@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 using Microsoft.EntityFrameworkCore;
 
 using Prdb.Viewer.Core.Library;
@@ -484,6 +486,9 @@ public sealed class IdentificationService(
             .Include(video => video.Metadata)
             .Include(video => video.IdentificationClaims)
             .Include(video => video.IdentificationCandidates)
+            // The retained pictures of the work, because retaining the metadata reconciles them:
+            // without them loaded, every answer would add the same picture again.
+            .Include(video => video.WorkImages)
             .SingleAsync(video => video.Id == videoId, cancellationToken);
 
     public static IdentificationClaimRow? Current(
@@ -646,10 +651,78 @@ public sealed class IdentificationService(
         metadata.SiteUrl = work.Site?.Url;
         metadata.ActorsJson = Retained(work.Actors);
         metadata.ArtworkUrl = work.ArtworkUrl;
+        metadata.NetworkTitle = work.Network?.Title;
+        metadata.NetworkUrl = work.Network?.Url;
+        metadata.ReleaseNamesJson = work.ReleaseNames.Count == 0
+            ? null
+            : JsonSerializer.Serialize(work.ReleaseNames, RetainedWorkFacts.Json);
         metadata.ReleaseDate = work.ReleaseDate;
         metadata.DurationMilliseconds = work.DurationMilliseconds;
+        metadata.DurationSpreadMilliseconds = work.Duration?.SpreadMilliseconds;
+        metadata.DurationFileCount = work.Duration?.FileCount;
+        metadata.QualityOverviewJson = work.QualityOverview is null
+            ? null
+            : JsonSerializer.Serialize(work.QualityOverview, RetainedWorkFacts.Json);
         metadata.FetchedAt = Now();
+        RetainWorkImages(video, work.Images);
         return true;
+    }
+
+    /// <summary>
+    /// Records which pictures prdb offers for this work, and leaves the bytes to the retention
+    /// lane. A picture whose address has changed is asked for again and is not served in the
+    /// meantime, for the reason a proposed work's is not: the file is still there, but it is no
+    /// longer the picture prdb offers.
+    /// </summary>
+    private void RetainWorkImages(VideoRow video, IReadOnlyList<RemoteWorkImage> images)
+    {
+        var wanted = images
+            .DistinctBy(image => image.Id, StringComparer.OrdinalIgnoreCase)
+            .Take(RetainedWorkFacts.MaximumImages)
+            .ToArray();
+
+        foreach (var existing in video.WorkImages.ToArray())
+        {
+            if (!wanted.Any(image =>
+                    string.Equals(image.Id, existing.PrdbImageId, StringComparison.OrdinalIgnoreCase)))
+            {
+                video.WorkImages.Remove(existing);
+                database.VideoImages.Remove(existing);
+            }
+        }
+
+        for (var position = 0; position < wanted.Length; position++)
+        {
+            var image = wanted[position];
+            var existing = video.WorkImages.FirstOrDefault(row =>
+                string.Equals(row.PrdbImageId, image.Id, StringComparison.OrdinalIgnoreCase));
+
+            if (existing is null)
+            {
+                video.WorkImages.Add(new VideoImageRow
+                {
+                    Id = Guid.CreateVersion7(),
+                    VideoId = video.Id,
+                    PrdbImageId = image.Id,
+                    SourceUrl = image.Url,
+                    Position = position,
+                    State = ActorImageState.Pending,
+                });
+                continue;
+            }
+
+            if (!string.Equals(existing.SourceUrl, image.Url, StringComparison.Ordinal))
+            {
+                existing.SourceUrl = image.Url;
+                existing.State = ActorImageState.Pending;
+            }
+            else if (existing.State == ActorImageState.Unavailable)
+            {
+                existing.State = ActorImageState.Pending;
+            }
+
+            existing.Position = position;
+        }
     }
 
     private static VideoRow Survivor(VideoRow left, VideoRow right)

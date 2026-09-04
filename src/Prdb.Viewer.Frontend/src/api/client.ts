@@ -44,6 +44,7 @@ export type ActorDetail = components['schemas']['ActorDetail']
 export type ActorIndexPage = components['schemas']['ActorIndexPage']
 export type ActorSummary = components['schemas']['ActorSummary']
 export type ActorSortOrder = components['schemas']['ActorSortOrder']
+export type WorkFacts = components['schemas']['WorkFacts']
 
 export type LibraryFilters = {
   query: string

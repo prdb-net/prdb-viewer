@@ -144,6 +144,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/media/works/{imageId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    imageId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/media/actors/{imageId}": {
         parameters: {
             query?: never;
@@ -2739,6 +2774,7 @@ export interface components {
             video: components["schemas"]["VideoSummary"];
             /** Format: uuid */
             supersededVideoId: null | string;
+            work?: null | components["schemas"]["WorkFacts"];
         };
         /** @enum {unknown} */
         VideoFileAvailability: "Available" | "Unreachable" | "Missing" | "Replaced" | "Removed";
@@ -2759,6 +2795,20 @@ export interface components {
             isUnsupportedVideo: boolean;
             videoFiles: components["schemas"]["PlaybackVariantView"][];
             personalState: components["schemas"]["PersonalVideoStateSummary"];
+        };
+        WorkFacts: {
+            networkTitle: null | string;
+            networkUrl: null | string;
+            releaseNames: string[];
+            /** Format: int64 */
+            durationSpreadMilliseconds: null | number | string;
+            /** Format: int32 */
+            durationFileCount: null | number | string;
+            resolutions: string[];
+            videoCodecs: string[];
+            imageUrls: string[];
+            /** Format: date-time */
+            fetchedAt: null | string;
         };
         /** @enum {unknown} */
         WorkIssueAction: "RetryNow" | "CheckAgain" | "OpenPrdbSettings" | "OpenLibraryDirectory" | "ViewAffectedItems" | "CopyOperatorHandoff";

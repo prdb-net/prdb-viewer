@@ -29,6 +29,7 @@ public sealed class EnrichmentRunner(
     IdentificationService identification,
     ActorProfileRetention actors,
     ActorImageRetention actorImages,
+    WorkImageRetention workImages,
     WorkIssueRecorder issues,
     TimeProvider timeProvider) : VideoFileWorkRunner(database, issues, timeProvider)
 {
@@ -69,6 +70,9 @@ public sealed class EnrichmentRunner(
             (Database.VideoMetadata.Any(metadata =>
                 metadata.VideoId == file.VideoId &&
                 (metadata.EnrichedAt == null || metadata.EnrichedAt < horizon)) ||
+             Database.VideoImages.Any(image =>
+                image.VideoId == file.VideoId &&
+                image.State == ActorImageState.Pending) ||
              Database.VideoActors.Any(credit =>
                 credit.VideoId == file.VideoId &&
                 credit.PrdbActorId != null &&
@@ -237,6 +241,7 @@ public sealed class EnrichmentRunner(
         // A picture that does not arrive is recorded as unavailable and tried again at the next
         // refresh, so an outage costs a gallery for a while rather than for good.
         await actorImages.RetainAsync(cancellationToken);
+        await workImages.RetainAsync(cancellationToken);
     }
 
     /// <summary>

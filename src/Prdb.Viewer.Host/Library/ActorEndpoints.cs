@@ -48,6 +48,27 @@ public static class ActorEndpoints
             return actor is null ? TypedResults.NotFound() : TypedResults.Ok(actor);
         });
 
+        // A work's pictures are prdb's, held here and served by a random identifier like every
+        // other retained picture. The preview beside them is this installation's own.
+        routes.MapGet("/media/works/{imageId:guid}", async (
+            Guid imageId,
+            PreviewDeliveryService previews,
+            CancellationToken cancellationToken) =>
+        {
+            var image = await previews.OpenWorkImageAsync(imageId, cancellationToken);
+
+            return image is null
+                ? Results.NotFound()
+                : Results.Stream(
+                    image.Content,
+                    image.ContentType,
+                    fileDownloadName: null,
+                    lastModified: image.LastModified,
+                    enableRangeProcessing: false);
+        })
+        .WithTags("Preview Delivery")
+        .AllowAnonymous();
+
         // An Actor's picture is served from application storage under a random, non-enumerable
         // identifier, the way a preview is, so an Actor's page is one origin rather than two and
         // prdb never sees which installation looked at whom (ADR 0020).

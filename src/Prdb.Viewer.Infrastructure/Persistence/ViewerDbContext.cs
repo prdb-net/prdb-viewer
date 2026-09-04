@@ -45,6 +45,8 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<VideoMetadataRow> VideoMetadata => Set<VideoMetadataRow>();
 
+    public DbSet<VideoImageRow> VideoImages => Set<VideoImageRow>();
+
     public DbSet<IdentificationClaimRow> IdentificationClaims => Set<IdentificationClaimRow>();
 
     public DbSet<IdentificationCandidateRow> IdentificationCandidates =>
@@ -351,6 +353,23 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             metadata.HasOne(row => row.Video)
                 .WithOne(row => row.Metadata)
                 .HasForeignKey<VideoMetadataRow>(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<VideoImageRow>(image =>
+        {
+            image.ToTable("video_image");
+            image.HasKey(row => row.Id);
+            image.Property(row => row.Id).ValueGeneratedNever();
+            image.Property(row => row.PrdbImageId).IsRequired();
+            image.Property(row => row.SourceUrl).IsRequired();
+            image.Property(row => row.State).HasConversion<string>();
+            image.HasIndex(row => new { row.VideoId, row.PrdbImageId }).IsUnique();
+            image.HasIndex(row => row.PublicImageId);
+            image.HasIndex(row => row.State);
+            image.HasOne(row => row.Video)
+                .WithMany(row => row.WorkImages)
+                .HasForeignKey(row => row.VideoId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

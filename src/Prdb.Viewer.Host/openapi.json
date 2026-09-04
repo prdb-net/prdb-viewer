@@ -94,6 +94,29 @@
         }
       }
     },
+    "/media/works/{imageId}": {
+      "get": {
+        "tags": [
+          "Preview Delivery"
+        ],
+        "parameters": [
+          {
+            "name": "imageId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
     "/media/actors/{imageId}": {
       "get": {
         "tags": [
@@ -4835,6 +4858,16 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "work": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/WorkFacts"
+              }
+            ]
           }
         }
       },
@@ -4918,6 +4951,83 @@
           },
           "personalState": {
             "$ref": "#/components/schemas/PersonalVideoStateSummary"
+          }
+        }
+      },
+      "WorkFacts": {
+        "required": [
+          "networkTitle",
+          "networkUrl",
+          "releaseNames",
+          "durationSpreadMilliseconds",
+          "durationFileCount",
+          "resolutions",
+          "videoCodecs",
+          "imageUrls",
+          "fetchedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "networkTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "networkUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "releaseNames": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "durationSpreadMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "durationFileCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "resolutions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "videoCodecs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "imageUrls": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "fetchedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },

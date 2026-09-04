@@ -21,6 +21,8 @@ public sealed class DerivedArtifactStore(ViewerDatabaseLocation location)
 
     private const string ActorDirectoryName = "actors";
 
+    private const string WorkDirectoryName = "works";
+
     public string PreviewsRoot { get; } = Path.Combine(location.DataDirectory, PreviewDirectoryName);
 
     /// <summary>
@@ -92,6 +94,26 @@ public sealed class DerivedArtifactStore(ViewerDatabaseLocation location)
 
     public void EnsureActorImageDirectory(string relativePath) =>
         Directory.CreateDirectory(Path.GetDirectoryName(ActorImageFullPath(relativePath))!);
+
+    /// <summary>
+    /// Where the pictures prdb offers for Established Works are held. Distinct from the previews
+    /// this installation generates: one is the catalogue's picture of the work, the other is this
+    /// installation's picture of the file it holds.
+    /// </summary>
+    public string WorkImagesRoot { get; } = Path.Combine(location.DataDirectory, WorkDirectoryName);
+
+    public static string WorkImageRelativePath(Guid imageId, string contentType)
+    {
+        var name = imageId.ToString("n");
+
+        return $"{name[..2]}/{name}{ArtworkExtension(contentType)}";
+    }
+
+    public string WorkImageFullPath(string relativePath) =>
+        Path.Combine(WorkImagesRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));
+
+    public void EnsureWorkImageDirectory(string relativePath) =>
+        Directory.CreateDirectory(Path.GetDirectoryName(WorkImageFullPath(relativePath))!);
 
     public string ArtworkFullPath(string relativePath) =>
         Path.Combine(ArtworkRoot, relativePath.Replace('/', Path.DirectorySeparatorChar));

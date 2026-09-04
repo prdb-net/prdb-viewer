@@ -185,7 +185,55 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
 
         return loaded.Count == 0
             ? null
-            : new VideoDetail(loaded[0], addressed.Value == videoId ? null : videoId);
+            : new VideoDetail(
+                loaded[0],
+                addressed.Value == videoId ? null : videoId,
+                await WorkFactsAsync(addressed.Value, loaded[0], cancellationToken));
+    }
+
+    /// <summary>
+    /// The rest of what prdb said about this Video's Established Work. It is read only for a
+    /// Video's own page, so the Library pays nothing for it.
+    /// </summary>
+    private async Task<WorkFacts?> WorkFactsAsync(
+        Guid videoId,
+        VideoSummary summary,
+        CancellationToken cancellationToken)
+    {
+        if (summary.Identification.Work.Resolution != IdentificationResolution.Established)
+        {
+            return null;
+        }
+
+        var metadata = await database.VideoMetadata
+            .AsNoTracking()
+            .SingleOrDefaultAsync(row => row.VideoId == videoId, cancellationToken);
+
+        if (metadata is null)
+        {
+            return null;
+        }
+
+        var images = await database.VideoImages
+            .AsNoTracking()
+            .Where(image => image.VideoId == videoId &&
+                            image.State == ActorImageState.Retained &&
+                            image.PublicImageId != null)
+            .OrderBy(image => image.Position)
+            .Select(image => image.PublicImageId!.Value)
+            .ToListAsync(cancellationToken);
+        var quality = RetainedWorkFacts.QualityOverview(metadata.QualityOverviewJson);
+
+        return new WorkFacts(
+            metadata.NetworkTitle,
+            metadata.NetworkUrl,
+            RetainedWorkFacts.ReleaseNames(metadata.ReleaseNamesJson),
+            metadata.DurationSpreadMilliseconds,
+            metadata.DurationFileCount,
+            quality?.Resolutions ?? [],
+            quality?.VideoCodecs ?? [],
+            images.Select(id => $"/media/works/{id}").ToArray(),
+            VideoPresentation.AsOffset(metadata.FetchedAt));
     }
 
     /// <summary>
