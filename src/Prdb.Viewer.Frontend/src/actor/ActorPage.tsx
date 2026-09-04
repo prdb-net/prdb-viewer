@@ -136,6 +136,8 @@ export function ActorPage({ account }: { account: Account }) {
         <section className="actor-gallery" aria-labelledby="actor-gallery-title">
           <div className="section-heading">
             <h3 id="actor-gallery-title">Pictures</h3>
+            {/* What is in the gallery, counted. Where prdb offers more than are held, it says so
+                rather than presenting a capped gallery as the whole of one. */}
             <span className="muted">
               {offeredImages > actor.images.length
                 ? `${actor.images.length} of ${offeredImages} prdb offers`
@@ -143,7 +145,7 @@ export function ActorPage({ account }: { account: Account }) {
             </span>
           </div>
           <div className="actor-gallery-grid">
-            {actor.images.slice(1).map((image) => (
+            {actor.images.map((image) => (
               <img key={image.url} src={image.url} alt="" loading="lazy" />
             ))}
           </div>

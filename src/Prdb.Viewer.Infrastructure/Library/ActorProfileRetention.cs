@@ -60,6 +60,9 @@ public sealed class ActorProfileRetention(
                                  actor.PrdbActorId == credit.PrdbActorId))
             .Select(credit => new { credit.PrdbActorId, credit.Name, credit.NormalizedName })
             .Distinct()
+            // Ordered before it is cut, so a library with more outstanding credits than one slice
+            // holds works through them rather than being handed an arbitrary five hundred twice.
+            .OrderBy(credit => credit.PrdbActorId)
             .Take(500)
             .ToListAsync(cancellationToken);
 
@@ -107,6 +110,9 @@ public sealed class ActorProfileRetention(
             .Take(client.BatchLimit)
             .Include(actor => actor.Aliases)
             .Include(actor => actor.Images)
+            // Two collections on one Actor multiply each other in a single query, which is rows
+            // this has no use for.
+            .AsSplitQuery()
             .ToListAsync(cancellationToken);
 
         if (outstanding.Count == 0)

@@ -162,8 +162,12 @@ locally.
 
 The viewer does not rely on prdb for every file. It generates its own preview
 images and retains basic file metadata for unknown videos. In the MVP it also
-tries to determine the site from local evidence. Actor recognition and deeper
-matching for videos without a prdb identification belong to the roadmap.
+tries to determine the site from local evidence. Actor *recognition* — working
+out who is in a file prdb cannot identify — and deeper matching for videos
+without a prdb identification belong to the roadmap. What prdb does say about
+the actors of a video it has identified is kept: they are a durable part of the
+shared library, with pages, metadata and artwork held locally so they read
+through an outage.
 
 An expired subscription, rejected key or sustained API outage is a visible
 degraded state, not a lockout. New identifications and metadata updates stop,
@@ -389,7 +393,10 @@ to solve every kind of recognition or organisation. It includes:
     surfaces.
 13. A preference and filter for showing unsupported files, including their
     titles and previews when available.
-14. Command-line operations that create and restore a protected, portable
+14. Actors as a part of the library in their own right: an identity taken from
+    prdb, a page for each with the metadata and artwork prdb holds, an index to
+    browse them from, and a per-user list of favourite actors.
+15. Command-line operations that create and restore a protected, portable
     backup and recover access when the administrator password is lost.
 
 The emphasis is reliable prdb matching, useful previews, site recognition and a

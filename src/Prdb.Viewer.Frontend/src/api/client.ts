@@ -45,6 +45,7 @@ export type ActorIndexPage = components['schemas']['ActorIndexPage']
 export type ActorSummary = components['schemas']['ActorSummary']
 export type ActorSortOrder = components['schemas']['ActorSortOrder']
 export type WorkFacts = components['schemas']['WorkFacts']
+export type FavouriteActorResult = components['schemas']['FavouriteActorResult']
 
 export type LibraryFilters = {
   query: string
@@ -218,7 +219,7 @@ export const api = {
   video: (videoId: string) => request<VideoDetail>(`/api/library/videos/${videoId}`),
   actor: (actorId: string) => request<ActorDetail>(`/api/library/actors/${actorId}`),
   setFavouriteActor: (actorId: string, selected: boolean, csrfToken: string) =>
-    mutate<void>(
+    mutate<FavouriteActorResult>(
       `/api/personal/actors/${actorId}/favourite`,
       selected ? 'PUT' : 'DELETE',
       csrfToken,

@@ -12,9 +12,11 @@ authenticated catalogue, direct browser playback path, Account-private playback
 and Personal State surfaces, a searchable and filterable library whose playability
 is assessed per Account and browser, prdb identification with local preview
 images, local site recognition and an Administrator review workflow, the
-observable background-work operations surface, and operator backup and restore,
-presented as a navigable application in which every screen — and every Video —
-has its own address. See
+observable background-work operations surface, operator backup and restore, and
+Actors as a part of the library in their own right — a page each, an index to
+browse them from, everything prdb knows about them held locally, and a Favourite
+Actor per Account — presented as a navigable application in which every screen,
+every Video and every Actor has its own address. See
 [VISION.md](VISION.md) for the product contract.
 
 ## Prerequisites

@@ -1591,7 +1591,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavouriteActorResult"
+                }
+              }
+            }
           },
           "404": {
             "description": "Not Found"
@@ -1615,7 +1622,14 @@
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavouriteActorResult"
+                }
+              }
+            }
           },
           "404": {
             "description": "Not Found"
@@ -2676,6 +2690,17 @@
         "type": "object",
         "properties": {
           "ended": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FavouriteActorResult": {
+        "required": [
+          "favourite"
+        ],
+        "type": "object",
+        "properties": {
+          "favourite": {
             "type": "boolean"
           }
         }

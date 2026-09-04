@@ -8,6 +8,9 @@ using Prdb.Viewer.Infrastructure.Personal;
 
 namespace Prdb.Viewer.Host.Personal;
 
+/// <summary>Whether this Account now keeps the Actor.</summary>
+public sealed record FavouriteActorResult(bool Favourite);
+
 public static class PersonalStateEndpoints
 {
     public static void MapPersonalState(this IEndpointRouteBuilder routes)
@@ -136,8 +139,9 @@ public static class PersonalStateEndpoints
             .RequireCsrf();
 
         // An Actor is not a Video, so this is not a Personal Video State mutation and does not
-        // answer with one: it says whether the Actor is one this installation knows.
-        personal.MapPut("/actors/{actorId:guid}/favourite", async Task<Results<Ok, NotFound>> (
+        // answer with one. It answers with what it decided, which is what the screen reads back:
+        // an empty body would be a body the client cannot parse.
+        personal.MapPut("/actors/{actorId:guid}/favourite", async Task<Results<Ok<FavouriteActorResult>, NotFound>> (
             Guid actorId,
             PersonalStateService service,
             HttpContext http,
@@ -147,11 +151,11 @@ public static class PersonalStateEndpoints
                 actorId.ToString(),
                 selected: true,
                 cancellationToken)
-                ? TypedResults.Ok()
+                ? TypedResults.Ok(new FavouriteActorResult(true))
                 : TypedResults.NotFound())
             .RequireCsrf();
 
-        personal.MapDelete("/actors/{actorId:guid}/favourite", async Task<Results<Ok, NotFound>> (
+        personal.MapDelete("/actors/{actorId:guid}/favourite", async Task<Results<Ok<FavouriteActorResult>, NotFound>> (
             Guid actorId,
             PersonalStateService service,
             HttpContext http,
@@ -161,7 +165,7 @@ public static class PersonalStateEndpoints
                 actorId.ToString(),
                 selected: false,
                 cancellationToken)
-                ? TypedResults.Ok()
+                ? TypedResults.Ok(new FavouriteActorResult(false))
                 : TypedResults.NotFound())
             .RequireCsrf();
 

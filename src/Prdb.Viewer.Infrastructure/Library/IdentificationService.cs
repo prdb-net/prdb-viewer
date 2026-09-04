@@ -489,6 +489,9 @@ public sealed class IdentificationService(
             // The retained pictures of the work, because retaining the metadata reconciles them:
             // without them loaded, every answer would add the same picture again.
             .Include(video => video.WorkImages)
+            // Three collections on one Video multiply each other in a single query: a Video with
+            // five claims, ten candidates and twelve pictures is six hundred rows for twenty-seven.
+            .AsSplitQuery()
             .SingleAsync(video => video.Id == videoId, cancellationToken);
 
     public static IdentificationClaimRow? Current(

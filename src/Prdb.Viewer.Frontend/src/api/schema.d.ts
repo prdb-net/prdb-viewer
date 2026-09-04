@@ -1874,7 +1874,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["FavouriteActorResult"];
+                    };
                 };
                 /** @description Not Found */
                 404: {
@@ -1902,7 +1904,9 @@ export interface paths {
                     headers: {
                         [name: string]: unknown;
                     };
-                    content?: never;
+                    content: {
+                        "application/json": components["schemas"]["FavouriteActorResult"];
+                    };
                 };
                 /** @description Not Found */
                 404: {
@@ -2276,6 +2280,9 @@ export interface components {
         DirectPlayClassification: "BaselineCandidate" | "ClientDependent" | "Unsupported" | "Undetermined";
         EndPlaybackAttemptResponse: {
             ended: boolean;
+        };
+        FavouriteActorResult: {
+            favourite: boolean;
         };
         HealthResponse: {
             status: string;

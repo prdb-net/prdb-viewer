@@ -172,6 +172,9 @@ public static class CatalogueAnswers
             .SelectMany(entry => entry.Actors)
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Where(actor => asked.Contains(CatalogueEntry.Identifier($"actor:{actor}").ToString()))
+            // One Actor prdb has nothing to say about, which is the third state every screen has
+            // to draw: named by a Video, reachable, and with no profile behind them at all.
+            .Where(actor => !Unlisted.Contains(actor))
             .Select(actor => (JsonNode)ActorDetail(actor, artworkBaseUrl))
             .ToArray();
 
@@ -239,6 +242,10 @@ public static class CatalogueAnswers
     /// <summary>The Actors this stand-in describes fully. Everyone else is a name and pictures.</summary>
     private static readonly HashSet<string> Described =
         new(StringComparer.OrdinalIgnoreCase) { "Alex Doe", "Robin Fay" };
+
+    /// <summary>The Actors it answers nothing at all about, so the empty page is exercised too.</summary>
+    private static readonly HashSet<string> Unlisted =
+        new(StringComparer.OrdinalIgnoreCase) { "Jules Poe" };
 
     /// <summary>The answer to <c>POST /videos/batch</c>: a bare array of work documents.</summary>
     public static string VideosByIds(

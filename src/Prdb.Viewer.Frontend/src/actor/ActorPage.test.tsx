@@ -160,13 +160,18 @@ describe('ActorPage', () => {
 
   it('keeps an Actor without keeping any of their Videos', async () => {
     const asked: { url: string; method?: string }[] = []
+    let kept = false
     signedInAs('User', (input, init?: RequestInit) => {
       if (typeof input === 'string' && input === `/api/library/actors/${actorId}`) {
-        return json(actor())
+        return json(actor({ favourite: kept }))
       }
       if (typeof input === 'string' && input.includes('/favourite')) {
         asked.push({ url: input, method: init?.method })
-        return json({})
+        kept = true
+        // What the endpoint actually answers. It used to answer nothing, and the client reads
+        // every answer as JSON — so the request succeeded, the mutation failed, and the screen
+        // went on saying the Actor was not kept. Only the browser suite saw it.
+        return json({ favourite: true })
       }
       return undefined
     })
@@ -179,6 +184,11 @@ describe('ActorPage', () => {
     await waitFor(() => expect(asked).toHaveLength(1))
     expect(asked[0].url).toBe(`/api/personal/actors/${actorId}/favourite`)
     expect(asked[0].method).toBe('PUT')
+
+    // And the screen says so afterwards, which is the half a request assertion cannot see.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Favourite' }).getAttribute('aria-pressed'))
+        .toBe('true'))
   })
 
   it('says so when the link names nobody this library credits', async () => {

@@ -644,7 +644,13 @@ body.filters-open .app-content {
 .actor-detail { display: grid; grid-template-columns: minmax(0, 18rem) minmax(0, 1fr); gap: 1.5rem; align-items: start; margin-top: 1rem; }
 .actor-portrait img { width: 100%; border-radius: 1rem; background: var(--surface); }
 .actor-portrait small { display: block; margin-top: .5rem; }
+/* Narrower than a portrait, because a picture that is not there should not be the largest thing
+   on the page. */
+.actor-portrait:has(.actor-placeholder) { max-width: 12rem; }
 .actor-placeholder { display: grid; place-items: center; aspect-ratio: 3 / 4; border-radius: 1rem; background: var(--surface); color: var(--muted); font-size: 3rem; }
+/* A fact list spread across a wide screen puts the label and its value at opposite ends of the
+   window, with a metre of nothing between them. It is a column of facts, so it is a column. */
+.actor-facts { max-width: 34rem; }
 .actor-facts .fact-list { margin-top: 0; }
 .actor-aliases { margin: 1rem 0 0; font-size: .88rem; }
 .actor-links { display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0 0; padding: 0; list-style: none; }
@@ -663,7 +669,8 @@ body.filters-open .app-content {
 .actor-credits a:hover, .actor-credits a:focus-visible { text-decoration-color: currentcolor; }
 
 /* The index of Actors: read like the Library, drawn like a wall of faces. */
-.actor-index-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; }
+/* The count belongs beside the control it describes rather than at the far edge of the window. */
+.actor-index-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; margin-top: 1rem; }
 .actor-awaiting { margin: .75rem 0 0; font-size: .85rem; }
 .actor-index { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(8rem, 9vw, 12rem), 1fr)); gap: 1rem; margin-top: 1rem; }
 .actor-card { display: flex; flex-direction: column; gap: .35rem; padding: .6rem; border: 1px solid rgb(255 255 255 / 8%); border-radius: 1rem; background: var(--surface); color: inherit; text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
