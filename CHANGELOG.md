@@ -30,6 +30,14 @@ schema gains one column. **This release migrates.**
 
 ### Changed
 
+- The account sits behind one control in the corner of the header. It used to
+  carry the name as a link with `Sign out` as a button standing permanently
+  beside it: two controls for one subject, and an irreversible one given the
+  same standing as a destination. An avatar now opens a small menu that states
+  who is signed in, leads to the Account, and keeps signing out at its foot,
+  apart from what merely navigates. It answers Escape and a press beside it, and
+  gives the focus back to the control that opened it. A narrow viewport had no
+  room for the name and hid it; the menu shows it on every width.
 - A facet that could not be answered whole no longer offers to show all of it.
   The control now says how many values it has — `Show 50 most common` — and the
   field beside it is how the rest is reached. It still reads `Show all N` where

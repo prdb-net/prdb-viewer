@@ -942,7 +942,7 @@ describe('App', () => {
 
     // The standing preference is not a filter, so it lives with the Account rather than beside
     // the facets, and can be turned off again from there.
-    fireEvent.click(screen.getByRole('link', { name: 'viewer' }))
+    fireEvent.click(screen.getByRole('link', { name: 'Your Account' }))
     const preference = await screen.findByLabelText('Show unsupported Videos in ordinary results')
     await vi.waitFor(() => expect(preference).toBeChecked())
     fireEvent.click(preference)
