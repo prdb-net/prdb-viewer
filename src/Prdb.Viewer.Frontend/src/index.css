@@ -32,7 +32,7 @@ p { color: #bdb8c7; line-height: 1.6; }
    state opt out below; everything else used to rely on whatever the browser drew over a dark
    surface, which on a dark surface is close to nothing. */
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.field input:focus-visible, .global-search input:focus-visible, .review-case textarea:focus-visible { outline: none; }
+.field input:focus-visible, .global-search input:focus-visible, .facet-search input:focus-visible, .review-case textarea:focus-visible { outline: none; }
 
 .visually-hidden {
   position: absolute;
@@ -270,6 +270,21 @@ p { color: #bdb8c7; line-height: 1.6; }
 /* A sheet has no room for a column of labels beside the values, so the label stands over its row. */
 .facet-group { display: block; }
 .facet-label { display: block; padding: 0 0 .35rem; color: var(--muted); font-size: .68rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+/* Looking for one value among a facet's own. It stands over the row rather than in it: a text
+   field among the pills reads as one of them. */
+.facet-search { display: block; margin-bottom: .5rem; }
+.facet-search input {
+  width: 100%;
+  padding: .4rem .7rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: 999px;
+  outline: none;
+  color: inherit;
+  background: rgb(0 0 0 / 30%);
+  font-size: .8rem;
+}
+.facet-search input:focus { border-color: #a984ff; box-shadow: 0 0 0 .2rem rgb(169 132 255 / 15%); }
+.facet-empty { color: var(--muted); font-size: .78rem; }
 .facet-row { display: flex; gap: .45rem; flex-wrap: wrap; min-width: 0; }
 .facet { padding: .4rem .7rem; border: 1px solid rgb(255 255 255 / 12%); border-radius: 999px; color: #cfc9d6; background: transparent; font: inherit; font-size: .78rem; cursor: pointer; }
 .facet:hover { border-color: rgb(205 183 255 / 45%); }

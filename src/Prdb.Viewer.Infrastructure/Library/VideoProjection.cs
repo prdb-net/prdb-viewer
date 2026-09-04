@@ -33,6 +33,7 @@ public sealed class VideoProjection(ViewerDbContext database, TimeProvider timeP
         video.DisplayLabel = label;
         video.HasEstablishedWork = work is not null;
         video.EstablishedSite = site?.TargetTitle;
+        video.NormalizedSite = site is null ? null : LibrarySearchRule.Normalize(site.TargetTitle);
         video.ReviewNeeded =
             IdentificationService.ReviewStatusOf(video, IdentificationDimension.WorkIdentification)
                 == IdentificationReviewStatus.ReviewNeeded ||

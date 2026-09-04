@@ -38,9 +38,17 @@ export function isFacetRequest(input: unknown) {
   return typeof input === 'string' && input.startsWith('/api/library/facets')
 }
 
-/// What the facets endpoint answers when a test is not about facets.
+/// What the facets endpoint answers when a test is not about facets. `moreSites` and `moreActors`
+/// default to false, which is what a library that fits inside one answer says.
 export function noFacets(overrides: Record<string, unknown> = {}) {
-  return { sites: [], actors: [], quality: [], ...overrides }
+  return {
+    sites: [],
+    actors: [],
+    quality: [],
+    moreSites: false,
+    moreActors: false,
+    ...overrides,
+  }
 }
 
 export function isLibraryRequest(input: unknown) {

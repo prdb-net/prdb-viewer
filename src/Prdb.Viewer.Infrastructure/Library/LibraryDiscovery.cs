@@ -22,7 +22,9 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
 {
     /// <summary>
     /// How many values a facet list offers. A facet is a way to narrow the Library, not a
-    /// catalogue of every Site and Actor it has ever seen.
+    /// catalogue of every Site and Actor it has ever seen. What the limit leaves out is reached by
+    /// searching the facet rather than by raising it, and the answer says when it left anything
+    /// out so that the view never claims to be listing them all.
     /// </summary>
     private const int FacetLimit = 50;
 
@@ -89,28 +91,52 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
     public async Task<LibraryFacets> GetFacetsAsync(
         Guid accountId,
         LibraryDiscoveryRequest request,
+        LibraryFacetSearch? search = null,
         CancellationToken cancellationToken = default)
     {
         var forSites = Matching(accountId, request with { Sites = [], UnknownSite = false });
         var forActors = Matching(accountId, request with { Actors = [] });
         var forQuality = Matching(accountId, request with { Quality = [] });
+        // A term is normalised the way the Library's own search normalises one, so looking for a
+        // Site ignores case, diacritics and ordinary punctuation there too. The projection stores
+        // both names normalised, which is what lets the database answer this rather than the
+        // browser.
+        var siteTerm = LibrarySearchRule.Normalize(search?.Sites);
+        var actorTerm = LibrarySearchRule.Normalize(search?.Actors);
 
-        var sites = await forSites
-            .Where(video => video.EstablishedSite != null)
+        var sitesQuery = forSites.Where(video => video.EstablishedSite != null);
+
+        if (siteTerm.Length > 0)
+        {
+            sitesQuery = sitesQuery.Where(video =>
+                video.NormalizedSite != null && video.NormalizedSite.Contains(siteTerm));
+        }
+
+        // One more than the limit, so the answer can say that it left something out without
+        // counting values nobody asked to see.
+        var sites = await sitesQuery
             .GroupBy(video => video.EstablishedSite!)
             .Select(group => new { Value = group.Key, Count = group.Count() })
             .OrderByDescending(value => value.Count)
             .ThenBy(value => value.Value)
-            .Take(FacetLimit)
+            .Take(FacetLimit + 1)
             .ToListAsync(cancellationToken);
-        var actors = await database.VideoActors
+
+        var actorsQuery = database.VideoActors
             .AsNoTracking()
-            .Where(actor => forActors.Any(video => video.Id == actor.VideoId))
+            .Where(actor => forActors.Any(video => video.Id == actor.VideoId));
+
+        if (actorTerm.Length > 0)
+        {
+            actorsQuery = actorsQuery.Where(actor => actor.NormalizedName.Contains(actorTerm));
+        }
+
+        var actors = await actorsQuery
             .GroupBy(actor => actor.Name)
             .Select(group => new { Value = group.Key, Count = group.Count() })
             .OrderByDescending(value => value.Count)
             .ThenBy(value => value.Value)
-            .Take(FacetLimit)
+            .Take(FacetLimit + 1)
             .ToListAsync(cancellationToken);
 
         var quality = await forQuality
@@ -119,12 +145,18 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             .ToListAsync(cancellationToken);
 
         return new LibraryFacets(
-            sites.Select(site => new LibraryFacetValue(site.Value, site.Count)).ToArray(),
-            actors.Select(actor => new LibraryFacetValue(actor.Value, actor.Count)).ToArray(),
+            sites.Take(FacetLimit)
+                .Select(site => new LibraryFacetValue(site.Value, site.Count))
+                .ToArray(),
+            actors.Take(FacetLimit)
+                .Select(actor => new LibraryFacetValue(actor.Value, actor.Count))
+                .ToArray(),
             quality
                 .OrderByDescending(band => band.Value)
                 .Select(band => new LibraryQualityFacetValue(band.Value, band.Count))
-                .ToArray());
+                .ToArray(),
+            sites.Count > FacetLimit,
+            actors.Count > FacetLimit);
     }
 
     /// <summary>

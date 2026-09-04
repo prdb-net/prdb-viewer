@@ -168,7 +168,7 @@ public sealed class LibraryDiscoveryTests
         var facets = await Discovery(scope).GetFacetsAsync(
             accountId,
             new LibraryDiscoveryRequest(),
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal("Example Site", Assert.Single(facets.Sites).Value);
         Assert.Equal("Alex Doe", Assert.Single(facets.Actors).Value);
     }
@@ -231,7 +231,7 @@ public sealed class LibraryDiscoveryTests
         var facets = await Discovery(scope).GetFacetsAsync(
             accountId,
             new LibraryDiscoveryRequest(),
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(
             [
                 (VideoQualityBand.Uhd2160, 1),
@@ -264,7 +264,7 @@ public sealed class LibraryDiscoveryTests
         var open = await Discovery(scope).GetFacetsAsync(
             accountId,
             new LibraryDiscoveryRequest(),
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(
             [("Site One", 1), ("Site Two", 1)],
             open.Sites.Select(site => (site.Value, site.Count)));
@@ -275,7 +275,7 @@ public sealed class LibraryDiscoveryTests
         var narrowed = await Discovery(scope).GetFacetsAsync(
             accountId,
             new LibraryDiscoveryRequest { Sites = ["Site One"] },
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(
             [("Site One", 1), ("Site Two", 1)],
             narrowed.Sites.Select(site => (site.Value, site.Count)));
@@ -285,9 +285,94 @@ public sealed class LibraryDiscoveryTests
         var searched = await Discovery(scope).GetFacetsAsync(
             accountId,
             new LibraryDiscoveryRequest { Query = "two" },
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(("Site Two", 1), Assert.Single(searched.Sites.Select(s => (s.Value, s.Count))));
         Assert.Equal(("Alex Doe", 1), Assert.Single(searched.Actors.Select(a => (a.Value, a.Count))));
+    }
+
+    /// <summary>
+    /// One conclusive answer with a Site and an Actor of its own. `Conclusive` names every Video
+    /// the same Actor, which is what a test about counting wants and what a test about telling two
+    /// values apart cannot use.
+    /// </summary>
+    private static RemoteIdentification Work(
+        Guid videoFileId,
+        string prdbVideoId,
+        string title,
+        string site,
+        string actor)
+    {
+        var remoteSite = new RemoteSite(site.ToLowerInvariant(), site, null);
+
+        return new RemoteIdentification(
+            videoFileId,
+            RemoteMatchKind.OsHash,
+            RemoteMatchConfidence.Exact,
+            prdbVideoId,
+            [],
+            remoteSite,
+            new RemoteWork(prdbVideoId, title, remoteSite, [actor], null, null, 12_345));
+    }
+
+    [Fact]
+    public async Task Looking_inside_a_facet_narrows_its_own_values_and_nothing_else()
+    {
+        const string otherWork = "6f1a2c34-0000-4000-8000-000000000003";
+        // A Site whose name carries a diacritic and an apostrophe, because the promise is that
+        // looking for a facet value answers the way the Library's own search does.
+        await using var store = await CreateAsync(new FixtureIdentificationClient()
+            .Answer("one.mp4", id => Work(id, WorkId, "Work One", "Café O'Neill", "Alex Doe"))
+            .Answer("two.mp4", id => Work(id, otherWork, "Work Two", "Second Studio", "Sam Roe")));
+        var accountId = await AccountAsync(store);
+        await SourceAsync(store, ("one.mp4", "mp4"), ("two.mp4", "mp4"));
+        await LibraryPipeline.SetCredentialAsync(store, "installation-key");
+        await LibraryPipeline.DrainAsync(store);
+
+        await using var scope = store.Scope();
+
+        // Case, diacritics and punctuation are folded, so the name as it is written is not the
+        // only way to ask for it.
+        var accented = await Discovery(scope).GetFacetsAsync(
+            accountId,
+            new LibraryDiscoveryRequest(),
+            new LibraryFacetSearch { Sites = "cafe oneill" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal("Café O'Neill", Assert.Single(accented.Sites).Value);
+
+        // The term narrows the facet it was typed into and leaves the others whole: it says which
+        // values are offered, not which Videos match.
+        Assert.Equal(
+            ["Alex Doe", "Sam Roe"],
+            accented.Actors.Select(actor => actor.Value).Order());
+        Assert.False(accented.MoreSites);
+        Assert.False(accented.MoreActors);
+
+        var actor = await Discovery(scope).GetFacetsAsync(
+            accountId,
+            new LibraryDiscoveryRequest(),
+            new LibraryFacetSearch { Actors = "roe" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal("Sam Roe", Assert.Single(actor.Actors).Value);
+        Assert.Equal(2, actor.Sites.Count);
+
+        // A term nothing matches is an empty facet rather than the unnarrowed list: offering every
+        // Site to someone who asked for one that is not there would answer a question they did not
+        // ask.
+        var absent = await Discovery(scope).GetFacetsAsync(
+            accountId,
+            new LibraryDiscoveryRequest(),
+            new LibraryFacetSearch { Sites = "nothing here" },
+            TestContext.Current.CancellationToken);
+        Assert.Empty(absent.Sites);
+
+        // The narrowing still applies alongside it: what is looked for cannot reach a value the
+        // current narrowing leaves nothing of.
+        var narrowed = await Discovery(scope).GetFacetsAsync(
+            accountId,
+            new LibraryDiscoveryRequest { Query = "two" },
+            new LibraryFacetSearch { Sites = "cafe" },
+            TestContext.Current.CancellationToken);
+        Assert.Empty(narrowed.Sites);
     }
 
     [Fact]
@@ -681,7 +766,7 @@ public sealed class LibraryDiscoveryTests
         var facets = await Discovery(scope).GetFacetsAsync(
             accountId,
             new LibraryDiscoveryRequest { Shelf = [PersonalShelf.WatchLater] },
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(2, facets.Quality.Sum(band => band.Count));
 
         // The other Account's shelves are empty of this Account's references and vice versa.

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 
-import type { LibraryFacets, LibraryFilters } from '../api/client'
+import type { FacetSearch, LibraryFacets, LibraryFilters } from '../api/client'
 import { qualityBandLabel } from '../lib/quality'
 import { shelfNames, shelves, type Shelf } from '../personal/shelves'
 import type { FacetKey } from './useLibraryFilters'
@@ -33,6 +33,8 @@ export function LibraryControls({
   narrowed,
   pinned,
   total,
+  finding,
+  find,
 }: {
   filters: LibraryFilters
   facets?: LibraryFacets
@@ -47,6 +49,10 @@ export function LibraryControls({
   pinned?: Shelf
   /// How many Videos the current narrowing admits.
   total: number
+  /// What is being looked for inside a facet, and how to change it. It is not part of the
+  /// narrowing: it changes which values are offered, not which Videos match.
+  finding: FacetSearch
+  find: (finding: FacetSearch) => void
 }) {
   // The facets wait behind one control, closed until asked for: what is chosen is already said in
   // the row above, and the Videos are what the screen is for. This used to be true only on a narrow
@@ -224,6 +230,7 @@ export function LibraryControls({
           />
           <FacetValues
             label="Sites"
+            one="Site"
             values={(facets?.sites ?? []).map((site) => ({
               value: site.value,
               name: site.value,
@@ -231,9 +238,13 @@ export function LibraryControls({
             }))}
             selected={filters.sites}
             onToggle={(value) => toggle('sites', value)}
+            search={finding.sites ?? ''}
+            onSearch={(term) => find({ ...finding, sites: term })}
+            more={facets?.moreSites ?? false}
           />
           <FacetValues
             label="Actors"
+            one="Actor"
             values={(facets?.actors ?? []).map((actor) => ({
               value: actor.value,
               name: actor.value,
@@ -241,6 +252,9 @@ export function LibraryControls({
             }))}
             selected={filters.actors}
             onToggle={(value) => toggle('actors', value)}
+            search={finding.actors ?? ''}
+            onSearch={(term) => find({ ...finding, actors: term })}
+            more={facets?.moreActors ?? false}
           />
         </div>
 
@@ -329,10 +343,17 @@ function chosenFilters(
 /// other, and "1080p (1)" next to "Alex Doe (2)" left the reader to work out that one was a
 /// quality and the other a person. The label carries the same name the group is announced with,
 /// so both readings say the same thing.
-function FacetGroup({ label, children }: { label: string; children: ReactNode }) {
+function FacetGroup({ label, find, children }: {
+  label: string
+  /// The control that looks through this facet's own values, above the row rather than in it: it
+  /// asks a question about the row, and a text field among the pills reads as one of them.
+  find?: ReactNode
+  children: ReactNode
+}) {
   return (
     <div className="facet-group" role="group" aria-label={label}>
       <span className="facet-label">{label}</span>
+      {find}
       <div className="facet-row">{children}</div>
     </div>
   )
@@ -344,29 +365,54 @@ type FacetValue = { value: string; name: string; count: number }
 /// control. A value that is chosen is always shown, wherever it ranks, and a chosen value the
 /// current narrowing no longer counts is shown holding nothing rather than vanishing while it
 /// still narrows the Library.
-function FacetValues({ label, values, selected, onToggle }: {
+///
+/// A facet the library answered only in part is not listed as though it were whole: `more` says
+/// the values did not all fit, the control that reveals the rest says how many it has rather than
+/// claiming to have them all, and the field above it reaches what never arrived. That field asks
+/// the Host, because a browser cannot find among values it was never sent.
+function FacetValues({ label, one, values, selected, onToggle, search, onSearch, more }: {
   label: string
+  /// What one of these values is, for the sentence a field or an empty answer has to say.
+  one?: string
   values: FacetValue[]
   selected: string[]
   onToggle: (value: string) => void
+  search?: string
+  onSearch?: (term: string) => void
+  more?: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
-  const offered = [
-    ...values,
-    ...selected
-      .filter((value) => !values.some((offer) => offer.value === value))
-      .map((value) => ({ value, name: qualityBandLabel(value as never) ?? value, count: 0 })),
-  ]
+  const finding = (search ?? '').trim().length > 0
+  // While a term is being looked for, the answer is what matches it. A chosen value that does not
+  // is still chosen — it is named in the row above — and putting it back here would answer a
+  // question nobody asked.
+  const offered = finding
+    ? values
+    : [
+        ...values,
+        ...selected
+          .filter((value) => !values.some((offer) => offer.value === value))
+          .map((value) => ({ value, name: qualityBandLabel(value as never) ?? value, count: 0 })),
+      ]
 
-  if (offered.length === 0) return null
+  // A facet with nothing in it is not offered at all — except while something is being looked for
+  // in it, where disappearing would take the field away with the answer.
+  if (offered.length === 0 && !finding && !more) return null
 
-  const hidden = expanded
+  // Looking for something is asking for what matches, all of it: the preview exists to keep an
+  // unasked list short, and this list was asked for.
+  const hidden = expanded || finding
     ? []
     : offered.slice(facetPreview).filter((offer) => !selected.includes(offer.value))
   const shown = offered.filter((offer) => !hidden.includes(offer))
 
   return (
-    <FacetGroup label={label}>
+    <FacetGroup
+      label={label}
+      find={onSearch && (values.length > facetPreview || finding || more) && (
+        <FacetSearchField label={`Find ${article(one ?? label)}`} value={search ?? ''} onSearch={onSearch} />
+      )}
+    >
       {shown.map((offer) => (
         <FacetToggle
           key={offer.value}
@@ -375,17 +421,84 @@ function FacetValues({ label, values, selected, onToggle }: {
           onToggle={() => onToggle(offer.value)}
         />
       ))}
-      {(hidden.length > 0 || expanded) && offered.length > facetPreview && (
+      {offered.length === 0 && (
+        <span className="facet-empty" role="status">No {one ?? label} matches “{search?.trim()}”.</span>
+      )}
+      {!finding && (hidden.length > 0 || expanded) && offered.length > facetPreview && (
         <button
           className="facet-more"
           aria-expanded={expanded}
           onClick={() => setExpanded((open) => !open)}
         >
-          {expanded ? 'Show fewer' : `Show all ${offered.length}`}
+          {expanded
+            ? 'Show fewer'
+            // The library holds more than this answer carries, so this control cannot promise the
+            // lot. It says what it has, and the field above it is where the rest is.
+            : more ? `Show ${offered.length} most common` : `Show all ${offered.length}`}
         </button>
       )}
     </FacetGroup>
   )
+}
+
+/// How long typing settles before the Host is asked again. The same pause the header search takes,
+/// for the same reason: a request per keystroke asks a question nobody finished.
+const facetSearchSettleMilliseconds = 250
+
+/// Looking for one value among a facet's own.
+///
+/// What is typed lives here and the published term lives above, the way the header search splits
+/// them: a controlled field fed by its own answer loses the keystrokes that arrive while that
+/// answer is in flight.
+function FacetSearchField({ label, value, onSearch }: {
+  label: string
+  value: string
+  onSearch: (term: string) => void
+}) {
+  const [typed, setTyped] = useState(value)
+  const published = useRef(value)
+  // The caller rebuilds this handler on every render, and a timer that depends on it is restarted
+  // on every render — which is to say never allowed to finish. Only what was typed decides when it
+  // is asked.
+  const publish = useRef(onSearch)
+  publish.current = onSearch
+
+  useEffect(() => {
+    if (value !== published.current) {
+      published.current = value
+      setTyped(value)
+    }
+  }, [value])
+
+  useEffect(() => {
+    if (typed === published.current) return
+
+    const timer = window.setTimeout(() => {
+      published.current = typed
+      publish.current(typed)
+    }, facetSearchSettleMilliseconds)
+
+    return () => window.clearTimeout(timer)
+  }, [typed])
+
+  return (
+    <label className="facet-search">
+      <span className="visually-hidden">{label}</span>
+      <input
+        type="search"
+        autoComplete="off"
+        value={typed}
+        placeholder={label}
+        onChange={(event) => setTyped(event.target.value)}
+      />
+    </label>
+  )
+}
+
+/// `a Site`, `an Actor`. Only the facets that are searched need one, and both of those are English
+/// nouns whose first letter settles it.
+function article(noun: string) {
+  return `${'aeiou'.includes(noun[0]?.toLowerCase() ?? '') ? 'an' : 'a'} ${noun}`
 }
 
 function FacetToggle({ label, selected, onToggle }: {
