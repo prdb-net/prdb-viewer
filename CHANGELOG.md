@@ -7,6 +7,17 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-04
+
+The browsing screen and the three Personal Shelves open on Videos. The facets
+stood open on every viewport but a narrow one, where five groups took the upper
+two thirds of the screen and left a single row of cards beneath them; they now
+wait behind the `Filters` control everywhere and open as a sheet — beside the
+grid where there is room for a column, up over the Videos where there is not.
+What is chosen stays outside it, in a row that keeps its place while the Videos
+scroll past. Nothing about the HTTP API, configuration, the Backup Archive or
+the schema changes.
+
 ### Changed
 
 - The facets wait behind the `Filters` control on every screen, not only on a
