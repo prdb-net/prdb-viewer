@@ -6,6 +6,7 @@ import { AccessPanel } from './access/AccessPanel'
 import { BootstrapPanel } from './access/BootstrapPanel'
 import { AccountPage } from './account/AccountPage'
 import { ActorPage } from './actor/ActorPage'
+import { ActorsPage } from './actor/ActorsPage'
 import { AccountsPage } from './admin/AccountsPage'
 import { IdentificationPage } from './admin/IdentificationPage'
 import { SetupPage } from './admin/SetupPage'
@@ -66,6 +67,7 @@ function SignedIn({ account }: { account: Account }) {
       <Route element={<AppShell account={account} />}>
         <Route index element={<LibraryPage account={account} />} />
         <Route path="videos/:videoId" element={<VideoPage account={account} />} />
+        <Route path="actors" element={<ActorsPage />} />
         <Route path="actors/:actorId" element={<ActorPage account={account} />} />
         {/* A shelf is the Library narrowed to it, so it is the Library's screen with the shelf
             pinned rather than a screen of its own. */}

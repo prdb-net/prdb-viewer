@@ -124,7 +124,10 @@ function GlobalSearch() {
   const location = useLocation()
   const navigate = useNavigate()
   const shelf = shelfAt(location.pathname)
-  const scope = shelf ? shelves[shelf].to : '/'
+  // The index of Actors is a list that is searched, like a shelf and unlike every other screen, so
+  // typing on it looks for an Actor rather than leading away to the Library.
+  const actors = location.pathname === '/actors'
+  const scope = actors ? '/actors' : shelf ? shelves[shelf].to : '/'
   const onScope = location.pathname === scope
   const query = onScope ? (parameters.get('query') ?? '') : ''
 
@@ -160,7 +163,9 @@ function GlobalSearch() {
     return () => window.clearTimeout(timer)
   }, [typed, onScope, scope, parameters, navigate])
 
-  const name = shelf ? shelves[shelf].search : 'Search the library'
+  const name = actors
+    ? 'Search the Actors'
+    : shelf ? shelves[shelf].search : 'Search the library'
 
   return (
     <label className="global-search">
@@ -171,7 +176,7 @@ function GlobalSearch() {
         id="global-search"
         autoComplete="off"
         value={typed}
-        placeholder={shelf ? name : 'Search title, site, actor or file name'}
+        placeholder={shelf || actors ? name : 'Search title, site, actor or file name'}
         onChange={(event) => setTyped(event.target.value)}
       />
     </label>

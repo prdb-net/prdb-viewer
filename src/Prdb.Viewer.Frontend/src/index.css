@@ -661,3 +661,14 @@ body.filters-open .app-content {
 }
 .actor-credits a { color: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: .2rem; }
 .actor-credits a:hover, .actor-credits a:focus-visible { text-decoration-color: currentcolor; }
+
+/* The index of Actors: read like the Library, drawn like a wall of faces. */
+.actor-index-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; margin-top: 1rem; }
+.actor-awaiting { margin: .75rem 0 0; font-size: .85rem; }
+.actor-index { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(8rem, 9vw, 12rem), 1fr)); gap: 1rem; margin-top: 1rem; }
+.actor-card { display: flex; flex-direction: column; gap: .35rem; padding: .6rem; border: 1px solid rgb(255 255 255 / 8%); border-radius: 1rem; background: var(--surface); color: inherit; text-decoration: none; transition: border-color .15s ease, transform .15s ease; }
+.actor-card:hover, .actor-card:focus-visible { border-color: rgb(205 183 255 / 35%); transform: translateY(-2px); }
+.actor-card img, .actor-card .actor-placeholder { width: 100%; aspect-ratio: 3 / 4; border-radius: .75rem; object-fit: cover; }
+.actor-card .actor-placeholder { display: grid; place-items: center; font-size: 2rem; }
+.actor-card-name { font-size: .9rem; line-height: 1.3; }
+.actor-card small { color: var(--muted); }
