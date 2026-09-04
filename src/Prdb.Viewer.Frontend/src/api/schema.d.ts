@@ -1267,6 +1267,8 @@ export interface paths {
                     quality?: string;
                     playState?: string;
                     shelf?: string;
+                    siteSearch?: string;
+                    actorSearch?: string;
                 };
                 header?: never;
                 path?: never;
@@ -2182,6 +2184,8 @@ export interface components {
             sites: components["schemas"]["LibraryFacetValue"][];
             actors: components["schemas"]["LibraryFacetValue"][];
             quality: components["schemas"]["LibraryQualityFacetValue"][];
+            moreSites: boolean;
+            moreActors: boolean;
         };
         LibraryFacetValue: {
             value: string;

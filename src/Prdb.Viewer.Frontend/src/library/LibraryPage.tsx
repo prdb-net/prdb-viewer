@@ -1,8 +1,14 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation } from 'react-router'
 
-import { api, emptyFilters, type Account, type LibraryPage as LibraryPageResult } from '../api/client'
+import {
+  api,
+  emptyFilters,
+  type Account,
+  type FacetSearch,
+  type LibraryPage as LibraryPageResult,
+} from '../api/client'
 import { shelves, type Shelf } from '../personal/shelves'
 import { usePersonalActions } from '../personal/usePersonalActions'
 import { queryKeys } from '../queryKeys'
@@ -40,9 +46,13 @@ export function LibraryPage({ account, shelf }: { account: Account; shelf?: Shel
   // the previous answer stays on screen while the next one arrives, so the rows do not empty and
   // refill on every click.
   const narrowing = JSON.stringify({ ...filters, sort: emptyFilters.sort })
+  // Looking for a value inside a facet is how its list is read rather than what the Library is
+  // narrowed to, so it stays here instead of going into the address — the same standing as how
+  // much of a facet has been revealed, and unlike everything ADR 0004 puts in the URL.
+  const [finding, setFinding] = useState<FacetSearch>({})
   const facets = useQuery({
-    queryKey: queryKeys.libraryFacets(narrowing),
-    queryFn: () => api.libraryFacets(filters),
+    queryKey: queryKeys.libraryFacets(narrowing, JSON.stringify(finding)),
+    queryFn: () => api.libraryFacets(filters, finding),
     placeholderData: (previous) => previous,
   })
   const videos = useInfiniteQuery({
@@ -125,6 +135,8 @@ export function LibraryPage({ account, shelf }: { account: Account; shelf?: Shel
         narrowed={narrowed}
         pinned={shelf}
         total={Number(page.totalMatches)}
+        finding={finding}
+        find={setFinding}
       />
 
       {description && narrowed && shown.length > 0 && (

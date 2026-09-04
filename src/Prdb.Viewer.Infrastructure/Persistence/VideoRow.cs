@@ -58,6 +58,14 @@ public sealed class VideoRow
     /// <summary>The Established Site as a facet value, or null while Site Recognition is Unknown.</summary>
     public string? EstablishedSite { get; set; }
 
+    /// <summary>
+    /// The same Site normalised for comparison, so looking for a Site among the facet values
+    /// answers the way the Library's own search does — ignoring case, diacritics and ordinary
+    /// punctuation. An Actor already had one; the Site had only the aggregate search text, which
+    /// mixes every searchable fact and so cannot say that a term matched the Site.
+    /// </summary>
+    public string? NormalizedSite { get; set; }
+
     public bool ReviewNeeded { get; set; }
 
     /// <summary>

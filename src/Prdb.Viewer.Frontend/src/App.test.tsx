@@ -653,6 +653,50 @@ describe('App', () => {
     ))
   })
 
+  it('looks for a facet value at the Host, and never claims to list what it was not sent', async () => {
+    signedInAs('User', (input) => {
+      if (isFacetRequest(input)) {
+        // The Host answers the narrowing it was given: everything, or what the term admits. It
+        // also says that it left values out, which is the case this is about.
+        const found = typeof input === 'string' && input.includes('siteSearch=late')
+        return json(noFacets({
+          sites: found
+            ? [{ value: 'Late Night', count: 2 }]
+            : Array.from({ length: 10 }, (_, index) => ({
+              value: `Site ${index + 1}`,
+              count: 10 - index,
+            })),
+          moreSites: true,
+        }))
+      }
+      return undefined
+    })
+
+    renderApp()
+
+    // A facet the answer could not carry whole does not offer to show all of it: the control says
+    // how many it has, and the field beside it is how the rest is reached.
+    expect(await screen.findByRole('button', { name: 'Show 10 most common' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Show all 10' })).not.toBeInTheDocument()
+
+    // Typing asks the Host rather than filtering what arrived, because `Late Night` is one of the
+    // values that never did.
+    fireEvent.change(screen.getByLabelText('Find a Site'), { target: { value: 'late' } })
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/api\/library\/facets\?.*siteSearch=late/),
+      expect.anything(),
+    ))
+
+    // What matches is shown whole rather than cut back to the preview, and the Actors beside it
+    // are untouched: the term narrowed one facet's values, not the Library.
+    expect(await screen.findByRole('button', { name: 'Late Night (2)' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Site 1 (10)' })).not.toBeInTheDocument()
+    expect(globalThis.fetch).not.toHaveBeenCalledWith(
+      expect.stringMatching(/^\/api\/library\/videos\?.*siteSearch/),
+      expect.anything(),
+    )
+  })
+
   it('says on a card only what is exceptional, and counts what is on screen against the match', async () => {
     const named = libraryVideo({
       id: '01994dd4-2a0a-7000-8000-000000000040',

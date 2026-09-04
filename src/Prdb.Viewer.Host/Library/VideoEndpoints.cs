@@ -81,7 +81,11 @@ public static class VideoEndpoints
             string? availability = null,
             string? quality = null,
             string? playState = null,
-            string? shelf = null) =>
+            string? shelf = null,
+            // Looking for a value among one facet's own narrows the list on offer rather than the
+            // Library, so it is not part of the narrowing the Videos take.
+            string? siteSearch = null,
+            string? actorSearch = null) =>
             TypedResults.Ok(await discovery.GetFacetsAsync(
                 http.User.AccountId()!.Value,
                 Request(
@@ -97,6 +101,7 @@ public static class VideoEndpoints
                     quality,
                     playState,
                     shelf),
+                new LibraryFacetSearch { Sites = siteSearch, Actors = actorSearch },
                 cancellationToken)));
 
         library.MapPut("/preferences/include-not-ready", async (

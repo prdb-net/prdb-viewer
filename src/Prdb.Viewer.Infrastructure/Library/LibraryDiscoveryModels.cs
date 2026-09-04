@@ -109,11 +109,31 @@ public sealed record ClientPlaybackAssessmentReport(
     bool? PowerEfficient,
     string Method);
 
-/// <summary>The Established values an Account can currently filter or navigate by.</summary>
+/// <summary>
+/// Looking for one value among a facet's own, which narrows the list on offer rather than the
+/// Library. It is answered here rather than in the browser because only the most populated values
+/// are sent: a browser filtering what it was given could not find the Site that never arrived, and
+/// would say so by silently offering nothing.
+/// </summary>
+public sealed record LibraryFacetSearch
+{
+    public string? Sites { get; init; }
+
+    public string? Actors { get; init; }
+}
+
+/// <summary>
+/// The Established values an Account can currently filter or navigate by.
+/// <paramref name="MoreSites"/> and <paramref name="MoreActors"/> say that the facet holds values
+/// this answer left out, so the view can offer the search that reaches them instead of claiming to
+/// list the lot.
+/// </summary>
 public sealed record LibraryFacets(
     IReadOnlyList<LibraryFacetValue> Sites,
     IReadOnlyList<LibraryFacetValue> Actors,
-    IReadOnlyList<LibraryQualityFacetValue> Quality);
+    IReadOnlyList<LibraryQualityFacetValue> Quality,
+    bool MoreSites,
+    bool MoreActors);
 
 public sealed record LibraryFacetValue(string Value, int Count);
 

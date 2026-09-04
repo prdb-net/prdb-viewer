@@ -91,6 +91,18 @@ function narrowingQuery(filters: LibraryFilters) {
   return parameters
 }
 
+/// Looking for one value among a facet's own. It is asked of the Host rather than answered in the
+/// browser, because only the most populated values are sent: filtering what arrived could not find
+/// the Site that did not.
+export type FacetSearch = { sites?: string; actors?: string }
+
+function facetQuery(filters: LibraryFilters, search?: FacetSearch) {
+  const parameters = narrowingQuery(filters)
+  if (search?.sites?.trim()) parameters.set('siteSearch', search.sites.trim())
+  if (search?.actors?.trim()) parameters.set('actorSearch', search.actors.trim())
+  return parameters
+}
+
 function libraryQuery(filters: LibraryFilters, skip: number, take: number) {
   const parameters = narrowingQuery(filters)
   parameters.set('sort', filters.sort)
@@ -196,8 +208,8 @@ export const api = {
   videos: (filters: LibraryFilters, skip = 0, take = 60) =>
     request<LibraryPage>(`/api/library/videos?${libraryQuery(filters, skip, take)}`),
   video: (videoId: string) => request<VideoDetail>(`/api/library/videos/${videoId}`),
-  libraryFacets: (filters: LibraryFilters) =>
-    request<LibraryFacets>(`/api/library/facets?${narrowingQuery(filters).toString()}`),
+  libraryFacets: (filters: LibraryFilters, search?: FacetSearch) =>
+    request<LibraryFacets>(`/api/library/facets?${facetQuery(filters, search).toString()}`),
   setIncludeNotReady: (included: boolean, csrfToken: string) =>
     mutate<LibraryPreferences>(
       '/api/library/preferences/include-not-ready',

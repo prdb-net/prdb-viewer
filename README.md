@@ -427,6 +427,17 @@ is never narrowed by its own values, because a second Site widens the set rather
 than narrowing it. The most populated eight values of a facet are offered at
 once and the rest wait behind one control.
 
+A facet answers with its fifty most populated values, because it is a way to
+narrow the Library rather than a catalogue of every Site and Actor it has ever
+seen. What that leaves out is reached by looking for it: Sites and Actors carry
+a field that asks the installation for the values matching what is typed, which
+a browser could not answer because the value it is looking for is the one that
+never arrived. Looking ignores case, diacritics and ordinary punctuation, the
+way the library's own search does, and narrows only the values a facet offers —
+never which Videos match. A facet the answer could not carry whole says so, and
+the control that reveals the rest of it says how many it has rather than
+claiming to have them all.
+
 The facets themselves wait behind one control until they are asked for, because
 the screen is for the Videos: a sheet that comes in beside the grid where there
 is room for a column and up over it where there is not, and that answers Escape

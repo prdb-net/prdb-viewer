@@ -7,6 +7,38 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+The Sites and Actors of a facet can be looked through. A facet answers with its
+fifty most populated values, and until now the rest of a long one could not be
+reached at all: the control beside it offered to show them all and showed the
+fifty it had. Both facets now carry a field that asks the installation for what
+matches, so the Site that never arrived is one that can still be chosen. The
+HTTP API's facets endpoint gains two optional parameters and two fields, and the
+schema gains one column. **This release migrates.**
+
+### Added
+
+- Sites and Actors carry a field for looking through their values. It asks the
+  installation rather than filtering what the browser was sent, because the
+  value being looked for is usually one the answer left out. Looking ignores
+  case, diacritics and ordinary punctuation, the way the library's own search
+  does — `renee` finds `Renée Dupont` — and it narrows which values the facet
+  offers rather than which Videos match, so the other facets and the Videos
+  themselves are untouched by it.
+- The facets endpoint takes `siteSearch` and `actorSearch`, and answers with
+  `moreSites` and `moreActors`, which say that a facet holds values the answer
+  left out.
+
+### Changed
+
+- A facet that could not be answered whole no longer offers to show all of it.
+  The control now says how many values it has — `Show 50 most common` — and the
+  field beside it is how the rest is reached. It still reads `Show all N` where
+  N really is all of them.
+- Each Video's projection stores its Established Site normalised for comparison,
+  which is what lets the database answer a search over Sites. Every projection
+  is rebuilt on the first start after the upgrade; nothing else about a Video
+  changes, and no other data is touched.
+
 ## [0.14.0] - 2026-09-04
 
 The browsing screen and the three Personal Shelves open on Videos. The facets

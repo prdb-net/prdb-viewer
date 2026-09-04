@@ -1072,6 +1072,20 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "siteSearch",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "actorSearch",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3071,7 +3085,9 @@
         "required": [
           "sites",
           "actors",
-          "quality"
+          "quality",
+          "moreSites",
+          "moreActors"
         ],
         "type": "object",
         "properties": {
@@ -3092,6 +3108,12 @@
             "items": {
               "$ref": "#/components/schemas/LibraryQualityFacetValue"
             }
+          },
+          "moreSites": {
+            "type": "boolean"
+          },
+          "moreActors": {
+            "type": "boolean"
           }
         }
       },
