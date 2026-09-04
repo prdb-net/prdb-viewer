@@ -22,10 +22,11 @@ comes from — and stopped offering controls that had nothing to act on.
   the width it takes; on a wide screen the last column of Videos and the sort
   control were underneath it until it was closed. Its facet groups now stack
   from the top instead of being stretched down the sheet.
-- Filters and Sort are offered where there is something to narrow. An empty
-  shelf drew both above its own empty state, over none of anything. A shelf
-  emptied by the filters keeps them, because taking one out is what is left to
-  do.
+- An empty Personal Shelf no longer draws Filters and Sort above its own empty
+  state. It is empty because nothing has been put on it, and no narrowing of it
+  will ever say otherwise. A shelf emptied by its own filters keeps them,
+  because taking one out is what is left to do, and so does the shared library,
+  which can hold Videos the current rules keep out.
 - The Favourites and Watch Later empty states name the control that fills them.
 - A Discovery Date is written with its month as a word. `toLocaleDateString()`
   with nothing said gave `9/4/2026`, which is two different days depending on
