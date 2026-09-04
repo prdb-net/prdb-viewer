@@ -461,6 +461,9 @@ function FacetSearchField({ label, value, onSearch }: {
   // on every render — which is to say never allowed to finish. Only what was typed decides when it
   // is asked.
   const publish = useRef(onSearch)
+  // Written during render rather than read to decide what to draw, which is the mistake the
+  // rule is for.
+  // oxlint-disable-next-line react/refs
   publish.current = onSearch
 
   useEffect(() => {

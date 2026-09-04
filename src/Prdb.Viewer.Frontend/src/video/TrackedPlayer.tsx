@@ -95,21 +95,35 @@ export function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, r
     }
   }
 
+  /// What the timer and the page-leaving handler reach for when they run.
+  ///
+  /// They are installed once, because a five-second timer restarted on every render would never be
+  /// allowed to finish. But a Playback Attempt outlives its Video File: automatic fallback moves to
+  /// another one without remounting the player, so what was captured when the timer was installed
+  /// is no longer what is playing. Held here, a report names the Video File that is actually
+  /// carrying the attempt rather than the one that started it.
+  const current = useRef({ flush, playbackAttemptId, csrfToken })
+  // Writing a ref during render is what keeps this one current; the rule cannot tell that
+  // apart from reading one to decide what to draw, which is the mistake it is for.
+  // oxlint-disable-next-line react/refs
+  current.current = { flush, playbackAttemptId, csrfToken }
+
   useEffect(() => {
-    const interval = window.setInterval(() => void flush(false, false), 5_000)
-    const leave = () => {
+    const interval = window.setInterval(() => void current.current.flush(false, false), 5_000)
+    const end = () => {
       ended.current = true
-      void api.endPlaybackAttempt(playbackAttemptId, csrfToken, true).catch(() => undefined)
+      void api
+        .endPlaybackAttempt(current.current.playbackAttemptId, current.current.csrfToken, true)
+        .catch(() => undefined)
     }
-    window.addEventListener('pagehide', leave)
+    window.addEventListener('pagehide', end)
     return () => {
       window.clearInterval(interval)
-      window.removeEventListener('pagehide', leave)
+      window.removeEventListener('pagehide', end)
       // Leaving the page ends the attempt as surely as closing the player does. Without this a
       // navigation would leave the attempt open until the session expired.
       if (!ended.current) {
-        ended.current = true
-        void api.endPlaybackAttempt(playbackAttemptId, csrfToken, true).catch(() => undefined)
+        end()
       }
     }
   }, [])

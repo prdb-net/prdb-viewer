@@ -5,7 +5,10 @@ what was examined, what was changed as a result, and the risks the release
 knowingly carries. It is a review of this codebase rather than a general threat
 model for self-hosting.
 
-Reviewed at product version 0.1.0 on 2026-08-28.
+First reviewed at product version 0.1.0 on 2026-08-28, and revisited at
+0.16.0 on 2026-09-04. Sections carry what is true of the current product;
+[Since the first review](#since-the-first-review) records what was added
+after 0.1.0 and what it changed here.
 
 ## Scope
 
@@ -45,6 +48,12 @@ The trust boundaries this product actually has:
 
 - The default authorization policy requires an authenticated Account, so a new
   endpoint is authenticated unless it opts out explicitly.
+- Leaving that policy and adding CSRF are both per-endpoint decisions, and a
+  forgotten one is silent: the route works and only its protection is missing.
+  So both are asserted over the whole route table rather than one route at a
+  time — every state-changing endpoint is either CSRF-protected or anonymous,
+  and the set of anonymous endpoints is exactly the one this document lists.
+  Widening either is a failing test until it is a written decision.
 - Every administrative group additionally requires the Administrator role.
   Background Work, Work Issues, affected-item lists, Operator Handoffs,
   configuration, identification review, and account administration are all
@@ -60,12 +69,24 @@ The trust boundaries this product actually has:
   installation.
 - Sign-in, registration, recovery, and bootstrap are rate limited to 20 requests
   per minute per client address.
-- Video and preview delivery are anonymous by design, because a browser's
-  `<video>` and `<img>` elements fetch them without the application's
-  credentials. They are addressed by a random version-4 identifier that is
-  neither the database key nor derived from a path, so URLs cannot be
-  enumerated, and they only ever serve a file that inspection admitted and whose
-  size and modification time still match.
+- Media delivery is anonymous by design, because a browser's `<video>` and
+  `<img>` elements fetch it without the application's credentials. There are
+  five such routes: the Video File itself, this installation's generated
+  preview, and the three kinds of picture prdb offers that are held here — a
+  proposed work's, an Established Work's, and an Actor's. Each is addressed by a
+  random version-4 identifier that is neither the database key nor derived from
+  a path, so URLs cannot be enumerated, and an identifier nothing is held for
+  answers 404 rather than saying that something exists.
+- A Video File is only ever served if inspection admitted it and its size and
+  modification time still match. A retained picture is only ever served from
+  beneath the directory that kind of picture belongs to, re-checked at delivery
+  in the one place all four kinds pass through.
+- `/media/proposals` is the one anonymous route whose subject is an
+  Administrator-only surface. What it serves is a picture of a catalogue entry
+  rather than anything about this installation, and serving it here is what
+  keeps an Administrator's browser from being sent to prdb while reviewing a
+  case. The review case itself — what is proposed, for which Video, and on what
+  evidence — stays behind the Administrator role.
 - **Accepted risk:** anyone holding a delivery URL can stream that file without
   signing in, and delivery is not rate limited. This follows from direct browser
   playback; an installation exposed to the internet should rate limit at the
@@ -77,9 +98,10 @@ The trust boundaries this product actually has:
   path, requires it to stay beneath the configured Library Directory, refuses
   reparse points, and returns nothing rather than throwing. Library Scans apply
   the same containment while traversing and refuse links that leave the root.
-- Preview delivery re-checks that the resolved artefact stays beneath the
-  application's own previews directory even though the stored path is
-  application-generated.
+- Delivery of a generated preview or a retained picture re-checks that the
+  resolved file stays beneath the directory its kind belongs to, even though the
+  stored path is application-generated. All four kinds pass through one place
+  that does it, so a fifth inherits the check rather than having to repeat it.
 - Library Directory staging only accepts paths beneath the documented mount
   root, and nothing beneath a Library Directory is ever written.
 
@@ -144,15 +166,16 @@ The trust boundaries this product actually has:
   of probing in a loop.
 - Interactive playback throttles the lanes, so background work cannot starve
   playback.
-- **Accepted risk:** `GET /api/library/videos` returns the whole catalogue in
-  one response. It is a signed-in-only endpoint and the cost is proportional to
-  the library rather than to the request, but it is the largest response the
-  product produces. See [performance.md](performance.md).
+- Library answers are paged, and the page size a request may ask for is clamped
+  rather than trusted, so no signed-in caller can ask for a response
+  proportional to the library. This replaces the accepted risk the first review
+  carried, when that endpoint returned the whole catalogue at once. See
+  [performance.md](performance.md).
 
 ## Dependencies
 
 - Production dependencies are pinned to exact versions through central package
-  management: ASP.NET Core and EF Core 10.0.10, `Prdb.Sdk` 0.11.0,
+  management: ASP.NET Core and EF Core 10.0.10, `Prdb.Sdk` 0.13.0,
   `Prdb.Hashing` 0.1.0, and `Konscious.Security.Cryptography.Argon2` 1.3.1.
 - The container ships `ffmpeg` and `ffprobe` from the base image's package feed.
   Both are invoked with an explicit argument list and never through a shell, so
@@ -160,7 +183,7 @@ The trust boundaries this product actually has:
 - The frontend has no runtime dependency that is not bundled at build time, and
   the served application makes no third-party network request.
 
-## Since this review
+## Since the first review
 
 - Client playability assessment, added after 0.1.0, stores two further kinds of
   Personal State: what a browser answered about the library's media
@@ -179,3 +202,30 @@ The trust boundaries this product actually has:
   copy that no Backup Archive carries. A refusal or an outage leaves the
   existing copy in place and is reported as a Scoped Issue rather than retried
   per file.
+- Actors, added in 0.16.0, hold what prdb says about a person as a regenerable
+  projection. The identity is prdb's and is never minted here, the profile is
+  absent from the Backup Archive, and it never establishes, corrects, or
+  disputes an Identification Claim. Reading an Actor is ordinary signed-in
+  access; keeping one is Personal State scoped to the Account like every other,
+  and no Administrator surface exposes whose it is.
+- Retained pictures, added in 0.16.0 for proposed works, Established Works,
+  and Actors, are the one place bytes from prdb are served back under this
+  installation's own origin. What may be retained is an
+  allow-list of raster image types rather than a deny-list, because the risk is
+  the format that carries markup: SVG is refused, so nothing served from our
+  own origin can be a document in it. A picture is capped at 8 MiB and refused
+  rather than truncated, and its stored content type is the one the transport
+  actually established rather than one the URL suggested.
+- That artwork transport follows redirects, which the credentialed transport
+  does not. It carries no installation credential, so a redirect can leak
+  nothing; what it does allow is an address prdb names being fetched from
+  inside the network the container runs in. The answer is only ever kept if it
+  is one of the permitted image types, so what a redirect can achieve is a
+  request rather than content. **Accepted risk:** an installation that treats
+  its outbound network as a trust boundary should egress-filter the container.
+- Backup Archive format 2, written since 0.16.0, adds each Account's Favourite
+  Actors to the payload and changes nothing about how the payload is protected.
+  Its envelope, cipher, and KDF floor are unchanged; a format 1 archive still
+  restores directly, and an archive of either format fails authentication
+  before any decrypted data is produced. Actor Profiles are not in it, because
+  a projection is regenerated rather than restored.

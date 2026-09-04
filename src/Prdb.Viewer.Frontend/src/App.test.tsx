@@ -968,6 +968,73 @@ describe('App', () => {
     ).toBe('/media/videos/bbb'))
   })
 
+  it('reports the Video File the attempt fell back to, not the one it started on', async () => {
+    // The periodic report is the one that outlives a fallback. Its timer is installed once, so it
+    // used to keep naming the Video File that was playing when the player mounted, while the
+    // player had long since moved to another one inside the same Playback Attempt.
+    const first = variant({
+      videoFileId: '01994dd4-2a0a-7000-8000-0000000000a1',
+      deliveryUrl: '/media/videos/aaa',
+    })
+    const second = variant({
+      videoFileId: '01994dd4-2a0a-7000-8000-0000000000a2',
+      deliveryUrl: '/media/videos/bbb',
+    })
+    const video = libraryVideo({ displayTitle: 'Two Variants', videoFiles: [first, second] })
+    const reported: { videoFileId: string }[] = []
+    // The timer is held rather than waited for, so the report it sends is this test's own step.
+    let tick: (() => void) | undefined
+    vi.spyOn(window, 'setInterval').mockImplementation(((handler: TimerHandler) => {
+      if (typeof handler === 'function') tick = handler as () => void
+      return 1 as unknown as ReturnType<typeof window.setInterval>
+    }) as typeof window.setInterval)
+
+    signedInAs('User', (input, init) => {
+      if (typeof input === 'string' && input.endsWith('/playback-attempts')) {
+        return json({
+          verdict: 'Started',
+          playbackAttemptId: '01994dd4-2a0a-7000-8000-000000000013',
+          resumePositionMilliseconds: null,
+        })
+      }
+      if (typeof input === 'string' && input.endsWith('/reports')) {
+        reported.push(JSON.parse(String(init?.body ?? '{}')) as { videoFileId: string })
+        return json({ verdict: 'Accepted' })
+      }
+      if (typeof input === 'string' && input.endsWith('/end')) return json({ ended: true })
+      if (input === '/api/personal/playback-outcomes') return json({ recorded: true })
+      if (isFacetRequest(input)) return json(noFacets())
+      if (isVideoRequest(input)) return json(videoDetail(video))
+      if (isLibraryRequest(input)) return json(libraryPage([video]))
+      return undefined
+    })
+
+    const rendered = renderApp('/videos/01994dd4-2a0a-7000-8000-000000000010')
+    expect(await screen.findByRole('heading', { name: 'Two Variants' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+    const player = await waitForVideo(rendered.container)
+
+    // A decode failure moves the same attempt onto the second Video File.
+    Object.defineProperty(player, 'error', { configurable: true, value: { code: 3 } })
+    fireEvent.error(player)
+    await vi.waitFor(() => expect(player.getAttribute('src')).toBe('/media/videos/bbb'))
+
+    // Playback advances far enough to be worth reporting, and then the timer fires.
+    Object.defineProperty(player, 'paused', { configurable: true, value: false })
+    Object.defineProperty(player, 'currentTime', { configurable: true, writable: true, value: 0 })
+    fireEvent.playing(player)
+    for (let step = 1; step <= 4; step++) {
+      ;(player as unknown as { currentTime: number }).currentTime = step / 10
+      fireEvent.timeUpdate(player)
+    }
+
+    expect(tick).toBeDefined()
+    tick!()
+
+    await vi.waitFor(() => expect(reported).toHaveLength(1))
+    expect(reported[0].videoFileId).toBe('01994dd4-2a0a-7000-8000-0000000000a2')
+  })
+
   it('shows unsupported Videos with their title, preview, and the reason playback is unavailable', async () => {
     const unsupported = libraryVideo({
       displayTitle: 'An Unsupported Video',
