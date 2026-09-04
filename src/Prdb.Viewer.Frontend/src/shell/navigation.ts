@@ -28,9 +28,9 @@ export type NavigationGroup = {
 /// chrome puts it. Groups are ordered by who uses them and how often, not alphabetically.
 ///
 /// Every screen an Account can open belongs here, including its own. The header carries a shortcut
-/// to the Account as well, but a shortcut is not a way to reach something: the header has no room
-/// for it on a narrow viewport, and a screen reachable only where the window is wide enough is a
-/// screen that is missing.
+/// to the Account as well, but a shortcut is not a way to reach something: it lives inside a menu
+/// that has to be opened first, and a screen reachable only by someone who already knows where to
+/// press is a screen that is missing.
 export const navigation: NavigationGroup[] = [
   {
     title: 'Library',

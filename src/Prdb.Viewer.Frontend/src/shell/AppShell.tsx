@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router'
 
 import { api, type Account } from '../api/client'
+import { friendlyState } from '../lib/format'
 import { shelfAt, shelves } from '../personal/shelves'
 import { queryKeys } from '../queryKeys'
 import { Brand } from '../ui'
@@ -177,7 +178,22 @@ function GlobalSearch() {
   )
 }
 
+/// Who is signed in, and the two things that follow from it, behind one control.
+///
+/// The header used to carry the name as a link and Sign out as a button standing permanently
+/// beside it: two controls for one subject, and an irreversible one given the same standing as a
+/// destination. It is the corner every application puts the account in, so it behaves the way that
+/// corner behaves elsewhere — an avatar that opens a small menu, with the identity stated at its
+/// head and Sign out at its foot, apart from what merely navigates.
+///
+/// A disclosure rather than an ARIA menu: what it holds is a link and a button, which the Tab key
+/// already reaches in order. Claiming `role="menu"` would promise arrow-key navigation that this
+/// does not implement, and a promise the keyboard does not keep is worse than none.
 function AccountMenu({ account }: { account: Account }) {
+  const [open, setOpen] = useState(false)
+  const menu = useRef<HTMLDivElement>(null)
+  const toggle = useRef<HTMLButtonElement>(null)
+  const location = useLocation()
   const queryClient = useQueryClient()
   const signOut = useMutation({
     mutationFn: () => api.signOut(account.csrfToken),
@@ -187,12 +203,63 @@ function AccountMenu({ account }: { account: Account }) {
     },
   })
 
+  // Following the link inside it has arrived somewhere; the menu it was chosen from has no reason
+  // to stay over the screen it led to.
+  useEffect(() => setOpen(false), [location.pathname])
+
+  /// An open menu answers Escape and a press beside it, and Escape returns the focus to the
+  /// control that opened it — the same bargain the drawer and the filter sheet make.
+  useEffect(() => {
+    if (!open) return
+
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      setOpen(false)
+      toggle.current?.focus()
+    }
+    const dismissOutside = (event: PointerEvent) => {
+      if (!menu.current?.contains(event.target as Node)) setOpen(false)
+    }
+
+    window.addEventListener('keydown', dismiss)
+    document.addEventListener('pointerdown', dismissOutside)
+    return () => {
+      window.removeEventListener('keydown', dismiss)
+      document.removeEventListener('pointerdown', dismissOutside)
+    }
+  }, [open])
+
   return (
-    <div className="account-menu">
-      <NavLink to="/account" className="account-link">{account.username}</NavLink>
-      <button className="quiet-button" onClick={() => signOut.mutate()} disabled={signOut.isPending}>
-        Sign out
+    <div className="account-menu" ref={menu}>
+      <button
+        ref={toggle}
+        className="account-avatar"
+        aria-expanded={open}
+        aria-controls="account-popover"
+        onClick={() => setOpen((shown) => !shown)}
+      >
+        <span aria-hidden="true">{account.username.slice(0, 1).toUpperCase()}</span>
+        <span className="visually-hidden">{`Account: ${account.username}`}</span>
       </button>
+
+      {open && (
+        <div className="account-popover" id="account-popover">
+          {/* The name the header no longer has room to show. It is stated rather than linked: the
+              entry below it leads to the same place, and one destination needs one control. */}
+          <div className="account-identity">
+            <strong>{account.username}</strong>
+            <span>{friendlyState(account.authority)}</span>
+          </div>
+          <NavLink to="/account" className="account-action">Your Account</NavLink>
+          <button
+            className="account-action leaving"
+            onClick={() => signOut.mutate()}
+            disabled={signOut.isPending}
+          >
+            {signOut.isPending ? 'Signing out…' : 'Sign out'}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

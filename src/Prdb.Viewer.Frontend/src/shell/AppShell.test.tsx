@@ -192,11 +192,53 @@ describe('The application shell', () => {
     renderApp()
 
     const navigation = await screen.findByRole('navigation', { name: 'Main' })
-    // The header shortcut is hidden where the window is narrow, so the navigation has to carry it.
+    // The header's shortcut is behind a control that has to be opened first, so the navigation
+    // names the destination among the others rather than leaving it to be discovered.
     expect(within(navigation).getByRole('link', { name: 'Your Account' })).toHaveAttribute(
       'href',
       '/account',
     )
+  })
+
+  it('keeps the identity and signing out behind the one control the corner is for', async () => {
+    signedInAs('User')
+    renderApp()
+
+    // Ending the session is not something the header offers in passing: it is inside the menu,
+    // under the name of whoever would be signed out.
+    const avatar = await screen.findByRole('button', { name: 'Account: viewer' })
+    expect(avatar).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()
+
+    fireEvent.click(avatar)
+
+    const menu = screen.getByRole('button', { name: 'Sign out' }).parentElement!
+    expect(avatar).toHaveAttribute('aria-expanded', 'true')
+    expect(within(menu).getByText('viewer')).toBeInTheDocument()
+    expect(within(menu).getByRole('link', { name: 'Your Account' })).toHaveAttribute(
+      'href',
+      '/account',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    await vi.waitFor(() => expect(globalThis.fetch).toHaveBeenCalledWith(
+      '/api/access/sign-out',
+      expect.objectContaining({ method: 'POST' }),
+    ))
+  })
+
+  it('closes the account menu on Escape and hands the focus back', async () => {
+    signedInAs('User')
+    renderApp()
+
+    const avatar = await screen.findByRole('button', { name: 'Account: viewer' })
+    fireEvent.click(avatar)
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeInTheDocument()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(screen.queryByRole('button', { name: 'Sign out' })).not.toBeInTheDocument()
+    expect(avatar).toHaveFocus()
   })
 
   it('names the open screen in the window rather than the application', async () => {

@@ -101,19 +101,56 @@ p { color: #bdb8c7; line-height: 1.6; }
 }
 .global-search input:focus { border-color: #a984ff; box-shadow: 0 0 0 .2rem rgb(169 132 255 / 15%); }
 
-.account-menu { display: flex; align-items: center; gap: .7rem; color: #c9c4cf; font-size: .9rem; }
-.account-link {
-  color: #c9c4cf;
-  text-decoration: underline;
-  text-decoration-color: rgb(255 255 255 / 25%);
-  text-underline-offset: .25rem;
-  border-radius: .4rem;
-  padding: .15rem .25rem;
+/* The account sits in the corner every application keeps it in: one round control, and a small
+   menu hanging under it. The menu is positioned against this rather than the header, which blurs
+   its backdrop and would otherwise anchor anything fixed inside it. */
+.account-menu { position: relative; display: flex; align-items: center; }
+.account-avatar {
+  display: grid;
+  width: 2.1rem; height: 2.1rem;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 14%);
+  border-radius: 999px;
+  color: #f7f4ef;
+  background: linear-gradient(140deg, #8d62f4, #5b3bb8);
+  font-size: .82rem;
+  font-weight: 800;
+  line-height: 1;
 }
-.account-link:hover, .account-link:focus-visible, .account-link.active {
-  color: #fff;
-  text-decoration-color: currentcolor;
+.account-avatar:hover, .account-avatar[aria-expanded='true'] { border-color: rgb(255 255 255 / 32%); box-shadow: 0 0 0 .2rem rgb(169 132 255 / 18%); }
+
+.account-popover {
+  position: absolute;
+  top: calc(100% + .55rem);
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 12.5rem;
+  padding: .35rem;
+  border: 1px solid rgb(255 255 255 / 12%);
+  border-radius: .9rem;
+  background: #1a1820;
+  box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 45%);
 }
+.account-identity { display: flex; flex-direction: column; gap: .1rem; padding: .55rem .7rem .65rem; border-bottom: 1px solid var(--line); margin-bottom: .35rem; }
+.account-identity strong { font-size: .92rem; overflow-wrap: anywhere; }
+.account-identity span { color: var(--muted); font-size: .74rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.account-action {
+  padding: .55rem .7rem;
+  border: 0;
+  border-radius: .55rem;
+  color: #d9d4e0;
+  background: transparent;
+  font-size: .88rem;
+  text-align: left;
+  text-decoration: none;
+}
+.account-action:hover, .account-action:focus-visible { color: #fff; background: rgb(255 255 255 / 7%); }
+/* Signing out ends the session rather than leading anywhere, so it stands apart from what merely
+   navigates and says as much in its colour. */
+.account-action.leaving { margin-top: .35rem; border-top: 1px solid var(--line); border-radius: 0 0 .55rem .55rem; color: #f2969c; padding-top: .65rem; }
+.account-action.leaving:hover, .account-action.leaving:focus-visible { color: #ffb4b9; background: rgb(240 91 92 / 12%); }
 
 .app-navigation {
   grid-area: nav;
@@ -548,9 +585,6 @@ p { color: #bdb8c7; line-height: 1.6; }
   .card { border-radius: 1.3rem; }
   .app-header { gap: .6rem; }
   .brand.compact h1 { display: none; }
-  /* The header has no room for the name here. The Account keeps its own navigation entry, so
-     hiding this shortcut costs nothing but the shortcut. */
-  .account-menu > .account-link { display: none; }
   .app-content { padding: 1.25rem var(--content-inset) 4rem; }
   .account-row { align-items: flex-start; flex-direction: column; }
   .row-actions { justify-content: flex-start; }
