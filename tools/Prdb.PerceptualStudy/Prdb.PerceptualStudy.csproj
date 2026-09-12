@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    The measurement behind ADR 0021. It builds the corpora, hashes them with the same
+    Prdb.Hashing the product uses, and prints the tables the ADR states, so those numbers can be
+    repeated rather than re-argued.
+
+    It is not shipped: the Dockerfile builds src/Prdb.Viewer.Host, and nothing in src references
+    this. It needs ffmpeg and ffprobe on PATH, and the film corpus needs the network once.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>perceptual-study</AssemblyName>
+    <RootNamespace>Prdb.PerceptualStudy</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Prdb.Hashing" />
+  </ItemGroup>
+
+</Project>
