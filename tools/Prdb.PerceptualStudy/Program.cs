@@ -26,27 +26,12 @@ try
             return 0;
 
         case "hash" when args.Length >= 3:
-        {
-            var parallelism = args.Length > 3 ? int.Parse(args[3]) : 4;
-            var measurements = await Measurements.HashAsync(args[1], parallelism, cancellation.Token);
-            await Measurements.WriteAsync(args[2], measurements, cancellation.Token);
-            Console.WriteLine($"{measurements.Count} files written to {args[2]}");
+            await HashAsync(args[1], args[2], args.Length > 3 ? int.Parse(args[3]) : 4);
             return 0;
-        }
 
         case "report" when args.Length >= 2:
-        {
-            var corpora = new Dictionary<string, IReadOnlyList<Measurement>>();
-
-            foreach (var path in args[1..])
-            {
-                corpora[Path.GetFileNameWithoutExtension(path)] =
-                    await Measurements.ReadAsync(path, cancellation.Token);
-            }
-
-            Report.Print(corpora);
+            await ReportAsync(args[1..]);
             return 0;
-        }
 
         case "trims" when args.Length >= 2:
             Report.PrintTrims(await Measurements.ReadAsync(args[1], cancellation.Token));
@@ -87,6 +72,26 @@ async Task BuildAsync(string kind, string directory, string? source)
             throw new ArgumentException(
                 "corpus takes synthetic, film, collisions, or trims <dir> <built-corpus>.");
     }
+}
+
+async Task HashAsync(string directory, string destination, int parallelism)
+{
+    var measurements = await Measurements.HashAsync(directory, parallelism, cancellation.Token);
+    await Measurements.WriteAsync(destination, measurements, cancellation.Token);
+    Console.WriteLine($"{measurements.Count} files written to {destination}");
+}
+
+async Task ReportAsync(IReadOnlyList<string> paths)
+{
+    var corpora = new Dictionary<string, IReadOnlyList<Measurement>>();
+
+    foreach (var path in paths)
+    {
+        corpora[Path.GetFileNameWithoutExtension(path)] =
+            await Measurements.ReadAsync(path, cancellation.Token);
+    }
+
+    Report.Print(corpora);
 }
 
 static void Usage()
