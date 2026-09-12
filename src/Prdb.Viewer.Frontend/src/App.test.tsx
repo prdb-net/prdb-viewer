@@ -591,6 +591,92 @@ describe('App', () => {
     )).toBeInTheDocument()
   })
 
+  it('compares a neighbour proposal against the other file of this library', async () => {
+    const neighbour = {
+      videoFileId: '01994dd4-2a0a-7000-8000-000000000051',
+      videoId: '01994dd4-2a0a-7000-8000-000000000050',
+      displayLabel: 'The Established Work',
+      relativePath: 'archive/established-work-1080p.mp4',
+      previewUrl: '/media/previews/01994dd4-2a0a-7000-8000-0000000000aa',
+      durationMilliseconds: 1_800_000,
+      quality: 'FullHd1080',
+      distance: 2,
+      durationsAgree: true,
+      summary: 'This file and that one look all but identical, and their running times agree.',
+    }
+    const candidate = {
+      id: '01994dd4-2a0a-7000-8000-000000000053',
+      dimension: 'WorkIdentification',
+      status: 'Pending',
+      targetTitle: 'The Established Work',
+      targetUrl: null,
+      evidenceClass: 'Suggestive',
+      reason: 'PerceptualNeighbour',
+      source: 'LocalInference',
+      evidenceSummary: 'Local: Suggestive evidence, matched by another Video File of this library',
+      supportingVideoFileId: '01994dd4-2a0a-7000-8000-000000000054',
+      // The work's own facts are not what this proposal rests on, so the case does not lead with
+      // them: the question is whether these two files are the same picture.
+      proposal: null,
+      neighbour,
+      decisions: offeredDecisions([
+        { action: 'AcceptCandidate', outcome: 'The two Videos merge into one.' },
+        { action: 'RejectCandidate', outcome: 'A closer resemblance may propose it again.' },
+      ]),
+      createdAt: '2026-09-12T10:00:00Z',
+      resolvedAt: null,
+    }
+    const queueItem = {
+      videoId: '01994dd4-2a0a-7000-8000-000000000052',
+      caseVersion: 1,
+      displayLabel: 'established-work-360p',
+      previewUrl: null,
+      dimension: 'WorkIdentification',
+      currentResolution: 'Unknown',
+      currentTargetTitle: null,
+      candidate,
+      affectedVideoFileCount: 1,
+      reason: 'Another Video File of this library looks like this one.',
+    }
+    const openCase = {
+      videoId: queueItem.videoId,
+      caseVersion: 1,
+      displayLabel: 'established-work-360p',
+      previewUrl: null,
+      identification: identification(),
+      openCandidates: [candidate],
+      candidateHistory: [],
+      videoFiles: [variant()],
+      decisions: [],
+      unavailableSiteActions: [],
+      explanation: 'Another Video File of this library looks like this one.',
+    }
+    signedInAs('Administrator', (input) => {
+      if (input === '/api/admin/identification/queue') return json([queueItem])
+      if (input === `/api/admin/identification/videos/${queueItem.videoId}`) return json(openCase)
+      return undefined
+    })
+
+    renderApp('/admin/identification')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Review' }))
+
+    // The other side of the comparison is a file of this library, named as such, with its own
+    // preview rather than artwork prdb holds for a work.
+    expect(await screen.findByText('The file it looks like')).toBeInTheDocument()
+    expect(screen.getByAltText(`Preview frame of ${neighbour.relativePath}`))
+      .toHaveAttribute('src', neighbour.previewUrl)
+    expect(screen.getByText(neighbour.relativePath)).toBeInTheDocument()
+    expect(screen.getByText('30 min')).toBeInTheDocument()
+    expect(screen.getByText('1080p')).toBeInTheDocument()
+
+    // The distance is 64 bits of Hamming distance, which nobody can calibrate, so it is said in
+    // words — and the other Video is reachable, because deciding usually means watching a moment.
+    expect(screen.getByText(neighbour.summary)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open that Video' }))
+      .toHaveAttribute('href', expect.stringContaining(`/videos/${neighbour.videoId}`))
+  })
+
   it('offers sign-in and an approval-gated registration request', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       if (input === '/api/access/state') return json({ claimed: true, signedIn: false })

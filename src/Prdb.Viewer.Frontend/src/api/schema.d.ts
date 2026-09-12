@@ -2303,6 +2303,7 @@ export interface components {
             /** Format: uuid */
             supportingVideoFileId: null | string;
             proposal: null | components["schemas"]["IdentificationProposalView"];
+            neighbour: null | components["schemas"]["IdentificationNeighbourView"];
             decisions: components["schemas"]["IdentificationDecisionOutlook"][];
             /** Format: date-time */
             createdAt: string;
@@ -2409,6 +2410,22 @@ export interface components {
         IdentificationDimension: "WorkIdentification" | "SiteRecognition";
         /** @enum {unknown} */
         IdentificationEvidenceClass: "Insufficient" | "Suggestive" | "Conclusive";
+        IdentificationNeighbourView: {
+            /** Format: uuid */
+            videoFileId: string;
+            /** Format: uuid */
+            videoId: string;
+            displayLabel: string;
+            relativePath: string;
+            previewUrl: null | string;
+            /** Format: int64 */
+            durationMilliseconds: number | string;
+            quality: components["schemas"]["VideoQualityBand"];
+            /** Format: int32 */
+            distance: number | string;
+            durationsAgree: boolean;
+            summary: string;
+        };
         IdentificationProposalView: {
             title: string;
             siteTitle: null | string;
@@ -2441,7 +2458,7 @@ export interface components {
         /** @enum {unknown} */
         IdentificationResolution: "Unknown" | "Established";
         /** @enum {unknown} */
-        IdentificationReviewReason: "SuggestiveEvidence" | "ConflictingConclusiveEvidence" | "ConflictsWithAdministrativeOverride" | "RemoteIdentityChanged";
+        IdentificationReviewReason: "SuggestiveEvidence" | "ConflictingConclusiveEvidence" | "ConflictsWithAdministrativeOverride" | "RemoteIdentityChanged" | "PerceptualNeighbour";
         /** @enum {unknown} */
         IdentificationReviewStatus: "Clear" | "ReviewNeeded";
         /** @enum {unknown} */

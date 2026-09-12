@@ -147,6 +147,26 @@ public sealed record IdentificationDecisionOutlook(
     string? Refusal,
     string Outcome);
 
+/// <summary>
+/// The other Video File of this library that a proposal came from.
+///
+/// A remote proposal is compared against a work in prdb's own terms; this one is compared against
+/// a file sitting in another Library Directory, so the case has to show that file rather than a
+/// work: what it looks like, where it is, how long it runs, what it was encoded at — and how close
+/// the two are, said in words rather than left as a number nobody can calibrate.
+/// </summary>
+public sealed record IdentificationNeighbourView(
+    Guid VideoFileId,
+    Guid VideoId,
+    string DisplayLabel,
+    string RelativePath,
+    string? PreviewUrl,
+    long DurationMilliseconds,
+    VideoQualityBand Quality,
+    int Distance,
+    bool DurationsAgree,
+    string Summary);
+
 public sealed record IdentificationCandidateView(
     Guid Id,
     IdentificationDimension Dimension,
@@ -159,6 +179,7 @@ public sealed record IdentificationCandidateView(
     string EvidenceSummary,
     Guid? SupportingVideoFileId,
     IdentificationProposalView? Proposal,
+    IdentificationNeighbourView? Neighbour,
     IReadOnlyList<IdentificationDecisionOutlook> Decisions,
     DateTimeOffset CreatedAt,
     DateTimeOffset? ResolvedAt);

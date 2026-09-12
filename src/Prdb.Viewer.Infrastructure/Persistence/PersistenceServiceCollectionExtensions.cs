@@ -52,6 +52,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<PerceptualNeighbourhoodRunner>();
         services.AddScoped<EnrichmentRunner>();
         services.AddScoped<IdentificationService>();
+        services.AddScoped<LocalSimilarityService>();
         services.AddScoped<IdentificationReviewService>();
         services.AddScoped<PreviewDeliveryService>();
         services.AddScoped<BackgroundWorkQuery>();

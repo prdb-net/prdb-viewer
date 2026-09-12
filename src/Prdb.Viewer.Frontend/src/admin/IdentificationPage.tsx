@@ -10,11 +10,12 @@ import {
   type IdentificationConsequence,
   type IdentificationDecisionAction,
   type IdentificationDecisionOutlook,
+  type IdentificationNeighbour,
   type IdentificationProposal,
   type IdentificationQueueItem,
 } from '../api/client'
 import { candidateOrigin, formatDay, friendlyState, provenanceLabel } from '../lib/format'
-import { formatRuntime } from '../lib/quality'
+import { formatRuntime, qualityBandLabel } from '../lib/quality'
 import { withReturnTo } from '../lib/returnTo'
 import { queryKeys } from '../queryKeys'
 import { Field, firstError, Notice, PageHeading, RequestError } from '../ui'
@@ -229,14 +230,41 @@ export function IdentificationPage({ account }: { account: Account }) {
               >Open this Video</Link>
             </div>
             <div className="compared">
-              <span className="eyebrow">Proposed</span>
-              <Proposal proposal={candidate.proposal} title={candidate.targetTitle} />
+              <span className="eyebrow">{candidate.neighbour ? 'The file it looks like' : 'Proposed'}</span>
+              {/* A proposal that came from another file of this library is compared against that
+                  file, not against a work in prdb's catalogue. Showing prdb's artwork here would
+                  have put the wrong thing under the reader's eye: the question is whether these
+                  two files are the same picture. */}
+              {candidate.neighbour
+                ? <Picture
+                    url={candidate.neighbour.previewUrl}
+                    alt={`Preview frame of ${candidate.neighbour.relativePath}`}
+                    absent="No preview frame has been generated for that Video File yet."
+                  />
+                : <Proposal proposal={candidate.proposal} title={candidate.targetTitle} />}
               <p>
                 {candidate.targetUrl
                   ? <a href={candidate.targetUrl} target="_blank" rel="noreferrer">{candidate.targetTitle}</a>
                   : candidate.targetTitle}
               </p>
-              <ProposedFacts proposal={candidate.proposal} />
+              {candidate.neighbour
+                ? <NeighbourFacts neighbour={candidate.neighbour} />
+                : <ProposedFacts proposal={candidate.proposal} />}
+              {candidate.neighbour && (
+                <>
+                  <p className="neighbour-summary">{candidate.neighbour.summary}</p>
+                  {/* Deciding whether two files are the same picture usually means watching a
+                      moment of the other one, so the other Video is reachable from here — and
+                      carries the way back, as this side's link does. */}
+                  <Link
+                    className="quiet-button"
+                    to={withReturnTo(
+                      `/videos/${candidate.neighbour.videoId}`,
+                      `/admin/identification?candidate=${candidate.id}`,
+                    )}
+                  >Open that Video</Link>
+                </>
+              )}
               <small>{candidate.evidenceSummary}</small>
               {/* A proposal that repeats what is established is the one an Administrator reads
                   twice: the two columns say the same thing, and nothing on the screen used to
@@ -448,6 +476,25 @@ function ProposedFacts({ proposal }: { proposal: IdentificationProposal | null }
   ].filter((fact) => fact !== undefined)
 
   return facts.length === 0 ? null : <Facts facts={facts} />
+}
+
+/// The other Video File of this library a proposal came from.
+///
+/// Where a remote proposal is compared against a work — its Site, its cast, its release — this one
+/// is compared against a file, so the facts are the file's: where it is, how long it runs, and what
+/// it was encoded at. The Video it belongs to is reachable from here, because deciding whether two
+/// files are the same picture usually means watching a moment of both.
+function NeighbourFacts({ neighbour }: { neighbour: IdentificationNeighbour }) {
+  const runtime = formatRuntime(Number(neighbour.durationMilliseconds ?? 0))
+  const quality = qualityBandLabel(neighbour.quality)
+  const facts = [
+    { term: 'Video', value: neighbour.displayLabel },
+    { term: 'Path', value: neighbour.relativePath },
+    runtime ? { term: 'Runtime', value: runtime } : undefined,
+    quality ? { term: 'Quality', value: quality } : undefined,
+  ].filter((fact) => fact !== undefined)
+
+  return <Facts facts={facts} />
 }
 
 /// A short list of named facts, drawn the same way on both sides of the comparison.

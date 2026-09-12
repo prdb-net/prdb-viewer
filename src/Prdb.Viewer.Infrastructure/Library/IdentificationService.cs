@@ -21,6 +21,13 @@ public sealed class IdentificationService(
 {
     public sealed record Target(string Key, string Title, string? Url);
 
+    /// <summary>
+    /// The reading one Perceptual Neighbourhood was proposed from: the other file, how far apart
+    /// the two hashes were, and whether the two running times agreed. It travels with the proposal
+    /// because a rejection is later overturned by a closer reading rather than by a stronger class.
+    /// </summary>
+    public sealed record NeighbourEvidence(Guid VideoFileId, int Distance, bool DurationsAgree);
+
     /// <summary>How a locally recognised Site was matched, as the review surfaces name it.</summary>
     public const string LocalSiteMatchedBy = "the file's own path";
 
@@ -405,7 +412,9 @@ public sealed class IdentificationService(
         string evidenceKey,
         IdentificationSource source = IdentificationSource.PrdbIdentification,
         string? matchedBy = null,
-        Guid? proposedWorkId = null)
+        Guid? proposedWorkId = null,
+        NeighbourEvidence? neighbour = null,
+        IdentificationReviewReason unopposedReason = IdentificationReviewReason.SuggestiveEvidence)
     {
         var current = Current(video, dimension);
 
@@ -425,7 +434,7 @@ public sealed class IdentificationService(
         }
 
         var reason = current is null
-            ? IdentificationReviewReason.SuggestiveEvidence
+            ? unopposedReason
             : current.IsAdministrativeOverride
                 ? IdentificationReviewReason.ConflictsWithAdministrativeOverride
                 : evidence == IdentificationEvidenceClass.Conclusive
@@ -451,7 +460,23 @@ public sealed class IdentificationService(
             .OrderByDescending(candidate => candidate.ResolvedAt)
             .FirstOrDefault();
 
-        if (rejected is not null && evidence <= rejected.EvidenceClass)
+        // Every rung suppresses a rejected proposal until materially stronger evidence appears.
+        // What that phrase means depends on the rung: for the remote ladder it is a stronger
+        // evidence class, and for a similarity — where every reading is Suggestive — it is a
+        // closer distance or running times that have stopped disagreeing.
+        var returns = (rejected, neighbour) switch
+        {
+            (null, _) => true,
+            ({ NeighbourDistance: { } rejectedDistance }, { } reading) =>
+                IdentificationEvidenceRule.NeighbourEvidenceSupersedesRejection(
+                    rejectedDistance,
+                    rejected.NeighbourDurationsAgree ?? false,
+                    reading.Distance,
+                    reading.DurationsAgree),
+            _ => evidence > rejected.EvidenceClass,
+        };
+
+        if (!returns)
         {
             return;
         }
@@ -473,6 +498,9 @@ public sealed class IdentificationService(
             EvidenceKey = evidenceKey,
             SupportingVideoFileId = file?.Id,
             ProposedWorkId = proposedWorkId,
+            NeighbourVideoFileId = neighbour?.VideoFileId,
+            NeighbourDistance = neighbour?.Distance,
+            NeighbourDurationsAgree = neighbour?.DurationsAgree,
             PriorRejectionId = rejected?.Id,
             CreatedAt = Now(),
         };

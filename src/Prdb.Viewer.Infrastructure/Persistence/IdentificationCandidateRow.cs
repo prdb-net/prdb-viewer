@@ -53,6 +53,23 @@ public sealed class IdentificationCandidateRow
 
     public Guid? SupportingVideoFileId { get; set; }
 
+    /// <summary>
+    /// The other Video File of this installation that this proposal came from, when it came from a
+    /// Perceptual Neighbourhood. What the review compares is then two files of this library rather
+    /// than a file against a work in prdb's catalogue, and it has to be able to show the other one.
+    /// </summary>
+    public Guid? NeighbourVideoFileId { get; set; }
+
+    /// <summary>
+    /// The reading the proposal was made on: how far apart the two Perceptual Hashes were, and
+    /// whether the two running times agreed. They are retained on the candidate rather than looked
+    /// up again, because a rejected proposal outlives the neighbourhood it was drawn from and the
+    /// question it answers later is whether a new reading is materially stronger than this one.
+    /// </summary>
+    public int? NeighbourDistance { get; set; }
+
+    public bool? NeighbourDurationsAgree { get; set; }
+
     public Guid? PriorRejectionId { get; set; }
 
     public Guid? DecidedByAccountId { get; set; }

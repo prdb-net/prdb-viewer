@@ -82,6 +82,46 @@ public static class IdentificationEvidenceRule
         };
 
     /// <summary>
+    /// Classifies what one Video File's resemblance to another of this installation's own files may
+    /// establish about a Video's work identity.
+    ///
+    /// It is never Conclusive, whatever the distance. A similarity is this installation's own
+    /// inference about two pictures; it is not an inspection of the file's content by the catalogue
+    /// that holds the work, so it cannot carry what <see cref="RemoteMatchKind.OsHash"/> carries and
+    /// cannot establish a claim. Within the near-duplicate band it is Suggestive and may propose a
+    /// candidate; beyond it, or with no distance to read at all, it is nothing.
+    ///
+    /// The duration agreement deliberately does not enter here. It decides whether two Videos may
+    /// be <em>associated</em> without review — which names no work — and it decides whether a later
+    /// reading is materially stronger than a rejected one. What it must not do is quietly become a
+    /// second threshold that suppresses proposals: ADR 0021 sends every similarity that does not
+    /// clear the narrow path to an Administrator rather than deciding it, and what the running
+    /// times did is said to that Administrator instead.
+    /// </summary>
+    public static IdentificationEvidenceClass ClassifyNeighbourWorkIdentification(int? distance) =>
+        distance is { } bits && bits <= PerceptualNeighbourhoodRule.NeighbourhoodDistance
+            ? IdentificationEvidenceClass.Suggestive
+            : IdentificationEvidenceClass.Insufficient;
+
+    /// <summary>
+    /// Whether a neighbour-derived proposal an Administrator has already rejected may come back.
+    ///
+    /// Every rung suppresses a rejected proposal until materially stronger evidence appears, and
+    /// for this one that phrase has to be decided rather than left to a comparison of evidence
+    /// classes: every reading of a similarity is Suggestive, so a generic comparison would either
+    /// suppress the rung for ever or let the same rejected proposal return the moment anything
+    /// about it changed. Stronger here means what the measurement says it means — the two files
+    /// moved closer together, or their running times stopped disagreeing. A pair that drifted
+    /// further apart is weaker evidence and stays rejected.
+    /// </summary>
+    public static bool NeighbourEvidenceSupersedesRejection(
+        int rejectedDistance,
+        bool rejectedDurationsAgreed,
+        int distance,
+        bool durationsAgree) =>
+        distance < rejectedDistance || (durationsAgree && !rejectedDurationsAgreed);
+
+    /// <summary>
     /// Whether an Administrator decision changes Shared Library Knowledge in a way whose
     /// consequences are less local or harder to reverse, and therefore requires a decision note.
     /// </summary>

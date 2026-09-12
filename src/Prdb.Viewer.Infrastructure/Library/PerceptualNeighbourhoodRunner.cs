@@ -20,6 +20,7 @@ namespace Prdb.Viewer.Infrastructure.Library;
 /// </summary>
 public sealed class PerceptualNeighbourhoodRunner(
     ViewerDbContext database,
+    LocalSimilarityService similarity,
     WorkIssueRecorder issues,
     TimeProvider timeProvider) : VideoFileWorkRunner(database, issues, timeProvider)
 {
@@ -170,6 +171,11 @@ public sealed class PerceptualNeighbourhoodRunner(
         }
 
         work.CompletedItemCount += files.Count;
+
+        // The neighbourhoods have to exist before anything can be concluded from them, so they are
+        // committed here rather than left for the slice to write on its way out.
+        await Database.SaveChangesAsync(cancellationToken);
+        await similarity.OfferToNeighboursAsync(subjects, cancellationToken);
     }
 
     /// <summary>

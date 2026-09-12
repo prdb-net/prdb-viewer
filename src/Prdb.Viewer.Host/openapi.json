@@ -2737,6 +2737,7 @@
           "evidenceSummary",
           "supportingVideoFileId",
           "proposal",
+          "neighbour",
           "decisions",
           "createdAt",
           "resolvedAt"
@@ -2788,6 +2789,16 @@
               },
               {
                 "$ref": "#/components/schemas/IdentificationProposalView"
+              }
+            ]
+          },
+          "neighbour": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IdentificationNeighbourView"
               }
             ]
           },
@@ -3273,6 +3284,68 @@
           "Conclusive"
         ]
       },
+      "IdentificationNeighbourView": {
+        "required": [
+          "videoFileId",
+          "videoId",
+          "displayLabel",
+          "relativePath",
+          "previewUrl",
+          "durationMilliseconds",
+          "quality",
+          "distance",
+          "durationsAgree",
+          "summary"
+        ],
+        "type": "object",
+        "properties": {
+          "videoFileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "videoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayLabel": {
+            "type": "string"
+          },
+          "relativePath": {
+            "type": "string"
+          },
+          "previewUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durationMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "quality": {
+            "$ref": "#/components/schemas/VideoQualityBand"
+          },
+          "distance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "durationsAgree": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
       "IdentificationProposalView": {
         "required": [
           "title",
@@ -3414,7 +3487,8 @@
           "SuggestiveEvidence",
           "ConflictingConclusiveEvidence",
           "ConflictsWithAdministrativeOverride",
-          "RemoteIdentityChanged"
+          "RemoteIdentityChanged",
+          "PerceptualNeighbour"
         ]
       },
       "IdentificationReviewStatus": {

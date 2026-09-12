@@ -62,7 +62,7 @@ internal static class IdentificationCasePresentation
                     : "moves to the separated Video."),
             IdentificationDecisionAction.RejectCandidate =>
                 $"The candidate \"{candidate!.TargetTitle}\" becomes Rejected; the same evidence " +
-                "stays suppressed until materially stronger evidence appears.",
+                $"stays suppressed until {StrongerAppears(candidate)}.",
             IdentificationDecisionAction.RevokeClaim =>
                 "Candidates are unchanged.",
             _ => pending switch
@@ -182,8 +182,8 @@ internal static class IdentificationCasePresentation
 
             IdentificationDecisionAction.RejectCandidate =>
                 $"The {label} stays {Standing(video, dimension)}, and this proposal does not come " +
-                "back while the evidence behind it stays the same; materially stronger evidence " +
-                $"may propose it again.{elsewhere} " +
+                $"back while the evidence behind it stays the same; {StrongerProposes(candidate)}" +
+                $"{elsewhere} " +
                 Waiting(sameDimension - 1 + otherDimension),
 
             IdentificationDecisionAction.AssignDirectly =>
@@ -228,6 +228,28 @@ internal static class IdentificationCasePresentation
             : $"established as \u201c{claim.TargetTitle}\u201d" +
               (claim.IsAdministrativeOverride ? " by an Administrative Override" : "");
     }
+
+    /// <summary>
+    /// What would count as materially stronger evidence than this candidate's, in the terms of the
+    /// rung it came from.
+    /// </summary>
+    /// <remarks>
+    /// For the remote ladder the phrase means a stronger evidence class, and saying so is enough.
+    /// For a similarity between two of this installation's own files it cannot: every reading of a
+    /// similarity is Suggestive, so the class never changes and the reviewer would be told their
+    /// rejection holds until something that cannot happen happens. What can happen is that the two
+    /// files move closer or their running times stop disagreeing, and that is what this says.
+    /// </remarks>
+    internal static string StrongerAppears(IdentificationCandidateRow? candidate) =>
+        candidate?.NeighbourDistance is null
+            ? "materially stronger evidence appears"
+            : "the two files move closer together, or their running times stop disagreeing";
+
+    internal static string StrongerProposes(IdentificationCandidateRow? candidate) =>
+        candidate?.NeighbourDistance is null
+            ? "materially stronger evidence may propose it again."
+            : "a closer resemblance between the two files, or running times that stop " +
+              "disagreeing, may propose it again.";
 
     /// <summary>What is left waiting on this Video once a decision has been taken.</summary>
     internal static string Waiting(int remaining) => remaining switch
@@ -281,11 +303,22 @@ internal static class IdentificationCasePresentation
             return "Two conclusive results disagree, and automation cannot choose between them.";
         }
 
+        if (open.All(candidate =>
+                candidate.Reason == IdentificationReviewReason.PerceptualNeighbour))
+        {
+            return "Another Video File of this library looks like this one and carries an " +
+                   "established work identity. That is this installation's own inference rather " +
+                   "than anything prdb said about this file, so it proposes and cannot establish.";
+        }
+
         return "The evidence is only suggestive, so it can propose a candidate but cannot " +
                "establish knowledge by itself.";
     }
 
-    internal static IdentificationQueueItem Item(VideoRow video, IdentificationCandidateRow candidate)
+    internal static IdentificationQueueItem Item(
+        VideoRow video,
+        IdentificationCandidateRow candidate,
+        VideoFileRow? neighbour = null)
     {
         var current = IdentificationService.Current(video, candidate.Dimension);
 
@@ -299,13 +332,14 @@ internal static class IdentificationCasePresentation
                 ? IdentificationResolution.Unknown
                 : IdentificationResolution.Established,
             current?.TargetTitle,
-            CandidateView(candidate),
+            CandidateView(candidate, neighbour),
             video.VideoFiles.Count,
             Explain(video));
     }
 
     internal static IdentificationCandidateView CandidateView(
         IdentificationCandidateRow candidate,
+        VideoFileRow? neighbour = null,
         IReadOnlyList<IdentificationDecisionOutlook>? decisions = null) =>
         new(
             candidate.Id,
@@ -319,9 +353,74 @@ internal static class IdentificationCasePresentation
             EvidenceSummary(candidate),
             candidate.SupportingVideoFileId,
             ProposalView(candidate.ProposedWork),
+            NeighbourView(candidate, neighbour),
             decisions ?? [],
             VideoPresentation.AsOffset(candidate.CreatedAt)!.Value,
             VideoPresentation.AsOffset(candidate.ResolvedAt));
+
+    /// <summary>
+    /// The other file of this library the proposal came from, as the case shows it. A proposal
+    /// whose neighbour has since left the library keeps its reading — the distance and the running
+    /// times it was made on are on the candidate — but there is no file left to show.
+    /// </summary>
+    internal static IdentificationNeighbourView? NeighbourView(
+        IdentificationCandidateRow candidate,
+        VideoFileRow? neighbour)
+    {
+        if (candidate.NeighbourDistance is not { } distance || neighbour is null)
+        {
+            return null;
+        }
+
+        var agree = candidate.NeighbourDurationsAgree ?? false;
+
+        return new IdentificationNeighbourView(
+            neighbour.Id,
+            neighbour.VideoId,
+            string.IsNullOrWhiteSpace(neighbour.Video?.DisplayLabel)
+                ? Path.GetFileNameWithoutExtension(neighbour.RelativePath)
+                : neighbour.Video.DisplayLabel,
+            neighbour.RelativePath,
+            neighbour.PublicPreviewId is not null &&
+            neighbour.PreviewState == VideoFilePreviewState.Generated
+                ? $"/media/previews/{neighbour.PublicPreviewId}"
+                : null,
+            neighbour.DurationMilliseconds,
+            VideoQualityRule.For(neighbour.Width, neighbour.Height),
+            distance,
+            agree,
+            NeighbourSummary(distance, agree));
+    }
+
+    /// <summary>
+    /// How close the two files are, in words. The number is 64 bits of Hamming distance, which is
+    /// not something a reader can calibrate, and the running times are the condition under which it
+    /// means anything at all — so both are said rather than shown.
+    /// </summary>
+    /// <remarks>
+    /// Where the running times disagree the sentence says why that matters, because the reasoning
+    /// is not obvious and the decision turns on it: the hash samples 25 frames at proportional
+    /// offsets, so two files of different lengths describe different moments, and a resemblance
+    /// between them is more likely to be material 64 bits cannot describe than the same work.
+    /// </remarks>
+    internal static string NeighbourSummary(int distance, bool durationsAgree)
+    {
+        var closeness = distance switch
+        {
+            0 => "This file and that one look identical to the picture hash",
+            <= 2 => "This file and that one look all but identical",
+            <= 4 => "This file and that one look very close",
+            _ => "This file and that one look close, at the edge of what counts as close at all",
+        };
+
+        return durationsAgree
+            ? $"{closeness}, and their running times agree closely enough for the resemblance to " +
+              "mean they show the same moments. This is what two encodes of one work look like."
+            : $"{closeness} — but their running times disagree by more than the resemblance can " +
+              "account for. The hash samples frames at proportional offsets, so two files of " +
+              "different lengths describe different moments; a resemblance between them is as " +
+              "likely to be material the hash cannot describe as it is to be the same work.";
+    }
 
     /// <summary>
     /// What prdb says the proposed work is. The picture is offered under this installation's own

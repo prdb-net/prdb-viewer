@@ -14,6 +14,7 @@ namespace Prdb.Viewer.Infrastructure.Library;
 public sealed class IdentificationReviewService(
     ViewerDbContext database,
     IdentificationService identification,
+    LocalSimilarityService similarity,
     VideoProjection projection,
     PersonalStateService personalState,
     TimeProvider timeProvider)
@@ -29,15 +30,53 @@ public sealed class IdentificationReviewService(
                                 candidate.Status == IdentificationCandidateStatus.Pending))
             .ToListAsync(cancellationToken);
 
+        var neighbours = await NeighbouringFilesAsync(
+            videos.SelectMany(video => video.IdentificationCandidates),
+            cancellationToken);
+
         return videos
             .SelectMany(video => video.IdentificationCandidates
                 .DistinctBy(candidate => candidate.Id)
                 .Where(candidate => candidate.Status == IdentificationCandidateStatus.Pending)
-                .Select(candidate => IdentificationCasePresentation.Item(video, candidate)))
+                .Select(candidate => IdentificationCasePresentation.Item(
+                    video,
+                    candidate,
+                    Neighbour(neighbours, candidate))))
             .OrderByDescending(item => item.Candidate.EvidenceClass)
             .ThenBy(item => item.Candidate.CreatedAt)
             .ToArray();
     }
+
+    /// <summary>
+    /// The other Video Files a set of candidates was proposed from, read in one query rather than
+    /// one per case. The Video comes with them for its projected label, which is what names the
+    /// neighbour on the screen; nothing here reads a claim again.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<Guid, VideoFileRow>> NeighbouringFilesAsync(
+        IEnumerable<IdentificationCandidateRow> candidates,
+        CancellationToken cancellationToken)
+    {
+        var wanted = candidates
+            .Select(candidate => candidate.NeighbourVideoFileId)
+            .OfType<Guid>()
+            .Distinct()
+            .ToArray();
+
+        return wanted.Length == 0
+            ? new Dictionary<Guid, VideoFileRow>()
+            : await database.VideoFiles
+                .AsNoTracking()
+                .Include(file => file.Video)
+                .Where(file => wanted.Contains(file.Id))
+                .ToDictionaryAsync(file => file.Id, cancellationToken);
+    }
+
+    private static VideoFileRow? Neighbour(
+        IReadOnlyDictionary<Guid, VideoFileRow> neighbours,
+        IdentificationCandidateRow candidate) =>
+        candidate.NeighbourVideoFileId is { } id && neighbours.TryGetValue(id, out var file)
+            ? file
+            : null;
 
     public async Task<IdentificationCase?> GetCaseAsync(
         Guid videoId,
@@ -190,6 +229,11 @@ public sealed class IdentificationReviewService(
         // method has to remember to keep correct.
         await projection.RefreshTrackedAsync(cancellationToken);
         await database.SaveChangesAsync(cancellationToken);
+
+        // A decision that establishes a work identity has just made this Video worth something to
+        // the files of this library that look like it. It joins this transaction rather than
+        // opening its own, so a decision and what it proposes elsewhere are one act or neither.
+        await similarity.OfferVideoToNeighboursAsync(subject.Id, cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
         return new IdentificationDecisionResult(
@@ -485,11 +529,15 @@ public sealed class IdentificationReviewService(
             .ThenBy(candidate => candidate.CreatedAt)
             .ToArray();
         var openViews = new List<IdentificationCandidateView>(open.Length);
+        var neighbours = await NeighbouringFilesAsync(
+            video.IdentificationCandidates,
+            cancellationToken);
 
         foreach (var candidate in open)
         {
             openViews.Add(IdentificationCasePresentation.CandidateView(
                 candidate,
+                Neighbour(neighbours, candidate),
                 await OutlookAsync(video, candidate, cancellationToken)));
         }
 
@@ -505,7 +553,9 @@ public sealed class IdentificationReviewService(
                 .Where(candidate => candidate.Status != IdentificationCandidateStatus.Pending)
                 .OrderByDescending(candidate => candidate.ResolvedAt)
                 .Take(20)
-                .Select(candidate => IdentificationCasePresentation.CandidateView(candidate))
+                .Select(candidate => IdentificationCasePresentation.CandidateView(
+                    candidate,
+                    Neighbour(neighbours, candidate)))
                 .ToArray(),
             video.VideoFiles
                 .OrderBy(file => file.RelativePath)

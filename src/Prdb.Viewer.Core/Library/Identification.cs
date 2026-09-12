@@ -52,6 +52,13 @@ public enum IdentificationReviewReason
     ConflictingConclusiveEvidence,
     ConflictsWithAdministrativeOverride,
     RemoteIdentityChanged,
+
+    /// <summary>
+    /// Another Video File of this installation looks like this one and its Video carries an
+    /// Established Work Identification. What a reviewer is looking at is therefore not a work in
+    /// prdb's catalogue beside a file name, but two files of this library beside each other.
+    /// </summary>
+    PerceptualNeighbour,
 }
 
 public enum IdentificationDecisionAction
