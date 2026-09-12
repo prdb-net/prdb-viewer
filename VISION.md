@@ -409,8 +409,11 @@ recommendation features.
 The product grows by making unknown files easier to understand and known files
 easier to rediscover:
 
-- richer matching for files prdb cannot currently identify, including actor
-  recognition, perceptual similarity and efficient human review;
+- richer matching for files prdb cannot currently identify: local perceptual
+  similarity, so that several encodes of one work stop being several videos and
+  an identification established for one can be offered for the others, and
+  review that stays workable when a large library produces thousands of pending
+  cases rather than tens;
 - personal recommendations derived from local viewing behaviour, with reasons
   the user can understand and controls that prevent a narrow feedback loop;
 - playlists, voting, saved filters and other user-defined ways to organise the
@@ -510,10 +513,6 @@ making the user read container logs.
 - Which exact container and codec combinations form the supported direct-play
   baseline across current Chrome, Firefox and Safari, and how client-specific
   capability checks refine it.
-- Which local evidence is strong enough to assign a site automatically and
-  which results must wait for review.
-- Which roles may create or change the local assignments that are shared across
-  the installation.
 - Which personal organisation features make the smallest coherent set after the
   MVP.
 - How much viewing-event detail is necessary for useful recommendations without

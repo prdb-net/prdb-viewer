@@ -196,6 +196,18 @@ _Avoid_: Identification Claim, confidence
 An Administrator's durable decision that establishes an Identification Claim and prevents conflicting automation from silently replacing it until the decision is explicitly revoked.
 _Avoid_: automatic correction, permanent identification
 
+**Perceptual Hash**:
+The 64-bit description of what a Video File looks like rather than what its bytes are, computed over frames sampled across its whole running time as prdb defines it. Two of them are compared by Hamming distance and never for equality, and a Video File whose container cannot be sampled simply has none.
+_Avoid_: fingerprint, checksum, OS hash
+
+**Work Association**:
+A provenance-bearing assertion that two Videos carry the same content, without naming what that content is. It is not an Identification Claim, because it identifies nothing: an association may merge two Videos while leaving the surviving one an Unknown Video.
+_Avoid_: Identification Claim, Work Identification, duplicate detection
+
+**Established Work Association**:
+A Work Association that merged two Videos without review, because their Perceptual Hashes and their durations both agreed closely enough for the similarity to mean they carry the same content. Its provenance is this installation's own inference rather than anything prdb said, and retains what was measured; it is undone only by a Split.
+_Avoid_: automatic identification, confirmed match, deduplication
+
 **Unknown Video**:
 A Video with no Established Work Identification. It may still have an Established Site Recognition, local file facts, Pending Identification Candidates, and an Identification Review Status of Review Needed.
 _Avoid_: unidentified file, unprocessed Video, Video without metadata
