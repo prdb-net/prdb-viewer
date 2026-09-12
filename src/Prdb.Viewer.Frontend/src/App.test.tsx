@@ -1152,6 +1152,62 @@ describe('App', () => {
     ).toBe('/media/videos/bbb'))
   })
 
+  it.each([
+    { equivalent: true, expected: 30, what: 'carries the position to an equivalent encode' },
+    { equivalent: false, expected: 0, what: 'gives it up where the timelines are not equivalent' },
+  ])('a fallback $what', async ({ equivalent, expected }) => {
+    // An automatic fallback stays inside one Playback Attempt, and until now it silently cost the
+    // position the viewer had reached. It follows them where the two files are known to carry the
+    // same timeline, and is given up where they are not: a proportional guess would land in the
+    // wrong scene, which is worse than the beginning.
+    const firstId = '01994dd4-2a0a-7000-8000-0000000000b1'
+    const secondId = '01994dd4-2a0a-7000-8000-0000000000b2'
+    const first = variant({
+      videoFileId: firstId,
+      deliveryUrl: '/media/videos/aaa',
+      timelineEquivalentVideoFileIds: equivalent ? [secondId] : [],
+    })
+    const second = variant({
+      videoFileId: secondId,
+      deliveryUrl: '/media/videos/bbb',
+      timelineEquivalentVideoFileIds: equivalent ? [firstId] : [],
+    })
+    const video = libraryVideo({ displayTitle: 'Two Encodes', videoFiles: [first, second] })
+
+    signedInAs('User', (input) => {
+      if (typeof input === 'string' && input.endsWith('/playback-attempts')) {
+        return json({
+          verdict: 'Started',
+          playbackAttemptId: '01994dd4-2a0a-7000-8000-000000000013',
+          resumePositionMilliseconds: null,
+        })
+      }
+      if (typeof input === 'string' && input.endsWith('/reports')) return json({ verdict: 'Accepted' })
+      if (typeof input === 'string' && input.endsWith('/end')) return json({ ended: true })
+      if (input === '/api/personal/playback-outcomes') return json({ recorded: true })
+      if (isFacetRequest(input)) return json(noFacets())
+      if (isVideoRequest(input)) return json(videoDetail(video))
+      if (isLibraryRequest(input)) return json(libraryPage([video]))
+      return undefined
+    })
+
+    const rendered = renderApp('/videos/01994dd4-2a0a-7000-8000-000000000010')
+    expect(await screen.findByRole('heading', { name: 'Two Encodes' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+    const player = await waitForVideo(rendered.container)
+
+    Object.defineProperty(player, 'duration', { configurable: true, writable: true, value: 100 })
+    Object.defineProperty(player, 'currentTime', { configurable: true, writable: true, value: 30 })
+    Object.defineProperty(player, 'error', { configurable: true, value: { code: 3 } })
+    fireEvent.error(player)
+    await vi.waitFor(() => expect(player.getAttribute('src')).toBe('/media/videos/bbb'))
+
+    // The new source loads at the beginning; where the position follows, the player seeks to it.
+    ;(player as unknown as { currentTime: number }).currentTime = 0
+    fireEvent.loadedMetadata(player)
+    expect((player as unknown as { currentTime: number }).currentTime).toBe(expected)
+  })
+
   it('reports the Video File the attempt fell back to, not the one it started on', async () => {
     // The periodic report is the one that outlives a fallback. Its timer is installed once, so it
     // used to keep naming the Video File that was playing when the player mounted, while the

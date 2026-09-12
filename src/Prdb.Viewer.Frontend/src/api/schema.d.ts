@@ -2650,6 +2650,8 @@ export interface components {
         PersonalVideoStateSummary: {
             /** Format: int64 */
             playbackProgressMilliseconds: null | number | string;
+            /** Format: uuid */
+            progressVideoFileId: null | string;
             /** Format: int64 */
             accumulatedWatchDurationMilliseconds: number | string;
             /** Format: int32 */
@@ -2734,6 +2736,7 @@ export interface components {
             outcome: null | components["schemas"]["ObservedPlaybackOutcome"];
             readyForDirectPlay: boolean;
             selectionReason: components["schemas"]["VariantSelectionReason"];
+            timelineEquivalentVideoFileIds: string[];
         };
         /** @enum {unknown} */
         PrdbConnectionIssue: "ExternalAuthority" | "ExternalAvailability" | "ReplacementRejected" | null;

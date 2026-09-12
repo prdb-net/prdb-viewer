@@ -99,6 +99,7 @@ export function variant(overrides: Record<string, unknown> = {}): PlaybackVarian
     outcome: null,
     readyForDirectPlay: true,
     selectionReason: 'BaselineCandidate',
+    timelineEquivalentVideoFileIds: [],
     ...overrides,
   } as PlaybackVariant
 }
@@ -106,6 +107,7 @@ export function variant(overrides: Record<string, unknown> = {}): PlaybackVarian
 export function personalState(overrides: Record<string, unknown> = {}) {
   return {
     playbackProgressMilliseconds: null,
+    progressVideoFileId: null,
     accumulatedWatchDurationMilliseconds: 0,
     playCount: 0,
     hasViewingCompletion: false,

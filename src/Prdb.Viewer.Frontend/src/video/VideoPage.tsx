@@ -136,7 +136,7 @@ export function VideoPage({ account }: { account: Account }) {
   /// What a failed attempt does next. Only a media failure says anything about the file, so only
   /// that is remembered and only that falls back: a delivery or network failure would fail the same
   /// way for every other variant, and trying them all would say nothing and cost everything.
-  const failed = (category: PlaybackFailureCategory) => {
+  const failed = (category: PlaybackFailureCategory, reachedMilliseconds: number) => {
     const session = playing
     if (!session) return
     setPlaying(undefined)
@@ -154,13 +154,19 @@ export function VideoPage({ account }: { account: Account }) {
 
     if (next) {
       // Fallback stays inside the same Playback Attempt: one deliberate play action is one
-      // attempt, whichever of its Video Files ends up carrying it.
+      // attempt, whichever of its Video Files ends up carrying it. The position it had reached
+      // follows it where the two timelines are known to be equivalent, and is given up where they
+      // are not — a proportional guess would land in the wrong scene, which is worse than the
+      // beginning.
+      const carries = session.variant.timelineEquivalentVideoFileIds.includes(next.videoFileId)
       setPlaying({
         ...session,
         variant: next,
         remaining: session.remaining.slice(1),
         attempted,
-        resumePositionMilliseconds: 0,
+        resumePositionMilliseconds: carries
+          ? Math.max(reachedMilliseconds, session.resumePositionMilliseconds)
+          : 0,
       })
       return
     }
@@ -342,6 +348,13 @@ export function VideoPage({ account }: { account: Account }) {
             <li key={variant.videoFileId}>
               <span>{variantHeadline(variant)}</span>
               <small>{variantDetail(variant)}</small>
+              {/* Where a resume position exists on another occurrence, this one says whether it
+                  carries over. It never guesses proportionally: a position that landed in the
+                  wrong scene would be worse than the beginning, and saying so is better than
+                  either. */}
+              {transferability(variant, video.personalState) && (
+                <small className="muted">{transferability(variant, video.personalState)}</small>
+              )}
               <button className="quiet-button" onClick={() => play(variant)} disabled={busy}>
                 {variant.selectionReason === 'RuledOutHere' ? 'Try anyway' : 'Play this one'}
               </button>
@@ -357,6 +370,25 @@ export function VideoPage({ account }: { account: Account }) {
       )}
     </>
   )
+}
+
+/// What playing this occurrence would do with the resume position the User already has.
+///
+/// Only where there is one to have, and only about an occurrence that is not the one it was
+/// observed on: everything else says nothing, which is what a screen with nothing to add should do.
+function transferability(
+  variant: PlaybackVariant,
+  personal: VideoSummary['personalState'],
+) {
+  const observedOn = personal?.progressVideoFileId
+  if (!observedOn || observedOn === variant.videoFileId) return undefined
+  if (!(Number(personal.playbackProgressMilliseconds ?? 0) > 0)) return undefined
+
+  return variant.timelineEquivalentVideoFileIds.includes(observedOn)
+    ? `Resumes at ${formatDuration(Number(personal.playbackProgressMilliseconds))}, the same ` +
+      'position as the occurrence you were watching.'
+    : 'Starts at the beginning: this occurrence’s timeline is not known to match the one your ' +
+      'position was observed on.'
 }
 
 /// Why this Video holds the Video Files it holds, where an association put them together.

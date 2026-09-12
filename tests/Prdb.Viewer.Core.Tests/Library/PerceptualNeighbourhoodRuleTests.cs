@@ -91,4 +91,25 @@ public sealed class PerceptualNeighbourhoodRuleTests
     [InlineData(0, 0)]
     public void A_running_time_inspection_never_established_agrees_with_nothing(long left, long right) =>
         Assert.False(PerceptualNeighbourhoodRule.DurationsAgree(left, right));
+
+    /// <summary>
+    /// The same two conditions the narrow path is made of, and for a reason: the distance says the
+    /// files show the same moments at all, and the tolerance bounds the error a transferred
+    /// position can carry.
+    /// </summary>
+    [Theory]
+    [InlineData(0, true)]
+    [InlineData(6, true)]
+    public void Two_files_within_the_band_whose_running_times_agree_carry_each_others_timeline(
+        int distance,
+        bool durationsAgree) =>
+        Assert.True(PerceptualNeighbourhoodRule.TimelinesAreEquivalent(distance, durationsAgree));
+
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(6, false)]
+    [InlineData(7, true)]
+    [InlineData(64, true)]
+    public void Anything_else_does_not(int distance, bool durationsAgree) =>
+        Assert.False(PerceptualNeighbourhoodRule.TimelinesAreEquivalent(distance, durationsAgree));
 }

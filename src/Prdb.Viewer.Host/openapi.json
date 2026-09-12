@@ -4279,6 +4279,7 @@
       "PersonalVideoStateSummary": {
         "required": [
           "playbackProgressMilliseconds",
+          "progressVideoFileId",
           "accumulatedWatchDurationMilliseconds",
           "playCount",
           "hasViewingCompletion",
@@ -4298,6 +4299,13 @@
               "string"
             ],
             "format": "int64"
+          },
+          "progressVideoFileId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           },
           "accumulatedWatchDurationMilliseconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -4508,7 +4516,8 @@
           "powerEfficient",
           "outcome",
           "readyForDirectPlay",
-          "selectionReason"
+          "selectionReason",
+          "timelineEquivalentVideoFileIds"
         ],
         "type": "object",
         "properties": {
@@ -4674,6 +4683,13 @@
           },
           "selectionReason": {
             "$ref": "#/components/schemas/VariantSelectionReason"
+          },
+          "timelineEquivalentVideoFileIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         }
       },

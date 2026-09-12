@@ -94,6 +94,26 @@ public static class PerceptualNeighbourhoodRule
         return difference <= longer * DurationAgreementTolerance;
     }
 
+    /// <summary>
+    /// Whether two Video Files carry the same sequence and timing closely enough to transfer a
+    /// resume position at the same elapsed position.
+    ///
+    /// It is the same pair of conditions the narrow path is made of, and for a reason that is worth
+    /// stating rather than inferring. The distance is what says the two files show the same moments
+    /// at all — without it there is no reason to think a position means anything on the other side.
+    /// The tolerance is what bounds the error the transfer can carry: a position moved between two
+    /// files whose running times differ by <em>p</em> lands at most <em>p</em> of the running time
+    /// away from where it was, and at 0.25 % that is a second and a half in a ten-minute work and
+    /// four and a half in a half-hour one. A viewer does not notice that; they do notice starting
+    /// again from the beginning.
+    ///
+    /// It is a fact about a pair and it does not generalise. Three files may be pairwise equivalent
+    /// without that being assumed of any pair nobody has compared, because the distance between two
+    /// hashes says nothing about the distance to a third.
+    /// </summary>
+    public static bool TimelinesAreEquivalent(int distance, bool durationsAgree) =>
+        distance <= NeighbourhoodDistance && durationsAgree;
+
     private static ulong? Parse(string? hash) =>
         hash?.Length == HashLength &&
         ulong.TryParse(hash, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var value)

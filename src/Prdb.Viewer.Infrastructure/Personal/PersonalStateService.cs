@@ -43,10 +43,17 @@ public sealed class PersonalStateService(
             .SingleOrDefaultAsync(candidate =>
                 candidate.AccountId == accountId && candidate.VideoId == videoId,
                 cancellationToken);
-        var resumePosition = state?.ProgressVideoFileId == videoFileId &&
+        // A position observed on one Video File follows the User to another encode of the same
+        // Video, but only where the two files' timelines are known to be equivalent. Without that
+        // the position belongs to the file it was observed on: the alternative is a proportional
+        // guess, and a guess that lands in the wrong scene is worse than starting again.
+        var transferable = state?.ProgressVideoFileId is { } observedOn &&
+            (observedOn == videoFileId ||
+             await TimelinesAreEquivalentAsync(observedOn, videoFileId, cancellationToken));
+        var resumePosition = transferable &&
             PlaybackActivityRule.IsMeaningfulResumePosition(
                 file.DurationMilliseconds,
-                state.PlaybackProgressMilliseconds)
+                state!.PlaybackProgressMilliseconds)
             ? state.PlaybackProgressMilliseconds
             : null;
         var now = UtcNow();
@@ -819,6 +826,7 @@ public sealed class PersonalStateService(
              state.LastQualifiedActivityAt > state.ContinueWatchingDismissedAt);
         return new PersonalVideoStateSummary(
             state.PlaybackProgressMilliseconds,
+            state.ProgressVideoFileId,
             state.AccumulatedWatchDurationMilliseconds,
             state.PlayCount,
             state.HasViewingCompletion,
@@ -830,7 +838,31 @@ public sealed class PersonalStateService(
     }
 
     internal static PersonalVideoStateSummary EmptySummary() =>
-        new(null, 0, 0, false, PersonalPlayState.Unplayed, false, false, false, null);
+        new(null, null, 0, 0, false, PersonalPlayState.Unplayed, false, false, false, null);
+
+    /// <summary>
+    /// Whether two Video Files of one Video carry the same sequence and timing, as the Perceptual
+    /// Neighbourhood between them says. Equivalence is derived from that pair rather than stored
+    /// beside it, so a file hashed again to a different value loses it with the neighbourhood the
+    /// old value produced.
+    /// </summary>
+    private async Task<bool> TimelinesAreEquivalentAsync(
+        Guid left,
+        Guid right,
+        CancellationToken cancellationToken)
+    {
+        var neighbourhood = await database.PerceptualNeighbourhoods
+            .AsNoTracking()
+            .Where(row => (row.LeftVideoFileId == left && row.RightVideoFileId == right) ||
+                          (row.LeftVideoFileId == right && row.RightVideoFileId == left))
+            .Select(row => new { row.Distance, row.DurationsAgree })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        return neighbourhood is not null &&
+               PerceptualNeighbourhoodRule.TimelinesAreEquivalent(
+                   neighbourhood.Distance,
+                   neighbourhood.DurationsAgree);
+    }
 
     private DateTime UtcNow() => timeProvider.GetUtcNow().UtcDateTime;
 
