@@ -1,0 +1,43 @@
+# The supported way to run prdb-viewer. The README chapter "Deploy with Docker
+# Compose" explains every line below, including how to reach a library that
+# lives on a NAS.
+#
+# Copy this file to the machine that will run the installation, point the
+# library mount at your own video directory, and start it:
+#
+#     docker compose up --detach
+#
+# Product configuration stays out of this file. The prdb API key, the first
+# Administrator and the choice of which mounted directory becomes a Library
+# Directory are settled once in the browser after the container is up.
+
+services:
+  viewer:
+    image: prdbnet/prdb-viewer:0.16.1
+    restart: unless-stopped
+
+    ports:
+      # The application answers plain HTTP inside the container. Publish it on
+      # the host, or put a TLS-terminating reverse proxy in front of it and see
+      # "Behind a reverse proxy" in the README.
+      - "8080:8080"
+
+    environment:
+      # The identity the application runs as. It has to be able to read every
+      # library mounted below, so use the owning uid and gid of your media.
+      PUID: "1000"
+      PGID: "1000"
+      # Everything the application writes below /data is private to that
+      # identity. Keep this unless the data mount enforces its own policy.
+      UMASK: "077"
+
+    volumes:
+      # Persistent application data: the SQLite database, generated previews,
+      # and operator credentials. It is sensitive, and it is what a backup of
+      # the host has to include.
+      - ./data:/data
+
+      # One line per library, read-only without exception — the application
+      # never changes source media. Replace the host path with your own video
+      # directory; the container path is the one you select in the browser.
+      - /srv/media/videos:/libraries/main:ro

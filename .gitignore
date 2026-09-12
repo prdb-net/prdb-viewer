@@ -3,6 +3,8 @@ CLAUDE.local.md
 .firecrawl/
 .data/
 .libraries/
+# compose.yaml's data mount, should the supported deployment be run from here.
+/data/
 .idea/
 .vscode/
 **/bin/

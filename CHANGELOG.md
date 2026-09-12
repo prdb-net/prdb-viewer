@@ -5,6 +5,42 @@ All notable user-visible changes to `prdb-viewer` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+The supported way to run the viewer is now in the repository. `VISION.md` has
+named Docker Compose as *the* deployment from the start, and the repository
+shipped no Compose file — so what was actually documented was `docker run` with
+bind mounts, a set of flags to reassemble by hand rather than a file to copy.
+There is now a file to copy, a deployment chapter written for somebody putting
+this on a home server, and the one MVP story that was undocumented altogether: a
+library that lives on a NAS.
+
+### Added
+
+- `compose.yaml` at the repository root: the published image at a pinned
+  version, the port, the persistent `/data` mount, one read-only library mount,
+  and the identity that reads them — and nothing else. The prdb key, the first
+  Administrator and the choice of Library Directory stay in guided onboarding
+  rather than growing into a list of environment variables.
+- A deployment chapter in the README that explains what that identity is for and
+  where to read it off, why every library mount is read-only, how the first
+  Bootstrap Authorization is created against the same data mount through
+  `docker compose run` or `exec --user`, and what upgrading is.
+- How to reach a library that lives on a NAS: mount the SMB or NFS share on the
+  Docker host and bind-mount that host path into the container, with the `uid`
+  and `gid` an SMB mount has to be given, why the default `root_squash` is not in
+  a library mount's way and why `/data` still does not belong on NFS, and what a
+  share that goes away looks like — unavailable, never discarded. Including the
+  one failure the application cannot see through: an unmounted share whose bare
+  mountpoint is readable and empty reads as a complete observation of an empty
+  library, which is why that mountpoint should be readable by nobody.
+- `docker/compose-test.sh`, run by CI on both architectures. It starts the
+  committed `compose.yaml` with the image just built and checks that the file is
+  valid Compose on its own, that it pins the version this tree releases, that it
+  comes up and answers, and that its mounts land at the paths and under the
+  identity the README describes. The deployment entry point can no longer rot
+  into an example that no longer starts.
+
 ## [0.16.1] - 2026-09-04
 
 Three fixes and no new behaviour: two things an Actor's page showed that it
