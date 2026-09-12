@@ -6,7 +6,7 @@ export const queryKeys = {
   libraryDirectoryCandidates: ['library-directory-candidates'] as const,
   backgroundWork: ['background-work'] as const,
   workIssueItems: (workIssueId: string) => ['work-issue-items', workIssueId] as const,
-  identificationQueue: ['identification-queue'] as const,
+  identificationQueue: (filters: string = '') => ['identification-queue', filters] as const,
   identificationCase: (videoId: string) => ['identification-case', videoId] as const,
   /// The revealed depth is not part of the key: `useInfiniteQuery` holds the pages of one search
   /// under one entry, so revealing more adds a page rather than replacing the search.

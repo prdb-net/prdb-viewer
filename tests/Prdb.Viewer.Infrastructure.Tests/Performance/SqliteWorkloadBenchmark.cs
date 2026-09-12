@@ -133,7 +133,7 @@ public sealed class SqliteWorkloadBenchmark
         report.Add(await MeasureAsync("Identification review queue", store, async scope =>
             (await scope.ServiceProvider
                 .GetRequiredService<IdentificationReviewService>()
-                .GetQueueAsync(TestContext.Current.CancellationToken)).Count));
+                .QueueAsync(TestContext.Current.CancellationToken)).Count));
         report.Add(await MeasureAsync("Outstanding hashing lane query", store, async scope =>
             await scope.ServiceProvider
                 .GetRequiredService<ViewerDbContext>()
@@ -143,6 +143,8 @@ public sealed class SqliteWorkloadBenchmark
                 .OrderBy(file => file.RelativePath)
                 .Take(1)
                 .CountAsync(TestContext.Current.CancellationToken)));
+
+        report.Add(await MeasureNeighbourhoodSearchAsync(store));
 
         var videoId = await FirstVideoAsync(store);
         report.Add(await MeasureAsync("Playback report write", store, async scope =>
@@ -160,6 +162,69 @@ public sealed class SqliteWorkloadBenchmark
             return 1;
         }));
         return report;
+    }
+
+    /// <summary>
+    /// The whole perceptual neighbourhood backlog, drained once over a library of this size.
+    ///
+    /// It is measured as one pass rather than as twenty samples of a query, because that is what
+    /// it is: a library's files are compared once each, for the hash value they carry, and the
+    /// second run over an unchanged library does nothing at all. The figure the ticket wants is
+    /// therefore what an installation pays once — and what it never pays again until a file is
+    /// hashed to a different value.
+    /// </summary>
+    private static async Task<string> MeasureNeighbourhoodSearchAsync(TestDatabase store)
+    {
+        await using (var queue = store.Scope())
+        {
+            var database = queue.ServiceProvider.GetRequiredService<ViewerDbContext>();
+            var directory = await database.LibraryDirectories
+                .AsNoTracking()
+                .FirstAsync(TestContext.Current.CancellationToken);
+            database.BackgroundWork.Add(new BackgroundWorkRow
+            {
+                Id = Guid.CreateVersion7(),
+                Category = BackgroundWorkCategory.PerceptualNeighbourhood,
+                State = BackgroundWorkState.Queued,
+                Trigger = BackgroundWorkTrigger.FollowUpWork,
+                Phase = BackgroundWorkPhases.Queued,
+                LibraryDirectoryId = directory.Id,
+                ConfigurationGeneration = directory.ConfigurationGeneration,
+                RequestedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+            });
+            await database.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+
+        var watch = Stopwatch.StartNew();
+        var slices = 0;
+
+        while (true)
+        {
+            await using var scope = store.Scope();
+
+            if (!await scope.ServiceProvider
+                .GetRequiredService<PerceptualNeighbourhoodRunner>()
+                .RunNextSliceAsync(TestContext.Current.CancellationToken))
+            {
+                break;
+            }
+
+            slices++;
+        }
+
+        watch.Stop();
+
+        await using var read = store.Scope();
+        var found = await read.ServiceProvider
+            .GetRequiredService<ViewerDbContext>()
+            .PerceptualNeighbourhoods
+            .CountAsync(TestContext.Current.CancellationToken);
+
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"Perceptual neighbourhood search, whole backlog: {watch.Elapsed.TotalSeconds:N1} s · " +
+            $"{slices:N0} slices · {found:N0} neighbourhoods");
     }
 
     private static async Task<string> MeasureAsync(
@@ -367,7 +432,7 @@ public sealed class SqliteWorkloadBenchmark
             HashState = VideoFileHashState.Computed,
             HashedSha256 = Convert.ToHexString(BitConverter.GetBytes((long)index)).PadRight(64, '0'),
             OsHash = $"{index:x16}",
-            PerceptualHash = $"p{index:x15}",
+            PerceptualHash = BenchmarkPerceptualHash(index, occurrence),
             HashedAt = at,
             PreviewState = VideoFilePreviewState.Generated,
             PreviewSha256 = Convert.ToHexString(BitConverter.GetBytes((long)index)).PadRight(64, '0'),
@@ -377,6 +442,25 @@ public sealed class SqliteWorkloadBenchmark
             IdentifiedSha256 = Convert.ToHexString(BitConverter.GetBytes((long)index)).PadRight(64, '0'),
             IdentifiedAt = at,
         };
+
+    /// <summary>
+    /// A Perceptual Hash shaped the way real ones are: spread across the 64 bits, so two unrelated
+    /// files sit about thirty-two apart rather than one apart. A running index would have made
+    /// every file in the library a neighbour of every other and measured a search nobody will ever
+    /// run.
+    ///
+    /// The second occurrence of a Video is a near-duplicate of its first by two bits, because that
+    /// is what a second encode of one work actually looks like: the measurement has to find
+    /// something, and what it finds has to be what the lane will find in a real library.
+    /// </summary>
+    private static string BenchmarkPerceptualHash(int index, int occurrence)
+    {
+        var digest = BitConverter.ToUInt64(
+            System.Security.Cryptography.MD5.HashData(BitConverter.GetBytes(index)));
+        var value = occurrence == 0 ? digest : digest ^ 0b11UL;
+
+        return value.ToString("x16", CultureInfo.InvariantCulture);
+    }
 
     private static async Task<Guid> FirstVideoAsync(TestDatabase store)
     {

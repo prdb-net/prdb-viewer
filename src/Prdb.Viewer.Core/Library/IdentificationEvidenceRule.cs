@@ -82,6 +82,72 @@ public static class IdentificationEvidenceRule
         };
 
     /// <summary>
+    /// Classifies what one Video File's resemblance to another of this installation's own files may
+    /// establish about a Video's work identity.
+    ///
+    /// It is never Conclusive, whatever the distance. A similarity is this installation's own
+    /// inference about two pictures; it is not an inspection of the file's content by the catalogue
+    /// that holds the work, so it cannot carry what <see cref="RemoteMatchKind.OsHash"/> carries and
+    /// cannot establish a claim. Within the near-duplicate band it is Suggestive and may propose a
+    /// candidate; beyond it, or with no distance to read at all, it is nothing.
+    ///
+    /// The duration agreement deliberately does not enter here. It decides whether two Videos may
+    /// be <em>associated</em> without review — which names no work — and it decides whether a later
+    /// reading is materially stronger than a rejected one. What it must not do is quietly become a
+    /// second threshold that suppresses proposals: ADR 0021 sends every similarity that does not
+    /// clear the narrow path to an Administrator rather than deciding it, and what the running
+    /// times did is said to that Administrator instead.
+    /// </summary>
+    public static IdentificationEvidenceClass ClassifyNeighbourWorkIdentification(int? distance) =>
+        distance is { } bits && bits <= PerceptualNeighbourhoodRule.NeighbourhoodDistance
+            ? IdentificationEvidenceClass.Suggestive
+            : IdentificationEvidenceClass.Insufficient;
+
+    /// <summary>
+    /// Whether a neighbour-derived proposal an Administrator has already rejected may come back.
+    ///
+    /// Every rung suppresses a rejected proposal until materially stronger evidence appears, and
+    /// for this one that phrase has to be decided rather than left to a comparison of evidence
+    /// classes: every reading of a similarity is Suggestive, so a generic comparison would either
+    /// suppress the rung for ever or let the same rejected proposal return the moment anything
+    /// about it changed. Stronger here means what the measurement says it means — the two files
+    /// moved closer together, or their running times stopped disagreeing. A pair that drifted
+    /// further apart is weaker evidence and stays rejected.
+    /// </summary>
+    public static bool NeighbourEvidenceSupersedesRejection(
+        int rejectedDistance,
+        bool rejectedDurationsAgreed,
+        int distance,
+        bool durationsAgree) =>
+        distance < rejectedDistance || (durationsAgree && !rejectedDurationsAgreed);
+
+    /// <summary>
+    /// Whether a local similarity may associate two Videos without review — merging them, while
+    /// naming no work and identifying neither.
+    ///
+    /// This is ADR 0021's narrow path, and it is narrow because of what a merge costs when it is
+    /// wrong rather than because of how often it would be. A merge writes Shared Library Knowledge
+    /// every User sees and combines the Personal State of all of them at once; a Split separates
+    /// the files again but cannot give back ambiguous Video-level state. That asymmetry, and not
+    /// the false-positive rate, sets the width.
+    ///
+    /// Both measured conditions have to hold — the distance within the band, and the running times
+    /// agreeing within the tolerance — and one further condition that is not about the pair at all:
+    /// two Videos whose Established work identities disagree are a conflict for review rather than
+    /// a merge, however alike their files look. Nothing here establishes an identity: a Video that
+    /// exists because an association merged two of them is still an Unknown Video unless one of the
+    /// two already carried a claim of its own.
+    /// </summary>
+    public static bool AssociatesAutomatically(
+        int? distance,
+        bool durationsAgree,
+        bool workIdentitiesDisagree) =>
+        distance is { } bits &&
+        bits <= PerceptualNeighbourhoodRule.NeighbourhoodDistance &&
+        durationsAgree &&
+        !workIdentitiesDisagree;
+
+    /// <summary>
     /// Whether an Administrator decision changes Shared Library Knowledge in a way whose
     /// consequences are less local or harder to reverse, and therefore requires a decision note.
     /// </summary>

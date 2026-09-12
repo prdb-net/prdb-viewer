@@ -18,6 +18,7 @@ public sealed class IdentificationRunner(
     ViewerDbContext database,
     IPrdbIdentificationClient client,
     IdentificationService identification,
+    LocalSimilarityService similarity,
     ProposedWorkArtworkRetention artwork,
     WorkImageRetention workImages,
     WorkIssueRecorder issues,
@@ -197,6 +198,10 @@ public sealed class IdentificationRunner(
         foreach (var identified in result.Results)
         {
             await identification.ApplyRemoteIdentificationAsync(identified, cancellationToken);
+
+            // What prdb has just established about this file is worth offering to the files of
+            // this library that look like it — which is most of the value of having compared them.
+            await similarity.OfferToNeighboursAsync(identified.VideoFileId, cancellationToken);
         }
 
         // The proposals this batch made are worth looking at, which means their pictures have to be

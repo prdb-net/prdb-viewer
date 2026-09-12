@@ -147,6 +147,26 @@ public sealed record IdentificationDecisionOutlook(
     string? Refusal,
     string Outcome);
 
+/// <summary>
+/// The other Video File of this library that a proposal came from.
+///
+/// A remote proposal is compared against a work in prdb's own terms; this one is compared against
+/// a file sitting in another Library Directory, so the case has to show that file rather than a
+/// work: what it looks like, where it is, how long it runs, what it was encoded at — and how close
+/// the two are, said in words rather than left as a number nobody can calibrate.
+/// </summary>
+public sealed record IdentificationNeighbourView(
+    Guid VideoFileId,
+    Guid VideoId,
+    string DisplayLabel,
+    string RelativePath,
+    string? PreviewUrl,
+    long DurationMilliseconds,
+    VideoQualityBand Quality,
+    int Distance,
+    bool DurationsAgree,
+    string Summary);
+
 public sealed record IdentificationCandidateView(
     Guid Id,
     IdentificationDimension Dimension,
@@ -159,8 +179,36 @@ public sealed record IdentificationCandidateView(
     string EvidenceSummary,
     Guid? SupportingVideoFileId,
     IdentificationProposalView? Proposal,
+    IdentificationNeighbourView? Neighbour,
     IReadOnlyList<IdentificationDecisionOutlook> Decisions,
     DateTimeOffset CreatedAt,
+    DateTimeOffset? ResolvedAt);
+
+/// <summary>
+/// A Work Association as the review shows it: two Videos of this library that look alike, what was
+/// measured about them, and where the assertion stands.
+///
+/// It names no work, which is the whole point — an Administrator answering it is saying that these
+/// two files carry the same content, not what that content is. The surviving Video is still an
+/// Unknown Video afterwards.
+/// </summary>
+public sealed record IdentificationAssociationView(
+    Guid Id,
+    WorkAssociationStatus Status,
+    IdentificationSource Source,
+    Guid VideoId,
+    Guid OtherVideoId,
+    string OtherDisplayLabel,
+    string? OtherPreviewUrl,
+    string? OtherRelativePath,
+    long OtherDurationMilliseconds,
+    VideoQualityBand OtherQuality,
+    int Distance,
+    bool DurationsAgree,
+    string Summary,
+    string? Note,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? EstablishedAt,
     DateTimeOffset? ResolvedAt);
 
 public sealed record IdentificationQueueItem(
@@ -171,9 +219,149 @@ public sealed record IdentificationQueueItem(
     IdentificationDimension Dimension,
     IdentificationResolution CurrentResolution,
     string? CurrentTargetTitle,
-    IdentificationCandidateView Candidate,
+    /// <summary>
+    /// The proposal this case is about. Exactly one of it and <see cref="Association"/> is present:
+    /// a queue holds cases, and a case is either a proposed identification or a proposed
+    /// association between two Videos that identifies neither.
+    /// </summary>
+    IdentificationCandidateView? Candidate,
     int AffectedVideoFileCount,
-    string Reason);
+    string Reason,
+    IdentificationAssociationView? Association = null);
+
+/// <summary>
+/// How much of a queue a filter admits, per value, so a reviewer can choose what they are in the
+/// mood to do before they choose a case.
+/// </summary>
+public sealed record IdentificationQueueFacet(string Value, int GroupCount, int CaseCount);
+
+public sealed record IdentificationQueueFacets(
+    IReadOnlyList<IdentificationQueueFacet> Dimensions,
+    IReadOnlyList<IdentificationQueueFacet> Reasons,
+    IReadOnlyList<IdentificationQueueFacet> EvidenceClasses);
+
+/// <summary>
+/// One Identification Review Group: the cases that share one question — the same dimension, the
+/// same proposed target, the same reason, the same evidence — with their count, what they have in
+/// common and where they differ.
+///
+/// It is the unit the queue is worked in, not an arrangement a screen made of a list. The cases it
+/// carries are a sample of it rather than all of it, because a group of four hundred is still a
+/// group somebody has to be able to look inside.
+/// </summary>
+public sealed record IdentificationReviewGroup(
+    string Key,
+    IdentificationDimension Dimension,
+    IdentificationReviewReason Reason,
+    IdentificationEvidenceClass EvidenceClass,
+    IdentificationSource Source,
+    string? TargetKey,
+    string? TargetTitle,
+    int CaseCount,
+    IdentificationReviewEffort Effort,
+    /// <summary>What every case in this group shares, which is what one answer would settle.</summary>
+    string InCommon,
+    /// <summary>Where they differ, so a count never stands alone for what it would settle.</summary>
+    string Differ,
+    DateTimeOffset OldestCaseAt,
+    IReadOnlyList<IdentificationQueueItem> Cases,
+    bool HasMoreCases);
+
+/// <summary>
+/// A page of the identification backlog, as an Administrator works through it: the groups in the
+/// order the rule puts them, what the whole queue holds, and what filtering by each value would
+/// leave.
+/// </summary>
+public sealed record IdentificationQueue(
+    int GroupCount,
+    int CaseCount,
+    IReadOnlyList<IdentificationReviewGroup> Groups,
+    IdentificationQueueFacets Facets);
+
+/// <summary>What a reviewer asked the queue for.</summary>
+public sealed record IdentificationQueueRequest
+{
+    public int Skip { get; init; }
+
+    public int Take { get; init; } = 10;
+
+    public IdentificationDimension? Dimension { get; init; }
+
+    public IdentificationReviewReason? Reason { get; init; }
+
+    public IdentificationEvidenceClass? EvidenceClass { get; init; }
+}
+
+/// <summary>One case of a group, as the act that will settle it was shown it.</summary>
+/// <remarks>
+/// The <see cref="CaseVersion"/> is what makes a bulk decision safe. A backlog moves while it is
+/// being read, and a case that changed underneath is skipped rather than silently decided on the
+/// reading the reviewer saw.
+/// </remarks>
+public sealed record IdentificationGroupCase(
+    Guid VideoId,
+    int CaseVersion,
+    Guid? CandidateId,
+    Guid? AssociationId,
+    string DisplayLabel);
+
+/// <summary>
+/// What one decision would do to a whole Identification Review Group, said before it is taken
+/// rather than in a preview it is too late to read.
+/// </summary>
+public sealed record IdentificationGroupConsequence(
+    IdentificationDecisionAction Action,
+    /// <summary>Why this decision cannot be taken over a group at all, or null where it can.</summary>
+    string? Refusal,
+    int CaseCount,
+    int VideosChanged,
+    int VideosMerged,
+    int CasesRefused,
+    bool RequiresNote,
+    string Outcome);
+
+/// <summary>
+/// A group about to be decided: what it holds, what each decision would do to it, and the cases it
+/// would settle with the versions they were read at.
+/// </summary>
+public sealed record IdentificationGroupPlan(
+    string GroupKey,
+    IdentificationDimension Dimension,
+    string? TargetTitle,
+    int CaseCount,
+    string InCommon,
+    string Differ,
+    IReadOnlyList<IdentificationGroupConsequence> Decisions,
+    IReadOnlyList<IdentificationGroupCase> Cases);
+
+public sealed record IdentificationGroupDecisionRequest(
+    /// <summary>
+    /// The act. Many bounded batches settle one group, and they are one decision by one Account at
+    /// one moment in the history of every Video they touch.
+    /// </summary>
+    Guid ActId,
+    string GroupKey,
+    IdentificationDecisionAction Action,
+    IReadOnlyList<IdentificationGroupCase> Cases,
+    string? Note = null);
+
+/// <summary>One case a group decision did not settle, and why not.</summary>
+public sealed record IdentificationGroupOutcome(Guid VideoId, string Reason);
+
+public enum IdentificationGroupDecisionVerdict
+{
+    Applied,
+    ActionUnavailable,
+    NoteRequired,
+    NotFound,
+}
+
+public sealed record IdentificationGroupDecisionResult(
+    IdentificationGroupDecisionVerdict Verdict,
+    int Applied,
+    IReadOnlyList<IdentificationGroupOutcome> Skipped,
+    IReadOnlyList<IdentificationGroupOutcome> Refused,
+    string Summary);
 
 public sealed record IdentificationCaseFile(
     Guid Id,
@@ -209,7 +397,10 @@ public sealed record IdentificationCase(
     IReadOnlyList<IdentificationCaseFile> VideoFiles,
     IReadOnlyList<IdentificationDecisionView> Decisions,
     IReadOnlyList<IdentificationDecisionAction> UnavailableSiteActions,
-    string Explanation);
+    string Explanation,
+    /// <summary>Associations waiting for a decision on this Video, and those already settled.</summary>
+    IReadOnlyList<IdentificationAssociationView> OpenAssociations,
+    IReadOnlyList<IdentificationAssociationView> AssociationHistory);
 
 public enum IdentificationDecisionVerdict
 {
@@ -242,7 +433,9 @@ public sealed record IdentificationDecisionRequest(
     string? TargetUrl = null,
     string? Note = null,
     IReadOnlyList<Guid>? SeparatedVideoFileIds = null,
-    bool RetainPersonalStateWithContinuing = true);
+    bool RetainPersonalStateWithContinuing = true,
+    /// <summary>The Work Association an Associate or Reject association decision is about.</summary>
+    Guid? AssociationId = null);
 
 public sealed record IdentificationDecisionResult(
     IdentificationDecisionVerdict Verdict,

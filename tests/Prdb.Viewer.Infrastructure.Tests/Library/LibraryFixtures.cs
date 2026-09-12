@@ -8,7 +8,9 @@ namespace Prdb.Viewer.Infrastructure.Tests.Library;
 /// Inspects every file as the conservative cross-client baseline, so a test that is not about
 /// playability gets Videos an unqualified client can play.
 /// </summary>
-internal sealed class FixtureProbe(Func<string, bool>? accepts = null) : IMediaProbe
+internal sealed class FixtureProbe(
+    Func<string, bool>? accepts = null,
+    Func<string, long>? duration = null) : IMediaProbe
 {
     public static readonly MediaConfiguration Baseline =
         new("matroska,webm", "vp8", "vorbis")
@@ -41,7 +43,7 @@ internal sealed class FixtureProbe(Func<string, bool>? accepts = null) : IMediaP
         string path,
         CancellationToken cancellationToken = default) =>
         Task.FromResult((accepts?.Invoke(path) ?? true)
-            ? new MediaProbeFacts(Baseline, 12_345)
+            ? new MediaProbeFacts(Baseline, duration?.Invoke(path) ?? 12_345)
             : null);
 }
 
@@ -52,13 +54,23 @@ internal sealed class FixtureHasher(Func<string, VideoFileHashes>? hashes = null
         CancellationToken cancellationToken = default) =>
         Task.FromResult(hashes?.Invoke(path) ?? new VideoFileHashes(
             OsHashOf(path),
-            $"p{OsHashOf(path)[1..]}",
+            PerceptualHashOf(path),
             null));
 
-    public static string OsHashOf(string path) =>
+    public static string OsHashOf(string path) => DigestOf(Path.GetFileName(path));
+
+    /// <summary>
+    /// A stand-in Perceptual Hash that is a real one in the only respect the product reads: 64 bits
+    /// written as sixteen hex characters. Two different file names are then about as far apart as
+    /// two unrelated works are, so a test gets a neighbourhood only where it asks for one.
+    /// </summary>
+    public static string PerceptualHashOf(string path) =>
+        DigestOf($"perceptual:{Path.GetFileName(path)}");
+
+    private static string DigestOf(string value) =>
         Convert.ToHexString(
                 System.Security.Cryptography.MD5.HashData(
-                    System.Text.Encoding.UTF8.GetBytes(Path.GetFileName(path))))
+                    System.Text.Encoding.UTF8.GetBytes(value)))
             .ToLowerInvariant()[..16];
 }
 

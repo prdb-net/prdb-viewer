@@ -18,7 +18,9 @@ export function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, r
   previousAttempt?: PlaybackVariant
   csrfToken: string
   close: () => void
-  failed: (category: PlaybackFailureCategory) => void
+  /// What the attempt had reached when it failed, so a fallback to an equivalent encode can
+  /// carry it rather than starting again. A failure at load has reached nothing.
+  failed: (category: PlaybackFailureCategory, positionMilliseconds: number) => void
   succeeded: () => void
   refresh: () => void
 }) {
@@ -182,7 +184,12 @@ export function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, r
         onError={(event) => {
           ended.current = true
           void api.endPlaybackAttempt(playbackAttemptId, csrfToken).catch(() => undefined)
-          void classifyFailure(event.currentTarget.error, source).then(failed)
+          // Where the viewer actually was, which the page cannot see from outside the element. A
+          // fallback to a Video File whose timeline is equivalent resumes there instead of at the
+          // beginning, which is what a Playback Attempt outliving one of its files should cost.
+          const reached = Math.round(event.currentTarget.currentTime * 1_000)
+          void classifyFailure(event.currentTarget.error, source)
+            .then((category) => failed(category, reached))
         }}
       >Your browser cannot play this Video File.</video>
     </div>

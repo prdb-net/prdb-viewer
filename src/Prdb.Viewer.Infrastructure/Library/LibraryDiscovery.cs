@@ -188,7 +188,43 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             : new VideoDetail(
                 loaded[0],
                 addressed.Value == videoId ? null : videoId,
-                await WorkFactsAsync(addressed.Value, loaded[0], cancellationToken));
+                await WorkFactsAsync(addressed.Value, loaded[0], cancellationToken),
+                await AssociationsAsync(addressed.Value, cancellationToken));
+    }
+
+    /// <summary>
+    /// How this Video came to hold the Video Files it holds, where an association put them
+    /// together. It reads like an Identification Claim's provenance and is not one: an association
+    /// names no work, so what it accounts for is the merge rather than the identity.
+    /// </summary>
+    private async Task<IReadOnlyList<IdentificationAssociationView>?> AssociationsAsync(
+        Guid videoId,
+        CancellationToken cancellationToken)
+    {
+        var associations = await database.WorkAssociations
+            .AsNoTracking()
+            .Where(row => row.VideoId == videoId &&
+                          row.Status == WorkAssociationStatus.Established)
+            .OrderByDescending(row => row.EstablishedAt)
+            .ToListAsync(cancellationToken);
+
+        if (associations.Count == 0)
+        {
+            return null;
+        }
+
+        // Without the Video Files the conclusion was drawn from. What a Video's own page owes a
+        // reader is the account of the merge — what was concluded, from what reading, and by a
+        // rule or by a person — and that account is the summary. The files themselves are where
+        // the library keeps its media, which no ordinary screen has ever named: an Administrator
+        // deciding a case is shown paths, and everybody else is shown Videos.
+        return associations
+            .Select(association => IdentificationCasePresentation.AssociationView(
+                association,
+                videoId,
+                otherVideo: null,
+                otherFile: null))
+            .ToArray();
     }
 
     /// <summary>

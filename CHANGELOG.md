@@ -7,15 +7,85 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
-The supported way to run the viewer is now in the repository. `VISION.md` has
-named Docker Compose as *the* deployment from the start, and the repository
-shipped no Compose file — so what was actually documented was `docker run` with
-bind mounts, a set of flags to reassemble by hand rather than a file to copy.
-There is now a file to copy, a deployment chapter written for somebody putting
-this on a home server, and the one MVP story that was undocumented altogether: a
-library that lives on a NAS.
+## [0.17.0] - 2026-09-12
+
+The installation compares its own files with each other. The Perceptual Hash has
+been computed for every admitted Video File since the MVP and used for exactly
+one thing: it was handed to prdb. Comparing two of this library's own files needs
+nothing from the network, and it works for exactly the files prdb had no answer
+about — so a re-encode sitting in another Library Directory stops being a second
+Video, an identification established for one copy is offered for the other, and a
+resume position follows the viewer between encodes. The review queue is grouped,
+ordered and decidable in one act, because a library that produced thousands of
+cases could not be worked through one at a time. **This release migrates.**
+
+It also carries the supported way to run the viewer. `VISION.md` has named Docker
+Compose as *the* deployment from the start, and the repository shipped no Compose
+file — so what was actually documented was `docker run` with bind mounts, a set of
+flags to reassemble by hand rather than a file to copy. There is now a file to
+copy, a deployment chapter written for somebody putting this on a home server,
+and the one MVP story that was undocumented altogether: a library that lives on a
+NAS.
 
 ### Added
+
+- Perceptual Neighbourhoods: the durable fact that two of this installation's
+  Video Files look alike, with the distance, both running times, whether they
+  agree, and what it was all measured from. A new Background Work lane finds them
+  as a backlog rather than a sweep — a file is compared once for the hash value
+  it carries, so a settled library does no work and a library that grows by one
+  file pays for one file. The figure is measured rather than hoped for: seventy
+  seconds for the whole backlog of 22,000 Video Files, and never again.
+- Several encodes of one unidentified work stop being several Videos. A Work
+  Association asserts that two Videos carry the same content without naming what
+  that content is: the surviving Video is still an Unknown Video, both files keep
+  their own path, container, codec, hashes and running time, and the Video's page
+  says which files, how far apart, and whether a rule or a person concluded it.
+  Below the distance ADR 0021 measured and with running times that agree it
+  happens without review; everything else waits for an Administrator, on the same
+  queue, previewed, noted and recorded like every other decision. A Split undoes
+  it, and the record of the split is what stops the rule concluding it again.
+- An identification established for one file is offered to the files that look
+  like it, as a candidate and never as a claim — a similarity is this
+  installation's own inference about two pictures rather than an inspection of
+  the content by the catalogue that holds the work. The review case shows the
+  other file of the library rather than a work: its preview, its path, its
+  runtime, its quality, a way to open its Video, and how close the two are in
+  words rather than as 64 bits nobody can calibrate.
+- A resume position follows the viewer to another encode where the two timelines
+  are established as equivalent — including the automatic fallback inside one
+  Playback Attempt, which until now silently cost the position it had reached.
+  Where equivalence is not established nothing is offered and nothing is guessed:
+  a Video's page says which of the two a variant is.
+- The identification queue is worked in groups. An Identification Review Group is
+  the cases that ask one question, with what they have in common, where they
+  differ, and a sample of them that says it is one — because a count is not a
+  description of four hundred cases. The order is a rule with its reasoning
+  beside it rather than an `OrderBy`: how much library a group settles, how
+  confident its evidence is, and how much work the answer costs. The queue is
+  paged, counted and filterable by dimension, reason and evidence class, with the
+  filter in the address.
+- One decision settles a whole group, applied case by case through the same path
+  a single case takes. Accepting and rejecting are the two a group can carry;
+  assigning, replacing, revoking and splitting are per-Video judgements and say
+  why they are refused. What it would do is stated before the button — how many
+  Videos change, how many merge into others, how much private viewing state is
+  reconciled, how many cases stay open — and a case that changed underneath is
+  skipped and named rather than decided on a reading nobody saw. The note is
+  written once and recorded on every case, and every case's own record names the
+  one act that produced them.
+
+### Changed
+
+- `GET /api/admin/identification/queue` answers a grouped, paged and filterable
+  queue rather than a bare list of cases.
+- The seeded development installation writes five files rather than four, one of
+  which is a second encode of another. The sources are chosen by measurement:
+  colour bars survive two encodes four bits apart while every other pair of the
+  five sits at eighteen or more, so a seeded installation shows an association
+  happening and nothing else merging by accident.
+
+### Added — the deployment
 
 - `compose.yaml` at the repository root: the published image at a pinned
   version, the port, the persistent `/data` mount, one read-only library mount,

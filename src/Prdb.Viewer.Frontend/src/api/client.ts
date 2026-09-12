@@ -123,6 +123,24 @@ export type PlaybackReport = components['schemas']['PlaybackReportResult']
 export type PersonalStateMutation = components['schemas']['PersonalStateMutationResult']
 export type IdentificationSummary = components['schemas']['IdentificationSummary']
 export type IdentificationQueueItem = components['schemas']['IdentificationQueueItem']
+export type IdentificationQueue = components['schemas']['IdentificationQueue']
+export type IdentificationReviewGroup = components['schemas']['IdentificationReviewGroup']
+export type IdentificationQueueFacets = components['schemas']['IdentificationQueueFacets']
+export type IdentificationGroupPlan = components['schemas']['IdentificationGroupPlan']
+export type IdentificationGroupCase = components['schemas']['IdentificationGroupCase']
+export type IdentificationGroupConsequence = components['schemas']['IdentificationGroupConsequence']
+export type IdentificationGroupDecisionResult =
+  components['schemas']['IdentificationGroupDecisionResult']
+
+/// What an Administrator asked the backlog for. It belongs in the address, so a filtered page is a
+/// link rather than a state of one browser (ADR 0004).
+export type IdentificationQueueFilters = {
+  skip?: number
+  take?: number
+  dimension?: components['schemas']['IdentificationDimension']
+  reason?: components['schemas']['IdentificationReviewReason']
+  evidenceClass?: components['schemas']['IdentificationEvidenceClass']
+}
 export type IdentificationCase = components['schemas']['IdentificationCase']
 export type IdentificationConsequence = components['schemas']['IdentificationConsequence']
 export type IdentificationDecisionRequest = components['schemas']['IdentificationDecisionRequest']
@@ -130,6 +148,8 @@ export type IdentificationDecisionResult = components['schemas']['Identification
 export type IdentificationDecisionAction = components['schemas']['IdentificationDecisionAction']
 export type IdentificationCandidate = components['schemas']['IdentificationCandidateView']
 export type IdentificationProposal = components['schemas']['IdentificationProposalView']
+export type IdentificationNeighbour = components['schemas']['IdentificationNeighbourView']
+export type IdentificationAssociation = components['schemas']['IdentificationAssociationView']
 export type IdentificationDecisionOutlook = components['schemas']['IdentificationDecisionOutlook']
 
 /// Which browser and device this is. Client Playback Assessments and Observed Playback Outcomes
@@ -204,7 +224,12 @@ function post<T>(path: string, body?: unknown, csrfToken?: string) {
   })
 }
 
-function mutate<T>(path: string, method: 'PUT' | 'DELETE', csrfToken: string, body?: unknown) {
+function mutate<T>(
+  path: string,
+  method: 'POST' | 'PUT' | 'DELETE',
+  csrfToken: string,
+  body?: unknown,
+) {
   return request<T>(path, {
     method,
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -363,8 +388,36 @@ export const api = {
       'DELETE',
       csrfToken,
     ),
-  identificationQueue: () =>
-    request<IdentificationQueueItem[]>('/api/admin/identification/queue'),
+  identificationQueue: (filters: IdentificationQueueFilters = {}) => {
+    const query = new URLSearchParams()
+    if (filters.skip) query.set('skip', String(filters.skip))
+    if (filters.take) query.set('take', String(filters.take))
+    if (filters.dimension) query.set('dimension', filters.dimension)
+    if (filters.reason) query.set('reason', filters.reason)
+    if (filters.evidenceClass) query.set('evidenceClass', filters.evidenceClass)
+    const suffix = query.size > 0 ? `?${query}` : ''
+    return request<IdentificationQueue>(`/api/admin/identification/queue${suffix}`)
+  },
+  identificationGroup: (key: string) =>
+    request<IdentificationGroupPlan>(
+      `/api/admin/identification/groups?key=${encodeURIComponent(key)}`,
+    ),
+  decideIdentificationGroup: (
+    decision: {
+      actId: string
+      groupKey: string
+      action: IdentificationDecisionAction
+      cases: IdentificationGroupCase[]
+      note: string | null
+    },
+    csrfToken: string,
+  ) =>
+    mutate<IdentificationGroupDecisionResult>(
+      '/api/admin/identification/groups/decisions',
+      'POST',
+      csrfToken,
+      decision,
+    ),
   identificationCase: (videoId: string) =>
     request<IdentificationCase>(`/api/admin/identification/videos/${videoId}`),
   decideIdentification: (

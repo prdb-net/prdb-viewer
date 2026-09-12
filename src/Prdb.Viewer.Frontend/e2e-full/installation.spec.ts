@@ -5,8 +5,9 @@ import { ADMINISTRATOR } from './installation'
 /// The screens, against a real installation.
 ///
 /// Everything here is answered by the product: a SQLite database the `seed` command filled, six
-/// lanes that have run twice over four real video files, and a stand-in prdb that recognised three
-/// of them by content and a fourth by name. Nothing is pinned by the test, so a screen that reads
+/// lanes that have run twice over five real video files, and a stand-in prdb that recognised three
+/// of them by content, a fourth by name and had never heard of the fifth. Nothing is pinned by the
+/// test, so a screen that reads
 /// a field the API does not send, or sends a filter the API ignores, fails here — and only here.
 ///
 /// A signed-in Administrator is the state every case starts from, because it is the only one that
@@ -139,14 +140,17 @@ test('every lane reads as finished rather than as a bare ratio', async ({ page }
   // What each lane settled on, named rather than counted, because the sentence is the thing the
   // `0/3` defect got wrong and because the six differ from each other for reasons worth pinning.
   const settled: Record<string, string> = {
-    'Library Scan': '4 files found',
+    'Library Scan': '5 files found',
     // Inspection re-reads every file on a new scan: a file can change under a name that did not.
-    'Technical Inspection': '4 files done',
+    'Technical Inspection': '5 files done',
     // These three had their answers already, and nothing about the files changed, so a second
     // scan gives them nothing to do.
     'Hashing': 'nothing to do',
     'Preview Generation': 'nothing to do',
     'Site Recognition': 'nothing to do',
+    // A file is compared against the rest of the library once, for the hash value it carries, so
+    // a second scan over an unchanged library finds nothing outstanding to compare.
+    'Perceptual Neighbourhood': 'nothing to do',
     // One file's Work is still unestablished, and a new run asks prdb about those again because
     // the catalogue may have learned about them since. The other three are settled and are not
     // re-offered.
@@ -160,12 +164,32 @@ test('every lane reads as finished rather than as a bare ratio', async ({ page }
 
 test('the file prdb matched by name is waiting in the review queue', async ({ page }) => {
   await page.goto('/admin/identification')
-  await page.locator('.review-item').first().waitFor()
+  await page.locator('.review-group').first().waitFor()
 
   // A name is not evidence enough to file a Work without a person agreeing to it, however sure
-  // the catalogue sounded.
-  await expect(page.locator('.review-item')).toHaveCount(1)
-  await expect(page.locator('.review-item')).toContainText('The Fourth Film')
+  // the catalogue sounded. It is one question, so the backlog holds one group.
+  await expect(page.locator('.review-group')).toHaveCount(1)
+  await expect(page.locator('.review-group')).toContainText('The Fourth Film')
+  // And a group says what answering it would settle rather than leaving a count to stand for it.
+  await expect(page.locator('.review-group')).toContainText('1 case')
+})
+
+/// The theme's whole point, against a real installation: prdb had never heard of the fifth file,
+/// and the library placed it anyway because it looks like one prdb had already identified.
+test('a second encode prdb never saw becomes part of the Video it looks like', async ({ page }) => {
+  await page.goto('/?query=Third')
+  await page.locator('.video-card').first().waitFor()
+  await page.locator('.video-title', { hasText: 'The Third Film' }).click()
+
+  // Two occurrences under one identity, one of which the catalogue answered nothing about: the
+  // 720p H.264 prdb matched on content, and the VP8 re-encode it has never seen.
+  await expect(page.locator('.variant-list li')).toHaveCount(2)
+  await expect(page.locator('.variant-list')).toContainText('h264')
+  await expect(page.locator('.variant-list')).toContainText('vp8')
+
+  // And the library can account for it: an association names no work, so what it explains is the
+  // merge rather than the identity.
+  await expect(page.locator('.work-association')).toContainText('same content')
 })
 
 test('the Installation screen reports the connection it actually made', async ({ page }) => {

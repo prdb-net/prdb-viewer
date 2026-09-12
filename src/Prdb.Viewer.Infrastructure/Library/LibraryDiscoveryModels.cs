@@ -88,7 +88,15 @@ public sealed record VideoDetail(
     /// What prdb says about the work this Video is identified as, beyond what a card needs. Null
     /// where the Video is Unknown, or where prdb has said nothing further about it.
     /// </summary>
-    WorkFacts? Work = null);
+    WorkFacts? Work = null,
+    /// <summary>
+    /// The Work Associations this Video was established by, if any: two Videos of this library
+    /// concluded to carry the same content. It names no work, so it is provenance rather than
+    /// identification — and an association nobody can account for is exactly what the
+    /// evidence-stays-visible principle forbids, so the Video says which files, how far apart, and
+    /// whether a rule or a person concluded it.
+    /// </summary>
+    IReadOnlyList<IdentificationAssociationView>? Associations = null);
 
 /// <summary>
 /// The rest of what one identification answer carried: the Site's network, the release names a

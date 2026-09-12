@@ -128,6 +128,7 @@ internal static class LibraryPipeline
                 await RunAsync<PreviewGenerationRunner>(store, runner => runner.RunNextSliceAsync) |
                 await RunAsync<IdentificationRunner>(store, runner => runner.RunNextSliceAsync) |
                 await RunAsync<SiteRecognitionRunner>(store, runner => runner.RunNextSliceAsync) |
+                await RunAsync<PerceptualNeighbourhoodRunner>(store, runner => runner.RunNextSliceAsync) |
                 await RunAsync<EnrichmentRunner>(store, runner => runner.RunNextSliceAsync);
 
             if (!handled)

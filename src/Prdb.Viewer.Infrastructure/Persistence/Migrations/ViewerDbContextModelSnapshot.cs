@@ -416,6 +416,15 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("MatchedBy")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("NeighbourDistance")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool?>("NeighbourDurationsAgree")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("NeighbourVideoFileId")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Note")
                         .HasColumnType("TEXT");
 
@@ -560,6 +569,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("GroupDecisionId")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("MergedAnotherVideo")
                         .HasColumnType("INTEGER");
 
@@ -581,6 +593,8 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("GroupDecisionId");
 
                     b.HasIndex("VideoId", "CreatedAt");
 
@@ -748,6 +762,52 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.HasIndex("VideoFileId");
 
                     b.ToTable("observed_playback_outcome", (string)null);
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PerceptualNeighbourhoodRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Distance")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("DurationsAgree")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("EstablishedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("LeftDurationMilliseconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LeftPerceptualHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("LeftVideoFileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("RightDurationMilliseconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RightPerceptualHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("RightVideoFileId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LeftVideoFileId", "Distance");
+
+                    b.HasIndex("LeftVideoFileId", "RightVideoFileId")
+                        .IsUnique();
+
+                    b.HasIndex("RightVideoFileId", "Distance");
+
+                    b.ToTable("perceptual_neighbourhood", (string)null);
                 });
 
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PersonalActorStateRow", b =>
@@ -1221,6 +1281,12 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("LibraryDirectoryId")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("NeighbourhoodComparedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("NeighbourhoodComparedHash")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("OsHash")
                         .HasColumnType("TEXT");
 
@@ -1304,6 +1370,8 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.HasIndex("LibraryDirectoryId", "Sha256");
 
                     b.HasIndex("LibraryDirectoryId", "Availability", "HashState");
+
+                    b.HasIndex("LibraryDirectoryId", "Availability", "NeighbourhoodComparedHash");
 
                     b.HasIndex("LibraryDirectoryId", "Availability", "PreviewState");
 
@@ -1492,6 +1560,72 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.HasIndex("SurvivingVideoId", "Availability", "BestClassification", "Quality");
 
                     b.ToTable("video", (string)null);
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.WorkAssociationRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("DecidedByAccountId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Distance")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("DurationMilliseconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("DurationsAgree")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("EstablishedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("OtherDurationMilliseconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("OtherVideoFileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("OtherVideoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("VideoFileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("VideoId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("OtherVideoId", "Status");
+
+                    b.HasIndex("VideoFileId", "OtherVideoFileId")
+                        .IsUnique();
+
+                    b.HasIndex("VideoId", "Status");
+
+                    b.ToTable("work_association", (string)null);
                 });
 
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.WorkIssueItemRow", b =>
@@ -1751,6 +1885,25 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Navigation("VideoFile");
                 });
 
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PerceptualNeighbourhoodRow", b =>
+                {
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.VideoFileRow", "LeftVideoFile")
+                        .WithMany()
+                        .HasForeignKey("LeftVideoFileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.VideoFileRow", "RightVideoFile")
+                        .WithMany()
+                        .HasForeignKey("RightVideoFileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("LeftVideoFile");
+
+                    b.Navigation("RightVideoFile");
+                });
+
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PersonalActorStateRow", b =>
                 {
                     b.HasOne("Prdb.Viewer.Infrastructure.Persistence.AccountRow", "Account")
@@ -1900,6 +2053,25 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                         .HasForeignKey("Prdb.Viewer.Infrastructure.Persistence.VideoMetadataRow", "VideoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Video");
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.WorkAssociationRow", b =>
+                {
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.VideoRow", "OtherVideo")
+                        .WithMany()
+                        .HasForeignKey("OtherVideoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.VideoRow", "Video")
+                        .WithMany()
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("OtherVideo");
 
                     b.Navigation("Video");
                 });

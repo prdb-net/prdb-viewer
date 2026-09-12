@@ -92,6 +92,16 @@ public sealed class VideoFileRow
 
     public string? HashFailureReason { get; set; }
 
+    /// <summary>
+    /// The Perceptual Hash value this occurrence was last compared against the rest of the library
+    /// from, and when. It is what makes the search a backlog rather than a sweep: a file is
+    /// compared once for the value it has, and a file hashed again to a different value is compared
+    /// again — the way <see cref="HashedSha256"/> already guards identification.
+    /// </summary>
+    public string? NeighbourhoodComparedHash { get; set; }
+
+    public DateTime? NeighbourhoodComparedAt { get; set; }
+
     public Guid? PublicPreviewId { get; set; }
 
     public string? PreviewRelativePath { get; set; }

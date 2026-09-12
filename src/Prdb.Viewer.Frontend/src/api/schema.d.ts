@@ -1155,7 +1155,13 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    skip?: number | string;
+                    take?: number | string;
+                    dimension?: components["schemas"]["IdentificationDimension"];
+                    reason?: components["schemas"]["IdentificationReviewReason"];
+                    evidenceClass?: components["schemas"]["IdentificationEvidenceClass"];
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -1168,7 +1174,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["IdentificationQueueItem"][];
+                        "application/json": components["schemas"]["IdentificationQueue"];
                     };
                 };
             };
@@ -1210,6 +1216,89 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/identification/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    key: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdentificationGroupPlan"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/identification/groups/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["IdentificationGroupDecisionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdentificationGroupDecisionResult"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -2190,7 +2279,7 @@ export interface components {
         /** @enum {unknown} */
         BackgroundWorkActionVerdict: "Accepted" | "NotFound" | "AlreadySettled" | "Stale" | "NotApplicable";
         /** @enum {unknown} */
-        BackgroundWorkCategory: "LibraryScan" | "TechnicalInspection" | "Hashing" | "PreviewGeneration" | "Identification" | "SiteRecognition" | "Enrichment";
+        BackgroundWorkCategory: "LibraryScan" | "TechnicalInspection" | "Hashing" | "PreviewGeneration" | "Identification" | "SiteRecognition" | "PerceptualNeighbourhood" | "Enrichment";
         BackgroundWorkPauseRequest: {
             paused: boolean;
         };
@@ -2287,6 +2376,33 @@ export interface components {
         HealthResponse: {
             status: string;
         };
+        IdentificationAssociationView: {
+            /** Format: uuid */
+            id: string;
+            status: components["schemas"]["WorkAssociationStatus"];
+            source: components["schemas"]["IdentificationSource"];
+            /** Format: uuid */
+            videoId: string;
+            /** Format: uuid */
+            otherVideoId: string;
+            otherDisplayLabel: string;
+            otherPreviewUrl: null | string;
+            otherRelativePath: null | string;
+            /** Format: int64 */
+            otherDurationMilliseconds: number | string;
+            otherQuality: components["schemas"]["VideoQualityBand"];
+            /** Format: int32 */
+            distance: number | string;
+            durationsAgree: boolean;
+            summary: string;
+            note: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            establishedAt: null | string;
+            /** Format: date-time */
+            resolvedAt: null | string;
+        };
         /** @enum {unknown} */
         IdentificationCandidateStatus: "Pending" | "Rejected" | "Superseded";
         IdentificationCandidateView: {
@@ -2303,6 +2419,7 @@ export interface components {
             /** Format: uuid */
             supportingVideoFileId: null | string;
             proposal: null | components["schemas"]["IdentificationProposalView"];
+            neighbour: null | components["schemas"]["IdentificationNeighbourView"];
             decisions: components["schemas"]["IdentificationDecisionOutlook"][];
             /** Format: date-time */
             createdAt: string;
@@ -2323,6 +2440,8 @@ export interface components {
             decisions: components["schemas"]["IdentificationDecisionView"][];
             unavailableSiteActions: components["schemas"]["IdentificationDecisionAction"][];
             explanation: string;
+            openAssociations: components["schemas"]["IdentificationAssociationView"][];
+            associationHistory: components["schemas"]["IdentificationAssociationView"][];
         };
         IdentificationCaseFile: {
             /** Format: uuid */
@@ -2364,7 +2483,7 @@ export interface components {
             requiresNote: boolean;
         };
         /** @enum {unknown} */
-        IdentificationDecisionAction: "AcceptCandidate" | "AssignDirectly" | "ReplaceClaim" | "RejectCandidate" | "RevokeClaim" | "SplitVideo";
+        IdentificationDecisionAction: "AcceptCandidate" | "AssignDirectly" | "ReplaceClaim" | "RejectCandidate" | "RevokeClaim" | "SplitVideo" | "AssociateVideos" | "RejectAssociation";
         IdentificationDecisionOutlook: {
             action: components["schemas"]["IdentificationDecisionAction"];
             refusal: null | string;
@@ -2385,6 +2504,8 @@ export interface components {
             separatedVideoFileIds?: null | string[];
             /** @default true */
             retainPersonalStateWithContinuing: boolean;
+            /** Format: uuid */
+            associationId?: null | string;
         };
         IdentificationDecisionResult: {
             verdict: components["schemas"]["IdentificationDecisionVerdict"];
@@ -2409,6 +2530,81 @@ export interface components {
         IdentificationDimension: "WorkIdentification" | "SiteRecognition";
         /** @enum {unknown} */
         IdentificationEvidenceClass: "Insufficient" | "Suggestive" | "Conclusive";
+        IdentificationGroupCase: {
+            /** Format: uuid */
+            videoId: string;
+            /** Format: int32 */
+            caseVersion: number | string;
+            /** Format: uuid */
+            candidateId: null | string;
+            /** Format: uuid */
+            associationId: null | string;
+            displayLabel: string;
+        };
+        IdentificationGroupConsequence: {
+            action: components["schemas"]["IdentificationDecisionAction"];
+            refusal: null | string;
+            /** Format: int32 */
+            caseCount: number | string;
+            /** Format: int32 */
+            videosChanged: number | string;
+            /** Format: int32 */
+            videosMerged: number | string;
+            /** Format: int32 */
+            casesRefused: number | string;
+            requiresNote: boolean;
+            outcome: string;
+        };
+        IdentificationGroupDecisionRequest: {
+            /** Format: uuid */
+            actId: string;
+            groupKey: string;
+            action: components["schemas"]["IdentificationDecisionAction"];
+            cases: components["schemas"]["IdentificationGroupCase"][];
+            note?: null | string;
+        };
+        IdentificationGroupDecisionResult: {
+            verdict: components["schemas"]["IdentificationGroupDecisionVerdict"];
+            /** Format: int32 */
+            applied: number | string;
+            skipped: components["schemas"]["IdentificationGroupOutcome"][];
+            refused: components["schemas"]["IdentificationGroupOutcome"][];
+            summary: string;
+        };
+        /** @enum {unknown} */
+        IdentificationGroupDecisionVerdict: "Applied" | "ActionUnavailable" | "NoteRequired" | "NotFound";
+        IdentificationGroupOutcome: {
+            /** Format: uuid */
+            videoId: string;
+            reason: string;
+        };
+        IdentificationGroupPlan: {
+            groupKey: string;
+            dimension: components["schemas"]["IdentificationDimension"];
+            targetTitle: null | string;
+            /** Format: int32 */
+            caseCount: number | string;
+            inCommon: string;
+            differ: string;
+            decisions: components["schemas"]["IdentificationGroupConsequence"][];
+            cases: components["schemas"]["IdentificationGroupCase"][];
+        };
+        IdentificationNeighbourView: {
+            /** Format: uuid */
+            videoFileId: string;
+            /** Format: uuid */
+            videoId: string;
+            displayLabel: string;
+            relativePath: string;
+            previewUrl: null | string;
+            /** Format: int64 */
+            durationMilliseconds: number | string;
+            quality: components["schemas"]["VideoQualityBand"];
+            /** Format: int32 */
+            distance: number | string;
+            durationsAgree: boolean;
+            summary: string;
+        };
         IdentificationProposalView: {
             title: string;
             siteTitle: null | string;
@@ -2423,6 +2619,26 @@ export interface components {
             /** Format: date-time */
             fetchedAt: string;
         };
+        IdentificationQueue: {
+            /** Format: int32 */
+            groupCount: number | string;
+            /** Format: int32 */
+            caseCount: number | string;
+            groups: components["schemas"]["IdentificationReviewGroup"][];
+            facets: components["schemas"]["IdentificationQueueFacets"];
+        };
+        IdentificationQueueFacet: {
+            value: string;
+            /** Format: int32 */
+            groupCount: number | string;
+            /** Format: int32 */
+            caseCount: number | string;
+        };
+        IdentificationQueueFacets: {
+            dimensions: components["schemas"]["IdentificationQueueFacet"][];
+            reasons: components["schemas"]["IdentificationQueueFacet"][];
+            evidenceClasses: components["schemas"]["IdentificationQueueFacet"][];
+        };
         IdentificationQueueItem: {
             /** Format: uuid */
             videoId: string;
@@ -2433,15 +2649,36 @@ export interface components {
             dimension: components["schemas"]["IdentificationDimension"];
             currentResolution: components["schemas"]["IdentificationResolution"];
             currentTargetTitle: null | string;
-            candidate: components["schemas"]["IdentificationCandidateView"];
+            candidate: null | components["schemas"]["IdentificationCandidateView"];
             /** Format: int32 */
             affectedVideoFileCount: number | string;
             reason: string;
+            association?: null | components["schemas"]["IdentificationAssociationView"];
         };
         /** @enum {unknown} */
         IdentificationResolution: "Unknown" | "Established";
         /** @enum {unknown} */
-        IdentificationReviewReason: "SuggestiveEvidence" | "ConflictingConclusiveEvidence" | "ConflictsWithAdministrativeOverride" | "RemoteIdentityChanged";
+        IdentificationReviewEffort: "Judgement" | "Displacement" | "Conflict";
+        IdentificationReviewGroup: {
+            key: string;
+            dimension: components["schemas"]["IdentificationDimension"];
+            reason: components["schemas"]["IdentificationReviewReason"];
+            evidenceClass: components["schemas"]["IdentificationEvidenceClass"];
+            source: components["schemas"]["IdentificationSource"];
+            targetKey: null | string;
+            targetTitle: null | string;
+            /** Format: int32 */
+            caseCount: number | string;
+            effort: components["schemas"]["IdentificationReviewEffort"];
+            inCommon: string;
+            differ: string;
+            /** Format: date-time */
+            oldestCaseAt: string;
+            cases: components["schemas"]["IdentificationQueueItem"][];
+            hasMoreCases: boolean;
+        };
+        /** @enum {unknown} */
+        IdentificationReviewReason: "SuggestiveEvidence" | "ConflictingConclusiveEvidence" | "ConflictsWithAdministrativeOverride" | "RemoteIdentityChanged" | "PerceptualNeighbour";
         /** @enum {unknown} */
         IdentificationReviewStatus: "Clear" | "ReviewNeeded";
         /** @enum {unknown} */
@@ -2601,6 +2838,8 @@ export interface components {
         PersonalVideoStateSummary: {
             /** Format: int64 */
             playbackProgressMilliseconds: null | number | string;
+            /** Format: uuid */
+            progressVideoFileId: null | string;
             /** Format: int64 */
             accumulatedWatchDurationMilliseconds: number | string;
             /** Format: int32 */
@@ -2685,6 +2924,7 @@ export interface components {
             outcome: null | components["schemas"]["ObservedPlaybackOutcome"];
             readyForDirectPlay: boolean;
             selectionReason: components["schemas"]["VariantSelectionReason"];
+            timelineEquivalentVideoFileIds: string[];
         };
         /** @enum {unknown} */
         PrdbConnectionIssue: "ExternalAuthority" | "ExternalAvailability" | "ReplacementRejected" | null;
@@ -2782,6 +3022,7 @@ export interface components {
             /** Format: uuid */
             supersededVideoId: null | string;
             work?: null | components["schemas"]["WorkFacts"];
+            associations?: null | components["schemas"]["IdentificationAssociationView"][];
         };
         /** @enum {unknown} */
         VideoFileAvailability: "Available" | "Unreachable" | "Missing" | "Replaced" | "Removed";
@@ -2803,6 +3044,8 @@ export interface components {
             videoFiles: components["schemas"]["PlaybackVariantView"][];
             personalState: components["schemas"]["PersonalVideoStateSummary"];
         };
+        /** @enum {unknown} */
+        WorkAssociationStatus: "Proposed" | "Established" | "Rejected" | "Separated";
         WorkFacts: {
             networkTitle: null | string;
             networkUrl: null | string;

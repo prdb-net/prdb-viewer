@@ -60,6 +60,7 @@ if (!readingEndpoints && builder.Configuration.GetValue("VIEWER_BACKGROUND_WORK_
     builder.Services.AddHostedService<PreviewGenerationWorker>();
     builder.Services.AddHostedService<IdentificationWorker>();
     builder.Services.AddHostedService<SiteRecognitionWorker>();
+    builder.Services.AddHostedService<PerceptualNeighbourhoodWorker>();
     builder.Services.AddHostedService<EnrichmentWorker>();
 }
 builder.Services

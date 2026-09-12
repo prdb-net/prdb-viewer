@@ -74,6 +74,18 @@ public sealed class SiteRecognitionWorker(
             stoppingToken);
 }
 
+public sealed class PerceptualNeighbourhoodWorker(
+    IServiceScopeFactory scopes,
+    ILogger<PerceptualNeighbourhoodWorker> logger) : BackgroundService
+{
+    protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
+        WorkerLoop.RunAsync<PerceptualNeighbourhoodRunner>(
+            scopes,
+            logger,
+            (runner, cancellationToken) => runner.RunNextSliceAsync(cancellationToken),
+            stoppingToken);
+}
+
 public sealed class EnrichmentWorker(
     IServiceScopeFactory scopes,
     ILogger<EnrichmentWorker> logger) : BackgroundService

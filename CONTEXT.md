@@ -192,6 +192,10 @@ _Avoid_: match, established identification
 The state, Clear or Review Needed, that records whether an Identification Claim requires administrative attention because of a pending candidate or conflicting evidence. It remains independent of whether the current claim is Unknown or Established.
 _Avoid_: Identification Claim, confidence
 
+**Identification Review Group**:
+The open identification cases that ask one question — the same dimension, the same proposed target, the same reason, the same evidence, and the same thing to displace — taken as the unit a backlog is worked in. It carries what its cases have in common and where they differ, so a count never stands alone for what answering it would settle. A case that shares its question with nothing else is a group of one.
+_Avoid_: batch, selection, filter, bulk decision
+
 **Administrative Override**:
 An Administrator's durable decision that establishes an Identification Claim and prevents conflicting automation from silently replacing it until the decision is explicitly revoked.
 _Avoid_: automatic correction, permanent identification
@@ -199,6 +203,10 @@ _Avoid_: automatic correction, permanent identification
 **Perceptual Hash**:
 The 64-bit description of what a Video File looks like rather than what its bytes are, computed over frames sampled across its whole running time as prdb defines it. Two of them are compared by Hamming distance and never for equality, and a Video File whose container cannot be sampled simply has none.
 _Avoid_: fingerprint, checksum, OS hash
+
+**Perceptual Neighbourhood**:
+The durable fact that two of this installation's Video Files look alike: the pair, the Hamming distance between their Perceptual Hashes, and whether their running times agree. It is evidence about a pair rather than a property of either file, it names no work and identifies nothing, and it is recomputed rather than kept when either file is hashed to a different value.
+_Avoid_: duplicate, similarity score, Work Association
 
 **Work Association**:
 A provenance-bearing assertion that two Videos carry the same content, without naming what that content is. It is not an Identification Claim, because it identifies nothing: an association may merge two Videos while leaving the surviving one an Unknown Video.

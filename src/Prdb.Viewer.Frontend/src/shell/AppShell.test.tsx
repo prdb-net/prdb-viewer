@@ -48,7 +48,9 @@ describe('The application shell', () => {
         })
       }
       if (input === '/api/admin/identification/queue') {
-        return json([{ candidate: { id: 'a' } }, { candidate: { id: 'b' } }, { candidate: { id: 'c' } }])
+        // The badge counts cases rather than groups: what waits for a person is the library that
+        // is still unanswered, not how many questions it has been arranged into.
+        return json({ groupCount: 1, caseCount: 3, groups: [], facets: { dimensions: [], reasons: [], evidenceClasses: [] } })
       }
       return undefined
     })

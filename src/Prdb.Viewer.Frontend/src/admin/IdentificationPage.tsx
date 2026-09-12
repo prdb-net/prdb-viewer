@@ -10,27 +10,51 @@ import {
   type IdentificationConsequence,
   type IdentificationDecisionAction,
   type IdentificationDecisionOutlook,
+  type IdentificationGroupCase,
+  type IdentificationGroupPlan,
+  type IdentificationNeighbour,
   type IdentificationProposal,
+  type IdentificationQueueFacets,
+  type IdentificationQueueFilters,
   type IdentificationQueueItem,
+  type IdentificationReviewGroup,
 } from '../api/client'
 import { candidateOrigin, formatDay, friendlyState, provenanceLabel } from '../lib/format'
-import { formatRuntime } from '../lib/quality'
+import { formatRuntime, qualityBandLabel } from '../lib/quality'
 import { withReturnTo } from '../lib/returnTo'
 import { queryKeys } from '../queryKeys'
 import { Field, firstError, Notice, PageHeading, RequestError } from '../ui'
 
 export function IdentificationPage({ account }: { account: Account }) {
   const queryClient = useQueryClient()
-  const queue = useQuery({
-    queryKey: queryKeys.identificationQueue,
-    queryFn: api.identificationQueue,
-    refetchInterval: 15_000,
-  })
-  // ADR 0004: an administrative work item is linkable, so which case is open belongs in the
-  // address rather than in this component. A colleague can then be sent the case itself.
+  // ADR 0004: an administrative work item is linkable, so which case is open — and which part of
+  // the backlog is being worked through — belongs in the address rather than in this component. A
+  // colleague can then be sent the case itself, or the four hundred site proposals.
   const [parameters, setParameters] = useSearchParams()
   const openCandidate = parameters.get('candidate')
-  const selected = queue.data?.find((item) => item.candidate.id === openCandidate)
+  const filters: IdentificationQueueFilters = {
+    skip: Number(parameters.get('skip') ?? 0) || undefined,
+    dimension: (parameters.get('dimension') ?? undefined) as IdentificationQueueFilters['dimension'],
+    reason: (parameters.get('reason') ?? undefined) as IdentificationQueueFilters['reason'],
+    evidenceClass:
+      (parameters.get('evidence') ?? undefined) as IdentificationQueueFilters['evidenceClass'],
+  }
+  const queue = useQuery({
+    queryKey: queryKeys.identificationQueue(parameters.toString()),
+    queryFn: () => api.identificationQueue(filters),
+    refetchInterval: 15_000,
+  })
+  const selected = queue.data?.groups
+    .flatMap((group) => group.cases)
+    .find((item) => caseId(item) === openCandidate)
+  // Which group is being settled as a whole, if any. It is in the address for the same reason a
+  // case is: a decision over four hundred Videos is something a colleague can be sent.
+  const openGroup = parameters.get('group')
+  const plan = useQuery({
+    queryKey: ['identification-group', openGroup ?? 'none'],
+    queryFn: () => api.identificationGroup(openGroup!),
+    enabled: openGroup !== null,
+  })
   const [pending, setPending] = useState<IdentificationDecisionAction>()
   const [consequence, setConsequence] = useState<IdentificationConsequence>()
   const [note, setNote] = useState('')
@@ -53,6 +77,16 @@ export function IdentificationPage({ account }: { account: Account }) {
     setSeparated([])
   }
 
+  const settle = (groupKey: string | undefined) => {
+    setParameters((current) => {
+      const next = new URLSearchParams(current)
+      if (groupKey) next.set('group', groupKey)
+      else next.delete('group')
+      next.delete('candidate')
+      return next
+    }, { replace: true })
+  }
+
   const open = (candidateId: string | undefined) => {
     setParameters((current) => {
       const next = new URLSearchParams(current)
@@ -72,7 +106,7 @@ export function IdentificationPage({ account }: { account: Account }) {
           caseVersion: openCase.data?.caseVersion ?? selected!.caseVersion,
           confirm,
           candidateId: action === 'AcceptCandidate' || action === 'RejectCandidate'
-            ? selected!.candidate.id
+            ? selected!.candidate?.id ?? null
             : null,
           // A target belongs to the two decisions that read one. Sending it alongside an accepted
           // candidate said, in the request, that the typed fields had something to do with it.
@@ -81,6 +115,9 @@ export function IdentificationPage({ account }: { account: Account }) {
           note: note || null,
           separatedVideoFileIds: separated.length > 0 ? separated : null,
           retainPersonalStateWithContinuing: true,
+          // An association names no target and belongs to no dimension. It is answered on the same
+          // case, through the same request, bound to the same version as everything else.
+          associationId: selected!.association?.id ?? null,
         },
         account.csrfToken,
       ),
@@ -94,7 +131,7 @@ export function IdentificationPage({ account }: { account: Account }) {
         setOutcome(`${friendlyState(variables.action)} applied.`)
         open(undefined)
         reset()
-        void queryClient.invalidateQueries({ queryKey: queryKeys.identificationQueue })
+        void queryClient.invalidateQueries({ queryKey: ['identification-queue'] })
         void queryClient.invalidateQueries({ queryKey: ['videos'] })
         void queryClient.invalidateQueries({ queryKey: ['video'] })
         return
@@ -102,7 +139,7 @@ export function IdentificationPage({ account }: { account: Account }) {
       if (result.verdict === 'Stale') {
         setOutcome('The case changed while it was open. Review the refreshed comparison.')
         reset()
-        void queryClient.invalidateQueries({ queryKey: queryKeys.identificationQueue })
+        void queryClient.invalidateQueries({ queryKey: ['identification-queue'] })
         void openCase.refetch()
       }
       if (result.verdict === 'NoteRequired') setOutcome('This decision needs a note.')
@@ -135,8 +172,14 @@ export function IdentificationPage({ account }: { account: Account }) {
 
   // The case as the server describes it, which is where the decisions and their consequences come
   // from. The queue's copy of the candidate is the same proposal without them.
-  const candidate = openCase.data?.openCandidates
-    .find((row) => row.id === selected?.candidate.id) ?? selected?.candidate
+  const candidate = selected?.candidate
+    ? openCase.data?.openCandidates.find((row) => row.id === selected.candidate!.id) ?? selected.candidate
+    : undefined
+  // The association the server still holds open, which is what the decision is bound to.
+  const association = selected?.association
+    ? openCase.data?.openAssociations.find((row) => row.id === selected.association!.id)
+      ?? selected.association
+    : undefined
   // What the open case is actually asking for, worked out once for the sentence that says it.
   const advice = selected && openCase.data && candidate
     ? guidance(openCase.data, selected, candidate)
@@ -148,13 +191,34 @@ export function IdentificationPage({ account }: { account: Account }) {
       <PageHeading
         eyebrow="Administrator"
         title="Identification review"
-        actions={<span className="muted">{queue.data?.length ?? 0} open</span>}
+        actions={<span className="muted">{Number(queue.data?.caseCount ?? 0)} open</span>}
       >
         Candidates and conflicts wait here. Nothing under review reaches ordinary browsing.
       </PageHeading>
 
       {outcome && <Notice kind="success">{outcome}</Notice>}
-      {queue.data?.length === 0 && (
+      {openGroup && plan.data && (
+        <GroupDecision
+          plan={plan.data}
+          account={account}
+          close={() => { settle(undefined); setOutcome(undefined) }}
+          settled={(summary) => {
+            setOutcome(summary)
+            void queryClient.invalidateQueries({ queryKey: ['identification-queue'] })
+            void queryClient.invalidateQueries({ queryKey: ['identification-group'] })
+            void queryClient.invalidateQueries({ queryKey: ['videos'] })
+          }}
+        />
+      )}
+
+      {!showing && !openGroup && queue.data && (
+        <QueueFilters
+          facets={queue.data.facets}
+          parameters={parameters}
+          set={setParameters}
+        />
+      )}
+      {Number(queue.data?.caseCount ?? -1) === 0 && (
         <div className="empty-library">
           <strong>Nothing to review</strong>
           <p>No identification decision is waiting.</p>
@@ -164,28 +228,116 @@ export function IdentificationPage({ account }: { account: Account }) {
       {/* An open case takes the queue's place rather than standing under it. The queue listed the
           case and then the case repeated it directly underneath, so the same Video appeared twice
           with two different sets of controls — and the second copy is the one that decides. */}
-      {!showing && (
-        <div className="review-queue">
-          {queue.data?.map((item) => (
-            <article className="review-item" key={item.candidate.id}>
-              <div>
-                <strong>{item.displayLabel}</strong>
-                <small>
-                  {friendlyState(item.dimension)} · {friendlyState(item.candidate.evidenceClass)} ·
-                  {' '}{candidateOrigin(item.candidate.source)} ·
-                  {' '}proposes “{item.candidate.targetTitle}”
-                </small>
-                <small>{item.reason}</small>
-                {alreadyEstablished(item.currentResolution, item.currentTargetTitle, item.candidate.targetTitle) && (
-                  <small className="already-established">Proposes what is already established here.</small>
-                )}
-              </div>
-              <button
-                className="quiet-button"
-                onClick={() => { open(item.candidate.id); reset(); setOutcome(undefined) }}
-              >Review</button>
-            </article>
+      {!showing && !openGroup && (
+        <div className="review-groups">
+          {queue.data?.groups.map((group) => (
+            <ReviewGroup
+              key={group.key}
+              group={group}
+              open={(id: string) => { open(id); reset(); setOutcome(undefined) }}
+              settle={() => { settle(group.key); setOutcome(undefined) }}
+            />
           ))}
+          {queue.data && Number(queue.data.groupCount) > queue.data.groups.length && (
+            <Pages
+              groupCount={Number(queue.data.groupCount)}
+              shown={queue.data.groups.length}
+              parameters={parameters}
+              set={setParameters}
+            />
+          )}
+        </div>
+      )}
+
+      {/* An association asks a different question from an identification, so it is a different
+          case: two Videos of this library, and whether they carry the same content. Nothing on it
+          names a work, because answering it does not establish one. */}
+      {showing && association && (
+        <div className="review-case">
+          <div className="section-heading">
+            <strong>{openCase.data!.displayLabel}</strong>
+            <button className="quiet-button" onClick={() => { open(undefined); reset() }}>Back to queue</button>
+          </div>
+
+          <div className="comparison">
+            <div className="compared">
+              <span className="eyebrow">This Video</span>
+              <Picture
+                url={openCase.data!.previewUrl}
+                alt={`Preview frame of ${openCase.data!.displayLabel}`}
+                absent="No preview frame has been generated for this Video yet."
+              />
+              <Link
+                className="quiet-button"
+                to={withReturnTo(
+                  `/videos/${openCase.data!.videoId}`,
+                  `/admin/identification?candidate=${association.id}`,
+                )}
+              >Open this Video</Link>
+            </div>
+            <div className="compared">
+              <span className="eyebrow">The Video it looks like</span>
+              <Picture
+                url={association.otherPreviewUrl}
+                alt={`Preview frame of ${association.otherDisplayLabel}`}
+                absent="No preview frame has been generated for that Video yet."
+              />
+              <p>{association.otherDisplayLabel}</p>
+              <NeighbourFacts
+                neighbour={{
+                  displayLabel: association.otherDisplayLabel,
+                  relativePath: association.otherRelativePath ?? '',
+                  durationMilliseconds: association.otherDurationMilliseconds,
+                  quality: association.otherQuality,
+                }}
+              />
+              <Link
+                className="quiet-button"
+                to={withReturnTo(
+                  `/videos/${association.otherVideoId}`,
+                  `/admin/identification?candidate=${association.id}`,
+                )}
+              >Open that Video</Link>
+            </div>
+          </div>
+
+          <p className="decision-guidance">{association.summary}</p>
+
+          <div className="decisions">
+            {(['AssociateVideos', 'RejectAssociation'] as const).map((action) => {
+              const style = appearance(action)
+              return (
+                <div className="decision" key={action}>
+                  <button
+                    className={style.appearance}
+                    onClick={() => begin(action)}
+                    disabled={decide.isPending}
+                  >{style.label}</button>
+                  <p>{outcomeOfAssociation(action)}</p>
+                </div>
+              )
+            })}
+          </div>
+
+          {pending && consequence && (
+            <div className="confirmation" role="group" aria-label="Consequence preview">
+              <p>{consequence.claimTransition}</p>
+              <p>{consequence.candidateTransition}</p>
+              {consequence.mergeSummary && <p>{consequence.mergeSummary}</p>}
+              <small>Affects {files(Number(consequence.affectedVideoFileCount))}</small>
+              {consequence.requiresNote && (
+                <label className="field">
+                  <span>Decision note</span>
+                  <textarea value={note} onChange={(event) => setNote(event.target.value)} required />
+                </label>
+              )}
+              <button
+                className="primary-button"
+                onClick={() => act(pending, true)}
+                disabled={decide.isPending || (consequence.requiresNote && note.trim().length === 0)}
+              >Confirm {friendlyState(pending).toLowerCase()}</button>
+            </div>
+          )}
         </div>
       )}
 
@@ -229,14 +381,41 @@ export function IdentificationPage({ account }: { account: Account }) {
               >Open this Video</Link>
             </div>
             <div className="compared">
-              <span className="eyebrow">Proposed</span>
-              <Proposal proposal={candidate.proposal} title={candidate.targetTitle} />
+              <span className="eyebrow">{candidate.neighbour ? 'The file it looks like' : 'Proposed'}</span>
+              {/* A proposal that came from another file of this library is compared against that
+                  file, not against a work in prdb's catalogue. Showing prdb's artwork here would
+                  have put the wrong thing under the reader's eye: the question is whether these
+                  two files are the same picture. */}
+              {candidate.neighbour
+                ? <Picture
+                    url={candidate.neighbour.previewUrl}
+                    alt={`Preview frame of ${candidate.neighbour.relativePath}`}
+                    absent="No preview frame has been generated for that Video File yet."
+                  />
+                : <Proposal proposal={candidate.proposal} title={candidate.targetTitle} />}
               <p>
                 {candidate.targetUrl
                   ? <a href={candidate.targetUrl} target="_blank" rel="noreferrer">{candidate.targetTitle}</a>
                   : candidate.targetTitle}
               </p>
-              <ProposedFacts proposal={candidate.proposal} />
+              {candidate.neighbour
+                ? <NeighbourFacts neighbour={candidate.neighbour} />
+                : <ProposedFacts proposal={candidate.proposal} />}
+              {candidate.neighbour && (
+                <>
+                  <p className="neighbour-summary">{candidate.neighbour.summary}</p>
+                  {/* Deciding whether two files are the same picture usually means watching a
+                      moment of the other one, so the other Video is reachable from here — and
+                      carries the way back, as this side's link does. */}
+                  <Link
+                    className="quiet-button"
+                    to={withReturnTo(
+                      `/videos/${candidate.neighbour.videoId}`,
+                      `/admin/identification?candidate=${candidate.id}`,
+                    )}
+                  >Open that Video</Link>
+                </>
+              )}
               <small>{candidate.evidenceSummary}</small>
               {/* A proposal that repeats what is established is the one an Administrator reads
                   twice: the two columns say the same thing, and nothing on the screen used to
@@ -450,6 +629,30 @@ function ProposedFacts({ proposal }: { proposal: IdentificationProposal | null }
   return facts.length === 0 ? null : <Facts facts={facts} />
 }
 
+/// The other Video File of this library a proposal came from.
+///
+/// Where a remote proposal is compared against a work — its Site, its cast, its release — this one
+/// is compared against a file, so the facts are the file's: where it is, how long it runs, and what
+/// it was encoded at. The Video it belongs to is reachable from here, because deciding whether two
+/// files are the same picture usually means watching a moment of both.
+function NeighbourFacts({ neighbour }: {
+  neighbour: Pick<
+    IdentificationNeighbour,
+    'displayLabel' | 'relativePath' | 'durationMilliseconds' | 'quality'
+  >
+}) {
+  const runtime = formatRuntime(Number(neighbour.durationMilliseconds ?? 0))
+  const quality = qualityBandLabel(neighbour.quality)
+  const facts = [
+    { term: 'Video', value: neighbour.displayLabel },
+    { term: 'Path', value: neighbour.relativePath },
+    runtime ? { term: 'Runtime', value: runtime } : undefined,
+    quality ? { term: 'Quality', value: quality } : undefined,
+  ].filter((fact) => fact !== undefined)
+
+  return <Facts facts={facts} />
+}
+
 /// A short list of named facts, drawn the same way on both sides of the comparison.
 function Facts({ facts }: { facts: { term: string; value: string }[] }) {
   return (
@@ -525,6 +728,307 @@ function guidance(
   }
 }
 
+/// What each of the two association decisions leaves behind, said before it is taken. The server
+/// writes the same sentences into the consequence it previews; these are what the buttons say
+/// beforehand, so a decision that has not been asked for yet still explains itself.
+function outcomeOfAssociation(action: 'AssociateVideos' | 'RejectAssociation') {
+  return action === 'AssociateVideos'
+    ? 'The two Videos become one, and it names no work: the surviving Video is still Unknown. ' +
+      'Both Video Files keep their own facts, and a Split undoes it.'
+    : 'Neither Video changes. The proposal stops coming back while the two files stay as far ' +
+      'apart as they are.'
+}
+
+/// One decision over a whole group, stated before it is taken and applied in bounded batches.
+///
+/// The consequence is not a preview it is too late to read: every decision the group can carry says
+/// what it would leave behind before the button, and the ones it cannot carry say why. Applying is
+/// batched because four hundred merges with their Personal State reconciliation is not something a
+/// person should watch a browser hang for — and because a case that changed underneath is skipped
+/// rather than throwing the rest of the work away.
+function GroupDecision({ plan, account, close, settled }: {
+  plan: IdentificationGroupPlan
+  account: Account
+  close: () => void
+  settled: (summary: string) => void
+}) {
+  const [note, setNote] = useState('')
+  const [chosen, setChosen] = useState<IdentificationDecisionAction>()
+  const [progress, setProgress] = useState<{ applied: number; skipped: number; refused: number }>()
+  const [running, setRunning] = useState(false)
+  const [failure, setFailure] = useState<unknown>()
+  const consequence = plan.decisions.find((decision) => decision.action === chosen)
+
+  const apply = async () => {
+    if (!chosen) return
+    // One act. Many bounded batches settle one group, and they are one decision by one Account at
+    // one moment in the history of every Video they touch.
+    const actId = crypto.randomUUID()
+    let remaining: IdentificationGroupCase[] = [...plan.cases]
+    const total = { applied: 0, skipped: 0, refused: 0 }
+    setRunning(true)
+    setFailure(undefined)
+
+    try {
+      while (remaining.length > 0) {
+        const result = await api.decideIdentificationGroup(
+          {
+            actId,
+            groupKey: plan.groupKey,
+            action: chosen,
+            cases: remaining.slice(0, BatchSize),
+            note: note.trim() || null,
+          },
+          account.csrfToken,
+        )
+
+        if (result.verdict !== 'Applied') {
+          setProgress(total)
+          settled(result.summary)
+          return
+        }
+
+        total.applied += Number(result.applied)
+        total.skipped += result.skipped.length
+        total.refused += result.refused.length
+        setProgress({ ...total })
+        remaining = remaining.slice(BatchSize)
+      }
+
+      // The queue comes back first, so the account of what the act settled is the message the
+      // reviewer is left with rather than something closing the group wipes away.
+      close()
+      settled(summarise(total))
+    } catch (error) {
+      setFailure(error)
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  return (
+    <div className="review-case">
+      <div className="section-heading">
+        <strong>{plan.targetTitle ?? 'Two Videos that look alike'}</strong>
+        <button className="quiet-button" onClick={close}>Back to queue</button>
+      </div>
+      <p>{plan.inCommon}</p>
+      <p className="muted">{plan.differ}</p>
+
+      <div className="decisions">
+        {plan.decisions.map((decision) => (
+          <div className={decision.refusal ? 'decision unavailable' : 'decision'} key={decision.action}>
+            <button
+              className={decision.refusal
+                ? `${appearance(decision.action).appearance} unavailable`
+                : appearance(decision.action).appearance}
+              onClick={() => setChosen(decision.action)}
+              disabled={running || decision.refusal !== null}
+            >{appearance(decision.action).label}</button>
+            <p>{decision.outcome}</p>
+          </div>
+        ))}
+      </div>
+
+      {consequence && (
+        <div className="confirmation" role="group" aria-label="Group consequence">
+          <p>{consequence.outcome}</p>
+          <small>
+            Settles {Number(consequence.videosChanged) || Number(consequence.caseCount)} of{' '}
+            {Number(consequence.caseCount)}
+            {Number(consequence.videosMerged) > 0 && `, merging ${Number(consequence.videosMerged)}`}
+          </small>
+          {/* A note is written once, for the act, and recorded on every case it settles. */}
+          <label className="field">
+            <span>Decision note</span>
+            <textarea
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              required={consequence.requiresNote}
+            />
+          </label>
+          <button
+            className="primary-button"
+            onClick={() => void apply()}
+            disabled={running || (consequence.requiresNote && note.trim().length === 0)}
+          >Confirm for {Number(consequence.caseCount)} cases</button>
+        </div>
+      )}
+
+      {progress && <p className="muted" role="status">{summarise(progress)}</p>}
+      {failure !== undefined && <RequestError error={failure} />}
+    </div>
+  )
+}
+
+/// How many cases one request settles. It matches the server's own limit, so a batch is never
+/// silently truncated into a page that says it settled more than it did.
+const BatchSize = 25
+
+function summarise(progress: { applied: number; skipped: number; refused: number }) {
+  const parts = [`${progress.applied} settled`]
+  if (progress.skipped > 0) parts.push(`${progress.skipped} changed underneath and stayed open`)
+  if (progress.refused > 0) parts.push(`${progress.refused} could not be decided this way`)
+  return `${parts.join(', ')}.`
+}
+
+/// One Identification Review Group: the question, what answering it would settle, and a way into
+/// the cases it holds.
+///
+/// The group is the unit a backlog is worked in, so it leads with what its cases have in common and
+/// where they differ rather than with a count. A count alone says how much is at stake and nothing
+/// about what is being asked, and a reviewer who cannot say what a group has in common cannot
+/// safely answer it.
+function ReviewGroup({ group, open, settle }: {
+  group: IdentificationReviewGroup
+  open: (caseId: string) => void
+  settle: () => void
+}) {
+  const count = Number(group.caseCount)
+
+  return (
+    <article className="review-group">
+      <div className="section-heading">
+        <strong>{group.targetTitle ?? 'Two Videos that look alike'}</strong>
+        <span className="muted">{count === 1 ? '1 case' : `${count} cases`}</span>
+      </div>
+      {count > 1 && (
+        <button className="quiet-button group-settle" onClick={settle}>
+          Settle all {count} with one decision
+        </button>
+      )}
+      <small>
+        {friendlyState(group.dimension)} · {friendlyState(group.evidenceClass)} ·
+        {' '}{candidateOrigin(group.source)} · {friendlyState(group.effort).toLowerCase()}
+      </small>
+      <p>{group.inCommon}</p>
+      <p className="muted">{group.differ}</p>
+      <ul className="review-group-cases">
+        {group.cases.map((item) => (
+          <li key={caseId(item)}>
+            <span>
+              {item.displayLabel}
+              {/* A proposal that repeats what is already established is the one a reviewer reads
+                  twice. It belongs on the case rather than on the group: the rest of the group may
+                  not have it. */}
+              {item.candidate && alreadyEstablished(
+                item.currentResolution,
+                item.currentTargetTitle,
+                item.candidate.targetTitle,
+              ) && (
+                <small className="already-established">Proposes what is already established here.</small>
+              )}
+            </span>
+            <button className="quiet-button" onClick={() => open(caseId(item))}>Review</button>
+          </li>
+        ))}
+      </ul>
+      {group.hasMoreCases && (
+        <small className="muted">
+          {count - group.cases.length} more {count - group.cases.length === 1 ? 'case' : 'cases'}
+          {' '}share this question.
+        </small>
+      )}
+    </article>
+  )
+}
+
+/// What a reviewer is in the mood to do. Clearing four hundred site proposals and looking hard at
+/// nine work proposals are different afternoons, and a queue that only offers whatever is on top
+/// makes the choice for them.
+function QueueFilters({ facets, parameters, set }: {
+  facets: IdentificationQueueFacets
+  parameters: URLSearchParams
+  set: ReturnType<typeof useSearchParams>[1]
+}) {
+  const apply = (name: string, value: string | undefined) => {
+    set((current) => {
+      const next = new URLSearchParams(current)
+      if (value) next.set(name, value)
+      else next.delete(name)
+      // A filter changes what the first page holds, so it cannot keep the offset of the last one.
+      next.delete('skip')
+      next.delete('candidate')
+      return next
+    }, { replace: true })
+  }
+  const groups: { name: string; label: string; values: IdentificationQueueFacets['dimensions'] }[] = [
+    { name: 'dimension', label: 'Dimension', values: facets.dimensions },
+    { name: 'reason', label: 'Reason', values: facets.reasons },
+    { name: 'evidence', label: 'Evidence', values: facets.evidenceClasses },
+  ]
+
+  if (groups.every((group) => group.values.length <= 1)) return null
+
+  return (
+    <div className="queue-filters">
+      {groups.filter((group) => group.values.length > 1).map((group) => (
+        <div key={group.name}>
+          <span className="eyebrow">{group.label}</span>
+          <div className="queue-filter-values">
+            <button
+              className={parameters.get(group.name) ? 'quiet-button' : 'quiet-button selected'}
+              onClick={() => apply(group.name, undefined)}
+            >All</button>
+            {group.values.map((facet) => (
+              <button
+                key={facet.value}
+                className={parameters.get(group.name) === facet.value
+                  ? 'quiet-button selected'
+                  : 'quiet-button'}
+                onClick={() => apply(group.name, facet.value)}
+              >{friendlyState(facet.value)} ({Number(facet.caseCount)})</button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/// A backlog that survives its own size is one somebody can walk through rather than scroll.
+function Pages({ groupCount, shown, parameters, set }: {
+  groupCount: number
+  shown: number
+  parameters: URLSearchParams
+  set: ReturnType<typeof useSearchParams>[1]
+}) {
+  const skip = Number(parameters.get('skip') ?? 0)
+  const move = (to: number) => {
+    set((current) => {
+      const next = new URLSearchParams(current)
+      if (to > 0) next.set('skip', String(to))
+      else next.delete('skip')
+      next.delete('candidate')
+      return next
+    }, { replace: true })
+  }
+
+  return (
+    <div className="queue-pages">
+      <button
+        className="quiet-button"
+        disabled={skip === 0}
+        onClick={() => move(Math.max(0, skip - shown))}
+      >Previous</button>
+      <span className="muted">
+        Questions {skip + 1}–{skip + shown} of {groupCount}
+      </span>
+      <button
+        className="quiet-button"
+        disabled={skip + shown >= groupCount}
+        onClick={() => move(skip + shown)}
+      >Next</button>
+    </div>
+  )
+}
+
+/// What a queue case is addressed by. A case is either a proposed identification or a proposed
+/// association, and the address in the URL has to name whichever it is (ADR 0004).
+function caseId(item: IdentificationQueueItem) {
+  return item.candidate?.id ?? item.association!.id
+}
+
 /// How each decision is drawn. Accepting what was proposed is the one an open case is normally
 /// closed with, so it leads; withdrawing knowledge the library has already established is the one
 /// that takes something away, so it is coloured like it. The order the case offers them in is the
@@ -536,6 +1040,8 @@ function appearance(action: IdentificationDecisionAction) {
     AssignDirectly: { label: 'Assign directly', appearance: 'quiet-button' },
     ReplaceClaim: { label: 'Replace claim', appearance: 'quiet-button' },
     RevokeClaim: { label: 'Revoke claim', appearance: 'danger-button' },
+    AssociateVideos: { label: 'Associate these Videos', appearance: 'primary-button' },
+    RejectAssociation: { label: 'Not the same content', appearance: 'quiet-button' },
     SplitVideo: { label: 'Split Video', appearance: 'quiet-button' },
   }
 

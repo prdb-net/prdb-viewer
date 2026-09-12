@@ -14,6 +14,7 @@ import {
   offeredDecisions,
   personalState,
   renderApp,
+  reviewQueue,
   signedInAs,
   variant,
   videoDetail,
@@ -382,7 +383,7 @@ describe('App', () => {
       if (isFacetRequest(input)) return json(noFacets())
       if (isLibraryRequest(input)) return json(libraryPage([]))
       if (input === '/api/admin/identification/queue') {
-        return json(decisions.length > 0 ? [] : [queueItem])
+        return json(reviewQueue(decisions.length > 0 ? [] : [queueItem]))
       }
       if (input === `/api/admin/identification/videos/${queueItem.videoId}`) return json(openCase)
       if (input === `/api/admin/identification/videos/${queueItem.videoId}/decisions`) {
@@ -550,7 +551,7 @@ describe('App', () => {
       explanation: 'The evidence is only suggestive, so it can propose a candidate.',
     }
     signedInAs('Administrator', (input) => {
-      if (input === '/api/admin/identification/queue') return json([queueItem])
+      if (input === '/api/admin/identification/queue') return json(reviewQueue([queueItem]))
       if (input === `/api/admin/identification/videos/${queueItem.videoId}`) return json(openCase)
       return undefined
     })
@@ -589,6 +590,384 @@ describe('App', () => {
     expect(screen.getByText(
       'prdb answered with an identifier for this work and no details to compare against.',
     )).toBeInTheDocument()
+  })
+
+  it('compares a neighbour proposal against the other file of this library', async () => {
+    const neighbour = {
+      videoFileId: '01994dd4-2a0a-7000-8000-000000000051',
+      videoId: '01994dd4-2a0a-7000-8000-000000000050',
+      displayLabel: 'The Established Work',
+      relativePath: 'archive/established-work-1080p.mp4',
+      previewUrl: '/media/previews/01994dd4-2a0a-7000-8000-0000000000aa',
+      durationMilliseconds: 1_800_000,
+      quality: 'FullHd1080',
+      distance: 2,
+      durationsAgree: true,
+      summary: 'This file and that one look all but identical, and their running times agree.',
+    }
+    const candidate = {
+      id: '01994dd4-2a0a-7000-8000-000000000053',
+      dimension: 'WorkIdentification',
+      status: 'Pending',
+      targetTitle: 'The Established Work',
+      targetUrl: null,
+      evidenceClass: 'Suggestive',
+      reason: 'PerceptualNeighbour',
+      source: 'LocalInference',
+      evidenceSummary: 'Local: Suggestive evidence, matched by another Video File of this library',
+      supportingVideoFileId: '01994dd4-2a0a-7000-8000-000000000054',
+      // The work's own facts are not what this proposal rests on, so the case does not lead with
+      // them: the question is whether these two files are the same picture.
+      proposal: null,
+      neighbour,
+      decisions: offeredDecisions([
+        { action: 'AcceptCandidate', outcome: 'The two Videos merge into one.' },
+        { action: 'RejectCandidate', outcome: 'A closer resemblance may propose it again.' },
+      ]),
+      createdAt: '2026-09-12T10:00:00Z',
+      resolvedAt: null,
+    }
+    const queueItem = {
+      videoId: '01994dd4-2a0a-7000-8000-000000000052',
+      caseVersion: 1,
+      displayLabel: 'established-work-360p',
+      previewUrl: null,
+      dimension: 'WorkIdentification',
+      currentResolution: 'Unknown',
+      currentTargetTitle: null,
+      candidate,
+      affectedVideoFileCount: 1,
+      reason: 'Another Video File of this library looks like this one.',
+    }
+    const openCase = {
+      videoId: queueItem.videoId,
+      caseVersion: 1,
+      displayLabel: 'established-work-360p',
+      previewUrl: null,
+      identification: identification(),
+      openCandidates: [candidate],
+      candidateHistory: [],
+      videoFiles: [variant()],
+      decisions: [],
+      unavailableSiteActions: [],
+      explanation: 'Another Video File of this library looks like this one.',
+    }
+    signedInAs('Administrator', (input) => {
+      if (input === '/api/admin/identification/queue') return json(reviewQueue([queueItem]))
+      if (input === `/api/admin/identification/videos/${queueItem.videoId}`) return json(openCase)
+      return undefined
+    })
+
+    renderApp('/admin/identification')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Review' }))
+
+    // The other side of the comparison is a file of this library, named as such, with its own
+    // preview rather than artwork prdb holds for a work.
+    expect(await screen.findByText('The file it looks like')).toBeInTheDocument()
+    expect(screen.getByAltText(`Preview frame of ${neighbour.relativePath}`))
+      .toHaveAttribute('src', neighbour.previewUrl)
+    expect(screen.getByText(neighbour.relativePath)).toBeInTheDocument()
+    expect(screen.getByText('30 min')).toBeInTheDocument()
+    expect(screen.getByText('1080p')).toBeInTheDocument()
+
+    // The distance is 64 bits of Hamming distance, which nobody can calibrate, so it is said in
+    // words — and the other Video is reachable, because deciding usually means watching a moment.
+    expect(screen.getByText(neighbour.summary)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Open that Video' }))
+      .toHaveAttribute('href', expect.stringContaining(`/videos/${neighbour.videoId}`))
+  })
+
+  it('decides a proposed association between two Videos that identifies neither', async () => {
+    const association = {
+      id: '01994dd4-2a0a-7000-8000-000000000061',
+      status: 'Proposed',
+      source: 'LocalInference',
+      videoId: '01994dd4-2a0a-7000-8000-000000000060',
+      otherVideoId: '01994dd4-2a0a-7000-8000-000000000062',
+      otherDisplayLabel: 'clip-720p',
+      otherPreviewUrl: '/media/previews/01994dd4-2a0a-7000-8000-0000000000bb',
+      otherRelativePath: 'archive/clip-720p.mp4',
+      otherDurationMilliseconds: 1_800_000,
+      otherQuality: 'Hd720',
+      distance: 2,
+      durationsAgree: false,
+      summary: 'These two Videos may carry the same content. Associating them merges them while ' +
+        'both stay Unknown.',
+      note: null,
+      createdAt: '2026-09-12T10:00:00Z',
+      establishedAt: null,
+      resolvedAt: null,
+    }
+    const queueItem = {
+      videoId: association.videoId,
+      caseVersion: 1,
+      displayLabel: 'clip-360p',
+      previewUrl: null,
+      dimension: 'WorkIdentification',
+      currentResolution: 'Unknown',
+      currentTargetTitle: null,
+      // A case is either a proposed identification or a proposed association. This one names
+      // nothing, so there is no candidate to carry.
+      candidate: null,
+      affectedVideoFileCount: 2,
+      reason: 'Two Videos of this library look alike and neither is identified.',
+      association,
+    }
+    const openCase = {
+      videoId: queueItem.videoId,
+      caseVersion: 1,
+      displayLabel: 'clip-360p',
+      previewUrl: null,
+      identification: identification(),
+      openCandidates: [],
+      candidateHistory: [],
+      videoFiles: [variant()],
+      decisions: [],
+      unavailableSiteActions: [],
+      explanation: 'Two Videos of this library look alike.',
+      openAssociations: [association],
+      associationHistory: [],
+    }
+    const sent: Record<string, unknown>[] = []
+    signedInAs('Administrator', (input, init) => {
+      if (input === '/api/admin/identification/queue') return json(reviewQueue([queueItem]))
+      if (input === `/api/admin/identification/videos/${queueItem.videoId}`) return json(openCase)
+      if (input === `/api/admin/identification/videos/${queueItem.videoId}/decisions`) {
+        sent.push(JSON.parse(String(init?.body)))
+        return json({
+          verdict: 'Preview',
+          consequence: {
+            claimTransition: 'These two Videos become one.',
+            candidateTransition: 'Both Video Files keep their own facts.',
+            affectedVideoFileCount: 2,
+            resultingReviewStatus: 'Clear',
+            mergesAnotherVideo: true,
+            mergeSummary: null,
+            requiresNote: true,
+          },
+          case: openCase,
+        })
+      }
+      return undefined
+    })
+
+    renderApp('/admin/identification')
+
+    // The group says what the case is rather than what it proposes: it proposes nothing, so it is
+    // named by the two Videos rather than by a target.
+    expect(await screen.findByText('Two Videos that look alike')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+
+    expect(await screen.findByText('The Video it looks like')).toBeInTheDocument()
+    expect(screen.getByText(association.summary)).toBeInTheDocument()
+    expect(screen.getByText(/still Unknown/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Associate these Videos' }))
+
+    // A merge is not a label that can be peeled off, so it is previewed and asks for a note.
+    const preview = await screen.findByRole('group', { name: 'Consequence preview' })
+    expect(preview).toHaveTextContent('These two Videos become one.')
+    expect(screen.getByLabelText('Decision note')).toBeInTheDocument()
+    expect(sent[0]).toMatchObject({
+      action: 'AssociateVideos',
+      associationId: association.id,
+      candidateId: null,
+      confirm: false,
+    })
+  })
+
+  it('works the backlog in groups, and never hides what one would settle behind a count', async () => {
+    const cases = Array.from({ length: 3 }, (unused, index) => ({
+      videoId: `01994dd4-2a0a-7000-8000-00000000007${index}`,
+      caseVersion: 1,
+      displayLabel: `clip-${index}`,
+      previewUrl: null,
+      dimension: 'SiteRecognition',
+      currentResolution: 'Unknown',
+      currentTargetTitle: null,
+      candidate: {
+        id: `01994dd4-2a0a-7000-8000-00000000008${index}`,
+        dimension: 'SiteRecognition',
+        status: 'Pending',
+        targetTitle: 'One Site',
+        targetUrl: null,
+        evidenceClass: 'Suggestive',
+        reason: 'SuggestiveEvidence',
+        source: 'LocalInference',
+        evidenceSummary: 'Local: Suggestive evidence',
+        supportingVideoFileId: null,
+        proposal: null,
+        neighbour: null,
+        decisions: [],
+        createdAt: '2026-09-12T10:00:00Z',
+        resolvedAt: null,
+      },
+      affectedVideoFileCount: 1,
+      reason: 'The evidence is only suggestive.',
+      association: null,
+    }))
+    const queue = {
+      groupCount: 1,
+      caseCount: 400,
+      groups: [{
+        key: 'SiteRecognition|SuggestiveEvidence|Suggestive|LocalInference|0|site-1',
+        dimension: 'SiteRecognition',
+        reason: 'SuggestiveEvidence',
+        evidenceClass: 'Suggestive',
+        source: 'LocalInference',
+        targetKey: 'site-1',
+        targetTitle: 'One Site',
+        caseCount: 400,
+        effort: 'Judgement',
+        inCommon: '400 Videos are proposed as “One Site” for their Site Recognition.',
+        differ: 'They differ in which Video is being asked about, and in nothing else.',
+        oldestCaseAt: '2026-09-12T10:00:00Z',
+        cases,
+        hasMoreCases: true,
+      }],
+      facets: {
+        dimensions: [
+          { value: 'SiteRecognition', groupCount: 1, caseCount: 400 },
+          { value: 'WorkIdentification', groupCount: 1, caseCount: 9 },
+        ],
+        reasons: [],
+        evidenceClasses: [],
+      },
+    }
+    const asked: string[] = []
+    signedInAs('Administrator', (input) => {
+      if (typeof input === 'string' && input.startsWith('/api/admin/identification/queue')) {
+        asked.push(input)
+        return json(queue)
+      }
+      return undefined
+    })
+
+    renderApp('/admin/identification')
+
+    // The unit is the group, and what it would settle is said rather than implied by a number.
+    expect(await screen.findByText('One Site')).toBeInTheDocument()
+    expect(screen.getByText('400 cases')).toBeInTheDocument()
+    expect(screen.getByText(queue.groups[0].inCommon)).toBeInTheDocument()
+    expect(screen.getByText(queue.groups[0].differ)).toBeInTheDocument()
+
+    // The single case stays reachable from inside its group, and the sample says it is one.
+    expect(screen.getAllByRole('button', { name: 'Review' })).toHaveLength(3)
+    expect(screen.getByText(/397 more cases/)).toBeInTheDocument()
+
+    // A reviewer chooses what they are in the mood to do, and the choice is in the address.
+    fireEvent.click(screen.getByRole('button', { name: 'Work Identification (9)' }))
+    await vi.waitFor(() =>
+      expect(asked.some((url) => url.includes('dimension=WorkIdentification'))).toBe(true))
+  })
+
+  it('settles a group with one decision, in bounded batches, and says what it left open', async () => {
+    const groupKey = 'SiteRecognition|SuggestiveEvidence|Suggestive|LocalInference|0|site-1'
+    const cases = Array.from({ length: 30 }, (unused, index) => ({
+      videoId: `01994dd4-2a0a-7000-8000-0000000${(900 + index).toString().padStart(5, '0')}`,
+      caseVersion: 1,
+      candidateId: `01994dd4-2a0a-7000-8000-0000000${(800 + index).toString().padStart(5, '0')}`,
+      associationId: null,
+      displayLabel: `clip-${index}`,
+    }))
+    const queue = {
+      groupCount: 1,
+      caseCount: 30,
+      groups: [{
+        key: groupKey,
+        dimension: 'SiteRecognition',
+        reason: 'SuggestiveEvidence',
+        evidenceClass: 'Suggestive',
+        source: 'LocalInference',
+        targetKey: 'site-1',
+        targetTitle: 'One Site',
+        caseCount: 30,
+        effort: 'Judgement',
+        inCommon: '30 Videos are proposed as “One Site” for their Site Recognition.',
+        differ: 'They differ in which Video is being asked about.',
+        oldestCaseAt: '2026-09-12T10:00:00Z',
+        cases: [],
+        hasMoreCases: true,
+      }],
+      facets: { dimensions: [], reasons: [], evidenceClasses: [] },
+    }
+    const plan = {
+      groupKey,
+      dimension: 'SiteRecognition',
+      targetTitle: 'One Site',
+      caseCount: 30,
+      inCommon: queue.groups[0].inCommon,
+      differ: queue.groups[0].differ,
+      decisions: [
+        {
+          action: 'AcceptCandidate',
+          refusal: null,
+          caseCount: 30,
+          videosChanged: 30,
+          videosMerged: 0,
+          casesRefused: 0,
+          requiresNote: false,
+          outcome: '30 Videos become Established “One Site” for their Site Recognition.',
+        },
+        {
+          action: 'SplitVideo',
+          refusal: 'A Split is about which of one Video’s files belong together.',
+          caseCount: 30,
+          videosChanged: 0,
+          videosMerged: 0,
+          casesRefused: 0,
+          requiresNote: false,
+          outcome: 'A Split is about which of one Video’s files belong together.',
+        },
+      ],
+      cases,
+    }
+    const batches: { cases: unknown[]; actId: string }[] = []
+    signedInAs('Administrator', (input, init) => {
+      if (typeof input === 'string' && input.startsWith('/api/admin/identification/queue')) {
+        return json(queue)
+      }
+      if (typeof input === 'string' && input.startsWith('/api/admin/identification/groups?')) {
+        return json(plan)
+      }
+      if (input === '/api/admin/identification/groups/decisions') {
+        const body = JSON.parse(String(init?.body)) as { cases: unknown[]; actId: string }
+        batches.push(body)
+        return json({
+          verdict: 'Applied',
+          applied: body.cases.length - (batches.length === 1 ? 1 : 0),
+          skipped: batches.length === 1
+            ? [{ videoId: cases[0].videoId, reason: 'This case changed while the group was read.' }]
+            : [],
+          refused: [],
+          summary: 'settled',
+        })
+      }
+      return undefined
+    })
+
+    renderApp('/admin/identification')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Settle all 30 with one decision' }))
+
+    // What the decision would leave behind is said before the button rather than after it, and a
+    // decision the group cannot carry says why instead of being a disabled control with no reason.
+    expect(await screen.findByText(plan.decisions[0].outcome)).toBeInTheDocument()
+    expect(screen.getByText(plan.decisions[1].refusal!)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Split Video' })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Accept candidate' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm for 30 cases' }))
+
+    // Bounded batches, and one act across all of them.
+    await vi.waitFor(() => expect(batches).toHaveLength(2))
+    expect(batches[0].cases).toHaveLength(25)
+    expect(batches[1].cases).toHaveLength(5)
+    expect(batches[0].actId).toBe(batches[1].actId)
+
+    // And the one case that changed underneath is reported rather than silently decided.
+    expect(await screen.findByText(/1 changed underneath and stayed open/)).toBeInTheDocument()
   })
 
   it('offers sign-in and an approval-gated registration request', async () => {
@@ -968,6 +1347,62 @@ describe('App', () => {
     ).toBe('/media/videos/bbb'))
   })
 
+  it.each([
+    { equivalent: true, expected: 30, what: 'carries the position to an equivalent encode' },
+    { equivalent: false, expected: 0, what: 'gives it up where the timelines are not equivalent' },
+  ])('a fallback $what', async ({ equivalent, expected }) => {
+    // An automatic fallback stays inside one Playback Attempt, and until now it silently cost the
+    // position the viewer had reached. It follows them where the two files are known to carry the
+    // same timeline, and is given up where they are not: a proportional guess would land in the
+    // wrong scene, which is worse than the beginning.
+    const firstId = '01994dd4-2a0a-7000-8000-0000000000b1'
+    const secondId = '01994dd4-2a0a-7000-8000-0000000000b2'
+    const first = variant({
+      videoFileId: firstId,
+      deliveryUrl: '/media/videos/aaa',
+      timelineEquivalentVideoFileIds: equivalent ? [secondId] : [],
+    })
+    const second = variant({
+      videoFileId: secondId,
+      deliveryUrl: '/media/videos/bbb',
+      timelineEquivalentVideoFileIds: equivalent ? [firstId] : [],
+    })
+    const video = libraryVideo({ displayTitle: 'Two Encodes', videoFiles: [first, second] })
+
+    signedInAs('User', (input) => {
+      if (typeof input === 'string' && input.endsWith('/playback-attempts')) {
+        return json({
+          verdict: 'Started',
+          playbackAttemptId: '01994dd4-2a0a-7000-8000-000000000013',
+          resumePositionMilliseconds: null,
+        })
+      }
+      if (typeof input === 'string' && input.endsWith('/reports')) return json({ verdict: 'Accepted' })
+      if (typeof input === 'string' && input.endsWith('/end')) return json({ ended: true })
+      if (input === '/api/personal/playback-outcomes') return json({ recorded: true })
+      if (isFacetRequest(input)) return json(noFacets())
+      if (isVideoRequest(input)) return json(videoDetail(video))
+      if (isLibraryRequest(input)) return json(libraryPage([video]))
+      return undefined
+    })
+
+    const rendered = renderApp('/videos/01994dd4-2a0a-7000-8000-000000000010')
+    expect(await screen.findByRole('heading', { name: 'Two Encodes' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Play' }))
+    const player = await waitForVideo(rendered.container)
+
+    Object.defineProperty(player, 'duration', { configurable: true, writable: true, value: 100 })
+    Object.defineProperty(player, 'currentTime', { configurable: true, writable: true, value: 30 })
+    Object.defineProperty(player, 'error', { configurable: true, value: { code: 3 } })
+    fireEvent.error(player)
+    await vi.waitFor(() => expect(player.getAttribute('src')).toBe('/media/videos/bbb'))
+
+    // The new source loads at the beginning; where the position follows, the player seeks to it.
+    ;(player as unknown as { currentTime: number }).currentTime = 0
+    fireEvent.loadedMetadata(player)
+    expect((player as unknown as { currentTime: number }).currentTime).toBe(expected)
+  })
+
   it('reports the Video File the attempt fell back to, not the one it started on', async () => {
     // The periodic report is the one that outlives a fallback. Its timer is installed once, so it
     // used to keep naming the Video File that was playing when the player mounted, while the
@@ -1020,10 +1455,18 @@ describe('App', () => {
     await vi.waitFor(() => expect(player.getAttribute('src')).toBe('/media/videos/bbb'))
 
     // Playback advances far enough to be worth reporting, and then the timer fires.
+    //
+    // Active Watching is confirmed time, so the player counts the smaller of what the media
+    // advanced and what the wall clock did. Four `timeUpdate` events raised in one synchronous
+    // loop can all land in the same millisecond, and then the wall clock advanced by nothing and
+    // the player has — correctly — confirmed nothing to report. Letting a little real time pass
+    // between them is what makes this about the Video File a report names rather than about how
+    // fast the machine running it happens to be.
     Object.defineProperty(player, 'paused', { configurable: true, value: false })
     Object.defineProperty(player, 'currentTime', { configurable: true, writable: true, value: 0 })
     fireEvent.playing(player)
     for (let step = 1; step <= 4; step++) {
+      await new Promise((resume) => setTimeout(resume, 5))
       ;(player as unknown as { currentTime: number }).currentTime = step / 10
       fireEvent.timeUpdate(player)
     }

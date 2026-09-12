@@ -812,16 +812,60 @@
         "tags": [
           "Identification Review"
         ],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "dimension",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/IdentificationDimension"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/IdentificationReviewReason"
+            }
+          },
+          {
+            "name": "evidenceClass",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/IdentificationEvidenceClass"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/IdentificationQueueItem"
-                  }
+                  "$ref": "#/components/schemas/IdentificationQueue"
                 }
               }
             }
@@ -848,6 +892,67 @@
         "responses": {
           "200": {
             "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/admin/identification/groups": {
+      "get": {
+        "tags": [
+          "Identification Review"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentificationGroupPlan"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/admin/identification/groups/decisions": {
+      "post": {
+        "tags": [
+          "Identification Review"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentificationGroupDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentificationGroupDecisionResult"
+                }
+              }
+            }
           }
         }
       }
@@ -2300,6 +2405,7 @@
           "PreviewGeneration",
           "Identification",
           "SiteRecognition",
+          "PerceptualNeighbourhood",
           "Enrichment"
         ]
       },
@@ -2716,6 +2822,112 @@
           }
         }
       },
+      "IdentificationAssociationView": {
+        "required": [
+          "id",
+          "status",
+          "source",
+          "videoId",
+          "otherVideoId",
+          "otherDisplayLabel",
+          "otherPreviewUrl",
+          "otherRelativePath",
+          "otherDurationMilliseconds",
+          "otherQuality",
+          "distance",
+          "durationsAgree",
+          "summary",
+          "note",
+          "createdAt",
+          "establishedAt",
+          "resolvedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WorkAssociationStatus"
+          },
+          "source": {
+            "$ref": "#/components/schemas/IdentificationSource"
+          },
+          "videoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "otherVideoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "otherDisplayLabel": {
+            "type": "string"
+          },
+          "otherPreviewUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "otherRelativePath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "otherDurationMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "otherQuality": {
+            "$ref": "#/components/schemas/VideoQualityBand"
+          },
+          "distance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "durationsAgree": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "establishedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "IdentificationCandidateStatus": {
         "enum": [
           "Pending",
@@ -2736,6 +2948,7 @@
           "evidenceSummary",
           "supportingVideoFileId",
           "proposal",
+          "neighbour",
           "decisions",
           "createdAt",
           "resolvedAt"
@@ -2790,6 +3003,16 @@
               }
             ]
           },
+          "neighbour": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IdentificationNeighbourView"
+              }
+            ]
+          },
           "decisions": {
             "type": "array",
             "items": {
@@ -2821,7 +3044,9 @@
           "videoFiles",
           "decisions",
           "unavailableSiteActions",
-          "explanation"
+          "explanation",
+          "openAssociations",
+          "associationHistory"
         ],
         "type": "object",
         "properties": {
@@ -2881,6 +3106,18 @@
           },
           "explanation": {
             "type": "string"
+          },
+          "openAssociations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationAssociationView"
+            }
+          },
+          "associationHistory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationAssociationView"
+            }
           }
         }
       },
@@ -3075,7 +3312,9 @@
           "ReplaceClaim",
           "RejectCandidate",
           "RevokeClaim",
-          "SplitVideo"
+          "SplitVideo",
+          "AssociateVideos",
+          "RejectAssociation"
         ]
       },
       "IdentificationDecisionOutlook": {
@@ -3170,6 +3409,13 @@
           "retainPersonalStateWithContinuing": {
             "type": "boolean",
             "default": true
+          },
+          "associationId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -3272,6 +3518,319 @@
           "Conclusive"
         ]
       },
+      "IdentificationGroupCase": {
+        "required": [
+          "videoId",
+          "caseVersion",
+          "candidateId",
+          "associationId",
+          "displayLabel"
+        ],
+        "type": "object",
+        "properties": {
+          "videoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "candidateId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "associationId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "displayLabel": {
+            "type": "string"
+          }
+        }
+      },
+      "IdentificationGroupConsequence": {
+        "required": [
+          "action",
+          "refusal",
+          "caseCount",
+          "videosChanged",
+          "videosMerged",
+          "casesRefused",
+          "requiresNote",
+          "outcome"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/IdentificationDecisionAction"
+          },
+          "refusal": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "caseCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "videosChanged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "videosMerged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "casesRefused": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "requiresNote": {
+            "type": "boolean"
+          },
+          "outcome": {
+            "type": "string"
+          }
+        }
+      },
+      "IdentificationGroupDecisionRequest": {
+        "required": [
+          "actId",
+          "groupKey",
+          "action",
+          "cases"
+        ],
+        "type": "object",
+        "properties": {
+          "actId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "groupKey": {
+            "type": "string"
+          },
+          "action": {
+            "$ref": "#/components/schemas/IdentificationDecisionAction"
+          },
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationGroupCase"
+            }
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "IdentificationGroupDecisionResult": {
+        "required": [
+          "verdict",
+          "applied",
+          "skipped",
+          "refused",
+          "summary"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/IdentificationGroupDecisionVerdict"
+          },
+          "applied": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "skipped": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationGroupOutcome"
+            }
+          },
+          "refused": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationGroupOutcome"
+            }
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
+      "IdentificationGroupDecisionVerdict": {
+        "enum": [
+          "Applied",
+          "ActionUnavailable",
+          "NoteRequired",
+          "NotFound"
+        ]
+      },
+      "IdentificationGroupOutcome": {
+        "required": [
+          "videoId",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "videoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "IdentificationGroupPlan": {
+        "required": [
+          "groupKey",
+          "dimension",
+          "targetTitle",
+          "caseCount",
+          "inCommon",
+          "differ",
+          "decisions",
+          "cases"
+        ],
+        "type": "object",
+        "properties": {
+          "groupKey": {
+            "type": "string"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/IdentificationDimension"
+          },
+          "targetTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "caseCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "inCommon": {
+            "type": "string"
+          },
+          "differ": {
+            "type": "string"
+          },
+          "decisions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationGroupConsequence"
+            }
+          },
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationGroupCase"
+            }
+          }
+        }
+      },
+      "IdentificationNeighbourView": {
+        "required": [
+          "videoFileId",
+          "videoId",
+          "displayLabel",
+          "relativePath",
+          "previewUrl",
+          "durationMilliseconds",
+          "quality",
+          "distance",
+          "durationsAgree",
+          "summary"
+        ],
+        "type": "object",
+        "properties": {
+          "videoFileId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "videoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayLabel": {
+            "type": "string"
+          },
+          "relativePath": {
+            "type": "string"
+          },
+          "previewUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durationMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "quality": {
+            "$ref": "#/components/schemas/VideoQualityBand"
+          },
+          "distance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "durationsAgree": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
       "IdentificationProposalView": {
         "required": [
           "title",
@@ -3338,6 +3897,99 @@
           }
         }
       },
+      "IdentificationQueue": {
+        "required": [
+          "groupCount",
+          "caseCount",
+          "groups",
+          "facets"
+        ],
+        "type": "object",
+        "properties": {
+          "groupCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "caseCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationReviewGroup"
+            }
+          },
+          "facets": {
+            "$ref": "#/components/schemas/IdentificationQueueFacets"
+          }
+        }
+      },
+      "IdentificationQueueFacet": {
+        "required": [
+          "value",
+          "groupCount",
+          "caseCount"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "groupCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "caseCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "IdentificationQueueFacets": {
+        "required": [
+          "dimensions",
+          "reasons",
+          "evidenceClasses"
+        ],
+        "type": "object",
+        "properties": {
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationQueueFacet"
+            }
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationQueueFacet"
+            }
+          },
+          "evidenceClasses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationQueueFacet"
+            }
+          }
+        }
+      },
       "IdentificationQueueItem": {
         "required": [
           "videoId",
@@ -3387,7 +4039,14 @@
             ]
           },
           "candidate": {
-            "$ref": "#/components/schemas/IdentificationCandidateView"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IdentificationCandidateView"
+              }
+            ]
           },
           "affectedVideoFileCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -3399,6 +4058,16 @@
           },
           "reason": {
             "type": "string"
+          },
+          "association": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IdentificationAssociationView"
+              }
+            ]
           }
         }
       },
@@ -3408,12 +4077,98 @@
           "Established"
         ]
       },
+      "IdentificationReviewEffort": {
+        "enum": [
+          "Judgement",
+          "Displacement",
+          "Conflict"
+        ]
+      },
+      "IdentificationReviewGroup": {
+        "required": [
+          "key",
+          "dimension",
+          "reason",
+          "evidenceClass",
+          "source",
+          "targetKey",
+          "targetTitle",
+          "caseCount",
+          "effort",
+          "inCommon",
+          "differ",
+          "oldestCaseAt",
+          "cases",
+          "hasMoreCases"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/IdentificationDimension"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/IdentificationReviewReason"
+          },
+          "evidenceClass": {
+            "$ref": "#/components/schemas/IdentificationEvidenceClass"
+          },
+          "source": {
+            "$ref": "#/components/schemas/IdentificationSource"
+          },
+          "targetKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "caseCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "effort": {
+            "$ref": "#/components/schemas/IdentificationReviewEffort"
+          },
+          "inCommon": {
+            "type": "string"
+          },
+          "differ": {
+            "type": "string"
+          },
+          "oldestCaseAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationQueueItem"
+            }
+          },
+          "hasMoreCases": {
+            "type": "boolean"
+          }
+        }
+      },
       "IdentificationReviewReason": {
         "enum": [
           "SuggestiveEvidence",
           "ConflictingConclusiveEvidence",
           "ConflictsWithAdministrativeOverride",
-          "RemoteIdentityChanged"
+          "RemoteIdentityChanged",
+          "PerceptualNeighbour"
         ]
       },
       "IdentificationReviewStatus": {
@@ -4058,6 +4813,7 @@
       "PersonalVideoStateSummary": {
         "required": [
           "playbackProgressMilliseconds",
+          "progressVideoFileId",
           "accumulatedWatchDurationMilliseconds",
           "playCount",
           "hasViewingCompletion",
@@ -4077,6 +4833,13 @@
               "string"
             ],
             "format": "int64"
+          },
+          "progressVideoFileId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           },
           "accumulatedWatchDurationMilliseconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -4287,7 +5050,8 @@
           "powerEfficient",
           "outcome",
           "readyForDirectPlay",
-          "selectionReason"
+          "selectionReason",
+          "timelineEquivalentVideoFileIds"
         ],
         "type": "object",
         "properties": {
@@ -4453,6 +5217,13 @@
           },
           "selectionReason": {
             "$ref": "#/components/schemas/VariantSelectionReason"
+          },
+          "timelineEquivalentVideoFileIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         }
       },
@@ -4893,6 +5664,15 @@
                 "$ref": "#/components/schemas/WorkFacts"
               }
             ]
+          },
+          "associations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/IdentificationAssociationView"
+            }
           }
         }
       },
@@ -4978,6 +5758,14 @@
             "$ref": "#/components/schemas/PersonalVideoStateSummary"
           }
         }
+      },
+      "WorkAssociationStatus": {
+        "enum": [
+          "Proposed",
+          "Established",
+          "Rejected",
+          "Separated"
+        ]
       },
       "WorkFacts": {
         "required": [

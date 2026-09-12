@@ -99,4 +99,62 @@ public sealed class IdentificationEvidenceRuleTests
         IdentificationDecisionAction action,
         bool required) =>
         Assert.Equal(required, IdentificationEvidenceRule.RequiresDecisionNote(action));
+
+    /// <summary>
+    /// A similarity is this installation's own inference about two pictures, not an inspection of
+    /// the content by the catalogue that holds the work. However close two files are, it proposes.
+    /// </summary>
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    [InlineData(6)]
+    public void A_perceptual_neighbour_is_never_more_than_suggestive(int distance) =>
+        Assert.Equal(
+            IdentificationEvidenceClass.Suggestive,
+            IdentificationEvidenceRule.ClassifyNeighbourWorkIdentification(distance));
+
+    [Theory]
+    [InlineData(7)]
+    [InlineData(8)]
+    [InlineData(64)]
+    [InlineData(null)]
+    public void A_file_beyond_the_band_or_with_no_distance_proposes_nothing(int? distance) =>
+        Assert.Equal(
+            IdentificationEvidenceClass.Insufficient,
+            IdentificationEvidenceRule.ClassifyNeighbourWorkIdentification(distance));
+
+    /// <summary>
+    /// Stronger means what the measurement says it means. A generic comparison of evidence classes
+    /// could not decide this: every reading of a similarity is Suggestive.
+    /// </summary>
+    [Theory]
+    [InlineData(6, false, 4, false)]
+    [InlineData(6, false, 6, true)]
+    [InlineData(4, false, 2, true)]
+    public void A_closer_reading_or_agreeing_running_times_overturn_a_rejection(
+        int rejectedDistance,
+        bool rejectedDurationsAgreed,
+        int distance,
+        bool durationsAgree) =>
+        Assert.True(IdentificationEvidenceRule.NeighbourEvidenceSupersedesRejection(
+            rejectedDistance,
+            rejectedDurationsAgreed,
+            distance,
+            durationsAgree));
+
+    [Theory]
+    [InlineData(4, false, 4, false)]
+    [InlineData(4, false, 6, false)]
+    [InlineData(2, true, 4, true)]
+    [InlineData(2, true, 2, false)]
+    public void A_reading_that_is_no_closer_leaves_a_rejection_standing(
+        int rejectedDistance,
+        bool rejectedDurationsAgreed,
+        int distance,
+        bool durationsAgree) =>
+        Assert.False(IdentificationEvidenceRule.NeighbourEvidenceSupersedesRejection(
+            rejectedDistance,
+            rejectedDurationsAgreed,
+            distance,
+            durationsAgree));
 }

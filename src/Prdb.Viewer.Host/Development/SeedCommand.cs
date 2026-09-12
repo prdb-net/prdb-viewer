@@ -40,17 +40,39 @@ public static class SeedCommand
     /// it is supposed to catch. Only the WebM's size is load-bearing: the conservative baseline is
     /// the one classification with dimensions in it, so that file stays small enough to keep it.
     /// </summary>
-    private static readonly (string Path, string Video, string Audio, string Container, string Size)[] Files =
+    /// <summary>
+    /// What the seeded library holds. Each file is a different picture, because the installation
+    /// compares its own files with each other and four files of one test pattern are one work
+    /// whatever they are called — which is true, and not the library anybody wants to look at.
+    ///
+    /// The exception is deliberate: the last is the third film again, at another resolution, in
+    /// another container, with another codec. That is a second encode of one work, which is what
+    /// local perceptual similarity exists for, and a seeded installation should show it happening
+    /// rather than leave the theme invisible until somebody has two real copies of something.
+    ///
+    /// The sources are chosen by measurement rather than by taste, with
+    /// <c>tools/Prdb.PerceptualStudy</c>. Colour bars survive two encodes at a Hamming distance of
+    /// 4 — inside the band ADR 0021 measured — while every other pair of these five files sits at
+    /// 18 or more, so the library associates exactly the pair it is meant to and nothing else. A
+    /// fractal was tried first and does not work: at two resolutions it lands 18 apart, which is
+    /// the same limit the ADR records for material 64 bits cannot describe.
+    /// </summary>
+    private static readonly (string Path, string Source, string Video, string Audio, string Container, string Size)[] Files =
     [
         // Ordinary H.264 in MP4: the broadest case, and one the browser has to be asked about.
-        ("films/first-film.mp4", "libx264", "aac", "mp4", "1920x1080"),
+        ("films/first-film.mp4", "testsrc2", "libx264", "aac", "mp4", "1920x1080"),
         // VP8 in WebM: the conservative baseline any client plays.
-        ("films/second-film.webm", "libvpx", "libvorbis", "webm", "320x240"),
+        ("films/second-film.webm", "rgbtestsrc", "libvpx", "libvorbis", "webm", "320x240"),
         // Nested deeper, so the traversal has more than one level to walk and a path worth reading.
-        ("films/series/third-film.mp4", "libx264", "aac", "mp4", "1280x720"),
+        ("films/series/third-film.mp4", "smptebars", "libx264", "aac", "mp4", "1280x720"),
         // A fourth, so a catalogue that recognises it by name rather than by content has something
         // to put in the identification review queue.
-        ("films/series/fourth-film.mp4", "libx264", "aac", "mp4", "640x480"),
+        ("films/series/fourth-film.mp4", "testsrc", "libx264", "aac", "mp4", "640x480"),
+        // The third film again, encoded for somewhere else. Its Perceptual Hash lands four bits
+        // from that film's and their running times agree, so the installation associates the two
+        // without review: the library holds one Video with two occurrences rather than two Videos,
+        // and prdb was never asked about this one.
+        ("films/re-encodes/third-film-360p.webm", "smptebars", "libvpx", "libvorbis", "webm", "640x360"),
     ];
 
     public static bool Matches(string[] arguments) => arguments is [Seed];
@@ -168,7 +190,7 @@ public static class SeedCommand
 
         await output.WriteLineAsync($"Writing {Files.Length} video files beneath {mountRoot}.");
 
-        foreach (var (relativePath, video, audio, container, size) in Files)
+        foreach (var (relativePath, source, video, audio, container, size) in Files)
         {
             var path = Path.Combine(mountRoot, relativePath);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
@@ -181,7 +203,9 @@ public static class SeedCommand
             var arguments = new[]
             {
                 "-nostdin", "-loglevel", "error", "-y",
-                "-f", "lavfi", "-i", $"testsrc=duration=2:size={size}:rate=10",
+                // The running time is given with -t rather than as a source option, because the
+                // sources are not all of one family: `mandelbrot` has no `duration` of its own.
+                "-f", "lavfi", "-t", "2", "-i", $"{source}=size={size}:rate=10",
                 "-f", "lavfi", "-i", "sine=frequency=440:duration=2",
                 "-c:v", video, "-pix_fmt", "yuv420p", "-c:a", audio, "-shortest",
                 "-f", container, path,
@@ -383,6 +407,7 @@ public static class SeedCommand
                 await SliceAsync<PreviewGenerationRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken) |
                 await SliceAsync<IdentificationRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken) |
                 await SliceAsync<SiteRecognitionRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken) |
+                await SliceAsync<PerceptualNeighbourhoodRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken) |
                 await SliceAsync<EnrichmentRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken);
 
             if (!advanced)

@@ -310,7 +310,7 @@ public sealed class LibraryThroughPrdbTests
 
         await using var scope = store.Scope();
         var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-        var open = (await review.GetQueueAsync(TestContext.Current.CancellationToken)).Single();
+        var open = (await review.QueueAsync(TestContext.Current.CancellationToken)).Single();
         var identificationCase = await review.GetCaseAsync(
             open.VideoId,
             TestContext.Current.CancellationToken);

@@ -6,7 +6,8 @@ knowingly carries. It is a review of this codebase rather than a general threat
 model for self-hosting.
 
 First reviewed at product version 0.1.0 on 2026-08-28, and revisited at
-0.16.0 on 2026-09-04. Sections carry what is true of the current product;
+0.16.0 on 2026-09-04 and 0.17.0 on 2026-09-13. Sections carry what is true of
+the current product;
 [Since the first review](#since-the-first-review) records what was added
 after 0.1.0 and what it changed here.
 
@@ -216,6 +217,25 @@ The trust boundaries this product actually has:
   own origin can be a document in it. A picture is capped at 8 MiB and refused
   rather than truncated, and its stored content type is the one the transport
   actually established rather than one the URL suggested.
+- Local perceptual similarity, added in 0.17.0, makes no request at all. It
+  compares Perceptual Hashes this installation had already computed with each
+  other, so the one rung of the ladder that reaches outside the machine is
+  unchanged by it: nothing about the library is sent anywhere it was not sent
+  before, and the lane keeps working while prdb is unreachable.
+- A Work Association is Shared Library Knowledge and is written by the same
+  Administrator-only surfaces every identification decision is written by. The
+  two endpoints it added — reading a group's plan and deciding one — sit inside
+  the existing Administrator policy group, and the decision requires the CSRF
+  token like every other state-changing request. Ordinary Users reach neither.
+- **The one thing this release took back before shipping it.** A Video's own page
+  accounts for an association, and the account first carried the path of the
+  other Video File. That would have been the first ordinary screen in this
+  product to name where the library keeps its media: paths appear in the
+  Administrator review and in Operator Handoffs, and nowhere a signed-in User can
+  reach. The Video's page now carries what it owes a reader — what was concluded,
+  from what reading, and by a rule or by a person — and the server no longer
+  sends the path to that screen at all, which is where the exposure was rather
+  than in the rendering.
 - That artwork transport follows redirects, which the credentialed transport
   does not. It carries no installation credential, so a redirect can leak
   nothing; what it does allow is an address prdb names being fetched from

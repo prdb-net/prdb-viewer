@@ -41,7 +41,14 @@ public sealed record PlaybackVariantView(
     bool? PowerEfficient,
     ObservedPlaybackOutcome? Outcome,
     bool ReadyForDirectPlay,
-    VariantSelectionReason SelectionReason);
+    VariantSelectionReason SelectionReason,
+    /// <summary>
+    /// The other occurrences of this Video whose timelines are equivalent to this one's, so a
+    /// resume position may move between them at the same elapsed position. It is per pair and does
+    /// not generalise: a file absent from this list simply has no transferable position, which is
+    /// a different thing from one at nought.
+    /// </summary>
+    IReadOnlyList<Guid> TimelineEquivalentVideoFileIds);
 
 /// <summary>
 /// What one Account's client may do with one Video: whether it can be played directly here, and in
@@ -90,10 +97,11 @@ public sealed class PlaybackPlanner(ViewerDbContext database)
                           row.ClientContextKey == clientContextKey &&
                           fileIds.Contains(row.VideoFileId))
             .ToDictionaryAsync(row => row.VideoFileId, cancellationToken);
+        var equivalence = await EquivalenceAsync(fileIds, cancellationToken);
 
         return videos.ToDictionary(
             video => video.Id,
-            video => Plan(video, assessments, outcomes));
+            video => Plan(video, assessments, outcomes, equivalence));
     }
 
     public async Task<VideoPlaybackPlan> PlanAsync(
@@ -103,10 +111,55 @@ public sealed class PlaybackPlanner(ViewerDbContext database)
         CancellationToken cancellationToken = default) =>
         (await PlanAsync(accountId, clientContextKey, [video], cancellationToken))[video.Id];
 
+    /// <summary>
+    /// Which of these Video Files carry each other's timeline, read from the Perceptual
+    /// Neighbourhoods between them in one query for the whole page. Equivalence is derived rather
+    /// than stored, so a file hashed again to a different value loses it with the neighbourhood its
+    /// old value produced.
+    /// </summary>
+    private async Task<IReadOnlyDictionary<Guid, List<Guid>>> EquivalenceAsync(
+        Guid[] fileIds,
+        CancellationToken cancellationToken)
+    {
+        var neighbourhoods = await database.PerceptualNeighbourhoods
+            .AsNoTracking()
+            .Where(row => row.DurationsAgree &&
+                          fileIds.Contains(row.LeftVideoFileId) &&
+                          fileIds.Contains(row.RightVideoFileId))
+            .Select(row => new { row.LeftVideoFileId, row.RightVideoFileId, row.Distance })
+            .ToListAsync(cancellationToken);
+        var equivalence = new Dictionary<Guid, List<Guid>>();
+
+        foreach (var pair in neighbourhoods)
+        {
+            if (!PerceptualNeighbourhoodRule.TimelinesAreEquivalent(pair.Distance, true))
+            {
+                continue;
+            }
+
+            Add(equivalence, pair.LeftVideoFileId, pair.RightVideoFileId);
+            Add(equivalence, pair.RightVideoFileId, pair.LeftVideoFileId);
+        }
+
+        return equivalence;
+
+        static void Add(Dictionary<Guid, List<Guid>> into, Guid file, Guid equivalent)
+        {
+            if (!into.TryGetValue(file, out var others))
+            {
+                others = [];
+                into[file] = others;
+            }
+
+            others.Add(equivalent);
+        }
+    }
+
     private static VideoPlaybackPlan Plan(
         VideoRow video,
         IReadOnlyDictionary<string, ClientPlaybackAssessmentRow> assessments,
-        IReadOnlyDictionary<Guid, ObservedPlaybackOutcomeRow> outcomes)
+        IReadOnlyDictionary<Guid, ObservedPlaybackOutcomeRow> outcomes,
+        IReadOnlyDictionary<Guid, List<Guid>> equivalence)
     {
         var available = video.VideoFiles
             .Where(file => file.Availability == VideoFileAvailability.Available)
@@ -116,7 +169,7 @@ public sealed class PlaybackPlanner(ViewerDbContext database)
             file => EvidenceOf(file, assessments, outcomes));
         var ordered = VariantSelectionRule
             .Order(available, file => evidence[file.Id])
-            .Select(file => View(file, evidence[file.Id], assessments))
+            .Select(file => View(file, evidence[file.Id], assessments, equivalence))
             .ToArray();
 
         return new VideoPlaybackPlan(
@@ -157,7 +210,8 @@ public sealed class PlaybackPlanner(ViewerDbContext database)
     private static PlaybackVariantView View(
         VideoFileRow file,
         VariantEvidence evidence,
-        IReadOnlyDictionary<string, ClientPlaybackAssessmentRow> assessments)
+        IReadOnlyDictionary<string, ClientPlaybackAssessmentRow> assessments,
+        IReadOnlyDictionary<Guid, List<Guid>> equivalence)
     {
         assessments.TryGetValue(file.ProfileKey, out var assessment);
         var media = file.Media;
@@ -188,6 +242,7 @@ public sealed class PlaybackPlanner(ViewerDbContext database)
             assessment?.PowerEfficient,
             evidence.Outcome,
             evidence.ReadyForDirectPlay,
-            VariantSelectionRule.ReasonFor(evidence));
+            VariantSelectionRule.ReasonFor(evidence),
+            equivalence.TryGetValue(file.Id, out var equivalent) ? equivalent : []);
     }
 }

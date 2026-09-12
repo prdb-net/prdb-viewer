@@ -25,5 +25,6 @@ public static class BackgroundWorkPhases
     public const string Identifying = "Asking prdb";
     public const string RecognisingSites = "Recognising sites";
     public const string Enriching = "Enriching from prdb";
+    public const string Comparing = "Comparing files with each other";
     public const string Settled = "Settled";
 }

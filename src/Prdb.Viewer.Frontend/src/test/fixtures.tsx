@@ -99,13 +99,48 @@ export function variant(overrides: Record<string, unknown> = {}): PlaybackVarian
     outcome: null,
     readyForDirectPlay: true,
     selectionReason: 'BaselineCandidate',
+    timelineEquivalentVideoFileIds: [],
     ...overrides,
   } as PlaybackVariant
+}
+
+/// The backlog as the API answers it: cases arranged into the groups they share a question with.
+///
+/// A test that is about one case does not care how the queue is shaped, so this puts each case in
+/// a group of its own unless it is told otherwise.
+export function reviewQueue(
+  items: Record<string, unknown>[],
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    groupCount: items.length,
+    caseCount: items.length,
+    groups: items.map((item, index) => ({
+      key: `group-${index}`,
+      dimension: item.dimension ?? 'WorkIdentification',
+      reason: 'SuggestiveEvidence',
+      evidenceClass: (item.candidate as { evidenceClass?: string } | null)?.evidenceClass
+        ?? 'Suggestive',
+      source: (item.candidate as { source?: string } | null)?.source ?? 'PrdbIdentification',
+      targetKey: null,
+      targetTitle: (item.candidate as { targetTitle?: string } | null)?.targetTitle ?? null,
+      caseCount: 1,
+      effort: 'Judgement',
+      inCommon: 'One Video is proposed.',
+      differ: 'There is one of them, so there is nothing to differ.',
+      oldestCaseAt: '2026-09-12T10:00:00Z',
+      cases: [item],
+      hasMoreCases: false,
+    })),
+    facets: { dimensions: [], reasons: [], evidenceClasses: [] },
+    ...overrides,
+  }
 }
 
 export function personalState(overrides: Record<string, unknown> = {}) {
   return {
     playbackProgressMilliseconds: null,
+    progressVideoFileId: null,
     accumulatedWatchDurationMilliseconds: 0,
     playCount: 0,
     hasViewingCompletion: false,
@@ -212,7 +247,7 @@ export function signedInAs(
     }
     if (input === '/api/personal/playback-profiles') return json([])
     if (input === '/api/admin/background-work/') return json({ work: [], issues: [] })
-    if (input === '/api/admin/identification/queue') return json([])
+    if (input === '/api/admin/identification/queue') return json(reviewQueue([]))
     if (isFacetRequest(input)) return json(noFacets())
     if (isVideoRequest(input)) return json(videoDetail(libraryVideo()))
     if (isLibraryRequest(input)) return json(libraryPage([libraryVideo()]))

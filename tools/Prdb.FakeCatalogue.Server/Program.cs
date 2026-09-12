@@ -33,6 +33,10 @@ var catalogue = new Dictionary<string, CatalogueEntry>(StringComparer.OrdinalIgn
     // a person agreeing to it. It lands in the identification review queue, so that screen has
     // something on it too.
     ["fourth-film.mp4"] = new("The Fourth Film", "Second Example Studio", ["Jules Poe"], MatchedBy: 2),
+    // The seed also writes a second encode of the third film, and it is deliberately not here: a
+    // catalogue does not hold every copy anybody made. What places it is the installation's own
+    // comparison of its files with each other, which is the one use of a Perceptual Hash that
+    // needs nothing from the network.
 };
 
 app.MapGet("/rate-limit", () => Results.Content(CatalogueAnswers.RateLimit(), "application/json"));
