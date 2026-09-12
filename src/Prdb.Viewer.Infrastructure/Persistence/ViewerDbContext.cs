@@ -73,6 +73,8 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
     public DbSet<PerceptualNeighbourhoodRow> PerceptualNeighbourhoods =>
         Set<PerceptualNeighbourhoodRow>();
 
+    public DbSet<WorkAssociationRow> WorkAssociations => Set<WorkAssociationRow>();
+
     public DbSet<ClientPlaybackAssessmentRow> ClientPlaybackAssessments =>
         Set<ClientPlaybackAssessmentRow>();
 
@@ -635,6 +637,31 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
                 .WithMany()
                 .HasForeignKey(row => row.RightVideoFileId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<WorkAssociationRow>(association =>
+        {
+            association.ToTable("work_association");
+            association.HasKey(row => row.Id);
+            association.Property(row => row.Id).ValueGeneratedNever();
+            association.Property(row => row.Status).HasConversion<string>();
+            association.Property(row => row.Source).HasConversion<string>();
+            // Both sides are asked about: what this Video was associated with, and by what.
+            association.HasIndex(row => new { row.VideoId, row.Status });
+            association.HasIndex(row => new { row.OtherVideoId, row.Status });
+            association.HasIndex(row => row.Status);
+            // One pair of files is one association, whatever it is currently worth. A proposal that
+            // was rejected and a later reading of the same two files are the same row, so what a
+            // person decided is not quietly replaced by the rule deciding it again.
+            association.HasIndex(row => new { row.VideoFileId, row.OtherVideoFileId }).IsUnique();
+            association.HasOne(row => row.Video)
+                .WithMany()
+                .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Restrict);
+            association.HasOne(row => row.OtherVideo)
+                .WithMany()
+                .HasForeignKey(row => row.OtherVideoId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

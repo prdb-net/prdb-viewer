@@ -2717,6 +2717,112 @@
           }
         }
       },
+      "IdentificationAssociationView": {
+        "required": [
+          "id",
+          "status",
+          "source",
+          "videoId",
+          "otherVideoId",
+          "otherDisplayLabel",
+          "otherPreviewUrl",
+          "otherRelativePath",
+          "otherDurationMilliseconds",
+          "otherQuality",
+          "distance",
+          "durationsAgree",
+          "summary",
+          "note",
+          "createdAt",
+          "establishedAt",
+          "resolvedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "$ref": "#/components/schemas/WorkAssociationStatus"
+          },
+          "source": {
+            "$ref": "#/components/schemas/IdentificationSource"
+          },
+          "videoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "otherVideoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "otherDisplayLabel": {
+            "type": "string"
+          },
+          "otherPreviewUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "otherRelativePath": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "otherDurationMilliseconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
+          "otherQuality": {
+            "$ref": "#/components/schemas/VideoQualityBand"
+          },
+          "distance": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "durationsAgree": {
+            "type": "boolean"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "establishedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "resolvedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
       "IdentificationCandidateStatus": {
         "enum": [
           "Pending",
@@ -2833,7 +2939,9 @@
           "videoFiles",
           "decisions",
           "unavailableSiteActions",
-          "explanation"
+          "explanation",
+          "openAssociations",
+          "associationHistory"
         ],
         "type": "object",
         "properties": {
@@ -2893,6 +3001,18 @@
           },
           "explanation": {
             "type": "string"
+          },
+          "openAssociations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationAssociationView"
+            }
+          },
+          "associationHistory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationAssociationView"
+            }
           }
         }
       },
@@ -3087,7 +3207,9 @@
           "ReplaceClaim",
           "RejectCandidate",
           "RevokeClaim",
-          "SplitVideo"
+          "SplitVideo",
+          "AssociateVideos",
+          "RejectAssociation"
         ]
       },
       "IdentificationDecisionOutlook": {
@@ -3182,6 +3304,13 @@
           "retainPersonalStateWithContinuing": {
             "type": "boolean",
             "default": true
+          },
+          "associationId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
           }
         }
       },
@@ -3461,7 +3590,14 @@
             ]
           },
           "candidate": {
-            "$ref": "#/components/schemas/IdentificationCandidateView"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IdentificationCandidateView"
+              }
+            ]
           },
           "affectedVideoFileCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -3473,6 +3609,16 @@
           },
           "reason": {
             "type": "string"
+          },
+          "association": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/IdentificationAssociationView"
+              }
+            ]
           }
         }
       },
@@ -4968,6 +5114,15 @@
                 "$ref": "#/components/schemas/WorkFacts"
               }
             ]
+          },
+          "associations": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/IdentificationAssociationView"
+            }
           }
         }
       },
@@ -5053,6 +5208,14 @@
             "$ref": "#/components/schemas/PersonalVideoStateSummary"
           }
         }
+      },
+      "WorkAssociationStatus": {
+        "enum": [
+          "Proposed",
+          "Established",
+          "Rejected",
+          "Separated"
+        ]
       },
       "WorkFacts": {
         "required": [

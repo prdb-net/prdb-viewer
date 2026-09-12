@@ -101,6 +101,42 @@ internal static class IdentificationCasePresentation
             IdentificationEvidenceRule.RequiresDecisionNote(request.Action) || merges);
     }
 
+    /// <summary>
+    /// What answering a proposed Work Association does, said before it is taken.
+    ///
+    /// A merge is not a label that can be peeled off: it writes Shared Library Knowledge every User
+    /// sees and combines the Personal State of all of them at once. That is why associating always
+    /// needs a note, even though the two Videos it joins name nothing.
+    /// </summary>
+    internal static IdentificationConsequence DescribeAssociation(
+        VideoRow video,
+        VideoRow other,
+        WorkAssociationRow association,
+        bool associates) =>
+        new(
+            associates
+                ? $"These two Videos become one. \u201c{DisplayLabel(other)}\u201d and this Video " +
+                  "carry the same content, and neither is identified by it: the surviving Video " +
+                  "keeps whatever each side had established, which for two Unknown Videos is " +
+                  $"nothing. The earliest Discovery Date ({Earliest(video, other):yyyy-MM-dd}) is " +
+                  "retained."
+                : "Neither Video changes. They are recorded as not carrying the same content.",
+            associates
+                ? "Both Video Files keep their own path, container, codec, hashes and running " +
+                  "time, so a Split can take them apart again and any later identification has " +
+                  "what it needs. Private viewing state is reconciled for every Account without " +
+                  "being shown to anybody."
+                : "The proposal does not come back while the two files stay as far apart as they " +
+                  "are; a closer resemblance, or running times that stop disagreeing, may propose " +
+                  "it again.",
+            associates ? video.VideoFiles.Count + other.VideoFiles.Count : video.VideoFiles.Count,
+            IdentificationReviewStatus.Clear,
+            associates,
+            associates
+                ? AssociationSummary(association)
+                : null,
+            associates);
+
     /// Why this case would refuse a decision, in the words of the control it locks. Every reason
     /// is one the request checks again; what the screen owes the reader is that a decision it
     /// cannot make does not look like one it can.
@@ -476,10 +512,83 @@ internal static class IdentificationCasePresentation
               (claim.IsAdministrativeOverride ? " (Administrative Override)" : "");
     }
 
+    /// <summary>
+    /// One Work Association as the review shows it. The other side is a Video of this library, so
+    /// what is shown is that Video and the file the conclusion was drawn from — not a work.
+    /// </summary>
+    internal static IdentificationAssociationView AssociationView(
+        WorkAssociationRow association,
+        Guid subjectVideoId,
+        VideoRow? otherVideo,
+        VideoFileRow? otherFile)
+    {
+        var other = association.VideoId == subjectVideoId
+            ? association.OtherVideoId
+            : association.VideoId;
+
+        return new IdentificationAssociationView(
+            association.Id,
+            association.Status,
+            association.Source,
+            subjectVideoId,
+            other,
+            otherVideo is not null && !string.IsNullOrWhiteSpace(otherVideo.DisplayLabel)
+                ? otherVideo.DisplayLabel
+                : otherFile is not null
+                    ? Path.GetFileNameWithoutExtension(otherFile.RelativePath)
+                    : "Another Video of this library",
+            otherFile is not null &&
+            otherFile.PublicPreviewId is not null &&
+            otherFile.PreviewState == VideoFilePreviewState.Generated
+                ? $"/media/previews/{otherFile.PublicPreviewId}"
+                : null,
+            otherFile?.RelativePath,
+            otherFile?.DurationMilliseconds ?? 0,
+            VideoQualityRule.For(otherFile?.Width, otherFile?.Height),
+            association.Distance,
+            association.DurationsAgree,
+            AssociationSummary(association),
+            association.Note,
+            VideoPresentation.AsOffset(association.CreatedAt)!.Value,
+            VideoPresentation.AsOffset(association.EstablishedAt),
+            VideoPresentation.AsOffset(association.ResolvedAt));
+    }
+
+    /// <summary>
+    /// What an association asserts and what it was concluded from, in one sentence. It has no
+    /// target to name, so the sentence is all a reader has: an association nobody can account for
+    /// is exactly what the evidence principle forbids.
+    /// </summary>
+    internal static string AssociationSummary(WorkAssociationRow association)
+    {
+        var reading = NeighbourSummary(association.Distance, association.DurationsAgree);
+        var by = association.Source == IdentificationSource.AdministratorDecision
+            ? "An Administrator decided"
+            : "This installation concluded";
+
+        return association.Status switch
+        {
+            WorkAssociationStatus.Established =>
+                $"{by} that these two Videos carry the same content, and they are now one Video. " +
+                "It names no work, so the Video is still Unknown until something identifies it. " +
+                reading,
+            WorkAssociationStatus.Rejected =>
+                "These two Videos were decided not to carry the same content. " + reading,
+            WorkAssociationStatus.Separated =>
+                "These two Videos were associated and a Split has taken them apart again. " + reading,
+            _ =>
+                "These two Videos may carry the same content. Associating them merges them while " +
+                "both stay Unknown: it names no work, both files keep their own facts, and a " +
+                "Split undoes it. " + reading,
+        };
+    }
+
     internal static string Label(IdentificationDimension dimension) =>
         dimension == IdentificationDimension.WorkIdentification
             ? "Work Identification"
             : "Site Recognition";
+
+    internal static string DisplayLabel(VideoRow video) => VideoPresentation.DisplayLabel(video);
 
     internal static DateTime Earliest(VideoRow left, VideoRow right) =>
         left.DiscoveryDate <= right.DiscoveryDate ? left.DiscoveryDate : right.DiscoveryDate;

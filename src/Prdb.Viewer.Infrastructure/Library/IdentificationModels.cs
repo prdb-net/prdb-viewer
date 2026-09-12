@@ -184,6 +184,33 @@ public sealed record IdentificationCandidateView(
     DateTimeOffset CreatedAt,
     DateTimeOffset? ResolvedAt);
 
+/// <summary>
+/// A Work Association as the review shows it: two Videos of this library that look alike, what was
+/// measured about them, and where the assertion stands.
+///
+/// It names no work, which is the whole point — an Administrator answering it is saying that these
+/// two files carry the same content, not what that content is. The surviving Video is still an
+/// Unknown Video afterwards.
+/// </summary>
+public sealed record IdentificationAssociationView(
+    Guid Id,
+    WorkAssociationStatus Status,
+    IdentificationSource Source,
+    Guid VideoId,
+    Guid OtherVideoId,
+    string OtherDisplayLabel,
+    string? OtherPreviewUrl,
+    string? OtherRelativePath,
+    long OtherDurationMilliseconds,
+    VideoQualityBand OtherQuality,
+    int Distance,
+    bool DurationsAgree,
+    string Summary,
+    string? Note,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset? EstablishedAt,
+    DateTimeOffset? ResolvedAt);
+
 public sealed record IdentificationQueueItem(
     Guid VideoId,
     int CaseVersion,
@@ -192,9 +219,15 @@ public sealed record IdentificationQueueItem(
     IdentificationDimension Dimension,
     IdentificationResolution CurrentResolution,
     string? CurrentTargetTitle,
-    IdentificationCandidateView Candidate,
+    /// <summary>
+    /// The proposal this case is about. Exactly one of it and <see cref="Association"/> is present:
+    /// a queue holds cases, and a case is either a proposed identification or a proposed
+    /// association between two Videos that identifies neither.
+    /// </summary>
+    IdentificationCandidateView? Candidate,
     int AffectedVideoFileCount,
-    string Reason);
+    string Reason,
+    IdentificationAssociationView? Association = null);
 
 public sealed record IdentificationCaseFile(
     Guid Id,
@@ -230,7 +263,10 @@ public sealed record IdentificationCase(
     IReadOnlyList<IdentificationCaseFile> VideoFiles,
     IReadOnlyList<IdentificationDecisionView> Decisions,
     IReadOnlyList<IdentificationDecisionAction> UnavailableSiteActions,
-    string Explanation);
+    string Explanation,
+    /// <summary>Associations waiting for a decision on this Video, and those already settled.</summary>
+    IReadOnlyList<IdentificationAssociationView> OpenAssociations,
+    IReadOnlyList<IdentificationAssociationView> AssociationHistory);
 
 public enum IdentificationDecisionVerdict
 {
@@ -263,7 +299,9 @@ public sealed record IdentificationDecisionRequest(
     string? TargetUrl = null,
     string? Note = null,
     IReadOnlyList<Guid>? SeparatedVideoFileIds = null,
-    bool RetainPersonalStateWithContinuing = true);
+    bool RetainPersonalStateWithContinuing = true,
+    /// <summary>The Work Association an Associate or Reject association decision is about.</summary>
+    Guid? AssociationId = null);
 
 public sealed record IdentificationDecisionResult(
     IdentificationDecisionVerdict Verdict,

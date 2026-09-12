@@ -13,6 +13,10 @@ namespace Prdb.Viewer.Infrastructure.Tests.Library;
 /// What one file of a perceptual pair being identified is worth to the other one. prdb answered
 /// for the 1080p copy and had nothing for the re-encode; the installation can see that the two
 /// carry the same picture, and it says so to an Administrator rather than deciding it.
+///
+/// The pairs here deliberately disagree about their running times, because that is where this rung
+/// lives: a pair that agrees clears ADR 0021's narrow path and is associated without review, which
+/// is <see cref="WorkAssociationTests"/>. What is left for an Administrator is everything else.
 /// </summary>
 public sealed class NeighbourIdentificationTests
 {
@@ -44,7 +48,7 @@ public sealed class NeighbourIdentificationTests
         Assert.Equal(IdentificationSource.LocalInference, candidate.Source);
         Assert.Equal(IdentificationReviewReason.PerceptualNeighbour, candidate.Reason);
         Assert.Equal(2, candidate.NeighbourDistance);
-        Assert.True(candidate.NeighbourDurationsAgree);
+        Assert.False(candidate.NeighbourDurationsAgree);
 
         var unidentified = await database.VideoFiles
             .SingleAsync(file => file.RelativePath == "re-encode.mp4", TestContext.Current.CancellationToken);
@@ -77,14 +81,14 @@ public sealed class NeighbourIdentificationTests
         Assert.NotNull(neighbour);
         Assert.Equal("original.mp4", neighbour.RelativePath);
         Assert.Equal(2, neighbour.Distance);
-        Assert.True(neighbour.DurationsAgree);
+        Assert.False(neighbour.DurationsAgree);
         Assert.Equal(12_345, neighbour.DurationMilliseconds);
         Assert.Equal(VideoQualityBand.FullHd1080, neighbour.Quality);
         Assert.NotNull(neighbour.PreviewUrl);
-        Assert.Contains("agree", neighbour.Summary);
+        Assert.Contains("all but identical", neighbour.Summary);
 
         // And the queue says which rung it is, so a reviewer can tell it apart before opening it.
-        Assert.Equal(IdentificationSource.LocalInference, item.Candidate.Source);
+        Assert.Equal(IdentificationSource.LocalInference, item.Candidate!.Source);
         Assert.Contains("looks like this one", open.Explanation);
     }
 
@@ -96,7 +100,7 @@ public sealed class NeighbourIdentificationTests
     [Fact]
     public async Task A_pair_whose_running_times_disagree_is_still_proposed_and_says_why_it_is_weaker()
     {
-        await using var store = await CreateAsync(reencodeDuration: 11_000);
+        await using var store = await CreateAsync();
         await LibraryPipeline.DrainAsync(store);
 
         await using var scope = store.Scope();
@@ -135,7 +139,7 @@ public sealed class NeighbourIdentificationTests
                 IdentificationDimension.WorkIdentification,
                 item.CaseVersion,
                 Confirm: true,
-                CandidateId: item.Candidate.Id,
+                CandidateId: item.Candidate!.Id,
                 Note: "Same work, two encodes."),
             TestContext.Current.CancellationToken);
 
@@ -209,7 +213,7 @@ public sealed class NeighbourIdentificationTests
                 IdentificationDimension.WorkIdentification,
                 item.CaseVersion,
                 Confirm: true,
-                CandidateId: item.Candidate.Id),
+                CandidateId: item.Candidate!.Id),
             TestContext.Current.CancellationToken);
         Assert.Equal(IdentificationDecisionVerdict.Applied, result.Verdict);
     }
@@ -265,7 +269,7 @@ public sealed class NeighbourIdentificationTests
     /// One library of two files: prdb knows the first and has never heard of the second.
     /// </summary>
     private static async Task<TestDatabase> CreateAsync(
-        long reencodeDuration = 12_345,
+        long reencodeDuration = 11_000,
         Dictionary<string, string?>? hashes = null)
     {
         var perceptual = hashes ?? new Dictionary<string, string?>

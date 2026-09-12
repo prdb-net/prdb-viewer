@@ -31,7 +31,7 @@ export function IdentificationPage({ account }: { account: Account }) {
   // address rather than in this component. A colleague can then be sent the case itself.
   const [parameters, setParameters] = useSearchParams()
   const openCandidate = parameters.get('candidate')
-  const selected = queue.data?.find((item) => item.candidate.id === openCandidate)
+  const selected = queue.data?.find((item) => caseId(item) === openCandidate)
   const [pending, setPending] = useState<IdentificationDecisionAction>()
   const [consequence, setConsequence] = useState<IdentificationConsequence>()
   const [note, setNote] = useState('')
@@ -73,7 +73,7 @@ export function IdentificationPage({ account }: { account: Account }) {
           caseVersion: openCase.data?.caseVersion ?? selected!.caseVersion,
           confirm,
           candidateId: action === 'AcceptCandidate' || action === 'RejectCandidate'
-            ? selected!.candidate.id
+            ? selected!.candidate?.id ?? null
             : null,
           // A target belongs to the two decisions that read one. Sending it alongside an accepted
           // candidate said, in the request, that the typed fields had something to do with it.
@@ -82,6 +82,9 @@ export function IdentificationPage({ account }: { account: Account }) {
           note: note || null,
           separatedVideoFileIds: separated.length > 0 ? separated : null,
           retainPersonalStateWithContinuing: true,
+          // An association names no target and belongs to no dimension. It is answered on the same
+          // case, through the same request, bound to the same version as everything else.
+          associationId: selected!.association?.id ?? null,
         },
         account.csrfToken,
       ),
@@ -136,8 +139,14 @@ export function IdentificationPage({ account }: { account: Account }) {
 
   // The case as the server describes it, which is where the decisions and their consequences come
   // from. The queue's copy of the candidate is the same proposal without them.
-  const candidate = openCase.data?.openCandidates
-    .find((row) => row.id === selected?.candidate.id) ?? selected?.candidate
+  const candidate = selected?.candidate
+    ? openCase.data?.openCandidates.find((row) => row.id === selected.candidate!.id) ?? selected.candidate
+    : undefined
+  // The association the server still holds open, which is what the decision is bound to.
+  const association = selected?.association
+    ? openCase.data?.openAssociations.find((row) => row.id === selected.association!.id)
+      ?? selected.association
+    : undefined
   // What the open case is actually asking for, worked out once for the sentence that says it.
   const advice = selected && openCase.data && candidate
     ? guidance(openCase.data, selected, candidate)
@@ -168,25 +177,129 @@ export function IdentificationPage({ account }: { account: Account }) {
       {!showing && (
         <div className="review-queue">
           {queue.data?.map((item) => (
-            <article className="review-item" key={item.candidate.id}>
+            <article className="review-item" key={caseId(item)}>
               <div>
                 <strong>{item.displayLabel}</strong>
-                <small>
-                  {friendlyState(item.dimension)} · {friendlyState(item.candidate.evidenceClass)} ·
-                  {' '}{candidateOrigin(item.candidate.source)} ·
-                  {' '}proposes “{item.candidate.targetTitle}”
-                </small>
+                {/* A queue holds cases, and a case is either a proposed identification or a
+                    proposed association between two Videos that identifies neither. The second
+                    names nothing, so the row says what it is instead of what it proposes. */}
+                {item.candidate
+                  ? (
+                    <small>
+                      {friendlyState(item.dimension)} · {friendlyState(item.candidate.evidenceClass)} ·
+                      {' '}{candidateOrigin(item.candidate.source)} ·
+                      {' '}proposes “{item.candidate.targetTitle}”
+                    </small>
+                    )
+                  : (
+                    <small>
+                      Work Association · {candidateOrigin(item.association!.source)} ·
+                      {' '}proposes the same content as “{item.association!.otherDisplayLabel}”
+                    </small>
+                    )}
                 <small>{item.reason}</small>
-                {alreadyEstablished(item.currentResolution, item.currentTargetTitle, item.candidate.targetTitle) && (
+                {item.candidate && alreadyEstablished(item.currentResolution, item.currentTargetTitle, item.candidate.targetTitle) && (
                   <small className="already-established">Proposes what is already established here.</small>
                 )}
               </div>
               <button
                 className="quiet-button"
-                onClick={() => { open(item.candidate.id); reset(); setOutcome(undefined) }}
+                onClick={() => { open(caseId(item)); reset(); setOutcome(undefined) }}
               >Review</button>
             </article>
           ))}
+        </div>
+      )}
+
+      {/* An association asks a different question from an identification, so it is a different
+          case: two Videos of this library, and whether they carry the same content. Nothing on it
+          names a work, because answering it does not establish one. */}
+      {showing && association && (
+        <div className="review-case">
+          <div className="section-heading">
+            <strong>{openCase.data!.displayLabel}</strong>
+            <button className="quiet-button" onClick={() => { open(undefined); reset() }}>Back to queue</button>
+          </div>
+
+          <div className="comparison">
+            <div className="compared">
+              <span className="eyebrow">This Video</span>
+              <Picture
+                url={openCase.data!.previewUrl}
+                alt={`Preview frame of ${openCase.data!.displayLabel}`}
+                absent="No preview frame has been generated for this Video yet."
+              />
+              <Link
+                className="quiet-button"
+                to={withReturnTo(
+                  `/videos/${openCase.data!.videoId}`,
+                  `/admin/identification?candidate=${association.id}`,
+                )}
+              >Open this Video</Link>
+            </div>
+            <div className="compared">
+              <span className="eyebrow">The Video it looks like</span>
+              <Picture
+                url={association.otherPreviewUrl}
+                alt={`Preview frame of ${association.otherDisplayLabel}`}
+                absent="No preview frame has been generated for that Video yet."
+              />
+              <p>{association.otherDisplayLabel}</p>
+              <NeighbourFacts
+                neighbour={{
+                  displayLabel: association.otherDisplayLabel,
+                  relativePath: association.otherRelativePath ?? '',
+                  durationMilliseconds: association.otherDurationMilliseconds,
+                  quality: association.otherQuality,
+                }}
+              />
+              <Link
+                className="quiet-button"
+                to={withReturnTo(
+                  `/videos/${association.otherVideoId}`,
+                  `/admin/identification?candidate=${association.id}`,
+                )}
+              >Open that Video</Link>
+            </div>
+          </div>
+
+          <p className="decision-guidance">{association.summary}</p>
+
+          <div className="decisions">
+            {(['AssociateVideos', 'RejectAssociation'] as const).map((action) => {
+              const style = appearance(action)
+              return (
+                <div className="decision" key={action}>
+                  <button
+                    className={style.appearance}
+                    onClick={() => begin(action)}
+                    disabled={decide.isPending}
+                  >{style.label}</button>
+                  <p>{outcomeOfAssociation(action)}</p>
+                </div>
+              )
+            })}
+          </div>
+
+          {pending && consequence && (
+            <div className="confirmation" role="group" aria-label="Consequence preview">
+              <p>{consequence.claimTransition}</p>
+              <p>{consequence.candidateTransition}</p>
+              {consequence.mergeSummary && <p>{consequence.mergeSummary}</p>}
+              <small>Affects {files(Number(consequence.affectedVideoFileCount))}</small>
+              {consequence.requiresNote && (
+                <label className="field">
+                  <span>Decision note</span>
+                  <textarea value={note} onChange={(event) => setNote(event.target.value)} required />
+                </label>
+              )}
+              <button
+                className="primary-button"
+                onClick={() => act(pending, true)}
+                disabled={decide.isPending || (consequence.requiresNote && note.trim().length === 0)}
+              >Confirm {friendlyState(pending).toLowerCase()}</button>
+            </div>
+          )}
         </div>
       )}
 
@@ -484,7 +597,12 @@ function ProposedFacts({ proposal }: { proposal: IdentificationProposal | null }
 /// is compared against a file, so the facts are the file's: where it is, how long it runs, and what
 /// it was encoded at. The Video it belongs to is reachable from here, because deciding whether two
 /// files are the same picture usually means watching a moment of both.
-function NeighbourFacts({ neighbour }: { neighbour: IdentificationNeighbour }) {
+function NeighbourFacts({ neighbour }: {
+  neighbour: Pick<
+    IdentificationNeighbour,
+    'displayLabel' | 'relativePath' | 'durationMilliseconds' | 'quality'
+  >
+}) {
   const runtime = formatRuntime(Number(neighbour.durationMilliseconds ?? 0))
   const quality = qualityBandLabel(neighbour.quality)
   const facts = [
@@ -572,6 +690,23 @@ function guidance(
   }
 }
 
+/// What each of the two association decisions leaves behind, said before it is taken. The server
+/// writes the same sentences into the consequence it previews; these are what the buttons say
+/// beforehand, so a decision that has not been asked for yet still explains itself.
+function outcomeOfAssociation(action: 'AssociateVideos' | 'RejectAssociation') {
+  return action === 'AssociateVideos'
+    ? 'The two Videos become one, and it names no work: the surviving Video is still Unknown. ' +
+      'Both Video Files keep their own facts, and a Split undoes it.'
+    : 'Neither Video changes. The proposal stops coming back while the two files stay as far ' +
+      'apart as they are.'
+}
+
+/// What a queue case is addressed by. A case is either a proposed identification or a proposed
+/// association, and the address in the URL has to name whichever it is (ADR 0004).
+function caseId(item: IdentificationQueueItem) {
+  return item.candidate?.id ?? item.association!.id
+}
+
 /// How each decision is drawn. Accepting what was proposed is the one an open case is normally
 /// closed with, so it leads; withdrawing knowledge the library has already established is the one
 /// that takes something away, so it is coloured like it. The order the case offers them in is the
@@ -583,6 +718,8 @@ function appearance(action: IdentificationDecisionAction) {
     AssignDirectly: { label: 'Assign directly', appearance: 'quiet-button' },
     ReplaceClaim: { label: 'Replace claim', appearance: 'quiet-button' },
     RevokeClaim: { label: 'Revoke claim', appearance: 'danger-button' },
+    AssociateVideos: { label: 'Associate these Videos', appearance: 'primary-button' },
+    RejectAssociation: { label: 'Not the same content', appearance: 'quiet-button' },
     SplitVideo: { label: 'Split Video', appearance: 'quiet-button' },
   }
 

@@ -677,6 +677,104 @@ describe('App', () => {
       .toHaveAttribute('href', expect.stringContaining(`/videos/${neighbour.videoId}`))
   })
 
+  it('decides a proposed association between two Videos that identifies neither', async () => {
+    const association = {
+      id: '01994dd4-2a0a-7000-8000-000000000061',
+      status: 'Proposed',
+      source: 'LocalInference',
+      videoId: '01994dd4-2a0a-7000-8000-000000000060',
+      otherVideoId: '01994dd4-2a0a-7000-8000-000000000062',
+      otherDisplayLabel: 'clip-720p',
+      otherPreviewUrl: '/media/previews/01994dd4-2a0a-7000-8000-0000000000bb',
+      otherRelativePath: 'archive/clip-720p.mp4',
+      otherDurationMilliseconds: 1_800_000,
+      otherQuality: 'Hd720',
+      distance: 2,
+      durationsAgree: false,
+      summary: 'These two Videos may carry the same content. Associating them merges them while ' +
+        'both stay Unknown.',
+      note: null,
+      createdAt: '2026-09-12T10:00:00Z',
+      establishedAt: null,
+      resolvedAt: null,
+    }
+    const queueItem = {
+      videoId: association.videoId,
+      caseVersion: 1,
+      displayLabel: 'clip-360p',
+      previewUrl: null,
+      dimension: 'WorkIdentification',
+      currentResolution: 'Unknown',
+      currentTargetTitle: null,
+      // A case is either a proposed identification or a proposed association. This one names
+      // nothing, so there is no candidate to carry.
+      candidate: null,
+      affectedVideoFileCount: 2,
+      reason: 'Two Videos of this library look alike and neither is identified.',
+      association,
+    }
+    const openCase = {
+      videoId: queueItem.videoId,
+      caseVersion: 1,
+      displayLabel: 'clip-360p',
+      previewUrl: null,
+      identification: identification(),
+      openCandidates: [],
+      candidateHistory: [],
+      videoFiles: [variant()],
+      decisions: [],
+      unavailableSiteActions: [],
+      explanation: 'Two Videos of this library look alike.',
+      openAssociations: [association],
+      associationHistory: [],
+    }
+    const sent: Record<string, unknown>[] = []
+    signedInAs('Administrator', (input, init) => {
+      if (input === '/api/admin/identification/queue') return json([queueItem])
+      if (input === `/api/admin/identification/videos/${queueItem.videoId}`) return json(openCase)
+      if (input === `/api/admin/identification/videos/${queueItem.videoId}/decisions`) {
+        sent.push(JSON.parse(String(init?.body)))
+        return json({
+          verdict: 'Preview',
+          consequence: {
+            claimTransition: 'These two Videos become one.',
+            candidateTransition: 'Both Video Files keep their own facts.',
+            affectedVideoFileCount: 2,
+            resultingReviewStatus: 'Clear',
+            mergesAnotherVideo: true,
+            mergeSummary: null,
+            requiresNote: true,
+          },
+          case: openCase,
+        })
+      }
+      return undefined
+    })
+
+    renderApp('/admin/identification')
+
+    // The queue row says what the case is rather than what it proposes: it proposes nothing.
+    expect(await screen.findByText(/proposes the same content as/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Review' }))
+
+    expect(await screen.findByText('The Video it looks like')).toBeInTheDocument()
+    expect(screen.getByText(association.summary)).toBeInTheDocument()
+    expect(screen.getByText(/still Unknown/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Associate these Videos' }))
+
+    // A merge is not a label that can be peeled off, so it is previewed and asks for a note.
+    const preview = await screen.findByRole('group', { name: 'Consequence preview' })
+    expect(preview).toHaveTextContent('These two Videos become one.')
+    expect(screen.getByLabelText('Decision note')).toBeInTheDocument()
+    expect(sent[0]).toMatchObject({
+      action: 'AssociateVideos',
+      associationId: association.id,
+      candidateId: null,
+      confirm: false,
+    })
+  })
+
   it('offers sign-in and an approval-gated registration request', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       if (input === '/api/access/state') return json({ claimed: true, signedIn: false })

@@ -69,6 +69,20 @@ public enum IdentificationDecisionAction
     RejectCandidate,
     RevokeClaim,
     SplitVideo,
+
+    /// <summary>
+    /// Associates two Videos that carry the same content without naming what it is, merging them
+    /// while both stay Unknown. It names no target, which is why it is its own action rather than
+    /// an acceptance of a candidate.
+    /// </summary>
+    AssociateVideos,
+
+    /// <summary>
+    /// Says that two Videos which look alike are not the same content, so the proposal stops
+    /// coming back until the two files move closer together or their running times stop
+    /// disagreeing.
+    /// </summary>
+    RejectAssociation,
 }
 
 /// <summary>

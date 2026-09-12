@@ -33,11 +33,11 @@ public sealed class IdentificationReviewTests
             .GetQueueAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(2, queue.Count);
-        Assert.Equal(IdentificationEvidenceClass.Conclusive, queue[0].Candidate.EvidenceClass);
+        Assert.Equal(IdentificationEvidenceClass.Conclusive, queue[0].Candidate!.EvidenceClass);
         Assert.Equal(IdentificationResolution.Established, queue[0].CurrentResolution);
         Assert.Equal("A Known Work", queue[0].CurrentTargetTitle);
         Assert.Contains("conclusive results disagree", queue[0].Reason);
-        Assert.Equal(IdentificationEvidenceClass.Suggestive, queue[1].Candidate.EvidenceClass);
+        Assert.Equal(IdentificationEvidenceClass.Suggestive, queue[1].Candidate!.EvidenceClass);
         Assert.Equal(IdentificationResolution.Unknown, queue[1].CurrentResolution);
         Assert.NotNull(queue[1].PreviewUrl);
     }
@@ -56,7 +56,7 @@ public sealed class IdentificationReviewTests
             IdentificationDimension.WorkIdentification,
             open.CaseVersion,
             Confirm: false,
-            CandidateId: open.Candidate.Id);
+            CandidateId: open.Candidate!.Id);
 
         var preview = await review.DecideAsync(
             Administrator,
@@ -143,7 +143,7 @@ public sealed class IdentificationReviewTests
                     IdentificationDimension.WorkIdentification,
                     open.CaseVersion,
                     Confirm: true,
-                    CandidateId: open.Candidate.Id),
+                    CandidateId: open.Candidate!.Id),
                 TestContext.Current.CancellationToken);
             Assert.Equal(IdentificationDecisionVerdict.Applied, rejected.Verdict);
             Assert.Equal(
@@ -194,7 +194,7 @@ public sealed class IdentificationReviewTests
                 IdentificationDimension.WorkIdentification,
                 open.CaseVersion - 1,
                 Confirm: true,
-                CandidateId: open.Candidate.Id),
+                CandidateId: open.Candidate!.Id),
             TestContext.Current.CancellationToken);
 
         Assert.Equal(IdentificationDecisionVerdict.Stale, stale.Verdict);
@@ -518,7 +518,7 @@ public sealed class IdentificationReviewTests
                 open.Dimension,
                 open.CaseVersion,
                 Confirm: true,
-                CandidateId: open.Candidate.Id),
+                CandidateId: open.Candidate!.Id),
             TestContext.Current.CancellationToken);
         Assert.Equal(IdentificationDecisionVerdict.Applied, applied.Verdict);
     }

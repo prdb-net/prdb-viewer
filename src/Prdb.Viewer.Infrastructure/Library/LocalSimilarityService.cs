@@ -23,7 +23,8 @@ namespace Prdb.Viewer.Infrastructure.Library;
 public sealed class LocalSimilarityService(
     ViewerDbContext database,
     IdentificationService identification,
-    VideoProjection projection)
+    VideoProjection projection,
+    TimeProvider timeProvider)
 {
     /// <summary>How a neighbour-derived proposal was matched, as the review surfaces name it.</summary>
     public const string MatchedBy = "another Video File of this library that looks like it";
@@ -83,8 +84,17 @@ public sealed class LocalSimilarityService(
                 continue;
             }
 
+            // The narrow path first. Where it applies there is nothing left to propose: the two
+            // Videos become one, and a proposal about the other side of a pair that no longer has
+            // two sides is a question nobody can answer.
+            if (await AssociateAsync(left, right, neighbourhood, files, cancellationToken))
+            {
+                continue;
+            }
+
             await OfferAsync(left, right, neighbourhood, cancellationToken);
             await OfferAsync(right, left, neighbourhood, cancellationToken);
+            await ProposeAssociationAsync(left, right, neighbourhood, cancellationToken);
         }
 
         await projection.RefreshTrackedAsync(cancellationToken);
@@ -168,6 +178,209 @@ public sealed class LocalSimilarityService(
                 neighbourhood.DurationsAgree),
             IdentificationReviewReason.PerceptualNeighbour);
     }
+
+    /// <summary>
+    /// Associates two Videos without review where ADR 0021's narrow path applies: their files lie
+    /// within the measured band, their running times agree within the tolerance, and their
+    /// Established work identities do not disagree.
+    ///
+    /// It names nothing. The surviving Video keeps whatever each side had established — which for
+    /// two Unknown Videos is nothing at all, so what comes out of the merge is one Unknown Video
+    /// with two Video Files rather than a Video that has quietly acquired an identity. Both files
+    /// keep their own paths, hashes, containers and running times, because those are what a later
+    /// Split and any later identification have to work from.
+    /// </summary>
+    private async Task<bool> AssociateAsync(
+        VideoFileRow left,
+        VideoFileRow right,
+        PerceptualNeighbourhoodRow neighbourhood,
+        Dictionary<Guid, VideoFileRow> files,
+        CancellationToken cancellationToken)
+    {
+        var leftVideo = await identification.LoadAsync(left.VideoId, cancellationToken);
+        var rightVideo = await identification.LoadAsync(right.VideoId, cancellationToken);
+        var leftClaim = IdentificationService.Current(
+            leftVideo,
+            IdentificationDimension.WorkIdentification);
+        var rightClaim = IdentificationService.Current(
+            rightVideo,
+            IdentificationDimension.WorkIdentification);
+        var disagree = leftClaim is not null &&
+                       rightClaim is not null &&
+                       !string.Equals(
+                           leftClaim.TargetKey,
+                           rightClaim.TargetKey,
+                           StringComparison.OrdinalIgnoreCase);
+
+        if (!IdentificationEvidenceRule.AssociatesAutomatically(
+                neighbourhood.Distance,
+                neighbourhood.DurationsAgree,
+                disagree))
+        {
+            return false;
+        }
+
+        var settled = await ExistingAsync(left, right, cancellationToken);
+
+        // A person has already said these two are not the same content, or has taken them apart
+        // again. The rule does not overrule that by concluding it a second time from the same
+        // reading; only a closer one, or running times that stop disagreeing, may reopen it.
+        if (settled is not null && !Supersedes(settled, neighbourhood))
+        {
+            return false;
+        }
+
+        var survivor = await identification.MergeAsync(leftVideo, rightVideo, cancellationToken);
+        var merged = survivor.Id == leftVideo.Id ? rightVideo : leftVideo;
+
+        // The dictionary is this pass's picture of where each file lives, and the merge has just
+        // moved some of them. A later pair in the same batch must not be read against where they
+        // used to be.
+        foreach (var moved in files.Values.Where(file => file.VideoId == merged.Id))
+        {
+            moved.VideoId = survivor.Id;
+        }
+
+        Record(
+            settled,
+            left,
+            right,
+            neighbourhood,
+            WorkAssociationStatus.Established,
+            survivor.Id,
+            merged.Id,
+            IdentificationSource.LocalInference,
+            decidedBy: null,
+            note: null);
+        return true;
+    }
+
+    /// <summary>
+    /// Puts two Unknown Videos that look alike but cannot be associated without review in front of
+    /// an Administrator.
+    ///
+    /// Only two Unknown Videos: where one of them carries an Established work identity the review
+    /// case is the Identification Candidate that identity has already proposed, and a second case
+    /// asking the same question in different words is worse than none.
+    /// </summary>
+    private async Task ProposeAssociationAsync(
+        VideoFileRow left,
+        VideoFileRow right,
+        PerceptualNeighbourhoodRow neighbourhood,
+        CancellationToken cancellationToken)
+    {
+        var leftVideo = await identification.LoadAsync(left.VideoId, cancellationToken);
+        var rightVideo = await identification.LoadAsync(right.VideoId, cancellationToken);
+
+        if (IdentificationService.Current(leftVideo, IdentificationDimension.WorkIdentification)
+                is not null ||
+            IdentificationService.Current(rightVideo, IdentificationDimension.WorkIdentification)
+                is not null)
+        {
+            return;
+        }
+
+        var existing = await ExistingAsync(left, right, cancellationToken);
+
+        if (existing is { Status: WorkAssociationStatus.Proposed } ||
+            existing is { Status: WorkAssociationStatus.Established })
+        {
+            return;
+        }
+
+        if (existing is not null && !Supersedes(existing, neighbourhood))
+        {
+            return;
+        }
+
+        Record(
+            existing,
+            left,
+            right,
+            neighbourhood,
+            WorkAssociationStatus.Proposed,
+            left.VideoId,
+            right.VideoId,
+            IdentificationSource.LocalInference,
+            decidedBy: null,
+            note: null);
+    }
+
+    /// <summary>
+    /// Writes what was concluded about one pair of files, or rewrites it where the pair has been
+    /// read again. One pair of files is one association whatever it is currently worth, so a
+    /// rejection and the reading that reopened it are the same row rather than a second one.
+    /// </summary>
+    private void Record(
+        WorkAssociationRow? existing,
+        VideoFileRow left,
+        VideoFileRow right,
+        PerceptualNeighbourhoodRow neighbourhood,
+        WorkAssociationStatus status,
+        Guid videoId,
+        Guid otherVideoId,
+        IdentificationSource source,
+        Guid? decidedBy,
+        string? note)
+    {
+        var now = timeProvider.GetUtcNow().UtcDateTime;
+        var (first, second) = left.Id.CompareTo(right.Id) <= 0 ? (left, right) : (right, left);
+        var association = existing;
+
+        if (association is null)
+        {
+            association = new WorkAssociationRow
+            {
+                Id = Guid.CreateVersion7(),
+                VideoFileId = first.Id,
+                OtherVideoFileId = second.Id,
+                CreatedAt = now,
+            };
+            database.WorkAssociations.Add(association);
+        }
+
+        association.Status = status;
+        association.VideoId = videoId;
+        association.OtherVideoId = otherVideoId;
+        association.Distance = neighbourhood.Distance;
+        association.DurationsAgree = neighbourhood.DurationsAgree;
+        association.DurationMilliseconds = first.DurationMilliseconds;
+        association.OtherDurationMilliseconds = second.DurationMilliseconds;
+        association.Source = source;
+        association.DecidedByAccountId = decidedBy;
+        association.Note = note;
+        association.EstablishedAt = status == WorkAssociationStatus.Established ? now : null;
+        association.ResolvedAt = status == WorkAssociationStatus.Proposed ? null : now;
+    }
+
+    private Task<WorkAssociationRow?> ExistingAsync(
+        VideoFileRow left,
+        VideoFileRow right,
+        CancellationToken cancellationToken)
+    {
+        var (first, second) = left.Id.CompareTo(right.Id) <= 0 ? (left.Id, right.Id) : (right.Id, left.Id);
+
+        return database.WorkAssociations
+            .AsTracking()
+            .SingleOrDefaultAsync(
+                row => row.VideoFileId == first && row.OtherVideoFileId == second,
+                cancellationToken);
+    }
+
+    /// <summary>
+    /// Whether a new reading of one pair is materially stronger than what was concluded from the
+    /// last one. A person's rejection, or a Split, holds until the two files move closer together
+    /// or their running times stop disagreeing — the same measure the neighbour rung is reopened by.
+    /// </summary>
+    private static bool Supersedes(
+        WorkAssociationRow settled,
+        PerceptualNeighbourhoodRow neighbourhood) =>
+        settled.Status is not (WorkAssociationStatus.Rejected or WorkAssociationStatus.Separated) ||
+        IdentificationEvidenceRule.NeighbourEvidenceSupersedesRejection(
+            settled.Distance,
+            settled.DurationsAgree,
+            neighbourhood.Distance,
+            neighbourhood.DurationsAgree);
 
     /// <summary>
     /// The material evidence behind a neighbour proposal is the other file. Rejecting it suppresses

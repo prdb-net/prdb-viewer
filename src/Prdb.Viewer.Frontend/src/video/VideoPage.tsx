@@ -8,6 +8,7 @@ import {
   type PlaybackFailureCategory,
   type PlaybackVariant,
   type VideoSummary,
+  type IdentificationAssociation,
   type WorkFacts,
 } from '../api/client'
 import {
@@ -17,6 +18,7 @@ import {
   friendlyState,
   playabilityLabel,
   playbackUnavailableReason,
+  provenanceLabel,
   variantReason,
 } from '../lib/format'
 import {
@@ -323,6 +325,10 @@ export function VideoPage({ account }: { account: Account }) {
         <WorkFactsSection facts={detail.data.work} previewed={video.previewUrl !== null} />
       )}
 
+      {detail.data?.associations && detail.data.associations.length > 0 && (
+        <AssociationsSection associations={detail.data.associations} />
+      )}
+
       <section className="variants" aria-labelledby="variants-title">
         <div className="section-heading">
           <h3 id="variants-title">Video Files</h3>
@@ -350,6 +356,33 @@ export function VideoPage({ account }: { account: Account }) {
         />
       )}
     </>
+  )
+}
+
+/// Why this Video holds the Video Files it holds, where an association put them together.
+///
+/// An association names no work, so this is not identification: it is the account of a merge. It
+/// reads like an Identification Claim's provenance for the same reason that has one — an assertion
+/// nobody can account for is what the evidence-stays-visible principle forbids.
+function AssociationsSection({ associations }: { associations: IdentificationAssociation[] }) {
+  return (
+    <section className="work-association" aria-labelledby="work-association-title">
+      <div className="section-heading">
+        <h3 id="work-association-title">Why these files are one Video</h3>
+      </div>
+      <ul>
+        {associations.map((association) => (
+          <li key={association.id}>
+            <p>{association.summary}</p>
+            <small>
+              {provenanceLabel(association.source)}
+              {association.otherRelativePath && <> · <code>{association.otherRelativePath}</code></>}
+              {association.note && <> · “{association.note}”</>}
+            </small>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 

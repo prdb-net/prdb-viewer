@@ -2287,6 +2287,33 @@ export interface components {
         HealthResponse: {
             status: string;
         };
+        IdentificationAssociationView: {
+            /** Format: uuid */
+            id: string;
+            status: components["schemas"]["WorkAssociationStatus"];
+            source: components["schemas"]["IdentificationSource"];
+            /** Format: uuid */
+            videoId: string;
+            /** Format: uuid */
+            otherVideoId: string;
+            otherDisplayLabel: string;
+            otherPreviewUrl: null | string;
+            otherRelativePath: null | string;
+            /** Format: int64 */
+            otherDurationMilliseconds: number | string;
+            otherQuality: components["schemas"]["VideoQualityBand"];
+            /** Format: int32 */
+            distance: number | string;
+            durationsAgree: boolean;
+            summary: string;
+            note: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            establishedAt: null | string;
+            /** Format: date-time */
+            resolvedAt: null | string;
+        };
         /** @enum {unknown} */
         IdentificationCandidateStatus: "Pending" | "Rejected" | "Superseded";
         IdentificationCandidateView: {
@@ -2324,6 +2351,8 @@ export interface components {
             decisions: components["schemas"]["IdentificationDecisionView"][];
             unavailableSiteActions: components["schemas"]["IdentificationDecisionAction"][];
             explanation: string;
+            openAssociations: components["schemas"]["IdentificationAssociationView"][];
+            associationHistory: components["schemas"]["IdentificationAssociationView"][];
         };
         IdentificationCaseFile: {
             /** Format: uuid */
@@ -2365,7 +2394,7 @@ export interface components {
             requiresNote: boolean;
         };
         /** @enum {unknown} */
-        IdentificationDecisionAction: "AcceptCandidate" | "AssignDirectly" | "ReplaceClaim" | "RejectCandidate" | "RevokeClaim" | "SplitVideo";
+        IdentificationDecisionAction: "AcceptCandidate" | "AssignDirectly" | "ReplaceClaim" | "RejectCandidate" | "RevokeClaim" | "SplitVideo" | "AssociateVideos" | "RejectAssociation";
         IdentificationDecisionOutlook: {
             action: components["schemas"]["IdentificationDecisionAction"];
             refusal: null | string;
@@ -2386,6 +2415,8 @@ export interface components {
             separatedVideoFileIds?: null | string[];
             /** @default true */
             retainPersonalStateWithContinuing: boolean;
+            /** Format: uuid */
+            associationId?: null | string;
         };
         IdentificationDecisionResult: {
             verdict: components["schemas"]["IdentificationDecisionVerdict"];
@@ -2450,10 +2481,11 @@ export interface components {
             dimension: components["schemas"]["IdentificationDimension"];
             currentResolution: components["schemas"]["IdentificationResolution"];
             currentTargetTitle: null | string;
-            candidate: components["schemas"]["IdentificationCandidateView"];
+            candidate: null | components["schemas"]["IdentificationCandidateView"];
             /** Format: int32 */
             affectedVideoFileCount: number | string;
             reason: string;
+            association?: null | components["schemas"]["IdentificationAssociationView"];
         };
         /** @enum {unknown} */
         IdentificationResolution: "Unknown" | "Established";
@@ -2799,6 +2831,7 @@ export interface components {
             /** Format: uuid */
             supersededVideoId: null | string;
             work?: null | components["schemas"]["WorkFacts"];
+            associations?: null | components["schemas"]["IdentificationAssociationView"][];
         };
         /** @enum {unknown} */
         VideoFileAvailability: "Available" | "Unreachable" | "Missing" | "Replaced" | "Removed";
@@ -2820,6 +2853,8 @@ export interface components {
             videoFiles: components["schemas"]["PlaybackVariantView"][];
             personalState: components["schemas"]["PersonalVideoStateSummary"];
         };
+        /** @enum {unknown} */
+        WorkAssociationStatus: "Proposed" | "Established" | "Rejected" | "Separated";
         WorkFacts: {
             networkTitle: null | string;
             networkUrl: null | string;

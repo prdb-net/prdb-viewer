@@ -188,7 +188,49 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             : new VideoDetail(
                 loaded[0],
                 addressed.Value == videoId ? null : videoId,
-                await WorkFactsAsync(addressed.Value, loaded[0], cancellationToken));
+                await WorkFactsAsync(addressed.Value, loaded[0], cancellationToken),
+                await AssociationsAsync(addressed.Value, cancellationToken));
+    }
+
+    /// <summary>
+    /// How this Video came to hold the Video Files it holds, where an association put them
+    /// together. It reads like an Identification Claim's provenance and is not one: an association
+    /// names no work, so what it accounts for is the merge rather than the identity.
+    /// </summary>
+    private async Task<IReadOnlyList<IdentificationAssociationView>?> AssociationsAsync(
+        Guid videoId,
+        CancellationToken cancellationToken)
+    {
+        var associations = await database.WorkAssociations
+            .AsNoTracking()
+            .Where(row => row.VideoId == videoId &&
+                          row.Status == WorkAssociationStatus.Established)
+            .OrderByDescending(row => row.EstablishedAt)
+            .ToListAsync(cancellationToken);
+
+        if (associations.Count == 0)
+        {
+            return null;
+        }
+
+        var wanted = associations.Select(row => row.OtherVideoFileId).ToArray();
+        var files = await database.VideoFiles
+            .AsNoTracking()
+            .Where(file => wanted.Contains(file.Id))
+            .ToDictionaryAsync(file => file.Id, cancellationToken);
+
+        return associations
+            .Select(association =>
+            {
+                files.TryGetValue(association.OtherVideoFileId, out var file);
+
+                return IdentificationCasePresentation.AssociationView(
+                    association,
+                    videoId,
+                    otherVideo: null,
+                    file);
+            })
+            .ToArray();
     }
 
     /// <summary>

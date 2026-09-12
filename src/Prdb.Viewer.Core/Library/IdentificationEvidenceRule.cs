@@ -122,6 +122,32 @@ public static class IdentificationEvidenceRule
         distance < rejectedDistance || (durationsAgree && !rejectedDurationsAgreed);
 
     /// <summary>
+    /// Whether a local similarity may associate two Videos without review — merging them, while
+    /// naming no work and identifying neither.
+    ///
+    /// This is ADR 0021's narrow path, and it is narrow because of what a merge costs when it is
+    /// wrong rather than because of how often it would be. A merge writes Shared Library Knowledge
+    /// every User sees and combines the Personal State of all of them at once; a Split separates
+    /// the files again but cannot give back ambiguous Video-level state. That asymmetry, and not
+    /// the false-positive rate, sets the width.
+    ///
+    /// Both measured conditions have to hold — the distance within the band, and the running times
+    /// agreeing within the tolerance — and one further condition that is not about the pair at all:
+    /// two Videos whose Established work identities disagree are a conflict for review rather than
+    /// a merge, however alike their files look. Nothing here establishes an identity: a Video that
+    /// exists because an association merged two of them is still an Unknown Video unless one of the
+    /// two already carried a claim of its own.
+    /// </summary>
+    public static bool AssociatesAutomatically(
+        int? distance,
+        bool durationsAgree,
+        bool workIdentitiesDisagree) =>
+        distance is { } bits &&
+        bits <= PerceptualNeighbourhoodRule.NeighbourhoodDistance &&
+        durationsAgree &&
+        !workIdentitiesDisagree;
+
+    /// <summary>
     /// Whether an Administrator decision changes Shared Library Knowledge in a way whose
     /// consequences are less local or harder to reverse, and therefore requires a decision note.
     /// </summary>

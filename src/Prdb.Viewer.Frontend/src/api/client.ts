@@ -131,6 +131,7 @@ export type IdentificationDecisionAction = components['schemas']['Identification
 export type IdentificationCandidate = components['schemas']['IdentificationCandidateView']
 export type IdentificationProposal = components['schemas']['IdentificationProposalView']
 export type IdentificationNeighbour = components['schemas']['IdentificationNeighbourView']
+export type IdentificationAssociation = components['schemas']['IdentificationAssociationView']
 export type IdentificationDecisionOutlook = components['schemas']['IdentificationDecisionOutlook']
 
 /// Which browser and device this is. Client Playback Assessments and Observed Playback Outcomes

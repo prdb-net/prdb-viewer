@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore.Storage;
+
 using Microsoft.EntityFrameworkCore;
 
 using Prdb.Viewer.Core.Library;
@@ -33,17 +35,147 @@ public sealed class IdentificationReviewService(
         var neighbours = await NeighbouringFilesAsync(
             videos.SelectMany(video => video.IdentificationCandidates),
             cancellationToken);
-
-        return videos
+        var proposals = videos
             .SelectMany(video => video.IdentificationCandidates
                 .DistinctBy(candidate => candidate.Id)
                 .Where(candidate => candidate.Status == IdentificationCandidateStatus.Pending)
                 .Select(candidate => IdentificationCasePresentation.Item(
                     video,
                     candidate,
-                    Neighbour(neighbours, candidate))))
-            .OrderByDescending(item => item.Candidate.EvidenceClass)
-            .ThenBy(item => item.Candidate.CreatedAt)
+                    Neighbour(neighbours, candidate))));
+
+        return proposals
+            .Concat(await ProposedAssociationsAsync(cancellationToken))
+            // A proposal naming a work and one naming nothing are both cases, and the queue is one
+            // queue. Conclusive evidence first, then the oldest question: an association carries no
+            // evidence class of its own, because it is not evidence about an identity at all.
+            .OrderByDescending(item =>
+                item.Candidate?.EvidenceClass ?? IdentificationEvidenceClass.Suggestive)
+            .ThenBy(item => item.Candidate?.CreatedAt ?? item.Association!.CreatedAt)
+            .ToArray();
+    }
+
+    /// <summary>
+    /// The associations waiting for an Administrator, as queue cases. One proposal is one case:
+    /// it is asked on the Video the pair is held under rather than on both of them, because two
+    /// entries for one question would be answered twice or not at all.
+    /// </summary>
+    private async Task<IReadOnlyList<IdentificationQueueItem>> ProposedAssociationsAsync(
+        CancellationToken cancellationToken)
+    {
+        var associations = await database.WorkAssociations
+            .AsNoTracking()
+            .Where(row => row.Status == WorkAssociationStatus.Proposed)
+            .ToListAsync(cancellationToken);
+
+        if (associations.Count == 0)
+        {
+            return [];
+        }
+
+        var videos = await AssociatedVideosAsync(associations, cancellationToken);
+        var files = await AssociatedFilesAsync(associations, cancellationToken);
+        var items = new List<IdentificationQueueItem>(associations.Count);
+
+        foreach (var association in associations)
+        {
+            if (!videos.TryGetValue(association.VideoId, out var video) ||
+                !videos.TryGetValue(association.OtherVideoId, out var other))
+            {
+                continue;
+            }
+
+            files.TryGetValue(association.OtherVideoFileId, out var otherFile);
+            items.Add(new IdentificationQueueItem(
+                video.Id,
+                video.CaseVersion,
+                VideoPresentation.DisplayLabel(video),
+                VideoPresentation.PreviewUrl(video),
+                IdentificationDimension.WorkIdentification,
+                IdentificationResolution.Unknown,
+                null,
+                null,
+                video.VideoFiles.Count + other.VideoFiles.Count,
+                "Two Videos of this library look alike and neither is identified.",
+                IdentificationCasePresentation.AssociationView(
+                    association,
+                    video.Id,
+                    other,
+                    otherFile)));
+        }
+
+        return items;
+    }
+
+    private async Task<Dictionary<Guid, VideoRow>> AssociatedVideosAsync(
+        IReadOnlyCollection<WorkAssociationRow> associations,
+        CancellationToken cancellationToken)
+    {
+        var wanted = associations
+            .SelectMany(row => new[] { row.VideoId, row.OtherVideoId })
+            .Distinct()
+            .ToArray();
+
+        return await Query()
+            .Where(video => wanted.Contains(video.Id) && video.SurvivingVideoId == null)
+            .ToDictionaryAsync(video => video.Id, cancellationToken);
+    }
+
+    private async Task<Dictionary<Guid, VideoFileRow>> AssociatedFilesAsync(
+        IReadOnlyCollection<WorkAssociationRow> associations,
+        CancellationToken cancellationToken)
+    {
+        var wanted = associations
+            .SelectMany(row => new[] { row.VideoFileId, row.OtherVideoFileId })
+            .Distinct()
+            .ToArray();
+
+        return await database.VideoFiles
+            .AsNoTracking()
+            .Where(file => wanted.Contains(file.Id))
+            .ToDictionaryAsync(file => file.Id, cancellationToken);
+    }
+
+    /// <summary>
+    /// Every association this Video takes part in, from either side, as the case shows them.
+    /// </summary>
+    private async Task<IReadOnlyList<IdentificationAssociationView>> AssociationsOfAsync(
+        Guid videoId,
+        CancellationToken cancellationToken)
+    {
+        var associations = await database.WorkAssociations
+            .AsNoTracking()
+            .Where(row => row.VideoId == videoId || row.OtherVideoId == videoId)
+            .OrderByDescending(row => row.CreatedAt)
+            .Take(40)
+            .ToListAsync(cancellationToken);
+
+        if (associations.Count == 0)
+        {
+            return [];
+        }
+
+        var videos = await AssociatedVideosAsync(associations, cancellationToken);
+        var files = await AssociatedFilesAsync(associations, cancellationToken);
+
+        return associations
+            .Select(association =>
+            {
+                var otherVideoId = association.VideoId == videoId
+                    ? association.OtherVideoId
+                    : association.VideoId;
+                var otherFileId = association.VideoId == videoId
+                    ? association.OtherVideoFileId
+                    : association.VideoFileId;
+                videos.TryGetValue(otherVideoId, out var otherVideo);
+                files.TryGetValue(otherFileId, out var otherFile);
+
+                return IdentificationCasePresentation.AssociationView(
+                    association,
+                    videoId,
+                    otherVideo,
+                    otherFile);
+            })
             .ToArray();
     }
 
@@ -112,6 +244,20 @@ public sealed class IdentificationReviewService(
             return new IdentificationDecisionResult(
                 IdentificationDecisionVerdict.Stale,
                 Case: await CaseOfAsync(video, cancellationToken));
+        }
+
+        // An association is decided on the same case, through the same endpoint, bound to the same
+        // version and recorded in the same history — but it names no target and belongs to no
+        // dimension, so it is answered before everything below reads one.
+        if (request.Action is IdentificationDecisionAction.AssociateVideos or
+            IdentificationDecisionAction.RejectAssociation)
+        {
+            return await DecideAssociationAsync(
+                accountId,
+                video,
+                request,
+                transaction,
+                cancellationToken);
         }
 
         var candidate = request.CandidateId is null
@@ -242,6 +388,129 @@ public sealed class IdentificationReviewService(
             await GetCaseAsync(subject.Id, cancellationToken));
     }
 
+    /// <summary>
+    /// Answers a proposed Work Association: the two Videos become one, or a person says they are
+    /// not the same content.
+    /// </summary>
+    /// <remarks>
+    /// It shares everything an identification decision has that is worth sharing — the version the
+    /// case was read at, the consequence said before it is taken, the note, the record in the
+    /// Video's own history — and nothing that would only fit an identification. There is no target
+    /// to name and no dimension to move, because an association identifies neither Video: what
+    /// comes out of an accepted one is still an Unknown Video, with two Video Files.
+    /// </remarks>
+    private async Task<IdentificationDecisionResult> DecideAssociationAsync(
+        Guid accountId,
+        VideoRow video,
+        IdentificationDecisionRequest request,
+        IDbContextTransaction transaction,
+        CancellationToken cancellationToken)
+    {
+        var association = request.AssociationId is null
+            ? null
+            : await database.WorkAssociations
+                .AsTracking()
+                .SingleOrDefaultAsync(
+                    row => row.Id == request.AssociationId &&
+                           row.Status == WorkAssociationStatus.Proposed &&
+                           (row.VideoId == video.Id || row.OtherVideoId == video.Id),
+                    cancellationToken);
+
+        if (association is null)
+        {
+            return new IdentificationDecisionResult(
+                IdentificationDecisionVerdict.InvalidTarget,
+                Case: await CaseOfAsync(video, cancellationToken));
+        }
+
+        var associates = request.Action == IdentificationDecisionAction.AssociateVideos;
+        var otherId = association.VideoId == video.Id
+            ? association.OtherVideoId
+            : association.VideoId;
+        var other = await Query()
+            .AsTracking()
+            .SingleOrDefaultAsync(row => row.Id == otherId, cancellationToken);
+
+        if (other is null)
+        {
+            return new IdentificationDecisionResult(
+                IdentificationDecisionVerdict.InvalidTarget,
+                Case: await CaseOfAsync(video, cancellationToken));
+        }
+
+        var consequence = IdentificationCasePresentation.DescribeAssociation(
+            video,
+            other,
+            association,
+            associates);
+
+        if (!request.Confirm)
+        {
+            return new IdentificationDecisionResult(
+                IdentificationDecisionVerdict.Preview,
+                consequence,
+                await CaseOfAsync(video, cancellationToken));
+        }
+
+        if (consequence.RequiresNote && string.IsNullOrWhiteSpace(request.Note))
+        {
+            return new IdentificationDecisionResult(
+                IdentificationDecisionVerdict.NoteRequired,
+                consequence,
+                await CaseOfAsync(video, cancellationToken));
+        }
+
+        var now = Now();
+        var note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
+        var priorState = IdentificationCasePresentation.StateOf(
+            video,
+            IdentificationDimension.WorkIdentification);
+        var subject = video;
+
+        if (associates)
+        {
+            subject = await identification.MergeAsync(video, other, cancellationToken);
+            association.VideoId = subject.Id;
+            association.OtherVideoId = subject.Id == video.Id ? other.Id : video.Id;
+            association.EstablishedAt = now;
+        }
+
+        association.Status = associates
+            ? WorkAssociationStatus.Established
+            : WorkAssociationStatus.Rejected;
+        association.Source = IdentificationSource.AdministratorDecision;
+        association.DecidedByAccountId = accountId;
+        association.Note = note;
+        association.ResolvedAt = now;
+        subject.CaseVersion++;
+        database.IdentificationDecisions.Add(new IdentificationDecisionRow
+        {
+            Id = Guid.CreateVersion7(),
+            VideoId = subject.Id,
+            Dimension = IdentificationDimension.WorkIdentification,
+            Action = request.Action,
+            DecidedByAccountId = accountId,
+            CandidateId = null,
+            TargetKey = null,
+            PriorState = priorState,
+            ResultingState = IdentificationCasePresentation.StateOf(
+                subject,
+                IdentificationDimension.WorkIdentification),
+            MergedAnotherVideo = associates,
+            Note = note,
+            CreatedAt = now,
+        });
+
+        await projection.RefreshTrackedAsync(cancellationToken);
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return new IdentificationDecisionResult(
+            IdentificationDecisionVerdict.Applied,
+            consequence,
+            await GetCaseAsync(subject.Id, cancellationToken));
+    }
+
     private async Task<ApplyOutcome> ApplyAsync(
         VideoRow video,
         IdentificationDecisionRequest request,
@@ -351,6 +620,19 @@ public sealed class IdentificationReviewService(
             file.VideoId = target.Id;
             file.IdentifiedSha256 = null;
         }
+
+        // An association that put two of these files under one identity has just been undone. It
+        // stays on record as what it was — a Split is how an association is undone, and the record
+        // is what stops the rule concluding it again from the same reading.
+        await database.WorkAssociations
+            .Where(row => row.Status == WorkAssociationStatus.Established &&
+                          (separated.Contains(row.VideoFileId) ||
+                           separated.Contains(row.OtherVideoFileId)))
+            .ExecuteUpdateAsync(
+                update => update
+                    .SetProperty(row => row.Status, WorkAssociationStatus.Separated)
+                    .SetProperty(row => row.ResolvedAt, now),
+                cancellationToken);
 
         await database.SaveChangesAsync(cancellationToken);
         await personalState.SeparateSplitVideoAsync(
@@ -532,6 +814,7 @@ public sealed class IdentificationReviewService(
         var neighbours = await NeighbouringFilesAsync(
             video.IdentificationCandidates,
             cancellationToken);
+        var associations = await AssociationsOfAsync(video.Id, cancellationToken);
 
         foreach (var candidate in open)
         {
@@ -584,7 +867,13 @@ public sealed class IdentificationReviewService(
                     VideoPresentation.AsOffset(decision.CreatedAt)!.Value))
                 .ToArray(),
             IdentificationCasePresentation.UnavailableSiteActions(video),
-            IdentificationCasePresentation.Explain(video));
+            IdentificationCasePresentation.Explain(video),
+            associations
+                .Where(association => association.Status == WorkAssociationStatus.Proposed)
+                .ToArray(),
+            associations
+                .Where(association => association.Status != WorkAssociationStatus.Proposed)
+                .ToArray());
     }
 
     /// <summary>
