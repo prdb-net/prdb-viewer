@@ -73,7 +73,7 @@ public sealed class NeighbourIdentificationTests
 
         await using var scope = store.Scope();
         var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-        var item = Assert.Single(await review.GetQueueAsync(TestContext.Current.CancellationToken));
+        var item = Assert.Single(await review.QueueAsync(TestContext.Current.CancellationToken));
         var open = await review.GetCaseAsync(item.VideoId, TestContext.Current.CancellationToken);
         var candidate = Assert.Single(open!.OpenCandidates);
         var neighbour = candidate.Neighbour;
@@ -130,7 +130,7 @@ public sealed class NeighbourIdentificationTests
 
         await using var scope = store.Scope();
         var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-        var item = Assert.Single(await review.GetQueueAsync(TestContext.Current.CancellationToken));
+        var item = Assert.Single(await review.QueueAsync(TestContext.Current.CancellationToken));
         var result = await review.DecideAsync(
             administrator,
             item.VideoId,
@@ -204,7 +204,7 @@ public sealed class NeighbourIdentificationTests
     {
         await using var scope = store.Scope();
         var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-        var item = Assert.Single(await review.GetQueueAsync(TestContext.Current.CancellationToken));
+        var item = Assert.Single(await review.QueueAsync(TestContext.Current.CancellationToken));
         var result = await review.DecideAsync(
             administrator,
             item.VideoId,

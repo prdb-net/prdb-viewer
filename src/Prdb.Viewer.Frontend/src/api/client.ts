@@ -123,6 +123,19 @@ export type PlaybackReport = components['schemas']['PlaybackReportResult']
 export type PersonalStateMutation = components['schemas']['PersonalStateMutationResult']
 export type IdentificationSummary = components['schemas']['IdentificationSummary']
 export type IdentificationQueueItem = components['schemas']['IdentificationQueueItem']
+export type IdentificationQueue = components['schemas']['IdentificationQueue']
+export type IdentificationReviewGroup = components['schemas']['IdentificationReviewGroup']
+export type IdentificationQueueFacets = components['schemas']['IdentificationQueueFacets']
+
+/// What an Administrator asked the backlog for. It belongs in the address, so a filtered page is a
+/// link rather than a state of one browser (ADR 0004).
+export type IdentificationQueueFilters = {
+  skip?: number
+  take?: number
+  dimension?: components['schemas']['IdentificationDimension']
+  reason?: components['schemas']['IdentificationReviewReason']
+  evidenceClass?: components['schemas']['IdentificationEvidenceClass']
+}
 export type IdentificationCase = components['schemas']['IdentificationCase']
 export type IdentificationConsequence = components['schemas']['IdentificationConsequence']
 export type IdentificationDecisionRequest = components['schemas']['IdentificationDecisionRequest']
@@ -365,8 +378,16 @@ export const api = {
       'DELETE',
       csrfToken,
     ),
-  identificationQueue: () =>
-    request<IdentificationQueueItem[]>('/api/admin/identification/queue'),
+  identificationQueue: (filters: IdentificationQueueFilters = {}) => {
+    const query = new URLSearchParams()
+    if (filters.skip) query.set('skip', String(filters.skip))
+    if (filters.take) query.set('take', String(filters.take))
+    if (filters.dimension) query.set('dimension', filters.dimension)
+    if (filters.reason) query.set('reason', filters.reason)
+    if (filters.evidenceClass) query.set('evidenceClass', filters.evidenceClass)
+    const suffix = query.size > 0 ? `?${query}` : ''
+    return request<IdentificationQueue>(`/api/admin/identification/queue${suffix}`)
+  },
   identificationCase: (videoId: string) =>
     request<IdentificationCase>(`/api/admin/identification/videos/${videoId}`),
   decideIdentification: (

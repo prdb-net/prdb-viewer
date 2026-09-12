@@ -252,7 +252,7 @@ public sealed class TimelineEquivalenceTests
         var administrator = await LibraryPipeline.AccountAsync(store, "administrator");
         await using var scope = store.Scope();
         var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-        var item = Assert.Single(await review.GetQueueAsync(TestContext.Current.CancellationToken));
+        var item = Assert.Single(await review.QueueAsync(TestContext.Current.CancellationToken));
         var result = await review.DecideAsync(
             administrator,
             item.VideoId,

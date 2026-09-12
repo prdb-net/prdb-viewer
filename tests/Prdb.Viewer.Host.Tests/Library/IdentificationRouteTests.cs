@@ -42,10 +42,16 @@ public sealed class IdentificationRouteTests
                 $"/api/admin/identification/videos/{fixture.VideoId}",
                 TestContext.Current.CancellationToken)).StatusCode);
 
-        var queue = await administrator.GetFromJsonAsync<JsonElement[]>(
+        // The backlog answers as groups: one question, its count, and a sample of the cases it
+        // would settle.
+        var queue = await administrator.GetFromJsonAsync<JsonElement>(
             "/api/admin/identification/queue",
             TestContext.Current.CancellationToken);
-        var item = Assert.Single(queue!);
+        Assert.Equal(1, queue.GetProperty("caseCount").GetInt32());
+        var group = Assert.Single(queue.GetProperty("groups").EnumerateArray().ToArray());
+        Assert.Equal(1, group.GetProperty("caseCount").GetInt32());
+        Assert.Equal("A Guessed Work", group.GetProperty("targetTitle").GetString());
+        var item = Assert.Single(group.GetProperty("cases").EnumerateArray().ToArray());
         Assert.Equal(fixture.VideoId, item.GetProperty("videoId").GetGuid());
         Assert.Equal("A Guessed Work", item.GetProperty("candidate").GetProperty("targetTitle").GetString());
         Assert.Equal("Unknown", item.GetProperty("currentResolution").GetString());

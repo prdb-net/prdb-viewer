@@ -1,4 +1,5 @@
 using Prdb.Viewer.Core.Access;
+using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Host.Access;
 using Prdb.Viewer.Infrastructure.Library;
 
@@ -13,10 +14,26 @@ public static class IdentificationEndpoints
             .RequireAuthorization(policy =>
                 policy.RequireRole(AccountAuthority.Administrator.ToString()));
 
+        // ADR 0004: what an Administrator is looking at belongs in the address, so a filtered page
+        // of the backlog is a link a colleague can be sent rather than a state of one browser.
         review.MapGet("/queue", async (
             IdentificationReviewService identification,
+            int? skip,
+            int? take,
+            IdentificationDimension? dimension,
+            IdentificationReviewReason? reason,
+            IdentificationEvidenceClass? evidenceClass,
             CancellationToken cancellationToken) =>
-            TypedResults.Ok(await identification.GetQueueAsync(cancellationToken)));
+            TypedResults.Ok(await identification.GetQueueAsync(
+                new IdentificationQueueRequest
+                {
+                    Skip = skip ?? 0,
+                    Take = take ?? 10,
+                    Dimension = dimension,
+                    Reason = reason,
+                    EvidenceClass = evidenceClass,
+                },
+                cancellationToken)));
 
         review.MapGet("/videos/{videoId:guid}", async (
             Guid videoId,

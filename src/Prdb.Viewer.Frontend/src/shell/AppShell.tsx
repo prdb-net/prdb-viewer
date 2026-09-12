@@ -292,8 +292,8 @@ function useNavigationBadges(account: Account): NavigationBadges {
     refetchInterval: 30_000,
   })
   const queue = useQuery({
-    queryKey: queryKeys.identificationQueue,
-    queryFn: api.identificationQueue,
+    queryKey: queryKeys.identificationQueue(),
+    queryFn: () => api.identificationQueue(),
     enabled: administrator,
     refetchInterval: 60_000,
   })
@@ -309,7 +309,9 @@ function useNavigationBadges(account: Account): NavigationBadges {
 
   return {
     operationalAttention: Number(work.data?.operationalAttentionCount ?? 0),
-    identificationQueue: queue.data?.length ?? 0,
+    // The badge counts cases rather than groups: what waits for a person is the library that is
+    // still unanswered, not how many questions it has been arranged into.
+    identificationQueue: Number(queue.data?.caseCount ?? 0),
     accountsWaiting:
       accounts.data?.filter((candidate) => candidate.state === 'PendingApproval').length ?? 0,
   }

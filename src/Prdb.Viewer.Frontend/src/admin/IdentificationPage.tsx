@@ -12,7 +12,10 @@ import {
   type IdentificationDecisionOutlook,
   type IdentificationNeighbour,
   type IdentificationProposal,
+  type IdentificationQueueFacets,
+  type IdentificationQueueFilters,
   type IdentificationQueueItem,
+  type IdentificationReviewGroup,
 } from '../api/client'
 import { candidateOrigin, formatDay, friendlyState, provenanceLabel } from '../lib/format'
 import { formatRuntime, qualityBandLabel } from '../lib/quality'
@@ -22,16 +25,26 @@ import { Field, firstError, Notice, PageHeading, RequestError } from '../ui'
 
 export function IdentificationPage({ account }: { account: Account }) {
   const queryClient = useQueryClient()
-  const queue = useQuery({
-    queryKey: queryKeys.identificationQueue,
-    queryFn: api.identificationQueue,
-    refetchInterval: 15_000,
-  })
-  // ADR 0004: an administrative work item is linkable, so which case is open belongs in the
-  // address rather than in this component. A colleague can then be sent the case itself.
+  // ADR 0004: an administrative work item is linkable, so which case is open — and which part of
+  // the backlog is being worked through — belongs in the address rather than in this component. A
+  // colleague can then be sent the case itself, or the four hundred site proposals.
   const [parameters, setParameters] = useSearchParams()
   const openCandidate = parameters.get('candidate')
-  const selected = queue.data?.find((item) => caseId(item) === openCandidate)
+  const filters: IdentificationQueueFilters = {
+    skip: Number(parameters.get('skip') ?? 0) || undefined,
+    dimension: (parameters.get('dimension') ?? undefined) as IdentificationQueueFilters['dimension'],
+    reason: (parameters.get('reason') ?? undefined) as IdentificationQueueFilters['reason'],
+    evidenceClass:
+      (parameters.get('evidence') ?? undefined) as IdentificationQueueFilters['evidenceClass'],
+  }
+  const queue = useQuery({
+    queryKey: queryKeys.identificationQueue(parameters.toString()),
+    queryFn: () => api.identificationQueue(filters),
+    refetchInterval: 15_000,
+  })
+  const selected = queue.data?.groups
+    .flatMap((group) => group.cases)
+    .find((item) => caseId(item) === openCandidate)
   const [pending, setPending] = useState<IdentificationDecisionAction>()
   const [consequence, setConsequence] = useState<IdentificationConsequence>()
   const [note, setNote] = useState('')
@@ -98,7 +111,7 @@ export function IdentificationPage({ account }: { account: Account }) {
         setOutcome(`${friendlyState(variables.action)} applied.`)
         open(undefined)
         reset()
-        void queryClient.invalidateQueries({ queryKey: queryKeys.identificationQueue })
+        void queryClient.invalidateQueries({ queryKey: ['identification-queue'] })
         void queryClient.invalidateQueries({ queryKey: ['videos'] })
         void queryClient.invalidateQueries({ queryKey: ['video'] })
         return
@@ -106,7 +119,7 @@ export function IdentificationPage({ account }: { account: Account }) {
       if (result.verdict === 'Stale') {
         setOutcome('The case changed while it was open. Review the refreshed comparison.')
         reset()
-        void queryClient.invalidateQueries({ queryKey: queryKeys.identificationQueue })
+        void queryClient.invalidateQueries({ queryKey: ['identification-queue'] })
         void openCase.refetch()
       }
       if (result.verdict === 'NoteRequired') setOutcome('This decision needs a note.')
@@ -158,13 +171,20 @@ export function IdentificationPage({ account }: { account: Account }) {
       <PageHeading
         eyebrow="Administrator"
         title="Identification review"
-        actions={<span className="muted">{queue.data?.length ?? 0} open</span>}
+        actions={<span className="muted">{Number(queue.data?.caseCount ?? 0)} open</span>}
       >
         Candidates and conflicts wait here. Nothing under review reaches ordinary browsing.
       </PageHeading>
 
       {outcome && <Notice kind="success">{outcome}</Notice>}
-      {queue.data?.length === 0 && (
+      {!showing && queue.data && (
+        <QueueFilters
+          facets={queue.data.facets}
+          parameters={parameters}
+          set={setParameters}
+        />
+      )}
+      {Number(queue.data?.caseCount ?? -1) === 0 && (
         <div className="empty-library">
           <strong>Nothing to review</strong>
           <p>No identification decision is waiting.</p>
@@ -175,39 +195,22 @@ export function IdentificationPage({ account }: { account: Account }) {
           case and then the case repeated it directly underneath, so the same Video appeared twice
           with two different sets of controls — and the second copy is the one that decides. */}
       {!showing && (
-        <div className="review-queue">
-          {queue.data?.map((item) => (
-            <article className="review-item" key={caseId(item)}>
-              <div>
-                <strong>{item.displayLabel}</strong>
-                {/* A queue holds cases, and a case is either a proposed identification or a
-                    proposed association between two Videos that identifies neither. The second
-                    names nothing, so the row says what it is instead of what it proposes. */}
-                {item.candidate
-                  ? (
-                    <small>
-                      {friendlyState(item.dimension)} · {friendlyState(item.candidate.evidenceClass)} ·
-                      {' '}{candidateOrigin(item.candidate.source)} ·
-                      {' '}proposes “{item.candidate.targetTitle}”
-                    </small>
-                    )
-                  : (
-                    <small>
-                      Work Association · {candidateOrigin(item.association!.source)} ·
-                      {' '}proposes the same content as “{item.association!.otherDisplayLabel}”
-                    </small>
-                    )}
-                <small>{item.reason}</small>
-                {item.candidate && alreadyEstablished(item.currentResolution, item.currentTargetTitle, item.candidate.targetTitle) && (
-                  <small className="already-established">Proposes what is already established here.</small>
-                )}
-              </div>
-              <button
-                className="quiet-button"
-                onClick={() => { open(caseId(item)); reset(); setOutcome(undefined) }}
-              >Review</button>
-            </article>
+        <div className="review-groups">
+          {queue.data?.groups.map((group) => (
+            <ReviewGroup
+              key={group.key}
+              group={group}
+              open={(id: string) => { open(id); reset(); setOutcome(undefined) }}
+            />
           ))}
+          {queue.data && Number(queue.data.groupCount) > queue.data.groups.length && (
+            <Pages
+              groupCount={Number(queue.data.groupCount)}
+              shown={queue.data.groups.length}
+              parameters={parameters}
+              set={setParameters}
+            />
+          )}
         </div>
       )}
 
@@ -699,6 +702,151 @@ function outcomeOfAssociation(action: 'AssociateVideos' | 'RejectAssociation') {
       'Both Video Files keep their own facts, and a Split undoes it.'
     : 'Neither Video changes. The proposal stops coming back while the two files stay as far ' +
       'apart as they are.'
+}
+
+/// One Identification Review Group: the question, what answering it would settle, and a way into
+/// the cases it holds.
+///
+/// The group is the unit a backlog is worked in, so it leads with what its cases have in common and
+/// where they differ rather than with a count. A count alone says how much is at stake and nothing
+/// about what is being asked, and a reviewer who cannot say what a group has in common cannot
+/// safely answer it.
+function ReviewGroup({ group, open }: {
+  group: IdentificationReviewGroup
+  open: (caseId: string) => void
+}) {
+  const count = Number(group.caseCount)
+
+  return (
+    <article className="review-group">
+      <div className="section-heading">
+        <strong>{group.targetTitle ?? 'Two Videos that look alike'}</strong>
+        <span className="muted">{count === 1 ? '1 case' : `${count} cases`}</span>
+      </div>
+      <small>
+        {friendlyState(group.dimension)} · {friendlyState(group.evidenceClass)} ·
+        {' '}{candidateOrigin(group.source)} · {friendlyState(group.effort).toLowerCase()}
+      </small>
+      <p>{group.inCommon}</p>
+      <p className="muted">{group.differ}</p>
+      <ul className="review-group-cases">
+        {group.cases.map((item) => (
+          <li key={caseId(item)}>
+            <span>
+              {item.displayLabel}
+              {/* A proposal that repeats what is already established is the one a reviewer reads
+                  twice. It belongs on the case rather than on the group: the rest of the group may
+                  not have it. */}
+              {item.candidate && alreadyEstablished(
+                item.currentResolution,
+                item.currentTargetTitle,
+                item.candidate.targetTitle,
+              ) && (
+                <small className="already-established">Proposes what is already established here.</small>
+              )}
+            </span>
+            <button className="quiet-button" onClick={() => open(caseId(item))}>Review</button>
+          </li>
+        ))}
+      </ul>
+      {group.hasMoreCases && (
+        <small className="muted">
+          {count - group.cases.length} more {count - group.cases.length === 1 ? 'case' : 'cases'}
+          {' '}share this question.
+        </small>
+      )}
+    </article>
+  )
+}
+
+/// What a reviewer is in the mood to do. Clearing four hundred site proposals and looking hard at
+/// nine work proposals are different afternoons, and a queue that only offers whatever is on top
+/// makes the choice for them.
+function QueueFilters({ facets, parameters, set }: {
+  facets: IdentificationQueueFacets
+  parameters: URLSearchParams
+  set: ReturnType<typeof useSearchParams>[1]
+}) {
+  const apply = (name: string, value: string | undefined) => {
+    set((current) => {
+      const next = new URLSearchParams(current)
+      if (value) next.set(name, value)
+      else next.delete(name)
+      // A filter changes what the first page holds, so it cannot keep the offset of the last one.
+      next.delete('skip')
+      next.delete('candidate')
+      return next
+    }, { replace: true })
+  }
+  const groups: { name: string; label: string; values: IdentificationQueueFacets['dimensions'] }[] = [
+    { name: 'dimension', label: 'Dimension', values: facets.dimensions },
+    { name: 'reason', label: 'Reason', values: facets.reasons },
+    { name: 'evidence', label: 'Evidence', values: facets.evidenceClasses },
+  ]
+
+  if (groups.every((group) => group.values.length <= 1)) return null
+
+  return (
+    <div className="queue-filters">
+      {groups.filter((group) => group.values.length > 1).map((group) => (
+        <div key={group.name}>
+          <span className="eyebrow">{group.label}</span>
+          <div className="queue-filter-values">
+            <button
+              className={parameters.get(group.name) ? 'quiet-button' : 'quiet-button selected'}
+              onClick={() => apply(group.name, undefined)}
+            >All</button>
+            {group.values.map((facet) => (
+              <button
+                key={facet.value}
+                className={parameters.get(group.name) === facet.value
+                  ? 'quiet-button selected'
+                  : 'quiet-button'}
+                onClick={() => apply(group.name, facet.value)}
+              >{friendlyState(facet.value)} ({Number(facet.caseCount)})</button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/// A backlog that survives its own size is one somebody can walk through rather than scroll.
+function Pages({ groupCount, shown, parameters, set }: {
+  groupCount: number
+  shown: number
+  parameters: URLSearchParams
+  set: ReturnType<typeof useSearchParams>[1]
+}) {
+  const skip = Number(parameters.get('skip') ?? 0)
+  const move = (to: number) => {
+    set((current) => {
+      const next = new URLSearchParams(current)
+      if (to > 0) next.set('skip', String(to))
+      else next.delete('skip')
+      next.delete('candidate')
+      return next
+    }, { replace: true })
+  }
+
+  return (
+    <div className="queue-pages">
+      <button
+        className="quiet-button"
+        disabled={skip === 0}
+        onClick={() => move(Math.max(0, skip - shown))}
+      >Previous</button>
+      <span className="muted">
+        Questions {skip + 1}–{skip + shown} of {groupCount}
+      </span>
+      <button
+        className="quiet-button"
+        disabled={skip + shown >= groupCount}
+        onClick={() => move(skip + shown)}
+      >Next</button>
+    </div>
+  )
 }
 
 /// What a queue case is addressed by. A case is either a proposed identification or a proposed

@@ -1155,7 +1155,13 @@ export interface paths {
         };
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    skip?: number | string;
+                    take?: number | string;
+                    dimension?: components["schemas"]["IdentificationDimension"];
+                    reason?: components["schemas"]["IdentificationReviewReason"];
+                    evidenceClass?: components["schemas"]["IdentificationEvidenceClass"];
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -1168,7 +1174,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["IdentificationQueueItem"][];
+                        "application/json": components["schemas"]["IdentificationQueue"];
                     };
                 };
             };
@@ -2471,6 +2477,26 @@ export interface components {
             /** Format: date-time */
             fetchedAt: string;
         };
+        IdentificationQueue: {
+            /** Format: int32 */
+            groupCount: number | string;
+            /** Format: int32 */
+            caseCount: number | string;
+            groups: components["schemas"]["IdentificationReviewGroup"][];
+            facets: components["schemas"]["IdentificationQueueFacets"];
+        };
+        IdentificationQueueFacet: {
+            value: string;
+            /** Format: int32 */
+            groupCount: number | string;
+            /** Format: int32 */
+            caseCount: number | string;
+        };
+        IdentificationQueueFacets: {
+            dimensions: components["schemas"]["IdentificationQueueFacet"][];
+            reasons: components["schemas"]["IdentificationQueueFacet"][];
+            evidenceClasses: components["schemas"]["IdentificationQueueFacet"][];
+        };
         IdentificationQueueItem: {
             /** Format: uuid */
             videoId: string;
@@ -2489,6 +2515,26 @@ export interface components {
         };
         /** @enum {unknown} */
         IdentificationResolution: "Unknown" | "Established";
+        /** @enum {unknown} */
+        IdentificationReviewEffort: "Judgement" | "Displacement" | "Conflict";
+        IdentificationReviewGroup: {
+            key: string;
+            dimension: components["schemas"]["IdentificationDimension"];
+            reason: components["schemas"]["IdentificationReviewReason"];
+            evidenceClass: components["schemas"]["IdentificationEvidenceClass"];
+            source: components["schemas"]["IdentificationSource"];
+            targetKey: null | string;
+            targetTitle: null | string;
+            /** Format: int32 */
+            caseCount: number | string;
+            effort: components["schemas"]["IdentificationReviewEffort"];
+            inCommon: string;
+            differ: string;
+            /** Format: date-time */
+            oldestCaseAt: string;
+            cases: components["schemas"]["IdentificationQueueItem"][];
+            hasMoreCases: boolean;
+        };
         /** @enum {unknown} */
         IdentificationReviewReason: "SuggestiveEvidence" | "ConflictingConclusiveEvidence" | "ConflictsWithAdministrativeOverride" | "RemoteIdentityChanged" | "PerceptualNeighbour";
         /** @enum {unknown} */

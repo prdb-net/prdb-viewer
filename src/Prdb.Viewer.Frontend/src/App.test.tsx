@@ -14,6 +14,7 @@ import {
   offeredDecisions,
   personalState,
   renderApp,
+  reviewQueue,
   signedInAs,
   variant,
   videoDetail,
@@ -382,7 +383,7 @@ describe('App', () => {
       if (isFacetRequest(input)) return json(noFacets())
       if (isLibraryRequest(input)) return json(libraryPage([]))
       if (input === '/api/admin/identification/queue') {
-        return json(decisions.length > 0 ? [] : [queueItem])
+        return json(reviewQueue(decisions.length > 0 ? [] : [queueItem]))
       }
       if (input === `/api/admin/identification/videos/${queueItem.videoId}`) return json(openCase)
       if (input === `/api/admin/identification/videos/${queueItem.videoId}/decisions`) {
@@ -550,7 +551,7 @@ describe('App', () => {
       explanation: 'The evidence is only suggestive, so it can propose a candidate.',
     }
     signedInAs('Administrator', (input) => {
-      if (input === '/api/admin/identification/queue') return json([queueItem])
+      if (input === '/api/admin/identification/queue') return json(reviewQueue([queueItem]))
       if (input === `/api/admin/identification/videos/${queueItem.videoId}`) return json(openCase)
       return undefined
     })
@@ -652,7 +653,7 @@ describe('App', () => {
       explanation: 'Another Video File of this library looks like this one.',
     }
     signedInAs('Administrator', (input) => {
-      if (input === '/api/admin/identification/queue') return json([queueItem])
+      if (input === '/api/admin/identification/queue') return json(reviewQueue([queueItem]))
       if (input === `/api/admin/identification/videos/${queueItem.videoId}`) return json(openCase)
       return undefined
     })
@@ -730,7 +731,7 @@ describe('App', () => {
     }
     const sent: Record<string, unknown>[] = []
     signedInAs('Administrator', (input, init) => {
-      if (input === '/api/admin/identification/queue') return json([queueItem])
+      if (input === '/api/admin/identification/queue') return json(reviewQueue([queueItem]))
       if (input === `/api/admin/identification/videos/${queueItem.videoId}`) return json(openCase)
       if (input === `/api/admin/identification/videos/${queueItem.videoId}/decisions`) {
         sent.push(JSON.parse(String(init?.body)))
@@ -753,8 +754,9 @@ describe('App', () => {
 
     renderApp('/admin/identification')
 
-    // The queue row says what the case is rather than what it proposes: it proposes nothing.
-    expect(await screen.findByText(/proposes the same content as/)).toBeInTheDocument()
+    // The group says what the case is rather than what it proposes: it proposes nothing, so it is
+    // named by the two Videos rather than by a target.
+    expect(await screen.findByText('Two Videos that look alike')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Review' }))
 
     expect(await screen.findByText('The Video it looks like')).toBeInTheDocument()
@@ -773,6 +775,91 @@ describe('App', () => {
       candidateId: null,
       confirm: false,
     })
+  })
+
+  it('works the backlog in groups, and never hides what one would settle behind a count', async () => {
+    const cases = Array.from({ length: 3 }, (unused, index) => ({
+      videoId: `01994dd4-2a0a-7000-8000-00000000007${index}`,
+      caseVersion: 1,
+      displayLabel: `clip-${index}`,
+      previewUrl: null,
+      dimension: 'SiteRecognition',
+      currentResolution: 'Unknown',
+      currentTargetTitle: null,
+      candidate: {
+        id: `01994dd4-2a0a-7000-8000-00000000008${index}`,
+        dimension: 'SiteRecognition',
+        status: 'Pending',
+        targetTitle: 'One Site',
+        targetUrl: null,
+        evidenceClass: 'Suggestive',
+        reason: 'SuggestiveEvidence',
+        source: 'LocalInference',
+        evidenceSummary: 'Local: Suggestive evidence',
+        supportingVideoFileId: null,
+        proposal: null,
+        neighbour: null,
+        decisions: [],
+        createdAt: '2026-09-12T10:00:00Z',
+        resolvedAt: null,
+      },
+      affectedVideoFileCount: 1,
+      reason: 'The evidence is only suggestive.',
+      association: null,
+    }))
+    const queue = {
+      groupCount: 1,
+      caseCount: 400,
+      groups: [{
+        key: 'SiteRecognition|SuggestiveEvidence|Suggestive|LocalInference|0|site-1',
+        dimension: 'SiteRecognition',
+        reason: 'SuggestiveEvidence',
+        evidenceClass: 'Suggestive',
+        source: 'LocalInference',
+        targetKey: 'site-1',
+        targetTitle: 'One Site',
+        caseCount: 400,
+        effort: 'Judgement',
+        inCommon: '400 Videos are proposed as “One Site” for their Site Recognition.',
+        differ: 'They differ in which Video is being asked about, and in nothing else.',
+        oldestCaseAt: '2026-09-12T10:00:00Z',
+        cases,
+        hasMoreCases: true,
+      }],
+      facets: {
+        dimensions: [
+          { value: 'SiteRecognition', groupCount: 1, caseCount: 400 },
+          { value: 'WorkIdentification', groupCount: 1, caseCount: 9 },
+        ],
+        reasons: [],
+        evidenceClasses: [],
+      },
+    }
+    const asked: string[] = []
+    signedInAs('Administrator', (input) => {
+      if (typeof input === 'string' && input.startsWith('/api/admin/identification/queue')) {
+        asked.push(input)
+        return json(queue)
+      }
+      return undefined
+    })
+
+    renderApp('/admin/identification')
+
+    // The unit is the group, and what it would settle is said rather than implied by a number.
+    expect(await screen.findByText('One Site')).toBeInTheDocument()
+    expect(screen.getByText('400 cases')).toBeInTheDocument()
+    expect(screen.getByText(queue.groups[0].inCommon)).toBeInTheDocument()
+    expect(screen.getByText(queue.groups[0].differ)).toBeInTheDocument()
+
+    // The single case stays reachable from inside its group, and the sample says it is one.
+    expect(screen.getAllByRole('button', { name: 'Review' })).toHaveLength(3)
+    expect(screen.getByText(/397 more cases/)).toBeInTheDocument()
+
+    // A reviewer chooses what they are in the mood to do, and the choice is in the address.
+    fireEvent.click(screen.getByRole('button', { name: 'Work Identification (9)' }))
+    await vi.waitFor(() =>
+      expect(asked.some((url) => url.includes('dimension=WorkIdentification'))).toBe(true))
   })
 
   it('offers sign-in and an approval-gated registration request', async () => {

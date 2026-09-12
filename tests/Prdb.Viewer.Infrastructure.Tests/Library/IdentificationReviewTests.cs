@@ -30,7 +30,7 @@ public sealed class IdentificationReviewTests
         await using var scope = store.Scope();
         var queue = await scope.ServiceProvider
             .GetRequiredService<IdentificationReviewService>()
-            .GetQueueAsync(TestContext.Current.CancellationToken);
+            .QueueAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(2, queue.Count);
         Assert.Equal(IdentificationEvidenceClass.Conclusive, queue[0].Candidate!.EvidenceClass);
@@ -50,7 +50,7 @@ public sealed class IdentificationReviewTests
 
         await using var scope = store.Scope();
         var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-        var open = (await review.GetQueueAsync(TestContext.Current.CancellationToken)).Single();
+        var open = (await review.QueueAsync(TestContext.Current.CancellationToken)).Single();
         var request = new IdentificationDecisionRequest(
             IdentificationDecisionAction.AcceptCandidate,
             IdentificationDimension.WorkIdentification,
@@ -134,7 +134,7 @@ public sealed class IdentificationReviewTests
         await using (var scope = store.Scope())
         {
             var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-            var open = (await review.GetQueueAsync(TestContext.Current.CancellationToken)).Single();
+            var open = (await review.QueueAsync(TestContext.Current.CancellationToken)).Single();
             var rejected = await review.DecideAsync(
                 Administrator,
                 open.VideoId,
@@ -158,7 +158,7 @@ public sealed class IdentificationReviewTests
         {
             Assert.Empty(await scope.ServiceProvider
                 .GetRequiredService<IdentificationReviewService>()
-                .GetQueueAsync(TestContext.Current.CancellationToken));
+                .QueueAsync(TestContext.Current.CancellationToken));
         }
 
         prdb.Conclusive("first.mp4", WorkId, "A Guessed Work");
@@ -184,7 +184,7 @@ public sealed class IdentificationReviewTests
 
         await using var scope = store.Scope();
         var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-        var open = (await review.GetQueueAsync(TestContext.Current.CancellationToken)).Single();
+        var open = (await review.QueueAsync(TestContext.Current.CancellationToken)).Single();
 
         var stale = await review.DecideAsync(
             Administrator,
@@ -509,7 +509,7 @@ public sealed class IdentificationReviewTests
     {
         await using var scope = store.Scope();
         var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-        var open = (await review.GetQueueAsync(TestContext.Current.CancellationToken)).Single();
+        var open = (await review.QueueAsync(TestContext.Current.CancellationToken)).Single();
         var applied = await review.DecideAsync(
             Administrator,
             open.VideoId,
@@ -592,7 +592,7 @@ public sealed class IdentificationReviewTests
 
         await using var scope = store.Scope();
         var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-        var open = (await review.GetQueueAsync(TestContext.Current.CancellationToken)).Single();
+        var open = (await review.QueueAsync(TestContext.Current.CancellationToken)).Single();
         var identificationCase = await review.GetCaseAsync(
             open.VideoId,
             TestContext.Current.CancellationToken);
@@ -653,7 +653,7 @@ public sealed class IdentificationReviewTests
 
         await using var scope = store.Scope();
         var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-        var open = (await review.GetQueueAsync(TestContext.Current.CancellationToken)).Single();
+        var open = (await review.QueueAsync(TestContext.Current.CancellationToken)).Single();
         var identificationCase = await review.GetCaseAsync(
             open.VideoId,
             TestContext.Current.CancellationToken);

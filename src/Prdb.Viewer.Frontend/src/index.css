@@ -544,6 +544,19 @@ body.filters-open .app-content {
 /* How close the two files are, said in words. The distance is 64 bits of Hamming distance, which
    nobody can calibrate, and whether it means anything depends on the running times — so the
    sentence carries the weight and reads as the paragraph it is rather than as a caption. */
+/* The unit the backlog is worked in. A group leads with what its cases have in common and where
+   they differ, because a count says how much is at stake and nothing about what is being asked. */
+.review-groups { display: grid; gap: 1rem; }
+.review-group { display: grid; gap: .5rem; padding: 1rem; border: 1px solid var(--border); border-radius: .6rem; }
+.review-group p { margin: 0; font-size: .9rem; }
+.review-group > small { color: var(--muted); }
+.review-group-cases { display: grid; gap: .3rem; margin: 0; padding: 0; list-style: none; }
+.review-group-cases li { display: flex; gap: .6rem; align-items: center; justify-content: space-between; }
+.review-group-cases span { overflow-wrap: anywhere; }
+.queue-filters { display: grid; gap: .6rem; margin-bottom: 1rem; }
+.queue-filter-values { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .2rem; }
+.queue-filter-values .selected { border-color: var(--accent); color: var(--accent); }
+.queue-pages { display: flex; gap: .8rem; align-items: center; justify-content: center; }
 .neighbour-summary { font-size: .85rem; color: var(--muted); }
 /* Why two files are one Video, where a rule or a person put them together. It reads like the
    provenance of a claim because it is provenance — of a merge rather than of an identity. */

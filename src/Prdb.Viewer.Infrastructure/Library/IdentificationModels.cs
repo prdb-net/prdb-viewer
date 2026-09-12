@@ -229,6 +229,69 @@ public sealed record IdentificationQueueItem(
     string Reason,
     IdentificationAssociationView? Association = null);
 
+/// <summary>
+/// How much of a queue a filter admits, per value, so a reviewer can choose what they are in the
+/// mood to do before they choose a case.
+/// </summary>
+public sealed record IdentificationQueueFacet(string Value, int GroupCount, int CaseCount);
+
+public sealed record IdentificationQueueFacets(
+    IReadOnlyList<IdentificationQueueFacet> Dimensions,
+    IReadOnlyList<IdentificationQueueFacet> Reasons,
+    IReadOnlyList<IdentificationQueueFacet> EvidenceClasses);
+
+/// <summary>
+/// One Identification Review Group: the cases that share one question — the same dimension, the
+/// same proposed target, the same reason, the same evidence — with their count, what they have in
+/// common and where they differ.
+///
+/// It is the unit the queue is worked in, not an arrangement a screen made of a list. The cases it
+/// carries are a sample of it rather than all of it, because a group of four hundred is still a
+/// group somebody has to be able to look inside.
+/// </summary>
+public sealed record IdentificationReviewGroup(
+    string Key,
+    IdentificationDimension Dimension,
+    IdentificationReviewReason Reason,
+    IdentificationEvidenceClass EvidenceClass,
+    IdentificationSource Source,
+    string? TargetKey,
+    string? TargetTitle,
+    int CaseCount,
+    IdentificationReviewEffort Effort,
+    /// <summary>What every case in this group shares, which is what one answer would settle.</summary>
+    string InCommon,
+    /// <summary>Where they differ, so a count never stands alone for what it would settle.</summary>
+    string Differ,
+    DateTimeOffset OldestCaseAt,
+    IReadOnlyList<IdentificationQueueItem> Cases,
+    bool HasMoreCases);
+
+/// <summary>
+/// A page of the identification backlog, as an Administrator works through it: the groups in the
+/// order the rule puts them, what the whole queue holds, and what filtering by each value would
+/// leave.
+/// </summary>
+public sealed record IdentificationQueue(
+    int GroupCount,
+    int CaseCount,
+    IReadOnlyList<IdentificationReviewGroup> Groups,
+    IdentificationQueueFacets Facets);
+
+/// <summary>What a reviewer asked the queue for.</summary>
+public sealed record IdentificationQueueRequest
+{
+    public int Skip { get; init; }
+
+    public int Take { get; init; } = 10;
+
+    public IdentificationDimension? Dimension { get; init; }
+
+    public IdentificationReviewReason? Reason { get; init; }
+
+    public IdentificationEvidenceClass? EvidenceClass { get; init; }
+}
+
 public sealed record IdentificationCaseFile(
     Guid Id,
     string RelativePath,

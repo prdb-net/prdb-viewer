@@ -120,7 +120,7 @@ public sealed class WorkAssociationTests
 
         var item = Assert.Single(await scope.ServiceProvider
             .GetRequiredService<IdentificationReviewService>()
-            .GetQueueAsync(TestContext.Current.CancellationToken));
+            .QueueAsync(TestContext.Current.CancellationToken));
         Assert.Null(item.Candidate);
         Assert.NotNull(item.Association);
         Assert.Equal(WorkAssociationStatus.Proposed, item.Association.Status);
@@ -154,7 +154,7 @@ public sealed class WorkAssociationTests
 
         await using var scope = store.Scope();
         var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-        var item = Assert.Single(await review.GetQueueAsync(TestContext.Current.CancellationToken));
+        var item = Assert.Single(await review.QueueAsync(TestContext.Current.CancellationToken));
 
         // The consequence is said before it is taken, and a merge always asks for a note.
         var preview = await review.DecideAsync(
@@ -212,7 +212,7 @@ public sealed class WorkAssociationTests
         await using (var scope = store.Scope())
         {
             var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-            var item = Assert.Single(await review.GetQueueAsync(TestContext.Current.CancellationToken));
+            var item = Assert.Single(await review.QueueAsync(TestContext.Current.CancellationToken));
             var result = await review.DecideAsync(
                 administrator,
                 item.VideoId,
@@ -352,7 +352,7 @@ public sealed class WorkAssociationTests
         await using (var scope = store.Scope())
         {
             var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
-            var item = Assert.Single(await review.GetQueueAsync(TestContext.Current.CancellationToken));
+            var item = Assert.Single(await review.QueueAsync(TestContext.Current.CancellationToken));
             await review.DecideAsync(
                 administrator,
                 item.VideoId,

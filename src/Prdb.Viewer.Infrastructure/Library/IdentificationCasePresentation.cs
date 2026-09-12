@@ -583,6 +583,70 @@ internal static class IdentificationCasePresentation
         };
     }
 
+    /// <summary>
+    /// What every case in one group shares, which is exactly what one answer would settle.
+    ///
+    /// A count on its own is not a description of a group: "400 cases" says how much is at stake
+    /// and nothing about what is being asked, and a reviewer who cannot say what a group has in
+    /// common cannot safely answer it at all.
+    /// </summary>
+    internal static string InCommon(
+        IdentificationDimension dimension,
+        IdentificationReviewReason reason,
+        IdentificationEvidenceClass evidence,
+        IdentificationSource source,
+        string? targetTitle,
+        int caseCount,
+        bool displaces)
+    {
+        var videos = caseCount == 1 ? "One Video" : $"{caseCount} Videos";
+        var origin = source == IdentificationSource.LocalInference
+            ? "this installation's own inference"
+            : "prdb";
+
+        if (targetTitle is null)
+        {
+            return $"{videos} of this library look like one other Video each, and neither of any " +
+                   "pair is identified. Each is its own question.";
+        }
+
+        var proposal = $"{videos} are proposed as \u201c{targetTitle}\u201d for their " +
+                       $"{Label(dimension)}, on {evidence.ToString().ToLowerInvariant()} evidence " +
+                       $"from {origin}.";
+
+        return reason switch
+        {
+            IdentificationReviewReason.PerceptualNeighbour =>
+                $"{proposal} Each of them looks like a file this library has already identified " +
+                "as that work.",
+            IdentificationReviewReason.ConflictsWithAdministrativeOverride =>
+                $"{proposal} Each already carries an Administrative Override that says otherwise.",
+            IdentificationReviewReason.ConflictingConclusiveEvidence =>
+                $"{proposal} Each already carries a conclusive answer that disagrees.",
+            IdentificationReviewReason.RemoteIdentityChanged =>
+                $"{proposal} prdb has changed its mind about each of them.",
+            _ when displaces =>
+                $"{proposal} Each already has something established, which answering would replace.",
+            _ => proposal,
+        };
+    }
+
+    /// <summary>
+    /// Where the cases of a group differ, so a count never stands alone for what it would settle.
+    /// </summary>
+    internal static string Differ(int caseCount, string? targetTitle) =>
+        (caseCount, targetTitle) switch
+        {
+            (1, _) => "There is one of them, so there is nothing to differ.",
+            (_, null) =>
+                "They differ in everything except the shape of the question: each names two " +
+                "particular files of this library and nobody else's.",
+            _ =>
+                "They differ in which Video is being asked about, and in nothing else the answer " +
+                "reads: the proposal, the evidence behind it and what it would displace are the " +
+                "same for all of them.",
+        };
+
     internal static string Label(IdentificationDimension dimension) =>
         dimension == IdentificationDimension.WorkIdentification
             ? "Work Identification"

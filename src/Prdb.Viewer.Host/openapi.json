@@ -812,16 +812,60 @@
         "tags": [
           "Identification Review"
         ],
+        "parameters": [
+          {
+            "name": "skip",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "dimension",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/IdentificationDimension"
+            }
+          },
+          {
+            "name": "reason",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/IdentificationReviewReason"
+            }
+          },
+          {
+            "name": "evidenceClass",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/IdentificationEvidenceClass"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/IdentificationQueueItem"
-                  }
+                  "$ref": "#/components/schemas/IdentificationQueue"
                 }
               }
             }
@@ -3541,6 +3585,99 @@
           }
         }
       },
+      "IdentificationQueue": {
+        "required": [
+          "groupCount",
+          "caseCount",
+          "groups",
+          "facets"
+        ],
+        "type": "object",
+        "properties": {
+          "groupCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "caseCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationReviewGroup"
+            }
+          },
+          "facets": {
+            "$ref": "#/components/schemas/IdentificationQueueFacets"
+          }
+        }
+      },
+      "IdentificationQueueFacet": {
+        "required": [
+          "value",
+          "groupCount",
+          "caseCount"
+        ],
+        "type": "object",
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "groupCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "caseCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "IdentificationQueueFacets": {
+        "required": [
+          "dimensions",
+          "reasons",
+          "evidenceClasses"
+        ],
+        "type": "object",
+        "properties": {
+          "dimensions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationQueueFacet"
+            }
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationQueueFacet"
+            }
+          },
+          "evidenceClasses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationQueueFacet"
+            }
+          }
+        }
+      },
       "IdentificationQueueItem": {
         "required": [
           "videoId",
@@ -3627,6 +3764,91 @@
           "Unknown",
           "Established"
         ]
+      },
+      "IdentificationReviewEffort": {
+        "enum": [
+          "Judgement",
+          "Displacement",
+          "Conflict"
+        ]
+      },
+      "IdentificationReviewGroup": {
+        "required": [
+          "key",
+          "dimension",
+          "reason",
+          "evidenceClass",
+          "source",
+          "targetKey",
+          "targetTitle",
+          "caseCount",
+          "effort",
+          "inCommon",
+          "differ",
+          "oldestCaseAt",
+          "cases",
+          "hasMoreCases"
+        ],
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/IdentificationDimension"
+          },
+          "reason": {
+            "$ref": "#/components/schemas/IdentificationReviewReason"
+          },
+          "evidenceClass": {
+            "$ref": "#/components/schemas/IdentificationEvidenceClass"
+          },
+          "source": {
+            "$ref": "#/components/schemas/IdentificationSource"
+          },
+          "targetKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "targetTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "caseCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "effort": {
+            "$ref": "#/components/schemas/IdentificationReviewEffort"
+          },
+          "inCommon": {
+            "type": "string"
+          },
+          "differ": {
+            "type": "string"
+          },
+          "oldestCaseAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationQueueItem"
+            }
+          },
+          "hasMoreCases": {
+            "type": "boolean"
+          }
+        }
       },
       "IdentificationReviewReason": {
         "enum": [

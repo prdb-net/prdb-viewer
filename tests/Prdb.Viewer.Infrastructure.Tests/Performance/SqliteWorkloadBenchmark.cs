@@ -133,7 +133,7 @@ public sealed class SqliteWorkloadBenchmark
         report.Add(await MeasureAsync("Identification review queue", store, async scope =>
             (await scope.ServiceProvider
                 .GetRequiredService<IdentificationReviewService>()
-                .GetQueueAsync(TestContext.Current.CancellationToken)).Count));
+                .QueueAsync(TestContext.Current.CancellationToken)).Count));
         report.Add(await MeasureAsync("Outstanding hashing lane query", store, async scope =>
             await scope.ServiceProvider
                 .GetRequiredService<ViewerDbContext>()

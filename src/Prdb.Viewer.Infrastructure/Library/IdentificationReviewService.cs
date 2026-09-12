@@ -23,37 +23,273 @@ public sealed class IdentificationReviewService(
 {
     private sealed record ApplyOutcome(VideoRow Subject, string? ResultingState);
 
-    public async Task<IReadOnlyList<IdentificationQueueItem>> GetQueueAsync(
+    /// <summary>
+    /// The identification backlog as an Administrator works through it: grouped, ordered, paged,
+    /// counted and filterable.
+    /// </summary>
+    /// <remarks>
+    /// The grouping is done by the database rather than by reading every open case into memory,
+    /// because the shape this ticket exists for is a library that produced thousands of them. What
+    /// is read in full is the list of groups — one small row per distinct question — which is
+    /// bounded by how many different things the library is being asked about rather than by how
+    /// many cases there are. Sorting them here rather than in SQL is deliberate: the order is a
+    /// rule in the Core with an argument behind it, and an <c>OrderBy</c> chain in a query would
+    /// have been the same claim with the argument left out.
+    /// </remarks>
+    public async Task<IdentificationQueue> GetQueueAsync(
+        IdentificationQueueRequest? request = null,
         CancellationToken cancellationToken = default)
     {
-        var videos = await Query()
-            .Where(video => video.SurvivingVideoId == null &&
-                            video.IdentificationCandidates.Any(candidate =>
-                                candidate.Status == IdentificationCandidateStatus.Pending))
+        request ??= new IdentificationQueueRequest();
+
+        var candidates = await database.IdentificationCandidates
+            .AsNoTracking()
+            .Where(candidate => candidate.Status == IdentificationCandidateStatus.Pending &&
+                                candidate.Video.SurvivingVideoId == null)
+            .Select(candidate => new
+            {
+                candidate.Dimension,
+                candidate.Reason,
+                candidate.EvidenceClass,
+                candidate.Source,
+                candidate.TargetKey,
+                candidate.TargetTitle,
+                candidate.CreatedAt,
+                // Whether answering would take knowledge away as well as add it. Two cases that
+                // differ in that are different questions, so it belongs in the key rather than
+                // being averaged over the group.
+                Displaces = candidate.Video.IdentificationClaims.Any(claim =>
+                    claim.Dimension == candidate.Dimension &&
+                    claim.Status == IdentificationClaimStatus.Current),
+            })
+            .GroupBy(candidate => new
+            {
+                candidate.Dimension,
+                candidate.Reason,
+                candidate.EvidenceClass,
+                candidate.Source,
+                candidate.TargetKey,
+                candidate.Displaces,
+            })
+            .Select(group => new
+            {
+                group.Key,
+                TargetTitle = group.Min(candidate => candidate.TargetTitle),
+                CaseCount = group.Count(),
+                OldestCaseAt = group.Min(candidate => candidate.CreatedAt),
+            })
+            .ToListAsync(cancellationToken);
+        var associations = await database.WorkAssociations
+            .AsNoTracking()
+            .Where(row => row.Status == WorkAssociationStatus.Proposed)
+            .Select(row => new { row.Id, row.CreatedAt })
+            .ToListAsync(cancellationToken);
+        var groups = candidates
+            .Select(group => new Pending(
+                CandidateKey(
+                    group.Key.Dimension,
+                    group.Key.Reason,
+                    group.Key.EvidenceClass,
+                    group.Key.Source,
+                    group.Key.TargetKey,
+                    group.Key.Displaces),
+                group.Key.Dimension,
+                group.Key.Reason,
+                group.Key.EvidenceClass,
+                group.Key.Source,
+                group.Key.TargetKey,
+                group.TargetTitle,
+                group.Key.Displaces,
+                group.CaseCount,
+                group.OldestCaseAt,
+                AssociationId: null))
+            // Each proposed association is its own question: two particular files, and whether they
+            // carry the same content. There is nothing for them to share, so grouping them together
+            // would have produced one large group nobody could answer with one decision.
+            .Concat(associations.Select(association => new Pending(
+                $"Association|{association.Id}",
+                IdentificationDimension.WorkIdentification,
+                IdentificationReviewReason.PerceptualNeighbour,
+                IdentificationEvidenceClass.Suggestive,
+                IdentificationSource.LocalInference,
+                TargetKey: null,
+                TargetTitle: null,
+                Displaces: false,
+                CaseCount: 1,
+                association.CreatedAt,
+                association.Id)))
+            .Where(group => (request.Dimension is null || group.Dimension == request.Dimension) &&
+                            (request.Reason is null || group.Reason == request.Reason) &&
+                            (request.EvidenceClass is null ||
+                             group.EvidenceClass == request.EvidenceClass))
+            .ToArray();
+        var ordered = IdentificationReviewOrder.Sort(
+            groups,
+            group => new IdentificationReviewGroupFacts(
+                group.CaseCount,
+                group.EvidenceClass,
+                group.Reason,
+                group.Displaces,
+                group.OldestCaseAt));
+        var page = ordered
+            .Skip(Math.Max(0, request.Skip))
+            .Take(Math.Clamp(request.Take, 1, 50))
+            .ToArray();
+        var shown = new List<IdentificationReviewGroup>(page.Length);
+
+        foreach (var group in page)
+        {
+            shown.Add(await ShowAsync(group, cancellationToken));
+        }
+
+        return new IdentificationQueue(
+            ordered.Count,
+            ordered.Sum(group => group.CaseCount),
+            shown,
+            Facets(groups));
+    }
+
+    /// <summary>One question the backlog is asking, before its cases are read.</summary>
+    private sealed record Pending(
+        string Key,
+        IdentificationDimension Dimension,
+        IdentificationReviewReason Reason,
+        IdentificationEvidenceClass EvidenceClass,
+        IdentificationSource Source,
+        string? TargetKey,
+        string? TargetTitle,
+        bool Displaces,
+        int CaseCount,
+        DateTime OldestCaseAt,
+        Guid? AssociationId);
+
+    /// <summary>
+    /// How many cases a group is addressed by, as an address a screen can put in a URL and a later
+    /// request can filter on. It is the question rather than a row identity, so it survives a case
+    /// being answered.
+    /// </summary>
+    private static string CandidateKey(
+        IdentificationDimension dimension,
+        IdentificationReviewReason reason,
+        IdentificationEvidenceClass evidence,
+        IdentificationSource source,
+        string targetKey,
+        bool displaces) =>
+        $"{dimension}|{reason}|{evidence}|{source}|{(displaces ? 1 : 0)}|{targetKey}";
+
+    /// <summary>
+    /// The cases of one group, up to the sample a screen shows. A group of four hundred is still
+    /// something somebody has to be able to look inside before they answer it.
+    /// </summary>
+    private const int CasesShownPerGroup = 6;
+
+    private async Task<IdentificationReviewGroup> ShowAsync(
+        Pending group,
+        CancellationToken cancellationToken)
+    {
+        var cases = group.AssociationId is { } associationId
+            ? await AssociationCasesAsync(associationId, cancellationToken)
+            : await CandidateCasesAsync(group, cancellationToken);
+
+        return new IdentificationReviewGroup(
+            group.Key,
+            group.Dimension,
+            group.Reason,
+            group.EvidenceClass,
+            group.Source,
+            group.TargetKey,
+            group.TargetTitle,
+            group.CaseCount,
+            IdentificationReviewOrder.EffortOf(group.Reason, group.Displaces),
+            IdentificationCasePresentation.InCommon(
+                group.Dimension,
+                group.Reason,
+                group.EvidenceClass,
+                group.Source,
+                group.TargetTitle,
+                group.CaseCount,
+                group.Displaces),
+            IdentificationCasePresentation.Differ(group.CaseCount, group.TargetTitle),
+            VideoPresentation.AsOffset(group.OldestCaseAt)!.Value,
+            cases,
+            group.CaseCount > cases.Count);
+    }
+
+    private async Task<IReadOnlyList<IdentificationQueueItem>> CandidateCasesAsync(
+        Pending group,
+        CancellationToken cancellationToken)
+    {
+        var ids = await database.IdentificationCandidates
+            .AsNoTracking()
+            .Where(candidate => candidate.Status == IdentificationCandidateStatus.Pending &&
+                                candidate.Video.SurvivingVideoId == null &&
+                                candidate.Dimension == group.Dimension &&
+                                candidate.Reason == group.Reason &&
+                                candidate.EvidenceClass == group.EvidenceClass &&
+                                candidate.Source == group.Source &&
+                                candidate.TargetKey == group.TargetKey &&
+                                candidate.Video.IdentificationClaims.Any(claim =>
+                                    claim.Dimension == candidate.Dimension &&
+                                    claim.Status == IdentificationClaimStatus.Current) == group.Displaces)
+            .OrderBy(candidate => candidate.CreatedAt)
+            .Take(CasesShownPerGroup)
+            .Select(candidate => candidate.Id)
             .ToListAsync(cancellationToken);
 
+        if (ids.Count == 0)
+        {
+            return [];
+        }
+
+        var videos = await Query()
+            .Where(video => video.IdentificationCandidates.Any(candidate => ids.Contains(candidate.Id)))
+            .ToListAsync(cancellationToken);
         var neighbours = await NeighbouringFilesAsync(
             videos.SelectMany(video => video.IdentificationCandidates),
             cancellationToken);
-        var proposals = videos
+
+        return videos
             .SelectMany(video => video.IdentificationCandidates
                 .DistinctBy(candidate => candidate.Id)
-                .Where(candidate => candidate.Status == IdentificationCandidateStatus.Pending)
+                .Where(candidate => ids.Contains(candidate.Id))
                 .Select(candidate => IdentificationCasePresentation.Item(
                     video,
                     candidate,
-                    Neighbour(neighbours, candidate))));
-
-        return proposals
-            .Concat(await ProposedAssociationsAsync(cancellationToken))
-            // A proposal naming a work and one naming nothing are both cases, and the queue is one
-            // queue. Conclusive evidence first, then the oldest question: an association carries no
-            // evidence class of its own, because it is not evidence about an identity at all.
-            .OrderByDescending(item =>
-                item.Candidate?.EvidenceClass ?? IdentificationEvidenceClass.Suggestive)
-            .ThenBy(item => item.Candidate?.CreatedAt ?? item.Association!.CreatedAt)
+                    Neighbour(neighbours, candidate))))
+            .OrderBy(item => item.Candidate!.CreatedAt)
             .ToArray();
     }
+
+    private async Task<IReadOnlyList<IdentificationQueueItem>> AssociationCasesAsync(
+        Guid associationId,
+        CancellationToken cancellationToken) =>
+        (await ProposedAssociationsAsync(cancellationToken))
+            .Where(item => item.Association!.Id == associationId)
+            .ToArray();
+
+    /// <summary>
+    /// What filtering by each value would leave, so a reviewer can decide what they are in the mood
+    /// to do — clear four hundred site proposals, or look hard at nine work proposals — instead of
+    /// taking whatever is on top.
+    /// </summary>
+    private static IdentificationQueueFacets Facets(IReadOnlyCollection<Pending> groups) =>
+        new(
+            Facet(groups, group => group.Dimension.ToString()),
+            Facet(groups, group => group.Reason.ToString()),
+            Facet(groups, group => group.EvidenceClass.ToString()));
+
+    private static IReadOnlyList<IdentificationQueueFacet> Facet(
+        IReadOnlyCollection<Pending> groups,
+        Func<Pending, string> valueOf) =>
+        groups
+            .GroupBy(valueOf)
+            .Select(group => new IdentificationQueueFacet(
+                group.Key,
+                group.Count(),
+                group.Sum(row => row.CaseCount)))
+            .OrderByDescending(facet => facet.CaseCount)
+            .ThenBy(facet => facet.Value)
+            .ToArray();
 
     /// <summary>
     /// The associations waiting for an Administrator, as queue cases. One proposal is one case:

@@ -192,6 +192,10 @@ _Avoid_: match, established identification
 The state, Clear or Review Needed, that records whether an Identification Claim requires administrative attention because of a pending candidate or conflicting evidence. It remains independent of whether the current claim is Unknown or Established.
 _Avoid_: Identification Claim, confidence
 
+**Identification Review Group**:
+The open identification cases that ask one question — the same dimension, the same proposed target, the same reason, the same evidence, and the same thing to displace — taken as the unit a backlog is worked in. It carries what its cases have in common and where they differ, so a count never stands alone for what answering it would settle. A case that shares its question with nothing else is a group of one.
+_Avoid_: batch, selection, filter, bulk decision
+
 **Administrative Override**:
 An Administrator's durable decision that establishes an Identification Claim and prevents conflicting automation from silently replacing it until the decision is explicitly revoked.
 _Avoid_: automatic correction, permanent identification
