@@ -15,7 +15,12 @@ images, local site recognition and an Administrator review workflow, the
 observable background-work operations surface, operator backup and restore, and
 Actors as a part of the library in their own right — a page each, an index to
 browse them from, everything prdb knows about them held locally, and a Favourite
-Actor per Account — presented as a navigable application in which every screen,
+Actor per Account — and richer matching for the files prdb cannot identify: the
+installation compares its own Video Files with each other, so several encodes of
+one work stop being several Videos, an identification established for one copy is
+offered for the others, a resume position follows the viewer between encodes, and
+a backlog of thousands of review cases is worked in groups rather than one at a
+time. All of it is presented as a navigable application in which every screen,
 every Video and every Actor has its own address. See
 [VISION.md](VISION.md) for the product contract.
 

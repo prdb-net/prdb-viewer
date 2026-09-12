@@ -570,8 +570,9 @@ internal static class IdentificationCasePresentation
         {
             WorkAssociationStatus.Established =>
                 $"{by} that these two Videos carry the same content, and they are now one Video. " +
-                "It names no work, so the Video is still Unknown until something identifies it. " +
-                reading,
+                "The association names no work of its own: whatever this Video is identified as " +
+                "was established by something else, and an association alone leaves a Video " +
+                $"Unknown. {reading}",
             WorkAssociationStatus.Rejected =>
                 "These two Videos were decided not to carry the same content. " + reading,
             WorkAssociationStatus.Separated =>
@@ -599,37 +600,47 @@ internal static class IdentificationCasePresentation
         int caseCount,
         bool displaces)
     {
-        var videos = caseCount == 1 ? "One Video" : $"{caseCount} Videos";
         var origin = source == IdentificationSource.LocalInference
             ? "this installation's own inference"
             : "prdb";
 
         if (targetTitle is null)
         {
-            return $"{videos} of this library look like one other Video each, and neither of any " +
-                   "pair is identified. Each is its own question.";
+            return caseCount == 1
+                ? "One Video of this library looks like one other, and neither of the pair is " +
+                  "identified. It is its own question."
+                : $"{caseCount} Videos of this library look like one other Video each, and neither " +
+                  "of any pair is identified. Each is its own question.";
         }
 
-        var proposal = $"{videos} are proposed as \u201c{targetTitle}\u201d for their " +
-                       $"{Label(dimension)}, on {evidence.ToString().ToLowerInvariant()} evidence " +
-                       $"from {origin}.";
+        var proposal = caseCount == 1
+            ? $"One Video is proposed as \u201c{targetTitle}\u201d for its {Label(dimension)}, " +
+              $"on {evidence.ToString().ToLowerInvariant()} evidence from {origin}."
+            : $"{caseCount} Videos are proposed as \u201c{targetTitle}\u201d for their " +
+              $"{Label(dimension)}, on {evidence.ToString().ToLowerInvariant()} evidence from " +
+              $"{origin}.";
 
         return reason switch
         {
             IdentificationReviewReason.PerceptualNeighbour =>
-                $"{proposal} Each of them looks like a file this library has already identified " +
-                "as that work.",
+                $"{proposal} {(caseCount == 1 ? "It looks" : "Each of them looks")} like a file " +
+                "this library has already identified as that work.",
             IdentificationReviewReason.ConflictsWithAdministrativeOverride =>
-                $"{proposal} Each already carries an Administrative Override that says otherwise.",
+                $"{proposal} {Each(caseCount)} already carries an Administrative Override that " +
+                "says otherwise.",
             IdentificationReviewReason.ConflictingConclusiveEvidence =>
-                $"{proposal} Each already carries a conclusive answer that disagrees.",
+                $"{proposal} {Each(caseCount)} already carries a conclusive answer that disagrees.",
             IdentificationReviewReason.RemoteIdentityChanged =>
-                $"{proposal} prdb has changed its mind about each of them.",
+                $"{proposal} prdb has changed its mind about " +
+                $"{(caseCount == 1 ? "it" : "each of them")}.",
             _ when displaces =>
-                $"{proposal} Each already has something established, which answering would replace.",
+                $"{proposal} {Each(caseCount)} already has something established, which answering " +
+                "would replace.",
             _ => proposal,
         };
     }
+
+    private static string Each(int caseCount) => caseCount == 1 ? "It" : "Each of them";
 
     /// <summary>
     /// Where the cases of a group differ, so a count never stands alone for what it would settle.

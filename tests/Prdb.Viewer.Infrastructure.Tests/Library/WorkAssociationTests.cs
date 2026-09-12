@@ -92,8 +92,10 @@ public sealed class WorkAssociationTests
                 TestContext.Current.CancellationToken);
         var shown = Assert.Single(detail!.Associations!);
         Assert.Equal(WorkAssociationStatus.Established, shown.Status);
-        Assert.Contains("names no work", shown.Summary);
-        Assert.Contains("still Unknown", shown.Summary);
+        // What it says has to be true whether or not the surviving Video is identified: an
+        // association accounts for the merge, never for the identity.
+        Assert.Contains("names no work of its own", shown.Summary);
+        Assert.Contains("was established by something else", shown.Summary);
     }
 
     /// <summary>
