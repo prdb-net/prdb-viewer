@@ -24,7 +24,7 @@ every Video and every Actor has its own address. See
 - .NET 10 SDK
 - Node.js 24 and npm
 - FFmpeg (`ffprobe` and `ffmpeg`) when running the Host outside the container
-- Docker for the supported container workflow
+- Docker with the Compose plugin for the supported deployment
 
 ## Build and test
 
@@ -131,9 +131,11 @@ cat .data/operator/bootstrap-authorization.txt
 ```
 
 Run every operator command as the identity the application itself runs as. In
-the container that means `docker compose exec --user "$PUID:$PGID"`: a command
-run as root leaves credential files the application cannot clean up afterwards,
-and it warns about each one it had to leave behind.
+the container that means `docker compose run` or
+`docker compose exec --user "$PUID:$PGID"`, as
+[Deploy with Docker Compose](#deploy-with-docker-compose) sets out: a command run
+as root leaves credential files the application cannot clean up afterwards, and
+it warns about each one it had to leave behind.
 
 The command prints only the credential file location. The browser consumes and
 deletes the credential when it creates the first Administrator. User
@@ -206,13 +208,200 @@ Seeding refuses to run against an installation that has already been claimed, on
 the same reasoning as Restore: it writes an installation from nothing, and must
 never be able to do that over one that someone is using.
 
-## Run the container
+## Deploy with Docker Compose
 
-The image requires a persistent mount at `/data`. Library Directories are
-mounted separately and read-only; the application never changes source media.
+Docker Compose is the supported way to run an installation, and
+[compose.yaml](compose.yaml) is that deployment. Copy it to the machine that
+will run the installation, point its library mount at your own video directory,
+and start it:
+
+```bash
+docker compose up --detach
+```
+
+The file carries only what the container needs before it can start: the
+published image at a pinned version, the published port, the persistent `/data`
+mount, one read-only library mount, and the identity that reads them. The prdb
+API key, the first Administrator and which mounted directory becomes a Library
+Directory are deliberately not environment variables — they are settled once in
+the browser, under [Configure the installation](#configure-the-installation).
+
+### The identity that reads your media
+
+`PUID` and `PGID` are the uid and gid the application runs as. Nothing about the
+installation works until that identity can read the mounted media, so take it
+from the media rather than guessing:
+
+```bash
+stat --format '%u %g' /srv/media/videos
+```
+
+The container starts as root only long enough to take ownership of `/data`, then
+drops to `PUID:PGID` for the application itself. It never regains root, and every
+library mount is read with that identity and no other.
+
+`UMASK` defaults to `077`, so the database, its journals and every derived file
+are private to that identity. Keep the default unless the data mount enforces an
+equivalent access-control policy of its own.
+
+Treat the whole `/data` mount as sensitive. The application has to recover the
+stored prdb credential for unattended background work, so it holds it without
+application-level encryption. Restrict the mount's host permissions and include
+it only in protected backups.
+
+### Library mounts are read-only
+
+Every library is mounted `:ro`, without exception. The application never changes
+source media: neither validation nor any later Library Scan writes beneath a
+Library Directory. Add one volume line per library, each somewhere beneath
+`/libraries` — that container path is what an Administrator selects on the
+Installation screen afterwards, and nothing outside `/libraries` can be
+configured at all.
+
+The UI cannot grant the container access to a host path Docker never mounted. Add
+or change the mount in `compose.yaml` and recreate the container first; only then
+is the container path selectable.
+
+### The first Bootstrap Authorization
+
+Before opening a new installation in the browser, create its short-lived,
+single-use Bootstrap Authorization against the same persistent data mount:
+
+```bash
+docker compose run --rm viewer dotnet Prdb.Viewer.Host.dll bootstrap-authorize
+```
+
+`run` goes through the image's entrypoint, which drops to `PUID:PGID`, so the
+credential file belongs to the identity the application runs as. In an already
+running installation the equivalent is `exec`, which does not pass the entrypoint
+and therefore needs that identity spelled out:
+
+```bash
+docker compose exec --user 1000:1000 viewer \
+  dotnet Prdb.Viewer.Host.dll bootstrap-authorize
+```
+
+The identity there is `PUID:PGID` as `compose.yaml` sets it, so change it with
+the file. Run every operator command one of those two ways. A command run as root leaves
+credential files the application cannot clean up afterwards, and it warns about
+each one it had to leave behind.
+
+The command prints the file's location and never the credential. Read it back
+through the container, as the same identity:
+
+```bash
+docker compose run --rm --no-TTY viewer \
+  cat /data/operator/bootstrap-authorization.txt
+```
+
+### Upgrade
+
+Change the image tag in `compose.yaml`, then:
+
+```bash
+docker compose pull
+docker compose up --detach
+```
+
+Database migrations are forward-only. **Take a snapshot or copy of the `data`
+directory before upgrading if you might need to roll back**; see
+[Release and upgrade](#release-and-upgrade).
+
+### Libraries on a NAS or network share
+
+The application does not mount network shares and stores no NAS credentials. The
+supported pattern is one step longer and has no moving parts: mount the SMB, NFS
+or other share on the Docker host, then bind-mount that host path into the
+container. Every library therefore reaches the container as a local filesystem
+path, whatever the storage underneath it is.
+
+```yaml
+    volumes:
+      - ./data:/data
+      - /mnt/nas/videos:/libraries/main:ro
+```
+
+**SMB/CIFS carries no Unix ownership**, so the mount decides it. Give it the
+identity the application runs as, and no more access than reading needs:
+
+```
+//nas.local/videos /mnt/nas/videos cifs credentials=/etc/samba/nas.cred,uid=1000,gid=1000,file_mode=0440,dir_mode=0550,ro,_netdev,nofail 0 0
+```
+
+**NFS keeps server-side ownership**, so the uid and gid that own the files on the
+NAS are what `PUID` and `PGID` have to be. The default `root_squash` is not in a
+library mount's way, because nothing ever reads source media as root. Keep
+`/data` off NFS all the same: the entrypoint takes ownership of it as root at
+startup, which is exactly what a squashing export refuses, and `no_root_squash`
+on a data mount buys that at a price worth avoiding. Application data belongs on
+local disk.
+
+**Mount the share before the container starts.** This is the one case worth
+designing against, because it is the only one the application cannot see through:
+if the share is not mounted, Docker bind-mounts the bare mountpoint, and the
+container reads a directory that is perfectly readable and happens to be
+empty — a complete, trustworthy observation of an empty library, which is not
+what happened. Mount with `_netdev` and `nofail`, order Docker after the mount,
+and make the bare mountpoint unreadable to `PUID:PGID`:
+
+```bash
+sudo chmod 000 /mnt/nas/videos   # while the share is NOT mounted
+```
+
+The share's own permissions apply once it is mounted over that directory, and
+while it is not, nothing can read it. An outage then reaches the application as
+what it is.
+
+**A share that goes away is unavailable, never discarded.** A Library Scan that
+could not read the whole directory is not a complete observation, so it
+reconciles no absences at all: the Library Directory reports as unreachable, its
+Videos are shown as unavailable, and no Video File is advanced towards Missing.
+When the share comes back, the next Scan finds everything where it was. Taking
+library records out of the library is a separate, deliberate Administrator
+action — see [Configure the installation](#configure-the-installation).
+
+### Behind a reverse proxy
+
+A proxy that terminates TLS hides the client's scheme and address. The
+application does not trust `X-Forwarded-Proto` or `X-Forwarded-For` by default,
+because doing so lets anyone who can reach the container claim any address. Add
+`VIEWER_BEHIND_REVERSE_PROXY` once the container is reachable only through the
+proxy:
+
+```yaml
+    environment:
+      VIEWER_BEHIND_REVERSE_PROXY: "true"
+```
+
+With it enabled, the session cookie keeps its `Secure` flag and anonymous rate
+limiting partitions by the real client address instead of the proxy. Video and
+preview delivery are anonymous by design, so rate limit them at the proxy if the
+installation is reachable from the internet.
+
+## Build and check the image yourself
+
+Building the image and exercising it is a development workflow rather than a
+deployment one:
 
 ```bash
 docker build --tag prdb-viewer:local .
+docker/smoke-test.sh prdb-viewer:local
+docker/compose-test.sh prdb-viewer:local
+```
+
+`smoke-test.sh` verifies startup migration, the non-root process identity, the
+application-data owner, `ffprobe` and `ffmpeg`, read-only source media, and
+graceful shutdown.
+
+`compose-test.sh` starts the committed `compose.yaml` with that image in place of
+the published one, so the file a deployer copies cannot rot into an example that
+no longer works. It checks that the pinned version is the one this tree releases,
+that the file is valid Compose on its own, that it comes up and answers, and that
+its mounts land at the paths and under the identity this chapter describes.
+
+To run the image without Compose — a throwaway installation, for instance:
+
+```bash
 mkdir -p .data
 docker run --rm \
   --publish 8080:8080 \
@@ -222,53 +411,6 @@ docker run --rm \
   --env "PGID=$(id -g)" \
   prdb-viewer:local
 ```
-
-The image defaults to `UMASK=077` so newly created database, journal, and
-derived files are private to the configured process identity. Keep that default
-unless the application-data mount has an equivalent access-control policy.
-
-Create the initial Bootstrap Authorization against the same persistent data
-mount before starting the container, or run the equivalent command in an
-already running container:
-
-```bash
-docker run --rm \
-  --mount "type=bind,src=$PWD/.data,dst=/data" \
-  --env "PUID=$(id -u)" \
-  --env "PGID=$(id -g)" \
-  prdb-viewer:local \
-  dotnet Prdb.Viewer.Host.dll bootstrap-authorize
-```
-
-Run the production-shaped smoke test against a built image:
-
-```bash
-docker/smoke-test.sh prdb-viewer:local
-```
-
-The smoke test verifies startup migration, the non-root process identity, the
-application-data owner, `ffprobe` and `ffmpeg`, read-only source media, and
-graceful shutdown.
-
-### Behind a reverse proxy
-
-A proxy that terminates TLS hides the client's scheme and address. The
-application does not trust `X-Forwarded-Proto` or `X-Forwarded-For` by default,
-because doing so lets anyone who can reach the container claim any address. Set
-`VIEWER_BEHIND_REVERSE_PROXY=true` once the container is reachable only through
-the proxy:
-
-```bash
-docker run --rm \
-  --env VIEWER_BEHIND_REVERSE_PROXY=true \
-  ... \
-  prdb-viewer:local
-```
-
-With it enabled, the session cookie keeps its `Secure` flag and anonymous rate
-limiting partitions by the real client address instead of the proxy. Video and
-preview delivery are anonymous by design, so rate limit them at the proxy if the
-installation is reachable from the internet.
 
 ## Configure the installation
 
@@ -682,7 +824,10 @@ and every Operator Handoff, so any report can be traced to the exact build.
 
 To cut a release, move the `Unreleased` entries in
 [CHANGELOG.md](CHANGELOG.md) under the new version heading, set `VersionPrefix`
-in `Directory.Build.props`, and publish a GitHub release tagged `vX.Y.Z`.
+in `Directory.Build.props`, pin the same version in [compose.yaml](compose.yaml),
+and publish a GitHub release tagged `vX.Y.Z`. `docker/compose-test.sh` fails when
+those two versions disagree, so the supported deployment cannot be left pointing
+at the previous release.
 Publication needs the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository
 secrets; without them it warns and skips, while build, test, contract, and
 container smoke verification still run.

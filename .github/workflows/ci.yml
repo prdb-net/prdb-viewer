@@ -115,3 +115,6 @@ jobs:
 
       - name: Start and inspect image
         run: docker/smoke-test.sh prdb-viewer:ci
+
+      - name: Start the committed Compose deployment
+        run: docker/compose-test.sh prdb-viewer:ci
