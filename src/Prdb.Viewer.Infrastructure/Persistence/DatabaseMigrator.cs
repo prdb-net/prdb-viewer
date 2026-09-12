@@ -13,6 +13,7 @@ public sealed class DatabaseMigrator(
     ViewerDatabaseLocation location,
     VideoProjection projection,
     LibraryWorkScheduler scheduler,
+    TimeProvider timeProvider,
     ILogger<DatabaseMigrator> logger)
 {
     public async Task PrepareAsync(CancellationToken cancellationToken = default)
@@ -25,6 +26,7 @@ public sealed class DatabaseMigrator(
             location.RestrictDatabaseFiles();
             await BuildOutstandingProjectionsAsync(cancellationToken);
             await ScheduleReinspectionAsync(cancellationToken);
+            await ScheduleNeighbourhoodSearchAsync(cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -101,6 +103,56 @@ public sealed class DatabaseMigrator(
             logger.LogInformation(
                 "Queued {Count} Library Scan(s) to inspect the media facts client qualification " +
                 "needs.",
+                directories.Count);
+        }
+    }
+
+    /// <summary>
+    /// Queues the neighbourhood search for every Active Library Directory that holds Video Files
+    /// whose Perceptual Hash nothing has been compared against yet.
+    ///
+    /// An installation that upgrades into this has a full library of hashes and no comparisons, and
+    /// nothing else would ask for them until the next file is hashed. The lane is a backlog, so
+    /// queueing it once is enough: it finds what is outstanding and stops when there is none.
+    /// </summary>
+    private async Task ScheduleNeighbourhoodSearchAsync(CancellationToken cancellationToken)
+    {
+        var outstanding = await context.VideoFiles.AnyAsync(
+            file => file.Availability == VideoFileAvailability.Available &&
+                    file.PerceptualHash != null &&
+                    (file.NeighbourhoodComparedHash == null ||
+                     file.NeighbourhoodComparedHash != file.PerceptualHash),
+            cancellationToken);
+
+        if (!outstanding)
+        {
+            return;
+        }
+
+        var directories = await context.LibraryDirectories
+            .AsNoTracking()
+            .Where(directory => directory.State == LibraryDirectoryState.Active)
+            .Select(directory => new { directory.Id, directory.ConfigurationGeneration })
+            .ToListAsync(cancellationToken);
+
+        foreach (var directory in directories)
+        {
+            await DerivedWorkQueue.QueueAsync(
+                context,
+                directory.Id,
+                directory.ConfigurationGeneration,
+                BackgroundWorkCategory.PerceptualNeighbourhood,
+                BackgroundWorkTrigger.FollowUpWork,
+                timeProvider.GetUtcNow().UtcDateTime,
+                cancellationToken);
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+
+        if (directories.Count > 0)
+        {
+            logger.LogInformation(
+                "Queued the perceptual neighbourhood search for {Count} Library Directory(ies).",
                 directories.Count);
         }
     }

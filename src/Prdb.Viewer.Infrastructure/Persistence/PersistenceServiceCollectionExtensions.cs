@@ -49,6 +49,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<IdentificationRunner>();
         services.AddScoped<SiteDirectory>();
         services.AddScoped<SiteRecognitionRunner>();
+        services.AddScoped<PerceptualNeighbourhoodRunner>();
         services.AddScoped<EnrichmentRunner>();
         services.AddScoped<IdentificationService>();
         services.AddScoped<IdentificationReviewService>();

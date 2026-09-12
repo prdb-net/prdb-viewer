@@ -47,6 +47,7 @@ public sealed class HashingRunner(
         var tracked = await Database.VideoFiles
             .AsTracking()
             .SingleAsync(row => row.Id == file.Id, cancellationToken);
+        var previousPerceptualHash = tracked.PerceptualHash;
         var path = SourceFile.Resolve(work.LibraryDirectory.ContainerPath, file.RelativePath);
         var hashes = path is not null && IsStable(path, file)
             ? await hasher.ComputeAsync(path, cancellationToken)
@@ -68,6 +69,20 @@ public sealed class HashingRunner(
             (null, null) => VideoFileHashState.Failed,
             _ => VideoFileHashState.Incomplete,
         };
+
+        // What this file was found to resemble was concluded from the value it no longer carries.
+        // A resemblance nobody can account for is exactly what the evidence principle forbids, so
+        // the conclusions go when the value they rest on does — the way an identification is
+        // guarded by the content it was established against.
+        if (!string.Equals(previousPerceptualHash, tracked.PerceptualHash, StringComparison.OrdinalIgnoreCase))
+        {
+            await Database.PerceptualNeighbourhoods
+                .Where(row => row.LeftVideoFileId == tracked.Id ||
+                              row.RightVideoFileId == tracked.Id)
+                .ExecuteDeleteAsync(cancellationToken);
+            tracked.NeighbourhoodComparedHash = null;
+            tracked.NeighbourhoodComparedAt = null;
+        }
 
         if (tracked.HashState == VideoFileHashState.Failed)
         {
@@ -132,15 +147,30 @@ public sealed class HashingRunner(
         work.CompletedItemCount++;
     }
 
-    protected override Task CompleteAsync(
+    /// <summary>
+    /// Hands the Library Directory on to the two lanes that read what this one computed. prdb is
+    /// asked about the hashes, and the installation's own files are compared with each other;
+    /// neither waits for the other, because the local comparison needs nothing prdb says and is
+    /// most use for exactly the files prdb will have no answer about.
+    /// </summary>
+    protected override async Task CompleteAsync(
         BackgroundWorkRow work,
-        CancellationToken cancellationToken) =>
-        DerivedWorkQueue.QueueAsync(
-            Database,
-            work.LibraryDirectoryId,
-            work.ConfigurationGeneration,
+        CancellationToken cancellationToken)
+    {
+        foreach (var category in new[]
+        {
             BackgroundWorkCategory.Identification,
-            BackgroundWorkTrigger.FollowUpWork,
-            Now(),
-            cancellationToken);
+            BackgroundWorkCategory.PerceptualNeighbourhood,
+        })
+        {
+            await DerivedWorkQueue.QueueAsync(
+                Database,
+                work.LibraryDirectoryId,
+                work.ConfigurationGeneration,
+                category,
+                BackgroundWorkTrigger.FollowUpWork,
+                Now(),
+                cancellationToken);
+        }
+    }
 }

@@ -19,13 +19,16 @@ VIEWER_BENCHMARK=1 VIEWER_BENCHMARK_REPORT=/tmp/prdb-viewer-benchmark.txt \
 It builds a library at two scales, each with several Accounts holding private
 state, multi-file Videos, and established Identification Claims, then measures
 the read paths a signed-in User and an Administrator actually wait for and the
-write path every playback report takes. Each measurement is the median and
-slowest of twenty samples against a real SQLite database in WAL mode, opened
-exactly the way the Host opens it.
+write path every playback report takes. Each of those is the median and slowest
+of twenty samples against a real SQLite database in WAL mode, opened exactly the
+way the Host opens it. The perceptual neighbourhood search is measured
+differently, because it is a backlog rather than a request: it is drained once,
+end to end, and what is reported is what an installation pays for the whole
+library.
 
 ## Result
 
-Measured on 2026-08-28 with .NET 10.0.111 on Ubuntu 26.04, an Intel Core 5 210H
+Measured on 2026-09-12 with .NET 10.0.112 on Ubuntu 26.04, an Intel Core 5 210H
 (12 threads) and 15 GiB of memory. The seeded library is ordinary H.264/AAC in
 MP4 — a Client-Dependent configuration each Account's client has qualified — so
 the library measurements include the per-Account, per-client admission question
@@ -37,33 +40,44 @@ rather than the one classification that can skip it.
 
 | Operation | Median | Slowest |
 | --- | --- | --- |
-| Library, first page | 15 ms | 213 ms |
-| Library, deep page | 16 ms | 17 ms |
-| Library, search | 4 ms | 18 ms |
-| Library, title order | 17 ms | 20 ms |
-| Library facets | 1 ms | 20 ms |
-| Personal library shelves | 10 ms | 71 ms |
-| Background work status | 1 ms | 33 ms |
-| Identification review queue | 2 ms | 39 ms |
+| Library, first page | 16 ms | 224 ms |
+| Library, deep page | 16 ms | 19 ms |
+| Library, search | 4 ms | 20 ms |
+| Library, title order | 16 ms | 21 ms |
+| Library facets | 2 ms | 26 ms |
+| Personal library shelves | 3 ms | 38 ms |
+| Background work status | 1 ms | 39 ms |
+| Identification review queue | 2 ms | 47 ms |
 | Outstanding hashing lane query | 1 ms | 5 ms |
-| Playback report write | 2 ms | 53 ms |
+| Playback report write | 6 ms | 59 ms |
 
 ### 20,000 Videos
 
-22,000 Video Files · 25 Accounts · 52 MiB database
+22,000 Video Files · 25 Accounts · 55 MiB database
 
 | Operation | Median | Slowest |
 | --- | --- | --- |
-| Library, first page | 69 ms | 80 ms |
-| Library, deep page | 81 ms | 86 ms |
-| Library, search | 24 ms | 27 ms |
-| Library, title order | 69 ms | 74 ms |
-| Library facets | 3 ms | 4 ms |
-| Personal library shelves | 54 ms | 64 ms |
-| Background work status | 1 ms | 2 ms |
-| Identification review queue | 12 ms | 14 ms |
-| Outstanding hashing lane query | 7 ms | 7 ms |
-| Playback report write | 1 ms | 2 ms |
+| Library, first page | 57 ms | 61 ms |
+| Library, deep page | 66 ms | 69 ms |
+| Library, search | 15 ms | 16 ms |
+| Library, title order | 52 ms | 55 ms |
+| Library facets | 6 ms | 7 ms |
+| Personal library shelves | 17 ms | 18 ms |
+| Background work status | 1 ms | 3 ms |
+| Identification review queue | 13 ms | 15 ms |
+| Outstanding hashing lane query | 6 ms | 7 ms |
+| Playback report write | 4 ms | 10 ms |
+
+### The perceptual neighbourhood search
+
+This one is not a request anybody waits for, so it is not measured as one. It is
+the whole backlog, drained once, over the same seeded libraries — every Video
+File compared against every other that carries a Perceptual Hash.
+
+| Library | Whole backlog | Slices | Neighbourhoods found |
+| --- | --- | --- | --- |
+| 2,200 Video Files | 2.0 s | 36 | 200 |
+| 22,000 Video Files | 71 s | 345 | 2,000 |
 
 The slowest samples at the smaller scale are first-call costs — query
 compilation and connection setup — rather than a property of the data.
@@ -75,7 +89,7 @@ compilation and connection setup — rather than a property of the data.
   still keeps the page itself off the library's back — search, title order and
   the facet lists are unchanged — but admission is now Client Video Playability
   (ADR 0015), which is per Account and per client and therefore cannot be a
-  column. Deciding it for 20,000 Videos costs 69 ms against the 6 ms the
+  column. Deciding it for 20,000 Videos costs 57 ms against the 6 ms the
   installation-wide approximation cost, and the approximation was wrong: it
   offered Videos this browser cannot play and hid ones it can.
 - **Two thirds of that is the exact match count.** The page itself stops after
@@ -83,12 +97,21 @@ compilation and connection setup — rather than a property of the data.
   the library. The count that says how many matches were kept out is arithmetic
   rather than a second pass, which is what keeps this at one full decision per
   request instead of two.
+- **Finding which of a library's own files look alike is paid once.** Seventy
+  seconds for 22,000 Video Files is the whole backlog, and the second pass over
+  an unchanged library does nothing at all: a file is compared once for the hash
+  value it carries, and again only if it is hashed to a different one. The cost
+  is quadratic in the library — ten times the files cost thirty-five times the
+  work — which is why it is a durable backlog in bounded slices rather than a
+  sweep: an installation that is restarted, paused, or has its Library Directory
+  reconfigured keeps every comparison it has already made, and a library that
+  grows by one file pays for one file.
 - SQLite is comfortably the right database for this product. Background Work
   queries, the identification queue, and every Personal State write stay in
   single-digit milliseconds at both scales, and the lanes never pay a
   library-sized cost to find their next item.
 - Paging deeper costs a little more, because SQLite still walks the rows it
-  skips. At 20,000 Videos the last page of the library costs 81 ms, which is not
+  skips. At 20,000 Videos the last page of the library costs 66 ms, which is not
   worth trading for a cursor the ordering rules would have to encode.
 - Search costs less than browsing here, because a query that matches three
   Videos asks the admission question three times rather than twenty thousand.
@@ -97,14 +120,19 @@ compilation and connection setup — rather than a property of the data.
 
 ## What has not been measured
 
-Personal library shelves scale with what one Account has touched rather than
-with the library, which is what they are supposed to cost. At 54 ms for 400
-retained entries they were the slowest read here, and an Account with many
-thousands of Favourites would have wanted the same paging treatment the library
-has. Since ADR 0019 a shelf is the library narrowed to it — one more predicate
-over the Account's Personal State, paged like every other answer — so that cost
-is now the library's cost. The figures above predate the change and have not
-been taken again.
+An Account with many thousands of retained shelf entries. Since ADR 0019 a
+Personal Shelf is the library narrowed to it — one more predicate over the
+Account's Personal State, paged like every other answer — and at 400 retained
+entries it costs less than browsing does. What has not been measured is an
+Account whose shelves hold a meaningful fraction of the library, where the
+predicate stops narrowing anything.
+
+The perceptual neighbourhood search above compares one hash against every other
+in a single pass, which is the honest shape of the work and the reason the cost
+is quadratic. Whether an index over the hash — banding the 64 bits so that only
+candidates sharing a band are compared — is worth its own durable structure has
+not been measured, and is not worth deciding before a real installation finds
+the pass too slow. What is measured is that the pass is paid once.
 
 ## History
 

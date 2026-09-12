@@ -200,6 +200,10 @@ _Avoid_: automatic correction, permanent identification
 The 64-bit description of what a Video File looks like rather than what its bytes are, computed over frames sampled across its whole running time as prdb defines it. Two of them are compared by Hamming distance and never for equality, and a Video File whose container cannot be sampled simply has none.
 _Avoid_: fingerprint, checksum, OS hash
 
+**Perceptual Neighbourhood**:
+The durable fact that two of this installation's Video Files look alike: the pair, the Hamming distance between their Perceptual Hashes, and whether their running times agree. It is evidence about a pair rather than a property of either file, it names no work and identifies nothing, and it is recomputed rather than kept when either file is hashed to a different value.
+_Avoid_: duplicate, similarity score, Work Association
+
 **Work Association**:
 A provenance-bearing assertion that two Videos carry the same content, without naming what that content is. It is not an Identification Claim, because it identifies nothing: an association may merge two Videos while leaving the surviving one an Unknown Video.
 _Avoid_: Identification Claim, Work Identification, duplicate detection

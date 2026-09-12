@@ -383,6 +383,7 @@ public static class SeedCommand
                 await SliceAsync<PreviewGenerationRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken) |
                 await SliceAsync<IdentificationRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken) |
                 await SliceAsync<SiteRecognitionRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken) |
+                await SliceAsync<PerceptualNeighbourhoodRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken) |
                 await SliceAsync<EnrichmentRunner>(services, (runner, token) => runner.RunNextSliceAsync(token), cancellationToken);
 
             if (!advanced)

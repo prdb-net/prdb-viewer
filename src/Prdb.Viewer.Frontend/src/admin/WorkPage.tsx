@@ -262,6 +262,7 @@ const laneOrder = [
   'PreviewGeneration',
   'Identification',
   'SiteRecognition',
+  'PerceptualNeighbourhood',
   'Enrichment',
 ]
 

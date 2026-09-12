@@ -70,6 +70,9 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<ProposedWorkRow> ProposedWorks => Set<ProposedWorkRow>();
 
+    public DbSet<PerceptualNeighbourhoodRow> PerceptualNeighbourhoods =>
+        Set<PerceptualNeighbourhoodRow>();
+
     public DbSet<ClientPlaybackAssessmentRow> ClientPlaybackAssessments =>
         Set<ClientPlaybackAssessmentRow>();
 
@@ -478,6 +481,14 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             });
             videoFile.HasIndex(row => row.ProfileKey);
             videoFile.HasIndex(row => new { row.LibraryDirectoryId, row.Availability, row.SiteRecognisedPath });
+            // The backlog question the neighbourhood search asks: which Available occurrences of
+            // this Library Directory carry a Perceptual Hash nothing has been compared against yet.
+            videoFile.HasIndex(row => new
+            {
+                row.LibraryDirectoryId,
+                row.Availability,
+                row.NeighbourhoodComparedHash,
+            });
             videoFile.HasOne(row => row.Video)
                 .WithMany(row => row.VideoFiles)
                 .HasForeignKey(row => row.VideoId)
@@ -598,6 +609,32 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
                 .WithMany(row => row.PlaybackAttempts)
                 .HasForeignKey(row => row.VideoFileId)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<PerceptualNeighbourhoodRow>(neighbourhood =>
+        {
+            neighbourhood.ToTable("perceptual_neighbourhood");
+            neighbourhood.HasKey(row => row.Id);
+            neighbourhood.Property(row => row.Id).ValueGeneratedNever();
+            neighbourhood.Property(row => row.LeftPerceptualHash).IsRequired();
+            neighbourhood.Property(row => row.RightPerceptualHash).IsRequired();
+            // A pair is one fact. Holding it once, with the smaller identifier on the left, is what
+            // lets the search be resumed and repeated without ever producing the same neighbourhood
+            // twice under two names.
+            neighbourhood.HasIndex(row => new { row.LeftVideoFileId, row.RightVideoFileId })
+                .IsUnique();
+            // Both sides are asked about: what this file resembles, whichever side of the pair it
+            // happens to be on.
+            neighbourhood.HasIndex(row => new { row.RightVideoFileId, row.Distance });
+            neighbourhood.HasIndex(row => new { row.LeftVideoFileId, row.Distance });
+            neighbourhood.HasOne(row => row.LeftVideoFile)
+                .WithMany()
+                .HasForeignKey(row => row.LeftVideoFileId)
+                .OnDelete(DeleteBehavior.Cascade);
+            neighbourhood.HasOne(row => row.RightVideoFile)
+                .WithMany()
+                .HasForeignKey(row => row.RightVideoFileId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

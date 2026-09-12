@@ -42,6 +42,7 @@ public sealed class DisplayedStateTests
                 "Hashing",
                 "Identification",
                 "LibraryScan",
+                "PerceptualNeighbourhood",
                 "PreviewGeneration",
                 "SiteRecognition",
                 "TechnicalInspection",

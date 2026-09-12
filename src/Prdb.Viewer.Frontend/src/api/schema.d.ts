@@ -2190,7 +2190,7 @@ export interface components {
         /** @enum {unknown} */
         BackgroundWorkActionVerdict: "Accepted" | "NotFound" | "AlreadySettled" | "Stale" | "NotApplicable";
         /** @enum {unknown} */
-        BackgroundWorkCategory: "LibraryScan" | "TechnicalInspection" | "Hashing" | "PreviewGeneration" | "Identification" | "SiteRecognition" | "Enrichment";
+        BackgroundWorkCategory: "LibraryScan" | "TechnicalInspection" | "Hashing" | "PreviewGeneration" | "Identification" | "SiteRecognition" | "PerceptualNeighbourhood" | "Enrichment";
         BackgroundWorkPauseRequest: {
             paused: boolean;
         };
