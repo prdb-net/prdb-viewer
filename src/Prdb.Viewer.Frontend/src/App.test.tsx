@@ -1455,10 +1455,18 @@ describe('App', () => {
     await vi.waitFor(() => expect(player.getAttribute('src')).toBe('/media/videos/bbb'))
 
     // Playback advances far enough to be worth reporting, and then the timer fires.
+    //
+    // Active Watching is confirmed time, so the player counts the smaller of what the media
+    // advanced and what the wall clock did. Four `timeUpdate` events raised in one synchronous
+    // loop can all land in the same millisecond, and then the wall clock advanced by nothing and
+    // the player has — correctly — confirmed nothing to report. Letting a little real time pass
+    // between them is what makes this about the Video File a report names rather than about how
+    // fast the machine running it happens to be.
     Object.defineProperty(player, 'paused', { configurable: true, value: false })
     Object.defineProperty(player, 'currentTime', { configurable: true, writable: true, value: 0 })
     fireEvent.playing(player)
     for (let step = 1; step <= 4; step++) {
+      await new Promise((resume) => setTimeout(resume, 5))
       ;(player as unknown as { currentTime: number }).currentTime = step / 10
       fireEvent.timeUpdate(player)
     }

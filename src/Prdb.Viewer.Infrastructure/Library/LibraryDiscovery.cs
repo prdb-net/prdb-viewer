@@ -213,23 +213,17 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             return null;
         }
 
-        var wanted = associations.Select(row => row.OtherVideoFileId).ToArray();
-        var files = await database.VideoFiles
-            .AsNoTracking()
-            .Where(file => wanted.Contains(file.Id))
-            .ToDictionaryAsync(file => file.Id, cancellationToken);
-
+        // Without the Video Files the conclusion was drawn from. What a Video's own page owes a
+        // reader is the account of the merge — what was concluded, from what reading, and by a
+        // rule or by a person — and that account is the summary. The files themselves are where
+        // the library keeps its media, which no ordinary screen has ever named: an Administrator
+        // deciding a case is shown paths, and everybody else is shown Videos.
         return associations
-            .Select(association =>
-            {
-                files.TryGetValue(association.OtherVideoFileId, out var file);
-
-                return IdentificationCasePresentation.AssociationView(
-                    association,
-                    videoId,
-                    otherVideo: null,
-                    file);
-            })
+            .Select(association => IdentificationCasePresentation.AssociationView(
+                association,
+                videoId,
+                otherVideo: null,
+                otherFile: null))
             .ToArray();
     }
 

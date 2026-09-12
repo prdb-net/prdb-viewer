@@ -408,7 +408,6 @@ function AssociationsSection({ associations }: { associations: IdentificationAss
             <p>{association.summary}</p>
             <small>
               {provenanceLabel(association.source)}
-              {association.otherRelativePath && <> · <code>{association.otherRelativePath}</code></>}
               {association.note && <> · “{association.note}”</>}
             </small>
           </li>
