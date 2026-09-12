@@ -42,6 +42,45 @@ public sealed class IdentificationReviewService(
     {
         request ??= new IdentificationQueueRequest();
 
+        var groups = (await AllGroupsAsync(cancellationToken))
+            .Where(group => (request.Dimension is null || group.Dimension == request.Dimension) &&
+                            (request.Reason is null || group.Reason == request.Reason) &&
+                            (request.EvidenceClass is null ||
+                             group.EvidenceClass == request.EvidenceClass))
+            .ToArray();
+        var ordered = IdentificationReviewOrder.Sort(
+            groups,
+            group => new IdentificationReviewGroupFacts(
+                group.CaseCount,
+                group.EvidenceClass,
+                group.Reason,
+                group.Displaces,
+                group.OldestCaseAt));
+        var page = ordered
+            .Skip(Math.Max(0, request.Skip))
+            .Take(Math.Clamp(request.Take, 1, 50))
+            .ToArray();
+        var shown = new List<IdentificationReviewGroup>(page.Length);
+
+        foreach (var group in page)
+        {
+            shown.Add(await ShowAsync(group, cancellationToken));
+        }
+
+        return new IdentificationQueue(
+            ordered.Count,
+            ordered.Sum(group => group.CaseCount),
+            shown,
+            Facets(groups));
+    }
+
+    /// <summary>
+    /// Every question the backlog is currently asking, as one small row each. It is read in full
+    /// because the order is a rule rather than an <c>OrderBy</c>, and it is bounded by how many
+    /// different things the library is being asked about rather than by how many cases there are.
+    /// </summary>
+    private async Task<IReadOnlyList<Pending>> AllGroupsAsync(CancellationToken cancellationToken)
+    {
         var candidates = await database.IdentificationCandidates
             .AsNoTracking()
             .Where(candidate => candidate.Status == IdentificationCandidateStatus.Pending &&
@@ -84,7 +123,7 @@ public sealed class IdentificationReviewService(
             .Where(row => row.Status == WorkAssociationStatus.Proposed)
             .Select(row => new { row.Id, row.CreatedAt })
             .ToListAsync(cancellationToken);
-        var groups = candidates
+        return candidates
             .Select(group => new Pending(
                 CandidateKey(
                     group.Key.Dimension,
@@ -118,36 +157,250 @@ public sealed class IdentificationReviewService(
                 CaseCount: 1,
                 association.CreatedAt,
                 association.Id)))
-            .Where(group => (request.Dimension is null || group.Dimension == request.Dimension) &&
-                            (request.Reason is null || group.Reason == request.Reason) &&
-                            (request.EvidenceClass is null ||
-                             group.EvidenceClass == request.EvidenceClass))
             .ToArray();
-        var ordered = IdentificationReviewOrder.Sort(
-            groups,
-            group => new IdentificationReviewGroupFacts(
-                group.CaseCount,
-                group.EvidenceClass,
-                group.Reason,
-                group.Displaces,
-                group.OldestCaseAt));
-        var page = ordered
-            .Skip(Math.Max(0, request.Skip))
-            .Take(Math.Clamp(request.Take, 1, 50))
-            .ToArray();
-        var shown = new List<IdentificationReviewGroup>(page.Length);
+    }
 
-        foreach (var group in page)
+    /// <summary>
+    /// One group about to be decided: what each decision would do to the whole of it, and every
+    /// case it would settle with the version it is being read at.
+    ///
+    /// The manifest is fetched only when somebody is about to decide, rather than carried by every
+    /// page of the queue, because it is what the act is bound to rather than what a reviewer reads.
+    /// </summary>
+    public async Task<IdentificationGroupPlan?> GetGroupPlanAsync(
+        string groupKey,
+        CancellationToken cancellationToken = default)
+    {
+        var group = await FindGroupAsync(groupKey, cancellationToken);
+
+        if (group is null)
         {
-            shown.Add(await ShowAsync(group, cancellationToken));
+            return null;
         }
 
-        return new IdentificationQueue(
-            ordered.Count,
-            ordered.Sum(group => group.CaseCount),
-            shown,
-            Facets(groups));
+        var cases = await GroupCasesAsync(group, cancellationToken);
+        var refusedBySite = group.Dimension == IdentificationDimension.SiteRecognition
+            ? await RefusedSiteCasesAsync(group, cancellationToken)
+            : 0;
+        var mergesInto = group.AssociationId is null &&
+                         group.Dimension == IdentificationDimension.WorkIdentification &&
+                         group.TargetKey is not null &&
+                         await database.IdentificationClaims.AnyAsync(
+                             claim => claim.Dimension == IdentificationDimension.WorkIdentification &&
+                                      claim.Status == IdentificationClaimStatus.Current &&
+                                      claim.TargetKey == group.TargetKey,
+                             cancellationToken);
+
+        return new IdentificationGroupPlan(
+            group.Key,
+            group.Dimension,
+            group.TargetTitle,
+            group.CaseCount,
+            IdentificationCasePresentation.InCommon(
+                group.Dimension,
+                group.Reason,
+                group.EvidenceClass,
+                group.Source,
+                group.TargetTitle,
+                group.CaseCount,
+                group.Displaces),
+            IdentificationCasePresentation.Differ(group.CaseCount, group.TargetTitle),
+            IdentificationCasePresentation.GroupDecisions(
+                group.AssociationId is not null,
+                group.Dimension,
+                group.CaseCount,
+                group.TargetTitle,
+                mergesInto,
+                refusedBySite),
+            cases);
     }
+
+    /// <summary>
+    /// Settles a bounded batch of one group's cases with one decision, case by case.
+    /// </summary>
+    /// <remarks>
+    /// It is not Background Work, and that is a decision rather than an omission. Every lane this
+    /// application runs belongs to one Library Directory and to that directory's configuration
+    /// generation (ADR 0009), while a group spans the whole library — so a durable lane would have
+    /// meant widening the model every lane shares for one administrative action. What a lane buys
+    /// is resumption across restarts and issues attached to a scope, and neither is what a person's
+    /// act wants: if the browser goes away halfway, the right outcome is that what was decided
+    /// stands and the rest stays open, which is exactly what bounded committed batches give. The
+    /// progress is visible because each batch says what it settled, what it skipped and what it
+    /// refused, and the act is one act because every batch carries the same identity into every
+    /// Video's history.
+    ///
+    /// It is not all-or-nothing either. Over four hundred cases that would mean one case moving
+    /// underneath throws the reviewer's work away.
+    /// </remarks>
+    public async Task<IdentificationGroupDecisionResult> DecideGroupAsync(
+        Guid accountId,
+        IdentificationGroupDecisionRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        var group = await FindGroupAsync(request.GroupKey, cancellationToken);
+
+        if (group is null)
+        {
+            return Nothing(IdentificationGroupDecisionVerdict.NotFound, "This group is no longer open.");
+        }
+
+        if (IdentificationCasePresentation.GroupRefusal(request.Action, group.AssociationId is not null)
+            is { } refusal)
+        {
+            return Nothing(IdentificationGroupDecisionVerdict.ActionUnavailable, refusal);
+        }
+
+        var note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
+        var applied = 0;
+        var skipped = new List<IdentificationGroupOutcome>();
+        var refused = new List<IdentificationGroupOutcome>();
+        await using var transaction = await database.Database
+            .BeginTransactionAsync(cancellationToken);
+
+        foreach (var subject in request.Cases.Take(GroupBatchLimit))
+        {
+            var result = await DecideAsync(
+                accountId,
+                subject.VideoId,
+                new IdentificationDecisionRequest(
+                    request.Action,
+                    group.Dimension,
+                    subject.CaseVersion,
+                    Confirm: true,
+                    CandidateId: subject.CandidateId,
+                    Note: note,
+                    AssociationId: subject.AssociationId),
+                request.ActId,
+                cancellationToken);
+
+            switch (result.Verdict)
+            {
+                case IdentificationDecisionVerdict.Applied:
+                    applied++;
+                    break;
+                case IdentificationDecisionVerdict.Stale:
+                    skipped.Add(new IdentificationGroupOutcome(
+                        subject.VideoId,
+                        "This case changed while the group was being read, so it was left open " +
+                        "rather than decided on the reading you saw."));
+                    break;
+                case IdentificationDecisionVerdict.ActionUnavailable:
+                    refused.Add(new IdentificationGroupOutcome(
+                        subject.VideoId,
+                        "This Site Recognition came with the Work Identification, so it cannot be " +
+                        "decided separately."));
+                    break;
+                case IdentificationDecisionVerdict.NoteRequired:
+                    return Nothing(
+                        IdentificationGroupDecisionVerdict.NoteRequired,
+                        "This decision needs a note, and the note is given once for the whole act.");
+                default:
+                    skipped.Add(new IdentificationGroupOutcome(
+                        subject.VideoId,
+                        "This case is no longer open."));
+                    break;
+            }
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+
+        return new IdentificationGroupDecisionResult(
+            IdentificationGroupDecisionVerdict.Applied,
+            applied,
+            skipped,
+            refused,
+            IdentificationCasePresentation.GroupOutcome(applied, skipped.Count, refused.Count));
+    }
+
+    /// <summary>
+    /// How many cases one call settles. A group of four hundred is answered in batches rather than
+    /// in one request-scoped transaction, because four hundred merges with their Personal State
+    /// reconciliation is not something a person should watch a browser hang for.
+    /// </summary>
+    public const int GroupBatchLimit = 25;
+
+    private static IdentificationGroupDecisionResult Nothing(
+        IdentificationGroupDecisionVerdict verdict,
+        string summary) =>
+        new(verdict, 0, [], [], summary);
+
+    /// <summary>The group one key names, as the queue would assemble it now.</summary>
+    private async Task<Pending?> FindGroupAsync(string key, CancellationToken cancellationToken) =>
+        (await AllGroupsAsync(cancellationToken))
+            .SingleOrDefault(group => group.Key == key);
+
+    private async Task<IReadOnlyList<IdentificationGroupCase>> GroupCasesAsync(
+        Pending group,
+        CancellationToken cancellationToken)
+    {
+        if (group.AssociationId is { } associationId)
+        {
+            var association = await database.WorkAssociations
+                .AsNoTracking()
+                .SingleOrDefaultAsync(
+                    row => row.Id == associationId &&
+                           row.Status == WorkAssociationStatus.Proposed,
+                    cancellationToken);
+
+            if (association is null)
+            {
+                return [];
+            }
+
+            var video = await database.Videos
+                .AsNoTracking()
+                .SingleOrDefaultAsync(row => row.Id == association.VideoId, cancellationToken);
+
+            return video is null
+                ? []
+                : [new IdentificationGroupCase(
+                    video.Id,
+                    video.CaseVersion,
+                    null,
+                    association.Id,
+                    video.DisplayLabel)];
+        }
+
+        return await CandidatesOf(group)
+            .OrderBy(candidate => candidate.CreatedAt)
+            .Select(candidate => new IdentificationGroupCase(
+                candidate.VideoId,
+                candidate.Video.CaseVersion,
+                candidate.Id,
+                null,
+                candidate.Video.DisplayLabel))
+            .ToListAsync(cancellationToken);
+    }
+
+    /// <summary>
+    /// The cases of a site group whose Site came with an Established Work Identification. They
+    /// cannot be decided separately, and saying how many of them there are before the button is
+    /// what stops a count promising more than it settles.
+    /// </summary>
+    private Task<int> RefusedSiteCasesAsync(Pending group, CancellationToken cancellationToken) =>
+        CandidatesOf(group)
+            .CountAsync(
+                candidate => candidate.Video.Metadata != null &&
+                             candidate.Video.Metadata.SiteId != null &&
+                             candidate.Video.IdentificationClaims.Any(claim =>
+                                 claim.Dimension == IdentificationDimension.WorkIdentification &&
+                                 claim.Status == IdentificationClaimStatus.Current),
+                cancellationToken);
+
+    private IQueryable<IdentificationCandidateRow> CandidatesOf(Pending group) =>
+        database.IdentificationCandidates
+            .AsNoTracking()
+            .Where(candidate => candidate.Status == IdentificationCandidateStatus.Pending &&
+                                candidate.Video.SurvivingVideoId == null &&
+                                candidate.Dimension == group.Dimension &&
+                                candidate.Reason == group.Reason &&
+                                candidate.EvidenceClass == group.EvidenceClass &&
+                                candidate.Source == group.Source &&
+                                candidate.TargetKey == group.TargetKey &&
+                                candidate.Video.IdentificationClaims.Any(claim =>
+                                    claim.Dimension == candidate.Dimension &&
+                                    claim.Status == IdentificationClaimStatus.Current) == group.Displaces);
 
     /// <summary>One question the backlog is asking, before its cases are read.</summary>
     private sealed record Pending(
@@ -456,14 +709,30 @@ public sealed class IdentificationReviewService(
         return video is null ? null : await CaseOfAsync(video, cancellationToken);
     }
 
-    public async Task<IdentificationDecisionResult> DecideAsync(
+    public Task<IdentificationDecisionResult> DecideAsync(
         Guid accountId,
         Guid videoId,
         IdentificationDecisionRequest request,
+        CancellationToken cancellationToken = default) =>
+        DecideAsync(accountId, videoId, request, groupDecisionId: null, cancellationToken);
+
+    /// <summary>
+    /// One case, decided. A group decision reaches this once per case rather than through a second
+    /// path of its own: what a group settles has to be exactly what settling each of its cases
+    /// would have been, or the count on the button is not a promise about anything.
+    /// </summary>
+    private async Task<IdentificationDecisionResult> DecideAsync(
+        Guid accountId,
+        Guid videoId,
+        IdentificationDecisionRequest request,
+        Guid? groupDecisionId,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await database.Database
-            .BeginTransactionAsync(cancellationToken);
+        // A group applies its cases inside one transaction of its own, so this joins the one it
+        // finds rather than opening a second.
+        await using var transaction = database.Database.CurrentTransaction is null
+            ? await database.Database.BeginTransactionAsync(cancellationToken)
+            : null;
         var video = await Query()
             .AsTracking()
             .SingleOrDefaultAsync(
@@ -493,6 +762,7 @@ public sealed class IdentificationReviewService(
                 video,
                 request,
                 transaction,
+                groupDecisionId,
                 cancellationToken);
         }
 
@@ -603,6 +873,7 @@ public sealed class IdentificationReviewService(
             ResultingState = outcome.ResultingState ?? IdentificationCasePresentation.StateOf(subject, request.Dimension),
             MergedAnotherVideo = consequence.MergesAnotherVideo,
             Note = note,
+            GroupDecisionId = groupDecisionId,
             CreatedAt = Now(),
         });
 
@@ -616,7 +887,7 @@ public sealed class IdentificationReviewService(
         // the files of this library that look like it. It joins this transaction rather than
         // opening its own, so a decision and what it proposes elsewhere are one act or neither.
         await similarity.OfferVideoToNeighboursAsync(subject.Id, cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        await CommitAsync(transaction, cancellationToken);
 
         return new IdentificationDecisionResult(
             IdentificationDecisionVerdict.Applied,
@@ -639,7 +910,8 @@ public sealed class IdentificationReviewService(
         Guid accountId,
         VideoRow video,
         IdentificationDecisionRequest request,
-        IDbContextTransaction transaction,
+        IDbContextTransaction? transaction,
+        Guid? groupDecisionId,
         CancellationToken cancellationToken)
     {
         var association = request.AssociationId is null
@@ -734,18 +1006,29 @@ public sealed class IdentificationReviewService(
                 IdentificationDimension.WorkIdentification),
             MergedAnotherVideo = associates,
             Note = note,
+            GroupDecisionId = groupDecisionId,
             CreatedAt = now,
         });
 
         await projection.RefreshTrackedAsync(cancellationToken);
         await database.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        await CommitAsync(transaction, cancellationToken);
 
         return new IdentificationDecisionResult(
             IdentificationDecisionVerdict.Applied,
             consequence,
             await GetCaseAsync(subject.Id, cancellationToken));
     }
+
+    /// <summary>
+    /// Commits the unit of work this decision opened, and does nothing where it joined one. A case
+    /// decided as part of a group belongs to the group's transaction: what a group settles is one
+    /// act or none of it.
+    /// </summary>
+    private static Task CommitAsync(
+        IDbContextTransaction? transaction,
+        CancellationToken cancellationToken) =>
+        transaction?.CommitAsync(cancellationToken) ?? Task.CompletedTask;
 
     private async Task<ApplyOutcome> ApplyAsync(
         VideoRow video,

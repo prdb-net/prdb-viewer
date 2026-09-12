@@ -292,6 +292,77 @@ public sealed record IdentificationQueueRequest
     public IdentificationEvidenceClass? EvidenceClass { get; init; }
 }
 
+/// <summary>One case of a group, as the act that will settle it was shown it.</summary>
+/// <remarks>
+/// The <see cref="CaseVersion"/> is what makes a bulk decision safe. A backlog moves while it is
+/// being read, and a case that changed underneath is skipped rather than silently decided on the
+/// reading the reviewer saw.
+/// </remarks>
+public sealed record IdentificationGroupCase(
+    Guid VideoId,
+    int CaseVersion,
+    Guid? CandidateId,
+    Guid? AssociationId,
+    string DisplayLabel);
+
+/// <summary>
+/// What one decision would do to a whole Identification Review Group, said before it is taken
+/// rather than in a preview it is too late to read.
+/// </summary>
+public sealed record IdentificationGroupConsequence(
+    IdentificationDecisionAction Action,
+    /// <summary>Why this decision cannot be taken over a group at all, or null where it can.</summary>
+    string? Refusal,
+    int CaseCount,
+    int VideosChanged,
+    int VideosMerged,
+    int CasesRefused,
+    bool RequiresNote,
+    string Outcome);
+
+/// <summary>
+/// A group about to be decided: what it holds, what each decision would do to it, and the cases it
+/// would settle with the versions they were read at.
+/// </summary>
+public sealed record IdentificationGroupPlan(
+    string GroupKey,
+    IdentificationDimension Dimension,
+    string? TargetTitle,
+    int CaseCount,
+    string InCommon,
+    string Differ,
+    IReadOnlyList<IdentificationGroupConsequence> Decisions,
+    IReadOnlyList<IdentificationGroupCase> Cases);
+
+public sealed record IdentificationGroupDecisionRequest(
+    /// <summary>
+    /// The act. Many bounded batches settle one group, and they are one decision by one Account at
+    /// one moment in the history of every Video they touch.
+    /// </summary>
+    Guid ActId,
+    string GroupKey,
+    IdentificationDecisionAction Action,
+    IReadOnlyList<IdentificationGroupCase> Cases,
+    string? Note = null);
+
+/// <summary>One case a group decision did not settle, and why not.</summary>
+public sealed record IdentificationGroupOutcome(Guid VideoId, string Reason);
+
+public enum IdentificationGroupDecisionVerdict
+{
+    Applied,
+    ActionUnavailable,
+    NoteRequired,
+    NotFound,
+}
+
+public sealed record IdentificationGroupDecisionResult(
+    IdentificationGroupDecisionVerdict Verdict,
+    int Applied,
+    IReadOnlyList<IdentificationGroupOutcome> Skipped,
+    IReadOnlyList<IdentificationGroupOutcome> Refused,
+    string Summary);
+
 public sealed record IdentificationCaseFile(
     Guid Id,
     string RelativePath,

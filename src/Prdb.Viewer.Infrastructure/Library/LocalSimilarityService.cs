@@ -71,7 +71,7 @@ public sealed class LocalSimilarityService(
         // an Administrator's decision, which has already written a claim and must not have this
         // committed separately from it. It joins the transaction it finds rather than opening a
         // second one.
-        var transaction = database.Database.CurrentTransaction is null
+        await using var transaction = database.Database.CurrentTransaction is null
             ? await database.Database.BeginTransactionAsync(cancellationToken)
             : null;
 
@@ -103,7 +103,6 @@ public sealed class LocalSimilarityService(
         if (transaction is not null)
         {
             await transaction.CommitAsync(cancellationToken);
-            await transaction.DisposeAsync();
         }
     }
 

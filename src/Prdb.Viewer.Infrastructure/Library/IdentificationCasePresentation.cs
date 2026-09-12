@@ -647,6 +647,154 @@ internal static class IdentificationCasePresentation
                 "same for all of them.",
         };
 
+    /// <summary>
+    /// Why a decision cannot be taken over a whole group, or null where it can.
+    ///
+    /// Accepting and rejecting are the two a group can carry at all. The others are per-Video
+    /// judgements: assigning and replacing read a target somebody typed for one Video, revoking
+    /// withdraws one Video's own established knowledge, and a Split is about which of one Video's
+    /// files belong together. None of them means anything said four hundred times at once.
+    /// </summary>
+    internal static string? GroupRefusal(IdentificationDecisionAction action, bool association) =>
+        (action, association) switch
+        {
+            (IdentificationDecisionAction.AcceptCandidate, false) => null,
+            (IdentificationDecisionAction.RejectCandidate, false) => null,
+            (IdentificationDecisionAction.AssociateVideos, true) => null,
+            (IdentificationDecisionAction.RejectAssociation, true) => null,
+            (IdentificationDecisionAction.AcceptCandidate or
+                IdentificationDecisionAction.RejectCandidate, true) =>
+                "This group is a proposed association, which names no target to accept or reject.",
+            (IdentificationDecisionAction.AssociateVideos or
+                IdentificationDecisionAction.RejectAssociation, false) =>
+                "This group proposes an identification rather than an association.",
+            (IdentificationDecisionAction.SplitVideo, _) =>
+                "A Split is about which of one Video's files belong together, which is a different " +
+                "question for every Video. It stays a decision taken one Video at a time.",
+            (IdentificationDecisionAction.RevokeClaim, _) =>
+                "Revoking withdraws what one Video has established, on that Video's own evidence. " +
+                "It stays a decision taken one Video at a time.",
+            _ =>
+                "Assigning and replacing read a target you type for one Video. Said over a group " +
+                "they would put the same answer on every case without anybody having looked.",
+        };
+
+    /// <summary>
+    /// What each decision would do to a whole group, said before the button rather than in a
+    /// preview it is too late to read.
+    /// </summary>
+    internal static IReadOnlyList<IdentificationGroupConsequence> GroupDecisions(
+        bool association,
+        IdentificationDimension dimension,
+        int caseCount,
+        string? targetTitle,
+        bool mergesIntoAnExistingVideo,
+        int refusedCases)
+    {
+        IdentificationDecisionAction[] offered =
+        [
+            IdentificationDecisionAction.AcceptCandidate,
+            IdentificationDecisionAction.RejectCandidate,
+            IdentificationDecisionAction.AssociateVideos,
+            IdentificationDecisionAction.RejectAssociation,
+            IdentificationDecisionAction.AssignDirectly,
+            IdentificationDecisionAction.ReplaceClaim,
+            IdentificationDecisionAction.RevokeClaim,
+            IdentificationDecisionAction.SplitVideo,
+        ];
+
+        return offered
+            .Select(action => GroupConsequence(
+                action,
+                association,
+                dimension,
+                caseCount,
+                targetTitle,
+                mergesIntoAnExistingVideo,
+                refusedCases))
+            .ToArray();
+    }
+
+    private static IdentificationGroupConsequence GroupConsequence(
+        IdentificationDecisionAction action,
+        bool association,
+        IdentificationDimension dimension,
+        int caseCount,
+        string? targetTitle,
+        bool mergesIntoAnExistingVideo,
+        int refusedCases)
+    {
+        var refusal = GroupRefusal(action, association);
+        var settles = Math.Max(0, caseCount - refusedCases);
+
+        if (refusal is not null)
+        {
+            return new IdentificationGroupConsequence(action, refusal, caseCount, 0, 0, refusedCases, false, refusal);
+        }
+
+        // Every case of a work group proposes the same work, so the library ends with one Video
+        // carrying it and the rest merged into that one. That is the whole consequence, and it is
+        // the reason a count on a button is not enough on its own.
+        var merges = action is IdentificationDecisionAction.AcceptCandidate &&
+                     dimension == IdentificationDimension.WorkIdentification
+            ? Math.Max(0, settles - (mergesIntoAnExistingVideo ? 0 : 1))
+            : action == IdentificationDecisionAction.AssociateVideos
+                ? settles
+                : 0;
+        var rejects = action is IdentificationDecisionAction.RejectCandidate or
+            IdentificationDecisionAction.RejectAssociation;
+        var refusedSentence = refusedCases == 0
+            ? ""
+            : $" {Cases(refusedCases)} of the group cannot be decided this way and stay open.";
+        var mergeSentence = merges == 0
+            ? ""
+            : $" {Videos(merges)} merge into the Video that carries the work, and every Account's " +
+              "private viewing state for them is reconciled without being shown to anybody.";
+        var outcome = rejects
+            ? $"{Cases(settles)} are rejected. Nothing established changes, and the same evidence " +
+              $"stays suppressed on each of them.{refusedSentence}"
+            : action == IdentificationDecisionAction.AssociateVideos
+                ? $"{Cases(settles)} are associated. Neither Video of any pair is identified by " +
+                  $"it, and each pair becomes one Unknown Video.{mergeSentence}{refusedSentence}"
+                : $"{Videos(settles)} become Established \u201c{targetTitle}\u201d for their " +
+                  $"{Label(dimension)}, each as an Administrative Override.{mergeSentence}" +
+                  refusedSentence;
+
+        return new IdentificationGroupConsequence(
+            action,
+            null,
+            caseCount,
+            rejects ? 0 : settles,
+            merges,
+            refusedCases,
+            merges > 0,
+            outcome);
+    }
+
+    /// <summary>What one batch of a group decision actually did.</summary>
+    internal static string GroupOutcome(int applied, int skipped, int refused)
+    {
+        var sentence = applied == 0
+            ? "Nothing was settled."
+            : $"{Cases(applied)} settled.";
+
+        if (skipped > 0)
+        {
+            sentence += $" {Cases(skipped)} changed while the group was being read and stayed open.";
+        }
+
+        if (refused > 0)
+        {
+            sentence += $" {Cases(refused)} cannot be decided this way and stayed open.";
+        }
+
+        return sentence;
+    }
+
+    private static string Cases(int count) => count == 1 ? "One case" : $"{count} cases";
+
+    private static string Videos(int count) => count == 1 ? "One Video" : $"{count} Videos";
+
     internal static string Label(IdentificationDimension dimension) =>
         dimension == IdentificationDimension.WorkIdentification
             ? "Work Identification"

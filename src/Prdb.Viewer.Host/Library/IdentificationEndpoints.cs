@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Http.HttpResults;
+
 using Prdb.Viewer.Core.Access;
 using Prdb.Viewer.Core.Library;
 using Prdb.Viewer.Host.Access;
@@ -46,6 +48,30 @@ public static class IdentificationEndpoints
                 ? Results.NotFound()
                 : Results.Ok(identificationCase);
         });
+
+        // The group about to be decided: what each decision would do to the whole of it, and the
+        // cases it would settle with the versions they are being read at. The manifest is fetched
+        // only when somebody is about to decide rather than carried by every page of the queue.
+        review.MapGet("/groups", async Task<Results<Ok<IdentificationGroupPlan>, NotFound>> (
+            string key,
+            IdentificationReviewService identification,
+            CancellationToken cancellationToken) =>
+        {
+            var plan = await identification.GetGroupPlanAsync(key, cancellationToken);
+
+            return plan is null ? TypedResults.NotFound() : TypedResults.Ok(plan);
+        });
+
+        review.MapPost("/groups/decisions", async (
+            IdentificationGroupDecisionRequest request,
+            IdentificationReviewService identification,
+            HttpContext http,
+            CancellationToken cancellationToken) =>
+            TypedResults.Ok(await identification.DecideGroupAsync(
+                http.User.AccountId()!.Value,
+                request,
+                cancellationToken)))
+            .RequireCsrf();
 
         review.MapPost("/videos/{videoId:guid}/decisions", async (
             Guid videoId,

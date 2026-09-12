@@ -454,6 +454,7 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             decision.Property(row => row.PriorState).IsRequired();
             decision.Property(row => row.ResultingState).IsRequired();
             decision.HasIndex(row => new { row.VideoId, row.CreatedAt });
+            decision.HasIndex(row => row.GroupDecisionId);
         });
 
         builder.Entity<VideoFileRow>(videoFile =>

@@ -1222,6 +1222,89 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/identification/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query: {
+                    key: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdentificationGroupPlan"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/identification/groups/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["IdentificationGroupDecisionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["IdentificationGroupDecisionResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/identification/videos/{videoId}/decisions": {
         parameters: {
             query?: never;
@@ -2447,6 +2530,65 @@ export interface components {
         IdentificationDimension: "WorkIdentification" | "SiteRecognition";
         /** @enum {unknown} */
         IdentificationEvidenceClass: "Insufficient" | "Suggestive" | "Conclusive";
+        IdentificationGroupCase: {
+            /** Format: uuid */
+            videoId: string;
+            /** Format: int32 */
+            caseVersion: number | string;
+            /** Format: uuid */
+            candidateId: null | string;
+            /** Format: uuid */
+            associationId: null | string;
+            displayLabel: string;
+        };
+        IdentificationGroupConsequence: {
+            action: components["schemas"]["IdentificationDecisionAction"];
+            refusal: null | string;
+            /** Format: int32 */
+            caseCount: number | string;
+            /** Format: int32 */
+            videosChanged: number | string;
+            /** Format: int32 */
+            videosMerged: number | string;
+            /** Format: int32 */
+            casesRefused: number | string;
+            requiresNote: boolean;
+            outcome: string;
+        };
+        IdentificationGroupDecisionRequest: {
+            /** Format: uuid */
+            actId: string;
+            groupKey: string;
+            action: components["schemas"]["IdentificationDecisionAction"];
+            cases: components["schemas"]["IdentificationGroupCase"][];
+            note?: null | string;
+        };
+        IdentificationGroupDecisionResult: {
+            verdict: components["schemas"]["IdentificationGroupDecisionVerdict"];
+            /** Format: int32 */
+            applied: number | string;
+            skipped: components["schemas"]["IdentificationGroupOutcome"][];
+            refused: components["schemas"]["IdentificationGroupOutcome"][];
+            summary: string;
+        };
+        /** @enum {unknown} */
+        IdentificationGroupDecisionVerdict: "Applied" | "ActionUnavailable" | "NoteRequired" | "NotFound";
+        IdentificationGroupOutcome: {
+            /** Format: uuid */
+            videoId: string;
+            reason: string;
+        };
+        IdentificationGroupPlan: {
+            groupKey: string;
+            dimension: components["schemas"]["IdentificationDimension"];
+            targetTitle: null | string;
+            /** Format: int32 */
+            caseCount: number | string;
+            inCommon: string;
+            differ: string;
+            decisions: components["schemas"]["IdentificationGroupConsequence"][];
+            cases: components["schemas"]["IdentificationGroupCase"][];
+        };
         IdentificationNeighbourView: {
             /** Format: uuid */
             videoFileId: string;

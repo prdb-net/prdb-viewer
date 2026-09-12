@@ -126,6 +126,11 @@ export type IdentificationQueueItem = components['schemas']['IdentificationQueue
 export type IdentificationQueue = components['schemas']['IdentificationQueue']
 export type IdentificationReviewGroup = components['schemas']['IdentificationReviewGroup']
 export type IdentificationQueueFacets = components['schemas']['IdentificationQueueFacets']
+export type IdentificationGroupPlan = components['schemas']['IdentificationGroupPlan']
+export type IdentificationGroupCase = components['schemas']['IdentificationGroupCase']
+export type IdentificationGroupConsequence = components['schemas']['IdentificationGroupConsequence']
+export type IdentificationGroupDecisionResult =
+  components['schemas']['IdentificationGroupDecisionResult']
 
 /// What an Administrator asked the backlog for. It belongs in the address, so a filtered page is a
 /// link rather than a state of one browser (ADR 0004).
@@ -219,7 +224,12 @@ function post<T>(path: string, body?: unknown, csrfToken?: string) {
   })
 }
 
-function mutate<T>(path: string, method: 'PUT' | 'DELETE', csrfToken: string, body?: unknown) {
+function mutate<T>(
+  path: string,
+  method: 'POST' | 'PUT' | 'DELETE',
+  csrfToken: string,
+  body?: unknown,
+) {
   return request<T>(path, {
     method,
     body: body === undefined ? undefined : JSON.stringify(body),
@@ -388,6 +398,26 @@ export const api = {
     const suffix = query.size > 0 ? `?${query}` : ''
     return request<IdentificationQueue>(`/api/admin/identification/queue${suffix}`)
   },
+  identificationGroup: (key: string) =>
+    request<IdentificationGroupPlan>(
+      `/api/admin/identification/groups?key=${encodeURIComponent(key)}`,
+    ),
+  decideIdentificationGroup: (
+    decision: {
+      actId: string
+      groupKey: string
+      action: IdentificationDecisionAction
+      cases: IdentificationGroupCase[]
+      note: string | null
+    },
+    csrfToken: string,
+  ) =>
+    mutate<IdentificationGroupDecisionResult>(
+      '/api/admin/identification/groups/decisions',
+      'POST',
+      csrfToken,
+      decision,
+    ),
   identificationCase: (videoId: string) =>
     request<IdentificationCase>(`/api/admin/identification/videos/${videoId}`),
   decideIdentification: (

@@ -862,6 +862,114 @@ describe('App', () => {
       expect(asked.some((url) => url.includes('dimension=WorkIdentification'))).toBe(true))
   })
 
+  it('settles a group with one decision, in bounded batches, and says what it left open', async () => {
+    const groupKey = 'SiteRecognition|SuggestiveEvidence|Suggestive|LocalInference|0|site-1'
+    const cases = Array.from({ length: 30 }, (unused, index) => ({
+      videoId: `01994dd4-2a0a-7000-8000-0000000${(900 + index).toString().padStart(5, '0')}`,
+      caseVersion: 1,
+      candidateId: `01994dd4-2a0a-7000-8000-0000000${(800 + index).toString().padStart(5, '0')}`,
+      associationId: null,
+      displayLabel: `clip-${index}`,
+    }))
+    const queue = {
+      groupCount: 1,
+      caseCount: 30,
+      groups: [{
+        key: groupKey,
+        dimension: 'SiteRecognition',
+        reason: 'SuggestiveEvidence',
+        evidenceClass: 'Suggestive',
+        source: 'LocalInference',
+        targetKey: 'site-1',
+        targetTitle: 'One Site',
+        caseCount: 30,
+        effort: 'Judgement',
+        inCommon: '30 Videos are proposed as “One Site” for their Site Recognition.',
+        differ: 'They differ in which Video is being asked about.',
+        oldestCaseAt: '2026-09-12T10:00:00Z',
+        cases: [],
+        hasMoreCases: true,
+      }],
+      facets: { dimensions: [], reasons: [], evidenceClasses: [] },
+    }
+    const plan = {
+      groupKey,
+      dimension: 'SiteRecognition',
+      targetTitle: 'One Site',
+      caseCount: 30,
+      inCommon: queue.groups[0].inCommon,
+      differ: queue.groups[0].differ,
+      decisions: [
+        {
+          action: 'AcceptCandidate',
+          refusal: null,
+          caseCount: 30,
+          videosChanged: 30,
+          videosMerged: 0,
+          casesRefused: 0,
+          requiresNote: false,
+          outcome: '30 Videos become Established “One Site” for their Site Recognition.',
+        },
+        {
+          action: 'SplitVideo',
+          refusal: 'A Split is about which of one Video’s files belong together.',
+          caseCount: 30,
+          videosChanged: 0,
+          videosMerged: 0,
+          casesRefused: 0,
+          requiresNote: false,
+          outcome: 'A Split is about which of one Video’s files belong together.',
+        },
+      ],
+      cases,
+    }
+    const batches: { cases: unknown[]; actId: string }[] = []
+    signedInAs('Administrator', (input, init) => {
+      if (typeof input === 'string' && input.startsWith('/api/admin/identification/queue')) {
+        return json(queue)
+      }
+      if (typeof input === 'string' && input.startsWith('/api/admin/identification/groups?')) {
+        return json(plan)
+      }
+      if (input === '/api/admin/identification/groups/decisions') {
+        const body = JSON.parse(String(init?.body)) as { cases: unknown[]; actId: string }
+        batches.push(body)
+        return json({
+          verdict: 'Applied',
+          applied: body.cases.length - (batches.length === 1 ? 1 : 0),
+          skipped: batches.length === 1
+            ? [{ videoId: cases[0].videoId, reason: 'This case changed while the group was read.' }]
+            : [],
+          refused: [],
+          summary: 'settled',
+        })
+      }
+      return undefined
+    })
+
+    renderApp('/admin/identification')
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Settle all 30 with one decision' }))
+
+    // What the decision would leave behind is said before the button rather than after it, and a
+    // decision the group cannot carry says why instead of being a disabled control with no reason.
+    expect(await screen.findByText(plan.decisions[0].outcome)).toBeInTheDocument()
+    expect(screen.getByText(plan.decisions[1].refusal!)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Split Video' })).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Accept candidate' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm for 30 cases' }))
+
+    // Bounded batches, and one act across all of them.
+    await vi.waitFor(() => expect(batches).toHaveLength(2))
+    expect(batches[0].cases).toHaveLength(25)
+    expect(batches[1].cases).toHaveLength(5)
+    expect(batches[0].actId).toBe(batches[1].actId)
+
+    // And the one case that changed underneath is reported rather than silently decided.
+    expect(await screen.findByText(/1 changed underneath and stayed open/)).toBeInTheDocument()
+  })
+
   it('offers sign-in and an approval-gated registration request', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
       if (input === '/api/access/state') return json({ claimed: true, signedIn: false })

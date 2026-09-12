@@ -26,5 +26,13 @@ public sealed class IdentificationDecisionRow
 
     public string? Note { get; set; }
 
+    /// <summary>
+    /// The act this decision was part of, where one decision settled a whole Identification Review
+    /// Group. Each case keeps its own record with its own prior and resulting state; this is what
+    /// makes them one decision by one Account at one moment, so a group accepted in error can be
+    /// found and undone as what it was rather than as four hundred coincidences.
+    /// </summary>
+    public Guid? GroupDecisionId { get; set; }
+
     public DateTime CreatedAt { get; set; }
 }

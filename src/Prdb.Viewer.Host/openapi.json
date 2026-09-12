@@ -896,6 +896,67 @@
         }
       }
     },
+    "/api/admin/identification/groups": {
+      "get": {
+        "tags": [
+          "Identification Review"
+        ],
+        "parameters": [
+          {
+            "name": "key",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentificationGroupPlan"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/admin/identification/groups/decisions": {
+      "post": {
+        "tags": [
+          "Identification Review"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/IdentificationGroupDecisionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IdentificationGroupDecisionResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/identification/videos/{videoId}/decisions": {
       "post": {
         "tags": [
@@ -3456,6 +3517,257 @@
           "Suggestive",
           "Conclusive"
         ]
+      },
+      "IdentificationGroupCase": {
+        "required": [
+          "videoId",
+          "caseVersion",
+          "candidateId",
+          "associationId",
+          "displayLabel"
+        ],
+        "type": "object",
+        "properties": {
+          "videoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "caseVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "candidateId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "associationId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "displayLabel": {
+            "type": "string"
+          }
+        }
+      },
+      "IdentificationGroupConsequence": {
+        "required": [
+          "action",
+          "refusal",
+          "caseCount",
+          "videosChanged",
+          "videosMerged",
+          "casesRefused",
+          "requiresNote",
+          "outcome"
+        ],
+        "type": "object",
+        "properties": {
+          "action": {
+            "$ref": "#/components/schemas/IdentificationDecisionAction"
+          },
+          "refusal": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "caseCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "videosChanged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "videosMerged": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "casesRefused": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "requiresNote": {
+            "type": "boolean"
+          },
+          "outcome": {
+            "type": "string"
+          }
+        }
+      },
+      "IdentificationGroupDecisionRequest": {
+        "required": [
+          "actId",
+          "groupKey",
+          "action",
+          "cases"
+        ],
+        "type": "object",
+        "properties": {
+          "actId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "groupKey": {
+            "type": "string"
+          },
+          "action": {
+            "$ref": "#/components/schemas/IdentificationDecisionAction"
+          },
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationGroupCase"
+            }
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "IdentificationGroupDecisionResult": {
+        "required": [
+          "verdict",
+          "applied",
+          "skipped",
+          "refused",
+          "summary"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/IdentificationGroupDecisionVerdict"
+          },
+          "applied": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "skipped": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationGroupOutcome"
+            }
+          },
+          "refused": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationGroupOutcome"
+            }
+          },
+          "summary": {
+            "type": "string"
+          }
+        }
+      },
+      "IdentificationGroupDecisionVerdict": {
+        "enum": [
+          "Applied",
+          "ActionUnavailable",
+          "NoteRequired",
+          "NotFound"
+        ]
+      },
+      "IdentificationGroupOutcome": {
+        "required": [
+          "videoId",
+          "reason"
+        ],
+        "type": "object",
+        "properties": {
+          "videoId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      },
+      "IdentificationGroupPlan": {
+        "required": [
+          "groupKey",
+          "dimension",
+          "targetTitle",
+          "caseCount",
+          "inCommon",
+          "differ",
+          "decisions",
+          "cases"
+        ],
+        "type": "object",
+        "properties": {
+          "groupKey": {
+            "type": "string"
+          },
+          "dimension": {
+            "$ref": "#/components/schemas/IdentificationDimension"
+          },
+          "targetTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "caseCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "inCommon": {
+            "type": "string"
+          },
+          "differ": {
+            "type": "string"
+          },
+          "decisions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationGroupConsequence"
+            }
+          },
+          "cases": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/IdentificationGroupCase"
+            }
+          }
+        }
       },
       "IdentificationNeighbourView": {
         "required": [

@@ -557,6 +557,7 @@ body.filters-open .app-content {
 .queue-filter-values { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .2rem; }
 .queue-filter-values .selected { border-color: var(--accent); color: var(--accent); }
 .queue-pages { display: flex; gap: .8rem; align-items: center; justify-content: center; }
+.group-settle { justify-self: start; }
 .neighbour-summary { font-size: .85rem; color: var(--muted); }
 /* Why two files are one Video, where a rule or a person put them together. It reads like the
    provenance of a claim because it is provenance — of a merge rather than of an identity. */

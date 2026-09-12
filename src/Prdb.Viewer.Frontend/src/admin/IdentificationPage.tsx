@@ -10,6 +10,8 @@ import {
   type IdentificationConsequence,
   type IdentificationDecisionAction,
   type IdentificationDecisionOutlook,
+  type IdentificationGroupCase,
+  type IdentificationGroupPlan,
   type IdentificationNeighbour,
   type IdentificationProposal,
   type IdentificationQueueFacets,
@@ -45,6 +47,14 @@ export function IdentificationPage({ account }: { account: Account }) {
   const selected = queue.data?.groups
     .flatMap((group) => group.cases)
     .find((item) => caseId(item) === openCandidate)
+  // Which group is being settled as a whole, if any. It is in the address for the same reason a
+  // case is: a decision over four hundred Videos is something a colleague can be sent.
+  const openGroup = parameters.get('group')
+  const plan = useQuery({
+    queryKey: ['identification-group', openGroup ?? 'none'],
+    queryFn: () => api.identificationGroup(openGroup!),
+    enabled: openGroup !== null,
+  })
   const [pending, setPending] = useState<IdentificationDecisionAction>()
   const [consequence, setConsequence] = useState<IdentificationConsequence>()
   const [note, setNote] = useState('')
@@ -65,6 +75,16 @@ export function IdentificationPage({ account }: { account: Account }) {
     setTarget({ key: '', title: '' })
     setTargeting(undefined)
     setSeparated([])
+  }
+
+  const settle = (groupKey: string | undefined) => {
+    setParameters((current) => {
+      const next = new URLSearchParams(current)
+      if (groupKey) next.set('group', groupKey)
+      else next.delete('group')
+      next.delete('candidate')
+      return next
+    }, { replace: true })
   }
 
   const open = (candidateId: string | undefined) => {
@@ -177,7 +197,21 @@ export function IdentificationPage({ account }: { account: Account }) {
       </PageHeading>
 
       {outcome && <Notice kind="success">{outcome}</Notice>}
-      {!showing && queue.data && (
+      {openGroup && plan.data && (
+        <GroupDecision
+          plan={plan.data}
+          account={account}
+          close={() => { settle(undefined); setOutcome(undefined) }}
+          settled={(summary) => {
+            setOutcome(summary)
+            void queryClient.invalidateQueries({ queryKey: ['identification-queue'] })
+            void queryClient.invalidateQueries({ queryKey: ['identification-group'] })
+            void queryClient.invalidateQueries({ queryKey: ['videos'] })
+          }}
+        />
+      )}
+
+      {!showing && !openGroup && queue.data && (
         <QueueFilters
           facets={queue.data.facets}
           parameters={parameters}
@@ -194,13 +228,14 @@ export function IdentificationPage({ account }: { account: Account }) {
       {/* An open case takes the queue's place rather than standing under it. The queue listed the
           case and then the case repeated it directly underneath, so the same Video appeared twice
           with two different sets of controls — and the second copy is the one that decides. */}
-      {!showing && (
+      {!showing && !openGroup && (
         <div className="review-groups">
           {queue.data?.groups.map((group) => (
             <ReviewGroup
               key={group.key}
               group={group}
               open={(id: string) => { open(id); reset(); setOutcome(undefined) }}
+              settle={() => { settle(group.key); setOutcome(undefined) }}
             />
           ))}
           {queue.data && Number(queue.data.groupCount) > queue.data.groups.length && (
@@ -704,6 +739,139 @@ function outcomeOfAssociation(action: 'AssociateVideos' | 'RejectAssociation') {
       'apart as they are.'
 }
 
+/// One decision over a whole group, stated before it is taken and applied in bounded batches.
+///
+/// The consequence is not a preview it is too late to read: every decision the group can carry says
+/// what it would leave behind before the button, and the ones it cannot carry say why. Applying is
+/// batched because four hundred merges with their Personal State reconciliation is not something a
+/// person should watch a browser hang for — and because a case that changed underneath is skipped
+/// rather than throwing the rest of the work away.
+function GroupDecision({ plan, account, close, settled }: {
+  plan: IdentificationGroupPlan
+  account: Account
+  close: () => void
+  settled: (summary: string) => void
+}) {
+  const [note, setNote] = useState('')
+  const [chosen, setChosen] = useState<IdentificationDecisionAction>()
+  const [progress, setProgress] = useState<{ applied: number; skipped: number; refused: number }>()
+  const [running, setRunning] = useState(false)
+  const [failure, setFailure] = useState<unknown>()
+  const consequence = plan.decisions.find((decision) => decision.action === chosen)
+
+  const apply = async () => {
+    if (!chosen) return
+    // One act. Many bounded batches settle one group, and they are one decision by one Account at
+    // one moment in the history of every Video they touch.
+    const actId = crypto.randomUUID()
+    let remaining: IdentificationGroupCase[] = [...plan.cases]
+    const total = { applied: 0, skipped: 0, refused: 0 }
+    setRunning(true)
+    setFailure(undefined)
+
+    try {
+      while (remaining.length > 0) {
+        const result = await api.decideIdentificationGroup(
+          {
+            actId,
+            groupKey: plan.groupKey,
+            action: chosen,
+            cases: remaining.slice(0, BatchSize),
+            note: note.trim() || null,
+          },
+          account.csrfToken,
+        )
+
+        if (result.verdict !== 'Applied') {
+          setProgress(total)
+          settled(result.summary)
+          return
+        }
+
+        total.applied += Number(result.applied)
+        total.skipped += result.skipped.length
+        total.refused += result.refused.length
+        setProgress({ ...total })
+        remaining = remaining.slice(BatchSize)
+      }
+
+      // The queue comes back first, so the account of what the act settled is the message the
+      // reviewer is left with rather than something closing the group wipes away.
+      close()
+      settled(summarise(total))
+    } catch (error) {
+      setFailure(error)
+    } finally {
+      setRunning(false)
+    }
+  }
+
+  return (
+    <div className="review-case">
+      <div className="section-heading">
+        <strong>{plan.targetTitle ?? 'Two Videos that look alike'}</strong>
+        <button className="quiet-button" onClick={close}>Back to queue</button>
+      </div>
+      <p>{plan.inCommon}</p>
+      <p className="muted">{plan.differ}</p>
+
+      <div className="decisions">
+        {plan.decisions.map((decision) => (
+          <div className={decision.refusal ? 'decision unavailable' : 'decision'} key={decision.action}>
+            <button
+              className={decision.refusal
+                ? `${appearance(decision.action).appearance} unavailable`
+                : appearance(decision.action).appearance}
+              onClick={() => setChosen(decision.action)}
+              disabled={running || decision.refusal !== null}
+            >{appearance(decision.action).label}</button>
+            <p>{decision.outcome}</p>
+          </div>
+        ))}
+      </div>
+
+      {consequence && (
+        <div className="confirmation" role="group" aria-label="Group consequence">
+          <p>{consequence.outcome}</p>
+          <small>
+            Settles {Number(consequence.videosChanged) || Number(consequence.caseCount)} of{' '}
+            {Number(consequence.caseCount)}
+            {Number(consequence.videosMerged) > 0 && `, merging ${Number(consequence.videosMerged)}`}
+          </small>
+          {/* A note is written once, for the act, and recorded on every case it settles. */}
+          <label className="field">
+            <span>Decision note</span>
+            <textarea
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              required={consequence.requiresNote}
+            />
+          </label>
+          <button
+            className="primary-button"
+            onClick={() => void apply()}
+            disabled={running || (consequence.requiresNote && note.trim().length === 0)}
+          >Confirm for {Number(consequence.caseCount)} cases</button>
+        </div>
+      )}
+
+      {progress && <p className="muted" role="status">{summarise(progress)}</p>}
+      {failure !== undefined && <RequestError error={failure} />}
+    </div>
+  )
+}
+
+/// How many cases one request settles. It matches the server's own limit, so a batch is never
+/// silently truncated into a page that says it settled more than it did.
+const BatchSize = 25
+
+function summarise(progress: { applied: number; skipped: number; refused: number }) {
+  const parts = [`${progress.applied} settled`]
+  if (progress.skipped > 0) parts.push(`${progress.skipped} changed underneath and stayed open`)
+  if (progress.refused > 0) parts.push(`${progress.refused} could not be decided this way`)
+  return `${parts.join(', ')}.`
+}
+
 /// One Identification Review Group: the question, what answering it would settle, and a way into
 /// the cases it holds.
 ///
@@ -711,9 +879,10 @@ function outcomeOfAssociation(action: 'AssociateVideos' | 'RejectAssociation') {
 /// where they differ rather than with a count. A count alone says how much is at stake and nothing
 /// about what is being asked, and a reviewer who cannot say what a group has in common cannot
 /// safely answer it.
-function ReviewGroup({ group, open }: {
+function ReviewGroup({ group, open, settle }: {
   group: IdentificationReviewGroup
   open: (caseId: string) => void
+  settle: () => void
 }) {
   const count = Number(group.caseCount)
 
@@ -723,6 +892,11 @@ function ReviewGroup({ group, open }: {
         <strong>{group.targetTitle ?? 'Two Videos that look alike'}</strong>
         <span className="muted">{count === 1 ? '1 case' : `${count} cases`}</span>
       </div>
+      {count > 1 && (
+        <button className="quiet-button group-settle" onClick={settle}>
+          Settle all {count} with one decision
+        </button>
+      )}
       <small>
         {friendlyState(group.dimension)} · {friendlyState(group.evidenceClass)} ·
         {' '}{candidateOrigin(group.source)} · {friendlyState(group.effort).toLowerCase()}
