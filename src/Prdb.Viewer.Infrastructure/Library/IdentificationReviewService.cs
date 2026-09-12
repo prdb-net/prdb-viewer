@@ -42,12 +42,8 @@ public sealed class IdentificationReviewService(
     {
         request ??= new IdentificationQueueRequest();
 
-        var groups = (await AllGroupsAsync(cancellationToken))
-            .Where(group => (request.Dimension is null || group.Dimension == request.Dimension) &&
-                            (request.Reason is null || group.Reason == request.Reason) &&
-                            (request.EvidenceClass is null ||
-                             group.EvidenceClass == request.EvidenceClass))
-            .ToArray();
+        var all = await AllGroupsAsync(cancellationToken);
+        var groups = all.Where(group => Admits(request, group)).ToArray();
         var ordered = IdentificationReviewOrder.Sort(
             groups,
             group => new IdentificationReviewGroupFacts(
@@ -71,8 +67,13 @@ public sealed class IdentificationReviewService(
             ordered.Count,
             ordered.Sum(group => group.CaseCount),
             shown,
-            Facets(groups));
+            Facets(all, request));
     }
+
+    private static bool Admits(IdentificationQueueRequest request, Pending group) =>
+        (request.Dimension is null || group.Dimension == request.Dimension) &&
+        (request.Reason is null || group.Reason == request.Reason) &&
+        (request.EvidenceClass is null || group.EvidenceClass == request.EvidenceClass);
 
     /// <summary>
     /// Every question the backlog is currently asking, as one small row each. It is read in full
@@ -525,16 +526,30 @@ public sealed class IdentificationReviewService(
     /// to do — clear four hundred site proposals, or look hard at nine work proposals — instead of
     /// taking whatever is on top.
     /// </summary>
-    private static IdentificationQueueFacets Facets(IReadOnlyCollection<Pending> groups) =>
+    /// <remarks>
+    /// Each row is counted with every filter applied except its own. Counting them all with the
+    /// filter already chosen would leave one value in the row the reviewer had just used, which is
+    /// the count of what they are looking at rather than of what choosing something else would
+    /// give them — and a row with one value in it is a choice they can no longer change their mind
+    /// about.
+    /// </remarks>
+    private static IdentificationQueueFacets Facets(
+        IReadOnlyCollection<Pending> groups,
+        IdentificationQueueRequest request) =>
         new(
-            Facet(groups, group => group.Dimension.ToString()),
-            Facet(groups, group => group.Reason.ToString()),
-            Facet(groups, group => group.EvidenceClass.ToString()));
+            Facet(groups, request with { Dimension = null }, group => group.Dimension.ToString()),
+            Facet(groups, request with { Reason = null }, group => group.Reason.ToString()),
+            Facet(
+                groups,
+                request with { EvidenceClass = null },
+                group => group.EvidenceClass.ToString()));
 
     private static IReadOnlyList<IdentificationQueueFacet> Facet(
         IReadOnlyCollection<Pending> groups,
+        IdentificationQueueRequest otherwise,
         Func<Pending, string> valueOf) =>
         groups
+            .Where(group => Admits(otherwise, group))
             .GroupBy(valueOf)
             .Select(group => new IdentificationQueueFacet(
                 group.Key,

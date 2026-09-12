@@ -107,6 +107,18 @@ public sealed class ReviewQueueShapeTests
 
         Assert.Equal(4, all.CaseCount);
         Assert.Equal(3, site.CaseCount);
+
+        // Each row is counted with every filter applied except its own, so a reviewer who has
+        // chosen one dimension can still see what the other would give them — and can therefore
+        // change their mind.
+        Assert.Equal(
+            2,
+            site.Facets.Dimensions.Count);
+        Assert.Equal(
+            1,
+            site.Facets.Dimensions
+                .Single(facet => facet.Value == nameof(IdentificationDimension.WorkIdentification))
+                .CaseCount);
         Assert.Equal(
             3,
             all.Facets.Dimensions
