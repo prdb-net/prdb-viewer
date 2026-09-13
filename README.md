@@ -713,6 +713,37 @@ stays empty, and the recommender reads that as watching that happened at a momen
 nobody recorded rather than as never watched. Uninterrupted runs and departures
 are not backfilled at all, because nothing recorded them.
 
+## Rank what to watch again
+
+Return Interest is decided by one policy in the Core, from one Account's own
+Personal State, and is a pure function of the evidence it is given: the same
+evidence ranks the same way twice, and the ordering can be reproduced without a
+database. The rules are ADR 0022's and are settled; the numbers below are
+initial tuning, and may change so long as the ordering examples the tests state
+keep holding.
+
+Per Viewing Session, Active Watching under a minute contributes nothing; a minute
+contributes 1, two minutes 2, five minutes 3, and ten minutes or more 4. An
+Uninterrupted Run of a minute or more adds 0.5 to a session that already counts.
+The five strongest sessions are added up, plus 0.6 for each further meaningful
+visit up to five of them, so coming back repeatedly says more than one long
+sitting and the twentieth visit says no more than the sixth. Being in a Playlist
+adds 1 once, however many Playlists hold the Video; an explicit Favourite adds 1.
+
+Explicit reactions are tiers rather than points: a Love outranks a Like, and both
+outrank anything watching alone can produce, so a Video somebody loved can be
+offered with no watching history at all while a behaviour-only Video needs
+evidence. Within a tier the score decides, then the most recently watched, then
+the Video's identity — so a page is the same page twice.
+
+A visit shorter than fifteen seconds that ended in a positively observed move to
+another Video subtracts 0.5, to a maximum of 1.5 however many there were. It
+applies to nothing else: a failure, a closed tab, an inactivity timeout, and an
+under-minute visit that simply ended are all neutral. It never applies at all
+after a Like or a Love, and it can never erase what a real session established —
+half of the strongest session always survives. Viewing Completion, the fraction
+watched and Play Count are not consulted anywhere in this.
+
 A **Browsing Visit** is one Account and client browsing continuously, ending
 after thirty minutes without activity. It exists only so that a Video watched
 during the visit can move down a page of recommendations without being excluded,
