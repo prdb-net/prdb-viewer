@@ -695,6 +695,31 @@ restoring an older Backup Archive discards them too. That loss is deliberate,
 and [ADR 0022](docs/adr/0022-recommend-from-return-interest-rather-than-completion.md)
 says why.
 
+Two further summaries are kept for recommendations, and nothing else is. Each
+Viewing Session records its longest **Uninterrupted Run** — the longest stretch
+of contiguous Active Watching in it — which a seek, a pause, buffering, a Video
+File switch or stale evidence ends without costing the session any of its total.
+And a session records how it ended, but only where the browser observed
+something: navigation to a different Video, a technical failure, an ordinary
+closure, or the inactivity timeout. Anything else stays Unknown, and Unknown is
+never read as an opinion about a Video. A failure, a closed tab and a session
+nothing accounts for are all ways of not knowing.
+
+Both are one value per session rather than a list of events, and a summarised
+last-watched moment sits on the Personal Video State so that "not watched for a
+while" is one indexed column rather than a scan. Upgrading fills that moment in
+from the Playback Attempts already retained; where an installation has none, it
+stays empty, and the recommender reads that as watching that happened at a moment
+nobody recorded rather than as never watched. Uninterrupted runs and departures
+are not backfilled at all, because nothing recorded them.
+
+A **Browsing Visit** is one Account and client browsing continuously, ending
+after thirty minutes without activity. It exists only so that a Video watched
+during the visit can move down a page of recommendations without being excluded,
+and it holds nothing but which Videos this visit saw watched: no navigation, no
+searches, no history of earlier visits. Starting a visit deletes the previous
+one's marks, and two clients of one Account browse separately.
+
 Every Personal State endpoint derives its Account from the authenticated local
 session and requires CSRF protection for changes. That token is derived from the
 session itself rather than stored and reissued, so every tab of one session

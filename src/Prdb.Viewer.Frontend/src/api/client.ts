@@ -51,6 +51,7 @@ export type FavouriteActorResult = components['schemas']['FavouriteActorResult']
 // out here: a reaction is one of four, and null is the answer to a different question.
 export type PersonalReaction = NonNullable<components['schemas']['PersonalReaction']>
 export type Playlist = components['schemas']['PlaylistSummary']
+export type PlaybackDeparture = components['schemas']['PlaybackDeparture']
 export type PlaylistResult = components['schemas']['PlaylistResult']
 
 export type LibraryFilters = {
@@ -349,9 +350,17 @@ export const api = {
     report,
     csrfToken,
   ),
-  endPlaybackAttempt: (playbackAttemptId: string, csrfToken: string, keepalive = false) =>
+  /// Ends a Viewing Session, saying how it ended where the browser saw anything. The reason
+  /// travels in the address rather than in a body because this is also called from a page that is
+  /// going away, and a request with a body is the one least likely to be sent at all.
+  endPlaybackAttempt: (
+    playbackAttemptId: string,
+    csrfToken: string,
+    keepalive = false,
+    departure: PlaybackDeparture = 'Unknown',
+  ) =>
     request<{ ended: boolean }>(
-      `/api/personal/playback-attempts/${playbackAttemptId}/end`,
+      `/api/personal/playback-attempts/${playbackAttemptId}/end?departure=${departure}`,
       {
         method: 'POST',
         headers: { 'X-CSRF-Token': csrfToken },

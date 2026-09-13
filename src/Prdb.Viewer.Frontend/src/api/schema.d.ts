@@ -1857,7 +1857,9 @@ export interface paths {
         put?: never;
         post: {
             parameters: {
-                query?: never;
+                query?: {
+                    departure?: components["schemas"]["PlaybackDeparture"];
+                };
                 header?: never;
                 path: {
                     playbackAttemptId: string;
@@ -3129,6 +3131,8 @@ export interface components {
             favourite: boolean;
             watchLater: boolean;
             reaction: null | components["schemas"]["PersonalReaction"];
+            /** Format: date-time */
+            lastWatchedAt: null | string;
         };
         PlaybackAttemptRequest: {
             /** Format: uuid */
@@ -3143,6 +3147,8 @@ export interface components {
         };
         /** @enum {unknown} */
         PlaybackAttemptVerdict: "Started" | "VideoNotFound" | "VideoFileUnavailable";
+        /** @enum {unknown} */
+        PlaybackDeparture: "Unknown" | "AnotherVideo" | "TechnicalFailure" | "Closed" | "Inactivity";
         /** @enum {unknown} */
         PlaybackFailureCategory: "Media" | "Availability" | "Delivery" | "Network" | null;
         PlaybackReportRequest: {

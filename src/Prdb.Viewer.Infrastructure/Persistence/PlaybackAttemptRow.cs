@@ -1,3 +1,5 @@
+using Prdb.Viewer.Core.Personal;
+
 namespace Prdb.Viewer.Infrastructure.Persistence;
 
 public sealed class PlaybackAttemptRow
@@ -25,6 +27,26 @@ public sealed class PlaybackAttemptRow
     public long? LastPositionMilliseconds { get; set; }
 
     public long ActiveWatchDurationMilliseconds { get; set; }
+
+    /// <summary>
+    /// The longest Uninterrupted Run this Viewing Session reached. It is a summary of the session
+    /// rather than a list of its runs: the recommender asks how long the longest one was, and
+    /// keeping every run would be keeping a clickstream to answer a question about one number.
+    /// </summary>
+    public long LongestUninterruptedRunMilliseconds { get; set; }
+
+    /// <summary>The run currently being measured, and where it has reached.</summary>
+    public long CurrentRunMilliseconds { get; set; }
+
+    public Guid? CurrentRunVideoFileId { get; set; }
+
+    public long? CurrentRunEndPositionMilliseconds { get; set; }
+
+    /// <summary>
+    /// How this session ended, where anything was observed about it. Unknown is the honest default
+    /// and is never read as evidence about the Video.
+    /// </summary>
+    public PlaybackDeparture Departure { get; set; }
 
     public bool Qualified { get; set; }
 

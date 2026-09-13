@@ -83,6 +83,7 @@ public sealed class PersonalStateService(
         long activeWatchingMilliseconds,
         bool naturalEndConfirmed,
         bool endSession,
+        string? clientContextKey = null,
         CancellationToken cancellationToken = default)
     {
         var invalid = reportId == Guid.Empty ||
@@ -131,6 +132,7 @@ public sealed class PersonalStateService(
             if (attempt.EndedAt is null)
             {
                 attempt.EndedAt = latestEvidenceAt + PlaybackActivityRule.SessionInactivityTimeout;
+                attempt.Departure = PlaybackDeparture.Inactivity;
                 await database.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
             }
@@ -153,9 +155,34 @@ public sealed class PersonalStateService(
                 activityStartedAt.Value,
                 activityEndedAt.Value,
                 cancellationToken);
+            // The Uninterrupted Run is measured before the last activity moves, because whether
+            // this report joins the previous one is a question about the gap between the two.
+            var continues = PlaybackActivityRule.ContinuesUninterruptedRun(
+                attempt.CurrentRunVideoFileId == videoFileId,
+                attempt.CurrentRunEndPositionMilliseconds,
+                positionMilliseconds,
+                activeWatchingMilliseconds,
+                attempt.LastActivityAt is { } previous
+                    ? activityStartedAt.Value - previous
+                    : null);
+            attempt.CurrentRunMilliseconds = continues
+                ? attempt.CurrentRunMilliseconds + activeWatchingMilliseconds
+                : activeWatchingMilliseconds;
+            attempt.CurrentRunVideoFileId = videoFileId;
+            attempt.CurrentRunEndPositionMilliseconds = positionMilliseconds;
+            attempt.LongestUninterruptedRunMilliseconds = Math.Max(
+                attempt.LongestUninterruptedRunMilliseconds,
+                attempt.CurrentRunMilliseconds);
+
             attempt.ActiveWatchDurationMilliseconds += activeWatchingMilliseconds;
             attempt.ViewingSessionBeganAt ??= activityStartedAt;
             attempt.LastActivityAt = now;
+            state.LastWatchedAt = now;
+
+            if (clientContextKey is { Length: > 0 } client)
+            {
+                await MarkBrowsingVisitAsync(accountId, client, attempt.VideoId, now, cancellationToken);
+            }
 
             if (!await database.PlaybackAttemptVideoFiles.AnyAsync(participation =>
                     participation.PlaybackAttemptId == attempt.Id &&
@@ -252,9 +279,15 @@ public sealed class PersonalStateService(
             ToSummary(state, file.DurationMilliseconds));
     }
 
+    /// <summary>
+    /// Ends a Viewing Session, recording how it ended where the client observed anything. A
+    /// departure is only ever recorded once: the first observation is the one that saw what
+    /// happened, and a later Unknown must not overwrite it.
+    /// </summary>
     public async Task<bool> EndPlaybackAttemptAsync(
         Guid accountId,
         Guid playbackAttemptId,
+        PlaybackDeparture departure = PlaybackDeparture.Unknown,
         CancellationToken cancellationToken = default)
     {
         var attempt = await database.PlaybackAttempts
@@ -268,10 +301,96 @@ public sealed class PersonalStateService(
         }
 
         attempt.EndedAt ??= UtcNow();
+
+        if (attempt.Departure == PlaybackDeparture.Unknown)
+        {
+            attempt.Departure = departure;
+        }
+
         await database.SaveChangesAsync(cancellationToken);
         return true;
     }
 
+    /// <summary>
+    /// The Videos this Account and client has watched during the Browsing Visit that is open now.
+    /// An empty answer is the ordinary one: it means the last visit is over, or that nothing has
+    /// been watched in this one.
+    /// </summary>
+    public async Task<IReadOnlyCollection<Guid>> CurrentBrowsingVisitAsync(
+        Guid accountId,
+        string clientContextKey,
+        CancellationToken cancellationToken = default)
+    {
+        var marks = await database.BrowsingVisitWatches
+            .AsNoTracking()
+            .Where(watch =>
+                watch.AccountId == accountId && watch.ClientContextKey == clientContextKey)
+            .Select(watch => new { watch.VideoId, watch.WatchedAt })
+            .ToListAsync(cancellationToken);
+
+        if (marks.Count == 0)
+        {
+            return [];
+        }
+
+        return marks.Max(mark => mark.WatchedAt) < UtcNow() - PlaybackActivityRule.BrowsingVisitTimeout
+            ? []
+            : marks.Select(mark => mark.VideoId).ToArray();
+    }
+
+    /// <summary>
+    /// Notes that this Video was watched during the current Browsing Visit, starting a new visit
+    /// where the last one has timed out.
+    /// </summary>
+    /// <remarks>
+    /// Starting a new visit deletes the previous one's marks rather than keeping them beside the
+    /// new ones. What is retained is therefore one visit, which is all the down-ranking needs; a
+    /// list of every visit an Account ever had would be the viewing history this deliberately is
+    /// not.
+    /// </remarks>
+    private async Task MarkBrowsingVisitAsync(
+        Guid accountId,
+        string clientContextKey,
+        Guid videoId,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var existing = await database.BrowsingVisitWatches
+            .AsTracking()
+            .Where(watch =>
+                watch.AccountId == accountId && watch.ClientContextKey == clientContextKey)
+            .ToListAsync(cancellationToken);
+        var lapsed = existing.Count > 0 &&
+            existing.Max(watch => watch.WatchedAt) < now - PlaybackActivityRule.BrowsingVisitTimeout;
+
+        if (lapsed)
+        {
+            database.BrowsingVisitWatches.RemoveRange(existing);
+            existing = [];
+        }
+
+        var mark = existing.SingleOrDefault(watch => watch.VideoId == videoId);
+
+        if (mark is null)
+        {
+            database.BrowsingVisitWatches.Add(new BrowsingVisitWatchRow
+            {
+                AccountId = accountId,
+                ClientContextKey = clientContextKey,
+                VideoId = videoId,
+                WatchedAt = now,
+            });
+        }
+        else
+        {
+            mark.WatchedAt = now;
+        }
+    }
+
+    /// <summary>
+    /// Ends everything this Account had open, which is what signing out does. Each of those is an
+    /// ordinary closure rather than a departure to somewhere: the User left the application.
+    /// </summary>
     public async Task EndAccountPlaybackAttemptsAsync(
         Guid accountId,
         CancellationToken cancellationToken = default)
@@ -280,7 +399,13 @@ public sealed class PersonalStateService(
         await database.PlaybackAttempts
             .Where(attempt => attempt.AccountId == accountId && attempt.EndedAt == null)
             .ExecuteUpdateAsync(
-                updates => updates.SetProperty(attempt => attempt.EndedAt, now),
+                updates => updates
+                    .SetProperty(attempt => attempt.EndedAt, now)
+                    .SetProperty(
+                        attempt => attempt.Departure,
+                        attempt => attempt.Departure == PlaybackDeparture.Unknown
+                            ? PlaybackDeparture.Closed
+                            : attempt.Departure),
                 cancellationToken);
     }
 
@@ -441,6 +566,7 @@ public sealed class PersonalStateService(
                     PlayState = state.PlayState,
                     PlayStateChangedAt = state.PlayStateChangedAt,
                     LastQualifiedActivityAt = state.LastQualifiedActivityAt,
+                    LastWatchedAt = state.LastWatchedAt,
                     ContinueWatchingDismissedAt = state.ContinueWatchingDismissedAt,
                     FavouriteAddedAt = state.FavouriteAddedAt,
                     WatchLaterAddedAt = state.WatchLaterAddedAt,
@@ -579,6 +705,7 @@ public sealed class PersonalStateService(
                 state.PlayState = PersonalPlayState.Unplayed;
                 state.PlayStateChangedAt = null;
                 state.LastQualifiedActivityAt = null;
+                state.LastWatchedAt = null;
             }
 
             return;
@@ -602,6 +729,7 @@ public sealed class PersonalStateService(
             .FirstOrDefault();
         state.PlayCount = attempts.Count(attempt => attempt.Qualified);
         state.HasViewingCompletion = attempts.Any(attempt => attempt.CompletionRecorded);
+        state.LastWatchedAt = attempts.Max(attempt => attempt.LastActivityAt);
         state.AccumulatedWatchDurationMilliseconds = await GetConfirmedDurationAsync(
             accountId,
             videoId,
@@ -633,6 +761,9 @@ public sealed class PersonalStateService(
         target.PlayCount += merged.PlayCount;
         target.HasViewingCompletion |= merged.HasViewingCompletion;
         target.LastCompletedAt = Later(target.LastCompletedAt, merged.LastCompletedAt);
+        // Two identities that turn out to be one Video have one history of being watched, and the
+        // later of the two moments is when that history last happened.
+        target.LastWatchedAt = Later(target.LastWatchedAt, merged.LastWatchedAt);
         target.ContinueWatchingDismissedAt = Later(
             target.ContinueWatchingDismissedAt,
             merged.ContinueWatchingDismissedAt);
@@ -830,11 +961,15 @@ public sealed class PersonalStateService(
             continueWatching,
             state.FavouriteAddedAt is not null,
             state.WatchLaterAddedAt is not null,
-            state.Reaction);
+            state.Reaction,
+            VideoPresentationTime(state.LastWatchedAt));
     }
 
     internal static PersonalVideoStateSummary EmptySummary() =>
-        new(null, null, 0, 0, false, PersonalPlayState.Unplayed, false, false, false, null);
+        new(null, null, 0, 0, false, PersonalPlayState.Unplayed, false, false, false, null, null);
+
+    private static DateTimeOffset? VideoPresentationTime(DateTime? value) =>
+        value is null ? null : new DateTimeOffset(DateTime.SpecifyKind(value.Value, DateTimeKind.Utc));
 
     /// <summary>
     /// Whether two Video Files of one Video carry the same sequence and timing, as the Perceptual

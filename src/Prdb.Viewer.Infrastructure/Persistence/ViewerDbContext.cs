@@ -63,6 +63,8 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<PlaylistEntryRow> PlaylistEntries => Set<PlaylistEntryRow>();
 
+    public DbSet<BrowsingVisitWatchRow> BrowsingVisitWatches => Set<BrowsingVisitWatchRow>();
+
     public DbSet<PlaybackAttemptRow> PlaybackAttempts => Set<PlaybackAttemptRow>();
 
     public DbSet<PlaybackReportRow> PlaybackReports => Set<PlaybackReportRow>();
@@ -593,6 +595,7 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
             state.Property(row => row.PlayState).HasConversion<string>();
             state.Property(row => row.Reaction).HasConversion<string>();
             state.HasIndex(row => new { row.AccountId, row.LastQualifiedActivityAt });
+            state.HasIndex(row => new { row.AccountId, row.LastWatchedAt });
             state.HasIndex(row => new { row.AccountId, row.FavouriteAddedAt });
             state.HasIndex(row => new { row.AccountId, row.WatchLaterAddedAt });
             state.HasOne(row => row.Account)
@@ -605,11 +608,27 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        builder.Entity<BrowsingVisitWatchRow>(watch =>
+        {
+            watch.ToTable("browsing_visit_watch");
+            watch.HasKey(row => new { row.AccountId, row.ClientContextKey, row.VideoId });
+            watch.Property(row => row.ClientContextKey).IsRequired();
+            watch.HasOne(row => row.Account)
+                .WithMany()
+                .HasForeignKey(row => row.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+            watch.HasOne(row => row.Video)
+                .WithMany()
+                .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         builder.Entity<PlaybackAttemptRow>(attempt =>
         {
             attempt.ToTable("playback_attempt");
             attempt.HasKey(row => row.Id);
             attempt.Property(row => row.Id).ValueGeneratedNever();
+            attempt.Property(row => row.Departure).HasConversion<string>();
             attempt.HasIndex(row => new { row.AccountId, row.VideoId, row.AttemptedAt });
             attempt.HasIndex(row => new { row.AccountId, row.EndedAt, row.LastActivityAt });
             attempt.HasOne(row => row.Account)

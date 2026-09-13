@@ -158,7 +158,7 @@ public sealed class SqliteWorkloadBenchmark
             await personal.EndPlaybackAttemptAsync(
                 accounts[1],
                 attempt.PlaybackAttemptId!.Value,
-                TestContext.Current.CancellationToken);
+                cancellationToken: TestContext.Current.CancellationToken);
             return 1;
         }));
         return report;

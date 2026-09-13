@@ -1620,6 +1620,14 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "departure",
+            "in": "query",
+            "schema": {
+              "default": "Unknown",
+              "$ref": "#/components/schemas/PlaybackDeparture"
+            }
           }
         ],
         "responses": {
@@ -5142,7 +5150,8 @@
           "continueWatching",
           "favourite",
           "watchLater",
-          "reaction"
+          "reaction",
+          "lastWatchedAt"
         ],
         "type": "object",
         "properties": {
@@ -5202,6 +5211,13 @@
                 "$ref": "#/components/schemas/PersonalReaction"
               }
             ]
+          },
+          "lastWatchedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
           }
         }
       },
@@ -5251,6 +5267,15 @@
           "Started",
           "VideoNotFound",
           "VideoFileUnavailable"
+        ]
+      },
+      "PlaybackDeparture": {
+        "enum": [
+          "Unknown",
+          "AnotherVideo",
+          "TechnicalFailure",
+          "Closed",
+          "Inactivity"
         ]
       },
       "PlaybackFailureCategory": {

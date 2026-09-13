@@ -46,7 +46,7 @@ public sealed class PersonalStateServiceTests
             activeWatchingMilliseconds: 10_000,
             naturalEndConfirmed: false,
             endSession: false,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(PlaybackReportVerdict.Accepted, report.Verdict);
         Assert.Equal(PersonalPlayState.InProgress, report.PersonalState!.PlayState);
@@ -65,7 +65,7 @@ public sealed class PersonalStateServiceTests
             activeWatchingMilliseconds: 10_000,
             naturalEndConfirmed: false,
             endSession: false,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(PlaybackReportVerdict.Duplicate, duplicate.Verdict);
         Assert.Equal(10_000, duplicate.PersonalState!.AccumulatedWatchDurationMilliseconds);
         Assert.Equal(1, duplicate.PersonalState.PlayCount);
@@ -95,7 +95,7 @@ public sealed class PersonalStateServiceTests
             activeWatchingMilliseconds: 1_000,
             naturalEndConfirmed: false,
             endSession: false,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(PersonalPlayState.Completed, completed.PersonalState!.PlayState);
         Assert.True(completed.PersonalState.HasViewingCompletion);
         Assert.False(completed.PersonalState.ContinueWatching);
@@ -111,7 +111,7 @@ public sealed class PersonalStateServiceTests
             activeWatchingMilliseconds: 1_000,
             naturalEndConfirmed: false,
             endSession: false,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(PlaybackReportVerdict.Accepted, afterCompletion.Verdict);
         Assert.Equal(PersonalPlayState.Completed, afterCompletion.PersonalState!.PlayState);
     }
@@ -147,7 +147,7 @@ public sealed class PersonalStateServiceTests
             10_000,
             false,
             false,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
         var result = await service.ReportPlaybackAsync(
             seeded.FirstAccountId,
             second.PlaybackAttemptId!.Value,
@@ -158,7 +158,7 @@ public sealed class PersonalStateServiceTests
             10_000,
             false,
             false,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.Equal(10_000, result.PersonalState!.AccumulatedWatchDurationMilliseconds);
         Assert.Equal(2, result.PersonalState.PlayCount);
@@ -175,7 +175,7 @@ public sealed class PersonalStateServiceTests
             1_000,
             false,
             false,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(25_000, olderLateReport.PersonalState!.PlaybackProgressMilliseconds);
     }
 
@@ -308,7 +308,7 @@ public sealed class PersonalStateServiceTests
             10_000,
             false,
             false,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
 
         Assert.False((await service.DismissContinueWatchingAsync(
             seeded.FirstAccountId,
@@ -325,7 +325,7 @@ public sealed class PersonalStateServiceTests
             1_000,
             false,
             false,
-            TestContext.Current.CancellationToken)).PersonalState!.ContinueWatching);
+            cancellationToken: TestContext.Current.CancellationToken)).PersonalState!.ContinueWatching);
 
         var differentCut = await service.StartPlaybackAttemptAsync(
             seeded.FirstAccountId,
@@ -345,7 +345,7 @@ public sealed class PersonalStateServiceTests
             1_000,
             false,
             false,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(PlaybackReportVerdict.AttemptEnded, expired.Verdict);
         Assert.Equal(11_000, expired.PersonalState!.PlaybackProgressMilliseconds);
     }

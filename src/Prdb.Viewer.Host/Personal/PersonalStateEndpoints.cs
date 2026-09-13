@@ -100,18 +100,24 @@ public static class PersonalStateEndpoints
                 request.ActiveWatchingMilliseconds,
                 request.NaturalEndConfirmed,
                 request.EndSession,
+                http.ClientContextKey(),
                 cancellationToken)))
             .RequireCsrf();
 
+        // The client says how the session ended where it observed anything. It is a query
+        // parameter rather than a body because this call is also made from a page that is going
+        // away, where a request with a body is the one most likely not to be sent at all.
         personal.MapPost("/playback-attempts/{playbackAttemptId:guid}/end", async (
             Guid playbackAttemptId,
             PersonalStateService service,
             HttpContext http,
-            CancellationToken cancellationToken) =>
+            CancellationToken cancellationToken,
+            PlaybackDeparture departure = PlaybackDeparture.Unknown) =>
             TypedResults.Ok(new EndPlaybackAttemptResponse(
                 await service.EndPlaybackAttemptAsync(
                     http.User.AccountId()!.Value,
                     playbackAttemptId,
+                    departure,
                     cancellationToken))))
             .RequireCsrf();
 
