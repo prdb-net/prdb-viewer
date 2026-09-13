@@ -7,6 +7,72 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-09-13
+
+The viewer answers "what do I feel like watching?" from your own history on your
+own installation. A private collection is largely returned to, so rewatching is
+treated as a success rather than as a sign that a Video is spent: what somebody
+keeps coming back to is the clearest recommendation this product can make, and
+Viewing Completion is not part of the question at all.
+
+Two things had to change before it could. The five-star Personal Rating is gone,
+replaced by four Personal Reactions that each say something a recommendation can
+act on, and **every old star value is discarded** — deliberately, with no
+mapping. And the application now keeps two summaries it never kept: how long the
+longest uninterrupted stretch of a Viewing Session was, and how a session ended
+where the browser actually observed it. **This release migrates.**
+
+### Added
+
+- **For you**, a screen of its own with three sections: what to watch again, what
+  has been long unseen, and what has never been watched. Each card carries one
+  short line saying why it is there, drawn from evidence your own activity
+  produced, and offers all four reactions, clearing, and Not today.
+- Personal Reactions: Dislike, Shrug, Like and Love, one optional statement per
+  Video. A Shrug is "seen it, no opinion", which is a different fact from having
+  said nothing, and a Dislike keeps a Video out of every recommendation section
+  until it is changed or cleared — while hiding it from nothing else, not the
+  library, not search, and not your own lists.
+- Playlists: named, ordered sets of Videos you arrange yourself, as many as you
+  like. A Playlist is the library narrowed to it, with the same search, facets
+  and paging over your own manual order, and the arrangement — move up, move
+  down, take out — is offered while nothing narrows the page. Deleting one
+  deletes the arrangement and nothing else.
+- Not today: putting one Video aside for twenty-four hours, across your clients,
+  undoable, and changing no preference and no playback state. Other suggestions
+  asks for a different page rather than reshuffling this one.
+- The evidence the rules needed: the longest Uninterrupted Run within a Viewing
+  Session, and a departure recorded only where the browser observed one —
+  navigation to another Video, a technical failure, an ordinary closure, or the
+  inactivity timeout. A failure, a closed tab and a session nothing accounts for
+  are three different ways of not knowing, and none of them is read as a dislike.
+- Sorting the library by what you said about a Video, warmest first, with the
+  Videos you said nothing about above the ones you disliked.
+
+### Changed
+
+- Recommendations are led by absolute Active Watching rather than by any fraction
+  of a Video's runtime, and repeated visits say more than one long sitting. A
+  minute assembled from six ten-second stretches counts as the minute it is;
+  seeking is neither rewarded nor punished. Completion is never a requirement and
+  never a penalty.
+- Two thirds of what is offered as undiscovered is led by a cautious affinity with
+  the Actors and Sites your own evidence points at — a rate rather than a count,
+  so nobody wins by simply appearing everywhere — and one third is chosen without
+  reference to any of that, which is the part that reaches Videos with barely any
+  metadata. A Dislike is never held against a Video's Actors or its Site.
+- Nothing about your viewing leaves the installation, and no other Account and no
+  Administrator can read your recommendations, the evidence behind them, or what
+  you have put aside.
+
+### Removed
+
+- **The one-to-five Personal Rating, and every value anybody had recorded.**
+  Upgrading drops them, and restoring a Backup Archive written by an older
+  version drops the ones it carries. There is no mapping and no way back: three
+  stars is not a shrug, and an invented equivalence would have outlived the
+  decision that made it. All other Personal State is untouched.
+
 ## [0.17.0] - 2026-09-12
 
 The installation compares its own files with each other. The Perceptual Hash has
