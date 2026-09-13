@@ -126,6 +126,28 @@ public sealed class SqliteWorkloadBenchmark
                         Sort = LibrarySortOrder.ShelfOrder,
                     },
                     TestContext.Current.CancellationToken)).Videos.Count));
+        // The whole Recommendations page: three sections, every exclusion, and the ranking over
+        // one Account's own history. It is the newest read path a signed-in User waits for.
+        report.Add(await MeasureAsync("Recommendations page", store, async scope =>
+            (await scope.ServiceProvider
+                .GetRequiredService<RecommendationService>()
+                .GetAsync(
+                    accounts[0],
+                    LibraryPipeline.ClientContext,
+                    seed: 1,
+                    cancellationToken: TestContext.Current.CancellationToken))
+                .Sections.Sum(section => section.Videos.Count)));
+        // The same page for an Account with nothing behind it, which is the discovery path alone
+        // and the one that reads the library rather than a person's history.
+        report.Add(await MeasureAsync("Recommendations, cold start", store, async scope =>
+            (await scope.ServiceProvider
+                .GetRequiredService<RecommendationService>()
+                .GetAsync(
+                    accounts[^1],
+                    LibraryPipeline.ClientContext,
+                    seed: 1,
+                    cancellationToken: TestContext.Current.CancellationToken))
+                .Sections.Sum(section => section.Videos.Count)));
         report.Add(await MeasureAsync("Background work status", store, async scope =>
             (await scope.ServiceProvider
                 .GetRequiredService<BackgroundWorkQuery>()
@@ -342,8 +364,10 @@ public sealed class SqliteWorkloadBenchmark
                     });
                 }
 
-                // Every Account keeps private state on a slice of the library.
-                foreach (var account in accounts.Where(_ => index % 50 == 0))
+                // Every Account but the last keeps private state on a slice of the library. The
+                // last one keeps none, so that a cold start is a case this measures rather than a
+                // case it assumes away.
+                foreach (var account in accounts.SkipLast(1).Where(_ => index % 50 == 0))
                 {
                     database.PersonalVideoStates.Add(new PersonalVideoStateRow
                     {
@@ -354,6 +378,8 @@ public sealed class SqliteWorkloadBenchmark
                         PlayCount = 2,
                         PlayState = PersonalPlayState.InProgress,
                         LastQualifiedActivityAt = at.AddMinutes(index),
+                        LastWatchedAt = at.AddMinutes(index),
+                        Reaction = index % 100 == 0 ? PersonalReaction.Like : null,
                         FavouriteAddedAt = index % 100 == 0 ? at : null,
                         WatchLaterAddedAt = index % 200 == 0 ? at : null,
                     });

@@ -49,6 +49,10 @@ export function usePersonalActions(account: Account) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['videos'] })
       void queryClient.invalidateQueries({ queryKey: ['video'] })
+      // A reaction changes what may be recommended at all — a Dislike is a hard exclusion — so a
+      // page of recommendations is stale the moment one is set. Without this, disliking a Video
+      // on the card that offered it left the card exactly where it was.
+      void queryClient.invalidateQueries({ queryKey: ['recommendations'] })
     },
   })
 

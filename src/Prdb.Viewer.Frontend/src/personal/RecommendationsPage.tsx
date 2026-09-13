@@ -56,9 +56,10 @@ export function RecommendationsPage({ account }: { account: Account }) {
   // a narrowing anybody would want to come back to: a reader who returns tomorrow wants today's
   // suggestions, not the ones a link happened to freeze.
   const [seed, setSeed] = useState<number>()
-  // What has just been put aside, so the card can offer the undo in the place it disappeared from
-  // rather than as a message somewhere else on the screen.
-  const [asideNow, setAsideNow] = useState<VideoSummary[]>([])
+  // What has just been put aside, with the section it went from, so the undo can stay where the
+  // card was. The section has to be remembered rather than looked up: the moment the dismissal
+  // lands the page is asked again, and the answer no longer mentions the Video at all.
+  const [asideNow, setAsideNow] = useState<{ video: VideoSummary; section: RecommendationSection }[]>([])
 
   const page = useQuery({
     queryKey: queryKeys.recommendations(String(seed ?? 'today')),
@@ -66,12 +67,15 @@ export function RecommendationsPage({ account }: { account: Account }) {
   })
 
   const notToday = useMutation({
-    mutationFn: ({ video, dismissed }: { video: VideoSummary; dismissed: boolean }) =>
-      api.setNotToday(video.id, dismissed, account.csrfToken),
-    onSuccess: (_, { video, dismissed }) => {
+    mutationFn: ({ video, dismissed }: {
+      video: VideoSummary
+      section: RecommendationSection
+      dismissed: boolean
+    }) => api.setNotToday(video.id, dismissed, account.csrfToken),
+    onSuccess: (_, { video, section, dismissed }) => {
       setAsideNow((aside) => dismissed
-        ? [...aside.filter((held) => held.id !== video.id), video]
-        : aside.filter((held) => held.id !== video.id))
+        ? [...aside.filter((held) => held.video.id !== video.id), { video, section }]
+        : aside.filter((held) => held.video.id !== video.id))
       void queryClient.invalidateQueries({ queryKey: ['recommendations'] })
     },
   })
@@ -84,7 +88,7 @@ export function RecommendationsPage({ account }: { account: Account }) {
     return <RequestError error={page.error} />
   }
 
-  const aside = new Set(asideNow.map((video) => video.id))
+  const aside = new Set(asideNow.map((held) => held.video.id))
   const empty = page.data.sections.every((section) => section.videos.length === 0)
 
   return (
@@ -131,13 +135,15 @@ export function RecommendationsPage({ account }: { account: Account }) {
           name={name}
           page={page.data.sections.find((section) => section.section === name)}
           aside={aside}
-          asideVideos={asideNow}
+          asideVideos={asideNow
+            .filter((held) => held.section === name)
+            .map((held) => held.video)}
           from={`${location.pathname}${location.search}`}
           act={personal.act}
           pending={personal.pending}
           busy={notToday.isPending}
-          notToday={(video) => notToday.mutate({ video, dismissed: true })}
-          undo={(video) => notToday.mutate({ video, dismissed: false })}
+          notToday={(video) => notToday.mutate({ video, section: name, dismissed: true })}
+          undo={(video) => notToday.mutate({ video, section: name, dismissed: false })}
         />
       ))}
 
@@ -173,10 +179,10 @@ function Section({
 }) {
   const described = sections[name]
   const offered = (page?.videos ?? []).filter((offer) => !aside.has(offer.video.id))
-  // What was put aside during this visit to the page, kept on screen so the undo is where the
-  // card was. Once the reader leaves, the dismissal simply holds for the day.
-  const putAside = asideVideos.filter((video) =>
-    page?.videos.some((offer) => offer.video.id === video.id))
+  // What was put aside during this visit to the page, kept on screen so the undo is where the card
+  // was. It survives the refetch the dismissal causes — the answer stops mentioning the Video, and
+  // the undo must not go with it. Once the reader leaves, the dismissal simply holds for the day.
+  const putAside = asideVideos
 
   return (
     <section className="recommendation-section" aria-labelledby={`section-${name}`}>

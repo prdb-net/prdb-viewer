@@ -19,6 +19,9 @@ export function usePlaylists(account: Account, videoId?: string) {
     void queryClient.invalidateQueries({ queryKey: ['playlists'] })
     void queryClient.invalidateQueries({ queryKey: ['videos'] })
     void queryClient.invalidateQueries({ queryKey: ['library-facets'] })
+    // Playlist membership is a positive input to the ranking, so a page of recommendations no
+    // longer says what the evidence says once it changes.
+    void queryClient.invalidateQueries({ queryKey: ['recommendations'] })
   }
 
   const create = useMutation({
