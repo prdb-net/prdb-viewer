@@ -54,7 +54,7 @@ public sealed class ResurfacingServiceTests
             unseen.Select(video => video.VideoId));
         Assert.All(
             unseen,
-            video => Assert.Contains(ResurfacingReason.NotWatchedForAWhile, video.Reasons));
+            video => Assert.Contains(RecommendationReason.NotWatchedForAWhile, video.Reasons));
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public sealed class ResurfacingServiceTests
         Assert.Equal(seeded.VideoIds[0], unseen.VideoId);
         // It was watched, at a moment nothing here recorded, and the reason says exactly that
         // rather than inventing a number of days.
-        Assert.Equal([ResurfacingReason.WatchedLongAgo], unseen.Reasons);
+        Assert.Equal([RecommendationReason.WatchedLongAgo], unseen.Reasons);
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public sealed class ResurfacingServiceTests
         Assert.Equal([seeded.VideoIds[1]], discovered.Select(video => video.VideoId));
         Assert.All(
             discovered,
-            video => Assert.Contains(ResurfacingReason.NeverWatched, video.Reasons));
+            video => Assert.Contains(RecommendationReason.NeverWatched, video.Reasons));
     }
 
     [Fact]
@@ -202,9 +202,9 @@ public sealed class ResurfacingServiceTests
 
         Assert.Equal(9, discovered.Count);
         var led = discovered
-            .Count(video => video.Reasons.Contains(ResurfacingReason.SharesAnActorYouWatch));
+            .Count(video => video.Reasons.Contains(RecommendationReason.SharesAnActorYouWatch));
         var independent = discovered
-            .Count(video => video.Reasons.Contains(ResurfacingReason.SomethingDifferent));
+            .Count(video => video.Reasons.Contains(RecommendationReason.SomethingDifferent));
         Assert.Equal(6, led);
         Assert.Equal(3, independent);
         // Nothing watched is ever offered as a discovery, and nothing appears twice.
@@ -234,7 +234,7 @@ public sealed class ResurfacingServiceTests
         Assert.Equal(6, cold.Count);
         Assert.All(
             cold,
-            video => Assert.Contains(ResurfacingReason.SomethingDifferent, video.Reasons));
+            video => Assert.Contains(RecommendationReason.SomethingDifferent, video.Reasons));
 
         // The same seed is the same page, twice: paging depends on it.
         var again = await resurfacing.NeverWatchedAsync(
@@ -298,7 +298,7 @@ public sealed class ResurfacingServiceTests
 
         Assert.Contains(
             discovered,
-            video => video.Reasons.Contains(ResurfacingReason.SharesAnActorYouWatch));
+            video => video.Reasons.Contains(RecommendationReason.SharesAnActorYouWatch));
     }
 
     private static async Task WatchAsync(

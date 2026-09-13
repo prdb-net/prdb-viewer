@@ -1,33 +1,6 @@
 namespace Prdb.Viewer.Core.Personal;
 
 /// <summary>
-/// Why a Video is being resurfaced or discovered, in facts the reader's own activity produced.
-/// </summary>
-public enum ResurfacingReason
-{
-    /// <summary>Watched before, and not for a while. The section's own reason.</summary>
-    NotWatchedForAWhile,
-
-    /// <summary>Watched before, at a moment this installation no longer holds.</summary>
-    WatchedLongAgo,
-
-    /// <summary>Never watched here by this Account.</summary>
-    NeverWatched,
-
-    /// <summary>An Actor this Account keeps explicitly is in it.</summary>
-    WithAFavouriteActor,
-
-    /// <summary>An Actor several Videos this Account likes also has.</summary>
-    SharesAnActorYouWatch,
-
-    /// <summary>A Site several Videos this Account likes also comes from.</summary>
-    FromASiteYouWatch,
-
-    /// <summary>Chosen without reference to any inferred taste, on purpose.</summary>
-    SomethingDifferent,
-}
-
-/// <summary>
 /// How Videos are chosen for Long unseen and Not yet discovered.
 ///
 /// As with <see cref="ReturnInterestPolicy"/>, the semantics are ADR 0022's and the numbers are

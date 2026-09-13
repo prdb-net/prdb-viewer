@@ -7,7 +7,7 @@ using Prdb.Viewer.Infrastructure.Persistence;
 namespace Prdb.Viewer.Infrastructure.Personal;
 
 /// <summary>One Video chosen for a section, with the facts that chose it.</summary>
-public sealed record ResurfacedVideo(Guid VideoId, IReadOnlyList<ResurfacingReason> Reasons);
+public sealed record ResurfacedVideo(Guid VideoId, IReadOnlyList<RecommendationReason> Reasons);
 
 /// <summary>
 /// The two sections that are not about what an Account is currently watching: Long unseen, which
@@ -96,8 +96,8 @@ public sealed class ResurfacingService(
                 video.VideoId,
                 [
                     watched[video.VideoId] is null
-                        ? ResurfacingReason.WatchedLongAgo
-                        : ResurfacingReason.NotWatchedForAWhile,
+                        ? RecommendationReason.WatchedLongAgo
+                        : RecommendationReason.NotWatchedForAWhile,
                 ]))
             .ToArray();
     }
@@ -170,12 +170,12 @@ public sealed class ResurfacingService(
             .Take(affinityCount)
             .Select(candidate => new ResurfacedVideo(
                 candidate.VideoId,
-                [ResurfacingReason.NeverWatched, .. candidate.Reasons]))
+                [RecommendationReason.NeverWatched, .. candidate.Reasons]))
             .Concat(independentOrdered
                 .Take(independentCount)
                 .Select(videoId => new ResurfacedVideo(
                     videoId,
-                    [ResurfacingReason.NeverWatched, ResurfacingReason.SomethingDifferent])))
+                    [RecommendationReason.NeverWatched, RecommendationReason.SomethingDifferent])))
             .ToArray();
 
         // Interleaved rather than served in two blocks, so a page reads as one set of suggestions
@@ -419,20 +419,20 @@ public sealed class ResurfacingService(
             var contributions = names
                 .Select(name => affinity.Weights.GetValueOrDefault(name))
                 .Concat(site is null ? [] : [affinity.Weights.GetValueOrDefault(site)]);
-            var reasons = new List<ResurfacingReason>();
+            var reasons = new List<RecommendationReason>();
 
             if (names.Any(affinity.FavouriteActors.Contains))
             {
-                reasons.Add(ResurfacingReason.WithAFavouriteActor);
+                reasons.Add(RecommendationReason.WithAFavouriteActor);
             }
             else if (names.Any(name => affinity.Weights.ContainsKey(name)))
             {
-                reasons.Add(ResurfacingReason.SharesAnActorYouWatch);
+                reasons.Add(RecommendationReason.SharesAnActorYouWatch);
             }
 
             if (site is not null && affinity.Sites.Contains(site))
             {
-                reasons.Add(ResurfacingReason.FromASiteYouWatch);
+                reasons.Add(RecommendationReason.FromASiteYouWatch);
             }
 
             return new AffinityCandidate(
@@ -495,5 +495,5 @@ public sealed class ResurfacingService(
     private sealed record AffinityCandidate(
         Guid VideoId,
         double Affinity,
-        IReadOnlyList<ResurfacingReason> Reasons);
+        IReadOnlyList<RecommendationReason> Reasons);
 }

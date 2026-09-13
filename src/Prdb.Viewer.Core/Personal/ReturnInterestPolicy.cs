@@ -32,24 +32,6 @@ public sealed record ReturnInterestEvidence(
     bool HasPriorWatching = false);
 
 /// <summary>
-/// Why a Video is being offered, in facts the reader's own activity produced. Every one of these
-/// is about this Video: none of them generalises into a claim about an Actor or a Site, because
-/// watching one Video is not evidence of liking everybody in it.
-/// </summary>
-public enum ReturnInterestReason
-{
-    Loved,
-    Liked,
-    InAPlaylist,
-    Favourite,
-    WatchedRepeatedly,
-    WatchedAtLength,
-    WatchedWithoutInterruption,
-    WatchedBefore,
-    JustWatchedInThisVisit,
-}
-
-/// <summary>
 /// What the policy concluded about one Video: whether it may be offered at all, which tier it
 /// belongs to, what it scored, and the facts behind that.
 /// </summary>
@@ -57,7 +39,7 @@ public sealed record ReturnInterest(
     bool Excluded,
     int Tier,
     double Score,
-    IReadOnlyList<ReturnInterestReason> Reasons)
+    IReadOnlyList<RecommendationReason> Reasons)
 {
     /// <summary>Whether there is any positive evidence at all, which behaviour-only items need.</summary>
     public bool IsPositive => !Excluded && (Tier > 0 || Score > 0);
@@ -153,7 +135,7 @@ public static class ReturnInterestPolicy
             return new ReturnInterest(true, 0, 0, []);
         }
 
-        var reasons = new List<ReturnInterestReason>();
+        var reasons = new List<RecommendationReason>();
         var tier = evidence.Reaction switch
         {
             PersonalReaction.Love => LovedTier,
@@ -161,8 +143,8 @@ public static class ReturnInterestPolicy
             _ => 0,
         };
 
-        if (tier == LovedTier) reasons.Add(ReturnInterestReason.Loved);
-        if (tier == LikedTier) reasons.Add(ReturnInterestReason.Liked);
+        if (tier == LovedTier) reasons.Add(RecommendationReason.Loved);
+        if (tier == LikedTier) reasons.Add(RecommendationReason.Liked);
 
         var contributions = evidence.Sessions
             .Select(SessionContribution)
@@ -177,28 +159,28 @@ public static class ReturnInterestPolicy
         if (evidence.PlaylistMemberships > 0)
         {
             positive += PlaylistContribution;
-            reasons.Add(ReturnInterestReason.InAPlaylist);
+            reasons.Add(RecommendationReason.InAPlaylist);
         }
 
         if (evidence.Favourite)
         {
             positive += FavouriteContribution;
-            reasons.Add(ReturnInterestReason.Favourite);
+            reasons.Add(RecommendationReason.Favourite);
         }
 
-        if (repeats > 0) reasons.Add(ReturnInterestReason.WatchedRepeatedly);
-        else if (contributions.Length > 0) reasons.Add(ReturnInterestReason.WatchedAtLength);
+        if (repeats > 0) reasons.Add(RecommendationReason.WatchedRepeatedly);
+        else if (contributions.Length > 0) reasons.Add(RecommendationReason.WatchedAtLength);
 
         if (evidence.Sessions.Any(session =>
                 Qualifies(session) &&
                 session.LongestUninterruptedRunMilliseconds >= UninterruptedRunMilliseconds))
         {
-            reasons.Add(ReturnInterestReason.WatchedWithoutInterruption);
+            reasons.Add(RecommendationReason.WatchedWithoutInterruption);
         }
 
         if (contributions.Length == 0 && evidence.HasPriorWatching)
         {
-            reasons.Add(ReturnInterestReason.WatchedBefore);
+            reasons.Add(RecommendationReason.WatchedBefore);
         }
 
         // A short visit followed by a deliberate departure is the only negative behaviour can
@@ -214,7 +196,7 @@ public static class ReturnInterestPolicy
         if (evidence.WatchedInThisVisit)
         {
             score = Math.Max(0, score - RecentlyWatchedAdjustment);
-            reasons.Add(ReturnInterestReason.JustWatchedInThisVisit);
+            reasons.Add(RecommendationReason.JustWatchedInThisVisit);
         }
 
         return new ReturnInterest(false, tier, score, reasons);

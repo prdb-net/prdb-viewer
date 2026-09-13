@@ -233,6 +233,9 @@ public sealed class BackupService(
             PlaylistEntries = await database.PlaylistEntries
                 .AsNoTracking()
                 .ToListAsync(cancellationToken),
+            RecommendationDismissals = await database.RecommendationDismissals
+                .AsNoTracking()
+                .ToListAsync(cancellationToken),
             PlaybackAttempts = await database.PlaybackAttempts
                 .AsNoTracking()
                 .ToListAsync(cancellationToken),
@@ -298,6 +301,8 @@ public sealed class BackupService(
             document.Playlists.Any(playlist => !accounts.Contains(playlist.AccountId)) ||
             document.PlaylistEntries.Any(entry =>
                 !playlists.Contains(entry.PlaylistId) || !videos.Contains(entry.VideoId)) ||
+            document.RecommendationDismissals.Any(dismissal =>
+                !accounts.Contains(dismissal.AccountId) || !videos.Contains(dismissal.VideoId)) ||
             document.PlaybackAttempts.Any(attempt =>
                 !accounts.Contains(attempt.AccountId) || !videos.Contains(attempt.VideoId)) ||
             document.PlaybackReports.Any(report => !attempts.Contains(report.PlaybackAttemptId)) ||
@@ -398,6 +403,7 @@ public sealed class BackupService(
         database.PersonalActorStates.AddRange(document.PersonalActorStates);
         database.Playlists.AddRange(document.Playlists);
         database.PlaylistEntries.AddRange(document.PlaylistEntries);
+        database.RecommendationDismissals.AddRange(document.RecommendationDismissals);
         database.PlaybackAttempts.AddRange(document.PlaybackAttempts);
         database.PlaybackReports.AddRange(document.PlaybackReports);
         database.PlaybackAttemptVideoFiles.AddRange(document.PlaybackAttemptVideoFiles);

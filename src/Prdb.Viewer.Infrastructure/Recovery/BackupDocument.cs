@@ -50,6 +50,13 @@ public sealed class BackupDocument
 
     public IReadOnlyList<PlaylistEntryRow> PlaylistEntries { get; init; } = [];
 
+    /// <summary>
+    /// Each Account's Temporary Dismissals. They expire within a day and would be no great loss,
+    /// but they are still something a User said, and a restore that quietly re-offered what
+    /// somebody had just put aside would be the archive deciding that for them.
+    /// </summary>
+    public IReadOnlyList<RecommendationDismissalRow> RecommendationDismissals { get; init; } = [];
+
     public required IReadOnlyList<PlaybackAttemptRow> PlaybackAttempts { get; init; }
 
     public required IReadOnlyList<PlaybackReportRow> PlaybackReports { get; init; }

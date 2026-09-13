@@ -744,6 +744,36 @@ after a Like or a Love, and it can never erase what a real session established â
 half of the strongest session always survives. Viewing Completion, the fraction
 watched and Play Count are not consulted anywhere in this.
 
+## Compose a page of recommendations
+
+The three sections share their exclusions, so they cannot disagree about them: a
+Dislike keeps a Video out of all of them until it is changed or cleared, and a
+Temporary Dismissal does the same for twenty-four hours from the moment it was
+made. Every candidate satisfies Ordinary Discovery for the current Account and
+client, so nothing is offered that cannot be pressed play on.
+
+No Video appears twice on one page. Long unseen chooses first and its choices are
+reserved, because it draws from the same pool that For you to watch again does
+and is the narrower of the two; the reader still sees return interest first,
+because that is the question the page answers. A section that has run out says so
+rather than being padded â€” nothing manufactures a candidate.
+
+**Not today** is Account-private and holds across that Account's clients, so
+putting something aside on a phone also removes it from the television. It changes
+no preference and no playback state, and undoing it is deleting the statement
+rather than reasoning about a deadline. Expired dismissals are deleted as they are
+met, so what is kept is today rather than a history of everything anybody ever put
+aside.
+
+A page is chosen from a seed, which the answer carries back. Rendering and paging
+against the same seed give the same page; **Other suggestions** sends a different
+one and gets a different page. Without a seed the answer is stable for the Account
+for the day. Sections are bounded by the ordinary paging conventions, and the
+whole library is never sent to a browser.
+
+No other Account and no Administrator can read an Account's recommendations, the
+evidence behind them, or what it has put aside.
+
 ## Resurface and discover
 
 Long unseen needs both prior positive interest and prior confirmed watching, and

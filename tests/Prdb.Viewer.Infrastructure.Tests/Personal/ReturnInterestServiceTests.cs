@@ -80,9 +80,9 @@ public sealed class ReturnInterestServiceTests
         Assert.Equal(
             [seeded.VideoIds[0], seeded.VideoIds[1], seeded.VideoIds[2]],
             ranked.Where(video => !DislikedIn(video, seeded)).Take(3).Select(video => video.VideoId));
-        Assert.Contains(ReturnInterestReason.Loved, ranked[0].Reasons);
-        Assert.Contains(ReturnInterestReason.WatchedRepeatedly, ranked[1].Reasons);
-        Assert.Contains(ReturnInterestReason.InAPlaylist, ranked[2].Reasons);
+        Assert.Contains(RecommendationReason.Loved, ranked[0].Reasons);
+        Assert.Contains(RecommendationReason.WatchedRepeatedly, ranked[1].Reasons);
+        Assert.Contains(RecommendationReason.InAPlaylist, ranked[2].Reasons);
         // The disliked Video comes back scoring nothing rather than being silently dropped: what
         // to do about an excluded Video is the caller's question.
         var disliked = Assert.Single(ranked, video => video.VideoId == seeded.VideoIds[3]);
@@ -111,7 +111,7 @@ public sealed class ReturnInterestServiceTests
             seeded.VideoIds,
             TestContext.Current.CancellationToken);
         Assert.Equal(seeded.VideoIds[0], duringVisit[0].VideoId);
-        Assert.Contains(ReturnInterestReason.JustWatchedInThisVisit, duringVisit[1].Reasons);
+        Assert.Contains(RecommendationReason.JustWatchedInThisVisit, duringVisit[1].Reasons);
         // Down, never out.
         Assert.True(duringVisit[1].Score > 0);
 
@@ -125,7 +125,7 @@ public sealed class ReturnInterestServiceTests
             TestContext.Current.CancellationToken);
         Assert.Equal(seeded.VideoIds[1], laterVisit[0].VideoId);
         Assert.DoesNotContain(
-            ReturnInterestReason.JustWatchedInThisVisit,
+            RecommendationReason.JustWatchedInThisVisit,
             laterVisit[0].Reasons);
     }
 
@@ -161,9 +161,9 @@ public sealed class ReturnInterestServiceTests
             Client,
             seeded.VideoIds,
             TestContext.Current.CancellationToken));
-        Assert.Contains(ReturnInterestReason.WatchedBefore, ranked.Reasons);
-        Assert.DoesNotContain(ReturnInterestReason.WatchedRepeatedly, ranked.Reasons);
-        Assert.DoesNotContain(ReturnInterestReason.WatchedAtLength, ranked.Reasons);
+        Assert.Contains(RecommendationReason.WatchedBefore, ranked.Reasons);
+        Assert.DoesNotContain(RecommendationReason.WatchedRepeatedly, ranked.Reasons);
+        Assert.DoesNotContain(RecommendationReason.WatchedAtLength, ranked.Reasons);
         Assert.Equal(0, ranked.Score);
     }
 

@@ -12,7 +12,7 @@ public sealed record RankedVideo(
     Guid VideoId,
     int Tier,
     double Score,
-    IReadOnlyList<ReturnInterestReason> Reasons,
+    IReadOnlyList<RecommendationReason> Reasons,
     DateTimeOffset? LastWatchedAt);
 
 /// <summary>

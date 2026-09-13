@@ -154,6 +154,58 @@ public sealed class PersonalStateRouteTests
             user,
             userCsrf,
             video.VideoId);
+
+        await RecommendationsBelongToOneAccountAsync(
+            administrator,
+            administratorCsrf,
+            user,
+            video.VideoId);
+    }
+
+    /// <summary>
+    /// Recommendations are Personal State, evidence and all. Nobody signed out reads them, a
+    /// dismissal needs the CSRF token every change needs, and what one Account put aside is
+    /// invisible to the other — including to the Administrator, who has no authority here.
+    /// </summary>
+    private static async Task RecommendationsBelongToOneAccountAsync(
+        HttpClient administrator,
+        string administratorCsrf,
+        HttpClient user,
+        Guid videoId)
+    {
+        using var anonymous = new HttpRequestMessage(HttpMethod.Get, "/api/personal/recommendations");
+        using var refused = await administrator.SendAsync(
+            new HttpRequestMessage(HttpMethod.Post, $"/api/personal/recommendations/videos/{videoId}/not-today"),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+
+        var dismissed = await SendJsonAsync(
+            administrator,
+            HttpMethod.Post,
+            $"/api/personal/recommendations/videos/{videoId}/not-today",
+            null,
+            administratorCsrf);
+        Assert.True(dismissed.GetProperty("dismissed").GetBoolean());
+
+        var mine = await administrator.GetFromJsonAsync<JsonElement>(
+            "/api/personal/recommendations",
+            TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(
+            videoId,
+            mine.GetProperty("sections").EnumerateArray()
+                .SelectMany(section => section.GetProperty("videos").EnumerateArray())
+                .Select(offered => offered.GetProperty("video").GetProperty("id").GetGuid()));
+
+        // The other Account is unaffected by what this one put aside, and the page it is answered
+        // is computed from its own state.
+        var theirs = await user.GetFromJsonAsync<JsonElement>(
+            "/api/personal/recommendations",
+            TestContext.Current.CancellationToken);
+        Assert.Contains(
+            videoId,
+            theirs.GetProperty("sections").EnumerateArray()
+                .SelectMany(section => section.GetProperty("videos").EnumerateArray())
+                .Select(offered => offered.GetProperty("video").GetProperty("id").GetGuid()));
     }
 
     /// <summary>
@@ -362,7 +414,15 @@ public sealed class PersonalStateRouteTests
             CreatedAt = file.LastWriteTimeUtc,
             ActivatedAt = file.LastWriteTimeUtc,
         });
-        database.Videos.Add(new VideoRow { Id = videoId, DiscoveryDate = file.LastWriteTimeUtc });
+        // The projection would normally supply these; this row is written straight in, and
+        // Ordinary Discovery reads them.
+        database.Videos.Add(new VideoRow
+        {
+            Id = videoId,
+            DiscoveryDate = file.LastWriteTimeUtc,
+            Availability = VideoAvailability.Available,
+            BestClassification = DirectPlayClassification.BaselineCandidate,
+        });
         database.VideoFiles.Add(new VideoFileRow
         {
             Id = videoFileId,

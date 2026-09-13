@@ -65,6 +65,9 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<BrowsingVisitWatchRow> BrowsingVisitWatches => Set<BrowsingVisitWatchRow>();
 
+    public DbSet<RecommendationDismissalRow> RecommendationDismissals =>
+        Set<RecommendationDismissalRow>();
+
     public DbSet<PlaybackAttemptRow> PlaybackAttempts => Set<PlaybackAttemptRow>();
 
     public DbSet<PlaybackReportRow> PlaybackReports => Set<PlaybackReportRow>();
@@ -618,6 +621,21 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
                 .HasForeignKey(row => row.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
             watch.HasOne(row => row.Video)
+                .WithMany()
+                .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<RecommendationDismissalRow>(dismissal =>
+        {
+            dismissal.ToTable("recommendation_dismissal");
+            dismissal.HasKey(row => new { row.AccountId, row.VideoId });
+            dismissal.HasIndex(row => new { row.AccountId, row.DismissedAt });
+            dismissal.HasOne(row => row.Account)
+                .WithMany()
+                .HasForeignKey(row => row.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+            dismissal.HasOne(row => row.Video)
                 .WithMany()
                 .HasForeignKey(row => row.VideoId)
                 .OnDelete(DeleteBehavior.Cascade);

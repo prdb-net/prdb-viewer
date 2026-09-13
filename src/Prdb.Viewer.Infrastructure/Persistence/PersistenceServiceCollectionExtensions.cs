@@ -67,6 +67,7 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<PlaylistService>();
         services.AddScoped<ReturnInterestService>();
         services.AddScoped<ResurfacingService>();
+        services.AddScoped<RecommendationService>();
         services.AddSingleton<IMediaProbe, FfprobeMediaProbe>();
         services.AddSingleton<IVideoFileHasher, PrdbVideoFileHasher>();
         services.AddSingleton<IPreviewImageGenerator, FfmpegPreviewImageGenerator>();

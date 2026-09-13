@@ -108,7 +108,7 @@ public sealed class ReturnInterestPolicyTests
         Assert.Equal(inOne.Score, inNine.Score);
         Assert.True(inOne.IsPositive);
         Assert.True(liked.Tier > inOne.Tier);
-        Assert.Contains(ReturnInterestReason.InAPlaylist, inOne.Reasons);
+        Assert.Contains(RecommendationReason.InAPlaylist, inOne.Reasons);
     }
 
     [Fact]
@@ -178,7 +178,7 @@ public sealed class ReturnInterestPolicyTests
 
         Assert.True(recent.Score < settled.Score);
         Assert.False(recent.Excluded);
-        Assert.Contains(ReturnInterestReason.JustWatchedInThisVisit, recent.Reasons);
+        Assert.Contains(RecommendationReason.JustWatchedInThisVisit, recent.Reasons);
         // The adjustment belongs to the visit, not to the Video: the next visit reads the same
         // evidence without it.
         Assert.Equal(settled.Score, Evaluate(justWatched with { WatchedInThisVisit = false }).Score);
@@ -191,9 +191,9 @@ public sealed class ReturnInterestPolicyTests
 
         Assert.False(legacy.Excluded);
         Assert.Equal(0, legacy.Score);
-        Assert.Contains(ReturnInterestReason.WatchedBefore, legacy.Reasons);
-        Assert.DoesNotContain(ReturnInterestReason.WatchedAtLength, legacy.Reasons);
-        Assert.DoesNotContain(ReturnInterestReason.WatchedRepeatedly, legacy.Reasons);
+        Assert.Contains(RecommendationReason.WatchedBefore, legacy.Reasons);
+        Assert.DoesNotContain(RecommendationReason.WatchedAtLength, legacy.Reasons);
+        Assert.DoesNotContain(RecommendationReason.WatchedRepeatedly, legacy.Reasons);
     }
 
     [Fact]
@@ -207,17 +207,17 @@ public sealed class ReturnInterestPolicyTests
 
         Assert.Equal(
             [
-                ReturnInterestReason.Loved,
-                ReturnInterestReason.InAPlaylist,
-                ReturnInterestReason.Favourite,
-                ReturnInterestReason.WatchedRepeatedly,
-                ReturnInterestReason.WatchedWithoutInterruption,
+                RecommendationReason.Loved,
+                RecommendationReason.InAPlaylist,
+                RecommendationReason.Favourite,
+                RecommendationReason.WatchedRepeatedly,
+                RecommendationReason.WatchedWithoutInterruption,
             ],
             reasons);
 
         // Nothing is claimed that did not happen: one uninterrupted-free session says so.
         Assert.DoesNotContain(
-            ReturnInterestReason.WatchedWithoutInterruption,
+            RecommendationReason.WatchedWithoutInterruption,
             Evaluate(new ReturnInterestEvidence([Session(600_000, run: 10_000)])).Reasons);
     }
 

@@ -34,7 +34,7 @@ public static class BackupArchiveFormat
     /// which product wrote the archive instead of failing on a field it does not know.
     ///
     /// Version 3 replaces the one-to-five Personal Rating with a Personal Reaction and adds each
-    /// Account's Playlists. A version 1 or 2 archive still restores: it carries no Playlists, and
+    /// Account's Playlists and Temporary Dismissals. A version 1 or 2 archive still restores: it carries no Playlists, and
     /// the ratings it carries are discarded rather than mapped, per ADR 0022. That is why the
     /// reader has to know the retired name at all — it refuses members it does not recognise, so a
     /// field that is deliberately dropped has to be dropped deliberately.

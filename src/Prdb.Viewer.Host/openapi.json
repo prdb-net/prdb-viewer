@@ -2223,6 +2223,113 @@
           }
         }
       }
+    },
+    "/api/personal/recommendations": {
+      "get": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "seed",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 12
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/recommendations/videos/{videoId}/not-today": {
+      "post": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DismissalResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DismissalResult"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3114,6 +3221,17 @@
           "Unsupported",
           "Undetermined"
         ]
+      },
+      "DismissalResult": {
+        "required": [
+          "dismissed"
+        ],
+        "type": "object",
+        "properties": {
+          "dismissed": {
+            "type": "boolean"
+          }
+        }
       },
       "EndPlaybackAttemptResponse": {
         "required": [
@@ -5782,6 +5900,100 @@
           "Coalesced",
           "NotFound"
         ]
+      },
+      "RecommendationPage": {
+        "required": [
+          "sections",
+          "seed",
+          "hasHistory"
+        ],
+        "type": "object",
+        "properties": {
+          "sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendationSectionPage"
+            }
+          },
+          "seed": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasHistory": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RecommendationReason": {
+        "enum": [
+          "Loved",
+          "Liked",
+          "InAPlaylist",
+          "Favourite",
+          "WatchedRepeatedly",
+          "WatchedAtLength",
+          "WatchedWithoutInterruption",
+          "WatchedBefore",
+          "JustWatchedInThisVisit",
+          "NotWatchedForAWhile",
+          "WatchedLongAgo",
+          "NeverWatched",
+          "WithAFavouriteActor",
+          "SharesAnActorYouWatch",
+          "FromASiteYouWatch",
+          "SomethingDifferent"
+        ]
+      },
+      "RecommendationSection": {
+        "enum": [
+          "ForYouToWatchAgain",
+          "LongUnseen",
+          "NotYetDiscovered"
+        ]
+      },
+      "RecommendationSectionPage": {
+        "required": [
+          "section",
+          "videos",
+          "exhausted"
+        ],
+        "type": "object",
+        "properties": {
+          "section": {
+            "$ref": "#/components/schemas/RecommendationSection"
+          },
+          "videos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendedVideo"
+            }
+          },
+          "exhausted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RecommendedVideo": {
+        "required": [
+          "video",
+          "reasons"
+        ],
+        "type": "object",
+        "properties": {
+          "video": {
+            "$ref": "#/components/schemas/VideoSummary"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendationReason"
+            }
+          }
+        }
       },
       "RecoverRequest": {
         "required": [
