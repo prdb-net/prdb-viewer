@@ -744,6 +744,40 @@ after a Like or a Love, and it can never erase what a real session established �
 half of the strongest session always survives. Viewing Completion, the fraction
 watched and Play Count are not consulted anywhere in this.
 
+## Resurface and discover
+
+Long unseen needs both prior positive interest and prior confirmed watching, and
+by default at least fourteen days since the last of it. Age orders it, and only
+among Videos there is positive evidence for: a Video somebody sampled for eight
+seconds two years ago is not a forgotten favourite. Watching that happened before
+this installation kept the moment still counts as watching, and the card says it
+was watched long ago rather than inventing a number of days.
+
+Not yet discovered means no confirmed Active Watching at all — which is a stronger
+statement than an Unplayed Personal Play State or a Play Count of zero. A Video
+whose only history is a failed attempt has never been watched and stays eligible;
+one an older installation accumulated watching against has been, whatever its
+current state says, because claiming somebody has never seen something they have
+is the worse mistake.
+
+Two thirds of a discovery page is led by affinity and one third is chosen without
+reference to any of it. Affinity is a rate rather than a count: an Actor or a Site
+is judged by how many of their Videos this Account showed positive evidence for
+against how many of them the library holds, with a smoothing term, so whoever
+appears most often cannot win on volume and a two-for-two record cannot beat a
+twenty-for-forty one. Two Videos are the minimum — watching one Video says
+nothing about everybody in it — and an explicitly kept Favourite Actor counts for
+more than any inference. A Dislike belongs to its Video and is never held against
+its Actors or its Site.
+
+The independent third is what reaches the Videos with barely any metadata to
+infer from, and it is mixed through the page rather than appended to it. Selection
+is deterministic from a seed, so one page generation is reproducible and paging is
+stable; a new seed is a different page, which is what Other suggestions asks for.
+Both sections read a bounded window that the seed rotates through the pool, so
+older overlooked Videos are reachable rather than only the newest part of a large
+library.
+
 A **Browsing Visit** is one Account and client browsing continuously, ending
 after thirty minutes without activity. It exists only so that a Video watched
 during the visit can move down a page of recommendations without being excluded,

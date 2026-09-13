@@ -54,6 +54,21 @@ public sealed record LibraryDiscoveryRequest
     /// </summary>
     public Guid? Playlist { get; init; }
 
+    /// <summary>
+    /// The Videos to narrow to, by identity. It is how a caller that has already chosen what to
+    /// offer — a recommendation section, say — asks the Library to answer for exactly those, with
+    /// the same admission rule and the same card that every other answer gets.
+    /// </summary>
+    public IReadOnlyList<Guid> Videos { get; init; } = [];
+
+    /// <summary>
+    /// True narrows to the Videos this Account has no confirmed Active Watching evidence for at
+    /// all. It is a stronger question than an Unplayed Personal Play State or a Play Count of
+    /// zero: a Video whose only history is a failed attempt has never been watched, and one an
+    /// older installation accumulated watching against has been, whatever its current state says.
+    /// </summary>
+    public bool WithoutWatchingEvidence { get; init; }
+
     /// <summary>True selects Videos with no Established Site, which is its own facet value.</summary>
     public bool UnknownSite { get; init; }
 

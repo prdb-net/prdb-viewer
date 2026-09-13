@@ -504,6 +504,34 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             videos = videos.Where(OnShelf(accountId, request.Shelf));
         }
 
+        if (request.Videos.Count > 0)
+        {
+            var wanted = request.Videos;
+            videos = videos.Where(video => wanted.Contains(video.Id));
+        }
+
+        if (request.WithoutWatchingEvidence)
+        {
+            // Never watched means no confirmed Active Watching, which is three separate things
+            // not being true: no summarised watching on the Personal State, no accumulated
+            // duration or Play Count an older installation left behind, and no retained session
+            // that ever confirmed activity. A Playback Attempt that only ever failed leaves none
+            // of the three, and correctly does not count as having watched anything.
+            videos = videos.Where(video =>
+                !database.PersonalVideoStates.Any(state =>
+                    state.AccountId == accountId &&
+                    state.VideoId == video.Id &&
+                    (state.LastWatchedAt != null ||
+                     state.PlayCount > 0 ||
+                     state.AccumulatedWatchDurationMilliseconds > 0 ||
+                     state.HasViewingCompletion ||
+                     state.PlaybackProgressMilliseconds > 0)) &&
+                !database.PlaybackAttempts.Any(attempt =>
+                    attempt.AccountId == accountId &&
+                    attempt.VideoId == video.Id &&
+                    attempt.LastActivityAt != null));
+        }
+
         if (request.Playlist is { } playlistId)
         {
             // The Account is part of the question rather than a check taken beforehand, so a
