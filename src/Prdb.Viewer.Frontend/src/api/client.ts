@@ -52,6 +52,11 @@ export type FavouriteActorResult = components['schemas']['FavouriteActorResult']
 export type PersonalReaction = NonNullable<components['schemas']['PersonalReaction']>
 export type Playlist = components['schemas']['PlaylistSummary']
 export type PlaybackDeparture = components['schemas']['PlaybackDeparture']
+export type RecommendationPage = components['schemas']['RecommendationPage']
+export type RecommendationSectionPage = components['schemas']['RecommendationSectionPage']
+export type RecommendedVideo = components['schemas']['RecommendedVideo']
+export type RecommendationReason = components['schemas']['RecommendationReason']
+export type RecommendationSection = components['schemas']['RecommendationSection']
 export type PlaylistResult = components['schemas']['PlaylistResult']
 
 export type LibraryFilters = {
@@ -269,6 +274,17 @@ export const api = {
       skip: String(skip),
       take: String(take),
     }).toString()}`),
+  recommendations: (seed?: number, take = 12) =>
+    request<RecommendationPage>(`/api/personal/recommendations?${new URLSearchParams({
+      ...(seed === undefined ? {} : { seed: String(seed) }),
+      take: String(take),
+    }).toString()}`),
+  setNotToday: (videoId: string, dismissed: boolean, csrfToken: string) =>
+    mutate<{ dismissed: boolean }>(
+      `/api/personal/recommendations/videos/${videoId}/not-today`,
+      dismissed ? 'POST' : 'DELETE',
+      csrfToken,
+    ),
   playlists: (videoId?: string) =>
     request<{ playlists: Playlist[] }>(
       `/api/personal/playlists${videoId ? `?videoId=${videoId}` : ''}`,

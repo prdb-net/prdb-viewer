@@ -96,9 +96,10 @@ export function PlaylistsPage({ account }: { account: Account }) {
                       </span>
                       <button
                         className="quiet-button"
+                        aria-label={`Rename ${playlist.name}`}
                         onClick={() => setRenaming(playlist.id)}
                       >
-                        Rename<span className="visually-hidden"> {playlist.name}</span>
+                        Rename
                       </button>
                       {/* Deleting a Playlist deletes the arrangement. The Videos, what was said
                           about them and every other list they are on are untouched, and the
@@ -106,6 +107,7 @@ export function PlaylistsPage({ account }: { account: Account }) {
                           particular. */}
                       <button
                         className="quiet-button danger"
+                        aria-label={`Delete ${playlist.name}`}
                         onClick={() => {
                           const confirmed = window.confirm(
                             `Delete the Playlist “${playlist.name}”? The ${playlist.videoCount} ` +
@@ -115,7 +117,7 @@ export function PlaylistsPage({ account }: { account: Account }) {
                           if (confirmed) remove.mutate(playlist.id)
                         }}
                       >
-                        Delete<span className="visually-hidden"> {playlist.name}</span>
+                        Delete
                       </button>
                     </>
                     )}

@@ -41,6 +41,7 @@ export const navigation: NavigationGroup[] = [
       { to: '/favourites', label: 'Favourites' },
       { to: '/watch-later', label: 'Watch Later' },
       { to: '/playlists', label: 'Playlists' },
+      { to: '/recommendations', label: 'For you' },
     ],
   },
   {

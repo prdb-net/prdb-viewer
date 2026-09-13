@@ -744,6 +744,25 @@ after a Like or a Love, and it can never erase what a real session established â
 half of the strongest session always survives. Viewing Completion, the fraction
 watched and Play Count are not consulted anywhere in this.
 
+## The Recommendations screen
+
+**For you** is its own destination in the sidebar and its own address. It draws
+the three sections one under the other, each with a heading that says what it is
+and what it is for, and each card carrying one short line saying why it is there
+â€” drawn from evidence your own activity produced.
+
+Every card offers all four reactions and clearing, because a recommendation is
+there to be reacted to. A Dislike takes the Video out of every section at once; a
+Shrug does not. **Not today** puts one Video aside for twenty-four hours, and the
+card is replaced in place by a line saying it is not a dislike, that nothing about
+your history changed, and offering the undo where the card was. **Other
+suggestions** asks for a different page rather than reshuffling this one.
+
+A section with nothing in it says why, rather than looking like something that
+failed, and a page for somebody who has watched nothing here says plainly that
+these are Videos from the library rather than anything about their taste. The
+screen changes nothing about Home or Continue Watching.
+
 ## Compose a page of recommendations
 
 The three sections share their exclusions, so they cannot disagree about them: a

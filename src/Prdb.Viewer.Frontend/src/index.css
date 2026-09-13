@@ -429,6 +429,20 @@ body.filters-open .app-content {
 .reaction-control.saving { opacity: .55; }
 .reaction-control.saving .reaction { cursor: wait; }
 .dismiss-button { width: 100%; margin-top: .65rem; }
+.not-today { width: 100%; min-height: 2.4rem; margin-top: .5rem; }
+
+/* One section of the Recommendations page. The heading says what the section is and what it is
+   for, because three grids of Videos with three short titles would be three unexplained lists. */
+.recommendation-section { margin-top: 2rem; }
+.recommendation-section .section-heading { align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+.recommendation-section .section-heading h3 { margin: 0; font-size: 1rem; }
+.recommendation-section .section-empty { margin: .4rem 0 0; font-size: .85rem; }
+/* Why a card is here, said in one line under the facts about it. */
+.card-line.why { color: #bcb4c9; font-style: italic; }
+/* What was just put aside, with the undo where the card was rather than as a message elsewhere. */
+.put-aside { display: grid; gap: .5rem; margin: .9rem 0 0; padding: 0; list-style: none; }
+.put-aside li { display: flex; align-items: center; gap: .7rem; padding: .7rem .9rem; border: 1px dashed rgb(255 255 255 / 15%); border-radius: .7rem; color: #cfc9d6; font-size: .82rem; flex-wrap: wrap; }
+.put-aside li span { flex: 1 1 16rem; }
 /* A Playlist's own page offers the arrangement on each card, and only while the whole Playlist is
    on screen in its own order. */
 .arrange-actions { display: flex; gap: .35rem; margin-top: .65rem; }

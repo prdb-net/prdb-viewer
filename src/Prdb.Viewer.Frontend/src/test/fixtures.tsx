@@ -63,6 +63,33 @@ export function playlist(overrides: Record<string, unknown> = {}) {
   }
 }
 
+export function isRecommendationsRequest(input: unknown) {
+  return typeof input === 'string' && input.startsWith('/api/personal/recommendations?')
+}
+
+/// One page of Recommendations, as the API answers it. Sections a test does not name come back
+/// empty and exhausted, which is what a small library actually answers.
+export function recommendationPage(
+  sections: Partial<Record<string, unknown[]>>,
+  overrides: Record<string, unknown> = {},
+) {
+  const named = ['ForYouToWatchAgain', 'LongUnseen', 'NotYetDiscovered']
+  return {
+    seed: 42,
+    hasHistory: true,
+    sections: named.map((section) => ({
+      section,
+      videos: sections[section] ?? [],
+      exhausted: (sections[section] ?? []).length < 12,
+    })),
+    ...overrides,
+  }
+}
+
+export function recommended(video: unknown, reasons: string[]) {
+  return { video, reasons }
+}
+
 export function isPlaylistsRequest(input: unknown) {
   return typeof input === 'string' && input.startsWith('/api/personal/playlists')
 }
@@ -265,6 +292,7 @@ export function signedInAs(
     if (typeof input === 'string' && input.startsWith('/api/personal/playlists')) {
       return json({ playlists: [] })
     }
+    if (isRecommendationsRequest(input)) return json(recommendationPage({}))
     if (input === '/api/admin/background-work/') return json({ work: [], issues: [] })
     if (input === '/api/admin/identification/queue') return json(reviewQueue([]))
     if (isFacetRequest(input)) return json(noFacets())
