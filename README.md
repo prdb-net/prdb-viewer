@@ -599,9 +599,11 @@ narrowing a deep list does not begin with a scroll back to the top.
 The default order is Discovery Date descending, so later enrichment never makes
 an old Video look newly added; Title A-Z, best quality first and longest first
 are the alternatives that hold for every Account, the quality order falling back
-to the default inside one band. Recently played and best rated order by the
-Account's own Personal State, and put the Videos it has none for last. The shelf
-order is the order a Personal Shelf keeps.
+to the default inside one band. Recently played and your reaction order by
+the Account's own Personal State; recently played puts the Videos it never played
+last, and your reaction runs Love, Like, Shrug, the Videos nothing was said about,
+and Dislike, because silence is not a rejection. The shelf order is the order a
+Personal Shelf keeps, and the Playlist order the one you arranged.
 
 Continue Watching, Favourites and Watch Later are Personal Shelves: the library
 narrowed to what the Account keeps on them. Each has the same search, facets,
@@ -613,6 +615,18 @@ shelf shows what was put on it whether or not this browser can play it, and the
 card says when a Video will not play here; on the browsing screen the shelves
 are one facet among the others. See
 [ADR 0019](docs/adr/0019-treat-personal-shelves-as-narrowings-of-the-library.md).
+
+A Playlist is a named set of Videos in an order you arrange yourself. It is the
+library narrowed to it in the same way a shelf is, with the same search, facets
+and paging, over its own manual order; a Video appears at most once in one
+Playlist and may be in several. Videos are added from a Video's own page, which
+also says which Playlists already hold it, and the arrangement — move up, move
+down, take out — is offered on the Playlist's own page while nothing narrows it.
+It disappears under a search or a filter, because moving a card past a neighbour
+that is not on screen would rearrange entries you cannot see. Deleting a Playlist
+deletes the arrangement and nothing else: the Videos, what you said about them,
+and every other list they are on are untouched. A Playlist is private to its
+Account, and no other Account and no Administrator can read or change one.
 
 Ordinary results contain a Video while it is Available and ready for direct
 play. When the current rules keep matches out, the view says how many and offers

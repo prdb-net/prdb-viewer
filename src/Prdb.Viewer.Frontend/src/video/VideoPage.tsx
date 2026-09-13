@@ -30,6 +30,7 @@ import {
 } from '../lib/quality'
 import { returnTo } from '../lib/returnTo'
 import { ReactionControl } from '../personal/ReactionControl'
+import { PlaylistMembership } from '../personal/PlaylistMembership'
 import { usePersonalActions } from '../personal/usePersonalActions'
 import { queryKeys } from '../queryKeys'
 import { firstError, Notice, PageHeading, RequestError } from '../ui'
@@ -324,6 +325,7 @@ export function VideoPage({ account }: { account: Account }) {
             disabled={saving}
             size="large"
           />
+          <PlaylistMembership account={account} video={video} />
         </aside>
       </div>
 

@@ -15,6 +15,19 @@ import type { PersonalAction, PersonalPending } from '../personal/usePersonalAct
 import { HeartIcon } from '../ui'
 import { VideoArt } from './VideoArt'
 
+/// What a Playlist's own page lets a reader do to one of its entries: move it within the whole
+/// arrangement, or take it out of the Playlist.
+///
+/// The destination is an absolute place in the Playlist rather than "swap with the card beside
+/// me", because those are the same thing only while nothing is filtered out — and a narrowed
+/// Playlist page does not offer these at all for exactly that reason.
+export type PlaylistArrangement = {
+  total: number
+  move: (video: VideoSummary, to: number) => void
+  remove: (video: VideoSummary) => void
+  busy: boolean
+}
+
 /// One Video as the Library shows it.
 ///
 /// The card decides nothing about playback: it links to the Video, and the Video's own page owns
@@ -34,6 +47,8 @@ export function VideoCard({
   from,
   dismissible = false,
   reactions = 'whenSet',
+  arrangement,
+  index = 0,
 }: {
   video: VideoSummary
   act: PersonalAction
@@ -46,6 +61,11 @@ export function VideoCard({
   /// recommendation is there to be reacted to, so its cards offer them; a Library card is not, and
   /// forty controls nobody asked for is what the Library used to look like.
   reactions?: 'whenSet' | 'always'
+  /// Present only on a Playlist's own page, and only while nothing narrows it.
+  arrangement?: PlaylistArrangement
+  /// Where this card sits in the arrangement, which is its place in the Playlist while these
+  /// controls are offered at all.
+  index?: number
 }) {
   // This card is busy only while one of its own actions is in flight, not while any card's is.
   const busy = pending(video.id)
@@ -121,6 +141,34 @@ export function VideoCard({
           <button className="dismiss-button" onClick={() => act('dismiss', video)} disabled={busy}>
             Dismiss
           </button>
+        )}
+        {arrangement && (
+          <div className="arrange-actions">
+            <button
+              className="quiet-button"
+              aria-label={`Move ${video.displayTitle} up`}
+              onClick={() => arrangement.move(video, index - 1)}
+              disabled={arrangement.busy || index === 0}
+            >
+              ↑
+            </button>
+            <button
+              className="quiet-button"
+              aria-label={`Move ${video.displayTitle} down`}
+              onClick={() => arrangement.move(video, index + 1)}
+              disabled={arrangement.busy || index >= arrangement.total - 1}
+            >
+              ↓
+            </button>
+            <button
+              className="quiet-button danger"
+              aria-label={`Remove ${video.displayTitle} from this Playlist`}
+              onClick={() => arrangement.remove(video)}
+              disabled={arrangement.busy}
+            >
+              Remove
+            </button>
+          </div>
         )}
       </div>
     </article>
@@ -212,6 +260,7 @@ export function VideoGrid({
   from,
   dismissible = false,
   reactions = 'whenSet',
+  arrangement,
 }: {
   videos: VideoSummary[]
   act: PersonalAction
@@ -219,10 +268,11 @@ export function VideoGrid({
   from: string
   dismissible?: boolean
   reactions?: 'whenSet' | 'always'
+  arrangement?: PlaylistArrangement
 }) {
   return (
     <div className="video-grid">
-      {videos.map((video) => (
+      {videos.map((video, index) => (
         <VideoCard
           key={video.id}
           video={video}
@@ -231,6 +281,8 @@ export function VideoGrid({
           from={from}
           dismissible={dismissible}
           reactions={reactions}
+          arrangement={arrangement}
+          index={index}
         />
       ))}
     </div>

@@ -59,6 +59,10 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<PersonalActorStateRow> PersonalActorStates => Set<PersonalActorStateRow>();
 
+    public DbSet<PlaylistRow> Playlists => Set<PlaylistRow>();
+
+    public DbSet<PlaylistEntryRow> PlaylistEntries => Set<PlaylistEntryRow>();
+
     public DbSet<PlaybackAttemptRow> PlaybackAttempts => Set<PlaybackAttemptRow>();
 
     public DbSet<PlaybackReportRow> PlaybackReports => Set<PlaybackReportRow>();
@@ -297,6 +301,39 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
                 .WithMany()
                 .HasForeignKey(row => row.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PlaylistRow>(playlist =>
+        {
+            playlist.ToTable("playlist");
+            playlist.HasKey(row => row.Id);
+            playlist.Property(row => row.Id).ValueGeneratedNever();
+            playlist.Property(row => row.Name).IsRequired();
+            playlist.HasIndex(row => new { row.AccountId, row.Name });
+            playlist.HasOne(row => row.Account)
+                .WithMany()
+                .HasForeignKey(row => row.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PlaylistEntryRow>(entry =>
+        {
+            entry.ToTable("playlist_entry");
+            // One Video appears at most once in one Playlist, which the key says rather than a
+            // check somewhere in the service: adding what is already there is then idempotent
+            // because the database could not hold the second copy in the first place.
+            entry.HasKey(row => new { row.PlaylistId, row.VideoId });
+            entry.HasIndex(row => new { row.PlaylistId, row.Position });
+            entry.HasOne(row => row.Playlist)
+                .WithMany(row => row.Entries)
+                .HasForeignKey(row => row.PlaylistId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // A Video is never deleted out from under a personal list; a Removed Video keeps its
+            // row and its place, the way every other personal reference to one does.
+            entry.HasOne(row => row.Video)
+                .WithMany()
+                .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<ActorRow>(actor =>

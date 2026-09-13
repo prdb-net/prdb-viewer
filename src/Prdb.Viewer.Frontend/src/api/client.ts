@@ -50,6 +50,8 @@ export type FavouriteActorResult = components['schemas']['FavouriteActorResult']
 // property being null. The generated union folds the two together, so the absence is taken back
 // out here: a reaction is one of four, and null is the answer to a different question.
 export type PersonalReaction = NonNullable<components['schemas']['PersonalReaction']>
+export type Playlist = components['schemas']['PlaylistSummary']
+export type PlaylistResult = components['schemas']['PlaylistResult']
 
 export type LibraryFilters = {
   query: string
@@ -66,6 +68,10 @@ export type LibraryFilters = {
   /// The Personal Shelves to narrow to, by the API's names. A shelf page pins one here; the
   /// browsing screen offers them as a facet like any other.
   shelf: string[]
+  /// The Playlist to narrow to. Only a Playlist's own page pins one, so unlike a shelf it is never
+  /// offered as a facet: a Playlist is one of as many as the User made, and a facet listing all of
+  /// them would be a second, worse index of them.
+  playlist: string
 }
 
 export const emptyFilters: LibraryFilters = {
@@ -81,6 +87,7 @@ export const emptyFilters: LibraryFilters = {
   quality: [],
   playState: [],
   shelf: [],
+  playlist: '',
 }
 
 /// The narrowing every Library question carries: what the search and the facets admit. The sort
@@ -98,6 +105,7 @@ function narrowingQuery(filters: LibraryFilters) {
   if (filters.quality.length) parameters.set('quality', filters.quality.join(','))
   if (filters.playState.length) parameters.set('playState', filters.playState.join(','))
   if (filters.shelf.length) parameters.set('shelf', filters.shelf.join(','))
+  if (filters.playlist) parameters.set('playlist', filters.playlist)
   return parameters
 }
 
@@ -260,6 +268,36 @@ export const api = {
       skip: String(skip),
       take: String(take),
     }).toString()}`),
+  playlists: (videoId?: string) =>
+    request<{ playlists: Playlist[] }>(
+      `/api/personal/playlists${videoId ? `?videoId=${videoId}` : ''}`,
+    ),
+  createPlaylist: (name: string, csrfToken: string) =>
+    post<PlaylistResult>('/api/personal/playlists', { name }, csrfToken),
+  renamePlaylist: (playlistId: string, name: string, csrfToken: string) =>
+    mutate<PlaylistResult>(`/api/personal/playlists/${playlistId}`, 'PUT', csrfToken, { name }),
+  deletePlaylist: (playlistId: string, csrfToken: string) =>
+    mutate<{ deleted: boolean }>(`/api/personal/playlists/${playlistId}`, 'DELETE', csrfToken),
+  setPlaylistMembership: (
+    playlistId: string,
+    videoId: string,
+    member: boolean,
+    csrfToken: string,
+  ) => mutate<PlaylistResult>(
+    `/api/personal/playlists/${playlistId}/videos/${videoId}`,
+    member ? 'PUT' : 'DELETE',
+    csrfToken,
+  ),
+  movePlaylistEntry: (
+    playlistId: string,
+    videoId: string,
+    position: number,
+    csrfToken: string,
+  ) => post<PlaylistResult>(
+    `/api/personal/playlists/${playlistId}/videos/${videoId}/position`,
+    { position },
+    csrfToken,
+  ),
   libraryFacets: (filters: LibraryFilters, search?: FacetSearch) =>
     request<LibraryFacets>(`/api/library/facets?${facetQuery(filters, search).toString()}`),
   setIncludeNotReady: (included: boolean, csrfToken: string) =>

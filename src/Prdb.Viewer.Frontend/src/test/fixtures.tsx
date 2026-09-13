@@ -51,6 +51,22 @@ export function noFacets(overrides: Record<string, unknown> = {}) {
   }
 }
 
+export function playlist(overrides: Record<string, unknown> = {}) {
+  return {
+    id: '01994dd4-2a0a-7000-8000-0000000000f1',
+    name: 'Sunday evening',
+    videoCount: 2,
+    contains: false,
+    createdAt: '2026-09-01T12:00:00Z',
+    updatedAt: '2026-09-01T12:00:00Z',
+    ...overrides,
+  }
+}
+
+export function isPlaylistsRequest(input: unknown) {
+  return typeof input === 'string' && input.startsWith('/api/personal/playlists')
+}
+
 export function isLibraryRequest(input: unknown) {
   return typeof input === 'string' && input.startsWith('/api/library/videos?')
 }
@@ -246,6 +262,9 @@ export function signedInAs(
       })
     }
     if (input === '/api/personal/playback-profiles') return json([])
+    if (typeof input === 'string' && input.startsWith('/api/personal/playlists')) {
+      return json({ playlists: [] })
+    }
     if (input === '/api/admin/background-work/') return json({ work: [], issues: [] })
     if (input === '/api/admin/identification/queue') return json(reviewQueue([]))
     if (isFacetRequest(input)) return json(noFacets())

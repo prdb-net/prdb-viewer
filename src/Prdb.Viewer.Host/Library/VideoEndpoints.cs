@@ -29,6 +29,7 @@ public static class VideoEndpoints
             string? quality = null,
             string? playState = null,
             string? shelf = null,
+            Guid? playlist = null,
             int skip = 0,
             int take = LibraryPaging.DefaultPageSize) =>
             TypedResults.Ok(await discovery.GetAsync(
@@ -46,7 +47,8 @@ public static class VideoEndpoints
                     availability,
                     quality,
                     playState,
-                    shelf) with
+                    shelf,
+                    playlist) with
                 { Skip = skip, Take = take },
                 cancellationToken)));
 
@@ -82,6 +84,7 @@ public static class VideoEndpoints
             string? quality = null,
             string? playState = null,
             string? shelf = null,
+            Guid? playlist = null,
             // Looking for a value among one facet's own narrows the list on offer rather than the
             // Library, so it is not part of the narrowing the Videos take.
             string? siteSearch = null,
@@ -100,7 +103,8 @@ public static class VideoEndpoints
                     availability,
                     quality,
                     playState,
-                    shelf),
+                    shelf,
+                    playlist),
                 new LibraryFacetSearch { Sites = siteSearch, Actors = actorSearch },
                 cancellationToken)));
 
@@ -151,7 +155,8 @@ public static class VideoEndpoints
         string? availability,
         string? quality,
         string? playState,
-        string? shelf) =>
+        string? shelf,
+        Guid? playlist) =>
         new()
         {
             Query = query,
@@ -166,6 +171,7 @@ public static class VideoEndpoints
             Quality = Parsed<VideoQualityBand>(quality),
             PlayState = Parsed<PersonalPlayState>(playState),
             Shelf = Parsed<PersonalShelf>(shelf),
+            Playlist = playlist,
         };
 
     /// <summary>

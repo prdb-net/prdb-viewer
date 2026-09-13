@@ -34,6 +34,12 @@ public enum LibrarySortOrder
     /// shelves chosen, the latest entry into any of them leads; with none chosen it is Newest.
     /// </summary>
     ShelfOrder,
+
+    /// <summary>
+    /// The order the User arranged a Playlist in by hand, which is its default. Outside a Playlist
+    /// it is Newest, because there is no hand-made order to keep.
+    /// </summary>
+    PlaylistOrder,
 }
 
 /// <summary>

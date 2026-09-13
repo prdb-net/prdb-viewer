@@ -63,7 +63,7 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             total,
             cancellationToken);
         // A Personal Shelf shows what the User put there, so nothing is kept out of one to count.
-        var hiddenUnavailable = request.Availability.Count > 0 || request.Shelf.Count > 0
+        var hiddenUnavailable = request.Availability.Count > 0 || IsPersonalList(request)
             ? 0
             : await matched.CountAsync(
                 video => video.Availability == VideoAvailability.Unavailable,
@@ -323,7 +323,7 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
         int total,
         CancellationToken cancellationToken)
     {
-        if (request.Playability.Count > 0 || preference || request.Shelf.Count > 0)
+        if (request.Playability.Count > 0 || preference || IsPersonalList(request))
         {
             return 0;
         }
@@ -504,6 +504,17 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             videos = videos.Where(OnShelf(accountId, request.Shelf));
         }
 
+        if (request.Playlist is { } playlistId)
+        {
+            // The Account is part of the question rather than a check taken beforehand, so a
+            // Playlist belonging to somebody else narrows the Library to nothing instead of
+            // answering with its contents.
+            videos = videos.Where(video => database.PlaylistEntries.Any(entry =>
+                entry.PlaylistId == playlistId &&
+                entry.VideoId == video.Id &&
+                entry.Playlist.AccountId == accountId));
+        }
+
         return videos;
     }
 
@@ -561,7 +572,7 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
         Expression<Func<VideoRow, bool>> ready,
         Expression<Func<VideoRow, bool>> attemptable)
     {
-        var shelf = request.Shelf.Count > 0;
+        var shelf = IsPersonalList(request);
 
         if (request.Playability.Count > 0)
         {
@@ -582,6 +593,15 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             ? videos
             : videos.Where(video => video.Availability == VideoAvailability.Available);
     }
+
+    /// <summary>
+    /// Whether the request names one of this Account's own lists rather than asking the Library a
+    /// question. A Personal Shelf and a Playlist stand in exactly the same place here: what
+    /// somebody put on a list of their own is shown to them whether or not this client can play
+    /// it, and nothing is kept out of one to be counted as hidden.
+    /// </summary>
+    private static bool IsPersonalList(LibraryDiscoveryRequest request) =>
+        request.Shelf.Count > 0 || request.Playlist is not null;
 
     /// <summary>
     /// Turns the requested Client Video Playability values into one predicate. The three values
@@ -647,7 +667,7 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
     /// Account's own Personal State. Most recently played puts the Videos it never played last;
     /// warmest reaction puts the ones it said nothing about between Shrug and Dislike, because
     /// silence is not a rejection. Shelf order is the order the chosen Personal Shelf keeps, and
-    /// Newest where none is chosen.
+    /// Playlist order the one the User arranged by hand; both are Newest where nothing is pinned.
     /// </summary>
     private IQueryable<VideoRow> Order(
         IQueryable<VideoRow> videos,
@@ -703,6 +723,15 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
                     .Where(state => state.AccountId == accountId && state.VideoId == video.Id)
                     .Select(state => state.WatchLaterAddedAt)
                     .FirstOrDefault())
+                .ThenByDescending(video => video.DiscoveryDate)
+                .ThenBy(video => video.Id),
+            // Outside a Playlist there is no arrangement to keep, so it falls through to Newest
+            // with everything else that names no order of its own.
+            LibrarySortOrder.PlaylistOrder when request.Playlist is { } arranged => videos
+                .OrderBy(video => database.PlaylistEntries
+                    .Where(entry => entry.PlaylistId == arranged && entry.VideoId == video.Id)
+                    .Select(entry => (int?)entry.Position)
+                    .FirstOrDefault() ?? int.MaxValue)
                 .ThenByDescending(video => video.DiscoveryDate)
                 .ThenBy(video => video.Id),
             LibrarySortOrder.ShelfOrder when request.Shelf.Count > 0 => videos

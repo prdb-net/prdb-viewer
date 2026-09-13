@@ -18,13 +18,16 @@ export type FacetKey = 'sites' | 'actors' | 'quality' | 'shelf'
 /// A shelf page pins its shelf: the route says which shelf is open, so the address does not repeat
 /// it, and the shelf's own order is the default there rather than Newest. What is pinned is not a
 /// narrowing — it is the set being narrowed — so it is not counted as one and cannot be cleared.
-export function useLibraryFilters(pinned?: Shelf) {
+/// A Playlist's page pins a Playlist the same way, and its default order is the one the User
+/// arranged by hand.
+export function useLibraryFilters(pinned?: Shelf, playlist?: string) {
   const [parameters, setParameters] = useSearchParams()
   const defaults = useMemo<LibraryFilters>(() => ({
     ...emptyFilters,
-    sort: pinned ? 'ShelfOrder' : emptyFilters.sort,
+    sort: playlist ? 'PlaylistOrder' : pinned ? 'ShelfOrder' : emptyFilters.sort,
     shelf: pinned ? [pinned] : [],
-  }), [pinned])
+    playlist: playlist ?? '',
+  }), [pinned, playlist])
 
   /// The address this hook last wrote, while that write has not come back as a render yet.
   ///
@@ -60,7 +63,8 @@ export function useLibraryFilters(pinned?: Shelf) {
     quality: list(parameters.get('quality')),
     playState: list(parameters.get('playState')),
     shelf: pinned ? [pinned] : list(parameters.get('shelf')),
-  }), [parameters, pinned, defaults])
+    playlist: playlist ?? '',
+  }), [parameters, pinned, playlist, defaults])
 
   const pages = Math.max(1, Number(parameters.get('pages') ?? 1) || 1)
 

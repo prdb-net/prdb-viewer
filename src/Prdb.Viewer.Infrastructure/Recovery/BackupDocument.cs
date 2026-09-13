@@ -41,6 +41,15 @@ public sealed class BackupDocument
     /// </summary>
     public IReadOnlyList<PersonalActorStateRow> PersonalActorStates { get; init; } = [];
 
+    /// <summary>
+    /// Each Account's Playlists and the order the Videos are in. Like a Favourite Actor it is
+    /// Personal State that cannot be obtained again from anywhere. Absent from a format 1 or 2
+    /// archive, which is why neither is required.
+    /// </summary>
+    public IReadOnlyList<PlaylistRow> Playlists { get; init; } = [];
+
+    public IReadOnlyList<PlaylistEntryRow> PlaylistEntries { get; init; } = [];
+
     public required IReadOnlyList<PlaybackAttemptRow> PlaybackAttempts { get; init; }
 
     public required IReadOnlyList<PlaybackReportRow> PlaybackReports { get; init; }

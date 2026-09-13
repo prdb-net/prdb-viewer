@@ -147,6 +147,95 @@ public sealed class PersonalStateRouteTests
         Assert.Equal(
             "Dislike",
             mine.GetProperty("video").GetProperty("personalState").GetProperty("reaction").GetString());
+
+        await PlaylistsBelongToOneAccountAsync(
+            administrator,
+            administratorCsrf,
+            user,
+            userCsrf,
+            video.VideoId);
+    }
+
+    /// <summary>
+    /// A Playlist is one Account's own filing. Another Account cannot list it, narrow the Library
+    /// to it, change it, or delete it, and an Administrator has no more authority over one than
+    /// anybody else — which is the case worth stating, because everywhere else in this product an
+    /// Administrator has more.
+    /// </summary>
+    private static async Task PlaylistsBelongToOneAccountAsync(
+        HttpClient administrator,
+        string administratorCsrf,
+        HttpClient user,
+        string userCsrf,
+        Guid videoId)
+    {
+        using var missingCsrf = await user.PostAsJsonAsync(
+            "/api/personal/playlists",
+            new { name = "Without a token" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Forbidden, missingCsrf.StatusCode);
+
+        var created = await SendJsonAsync(
+            user,
+            HttpMethod.Post,
+            "/api/personal/playlists",
+            new { name = "Theirs" },
+            userCsrf);
+        var playlistId = created.GetProperty("playlist").GetProperty("id").GetGuid();
+
+        await SendJsonAsync(
+            user,
+            HttpMethod.Put,
+            $"/api/personal/playlists/{playlistId}/videos/{videoId}",
+            null,
+            userCsrf);
+
+        var theirs = await user.GetFromJsonAsync<JsonElement>(
+            $"/api/personal/playlists?videoId={videoId}",
+            TestContext.Current.CancellationToken);
+        var listed = Assert.Single(theirs.GetProperty("playlists").EnumerateArray());
+        Assert.True(listed.GetProperty("contains").GetBoolean());
+        Assert.Equal(1, listed.GetProperty("videoCount").GetInt32());
+
+        // The Administrator's own list is empty, and naming the other Account's Playlist in a
+        // Library request narrows to nothing rather than to its contents.
+        var mine = await administrator.GetFromJsonAsync<JsonElement>(
+            "/api/personal/playlists",
+            TestContext.Current.CancellationToken);
+        Assert.Empty(mine.GetProperty("playlists").EnumerateArray());
+        var borrowed = await administrator.GetFromJsonAsync<JsonElement>(
+            $"/api/library/videos?playlist={playlistId}&sort=PlaylistOrder",
+            TestContext.Current.CancellationToken);
+        Assert.Empty(borrowed.GetProperty("videos").EnumerateArray());
+
+        using var rename = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"/api/personal/playlists/{playlistId}");
+        rename.Headers.Add("X-CSRF-Token", administratorCsrf);
+        rename.Content = JsonContent.Create(new { name = "Mine now" });
+        using var renamed = await administrator.SendAsync(
+            rename,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, renamed.StatusCode);
+
+        using var delete = new HttpRequestMessage(
+            HttpMethod.Delete,
+            $"/api/personal/playlists/{playlistId}");
+        delete.Headers.Add("X-CSRF-Token", administratorCsrf);
+        using var deleted = await administrator.SendAsync(
+            delete,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NotFound, deleted.StatusCode);
+
+        // And it is still there, under the name its owner gave it.
+        var after = await user.GetFromJsonAsync<JsonElement>(
+            "/api/personal/playlists",
+            TestContext.Current.CancellationToken);
+        Assert.Equal(
+            "Theirs",
+            Assert.Single(after.GetProperty("playlists").EnumerateArray())
+                .GetProperty("name")
+                .GetString());
     }
 
     private static object Report(

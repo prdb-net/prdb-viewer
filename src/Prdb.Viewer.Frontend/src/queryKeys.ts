@@ -20,6 +20,9 @@ export const queryKeys = {
   // belongs in the key beside it rather than folded into it.
   libraryFacets: (narrowing: string, finding: string) =>
     ['library-facets', narrowing, finding] as const,
+  /// One Account's Playlists. Where a Video is named the answer also says which of them hold it,
+  /// so that question is a key of its own rather than a narrowing of the same answer.
+  playlists: (videoId: string = '') => ['playlists', videoId] as const,
   playbackProfiles: ['playback-profiles'] as const,
   /// Mutation keys rather than query keys: they are how the subjects with something in flight are
   /// found in the mutation cache, so one row can be busy without the screen being busy.

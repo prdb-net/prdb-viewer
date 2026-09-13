@@ -229,6 +229,10 @@ public sealed class BackupService(
             PersonalActorStates = await database.PersonalActorStates
                 .AsNoTracking()
                 .ToListAsync(cancellationToken),
+            Playlists = await database.Playlists.AsNoTracking().ToListAsync(cancellationToken),
+            PlaylistEntries = await database.PlaylistEntries
+                .AsNoTracking()
+                .ToListAsync(cancellationToken),
             PlaybackAttempts = await database.PlaybackAttempts
                 .AsNoTracking()
                 .ToListAsync(cancellationToken),
@@ -277,6 +281,7 @@ public sealed class BackupService(
         var directories = document.LibraryDirectories.Select(directory => directory.Id).ToHashSet();
         var videoFiles = document.VideoFiles.Select(file => file.Id).ToHashSet();
         var attempts = document.PlaybackAttempts.Select(attempt => attempt.Id).ToHashSet();
+        var playlists = document.Playlists.Select(playlist => playlist.Id).ToHashSet();
 
         var broken =
             document.VideoFiles.Any(file =>
@@ -290,6 +295,9 @@ public sealed class BackupService(
             // A Favourite Actor names prdb's identifier, which outlives the profile the archive
             // deliberately leaves out, so the only thing that could be dangling is the Account.
             document.PersonalActorStates.Any(state => !accounts.Contains(state.AccountId)) ||
+            document.Playlists.Any(playlist => !accounts.Contains(playlist.AccountId)) ||
+            document.PlaylistEntries.Any(entry =>
+                !playlists.Contains(entry.PlaylistId) || !videos.Contains(entry.VideoId)) ||
             document.PlaybackAttempts.Any(attempt =>
                 !accounts.Contains(attempt.AccountId) || !videos.Contains(attempt.VideoId)) ||
             document.PlaybackReports.Any(report => !attempts.Contains(report.PlaybackAttemptId)) ||
@@ -324,6 +332,7 @@ public sealed class BackupService(
         !await database.VideoFiles.AnyAsync(cancellationToken) &&
         !await database.PersonalVideoStates.AnyAsync(cancellationToken) &&
         !await database.PersonalActorStates.AnyAsync(cancellationToken) &&
+        !await database.Playlists.AnyAsync(cancellationToken) &&
         !await database.BackgroundWork.AnyAsync(cancellationToken);
 
     /// <summary>
@@ -387,6 +396,8 @@ public sealed class BackupService(
         // Restored before any Actor Profile exists, which is exactly why it references prdb's
         // identifier rather than a local row: the lane fills the profile in afterwards.
         database.PersonalActorStates.AddRange(document.PersonalActorStates);
+        database.Playlists.AddRange(document.Playlists);
+        database.PlaylistEntries.AddRange(document.PlaylistEntries);
         database.PlaybackAttempts.AddRange(document.PlaybackAttempts);
         database.PlaybackReports.AddRange(document.PlaybackReports);
         database.PlaybackAttemptVideoFiles.AddRange(document.PlaybackAttemptVideoFiles);

@@ -12,6 +12,8 @@ import { IdentificationPage } from './admin/IdentificationPage'
 import { SetupPage } from './admin/SetupPage'
 import { WorkPage } from './admin/WorkPage'
 import { LibraryPage } from './library/LibraryPage'
+import { PlaylistPage } from './personal/PlaylistPage'
+import { PlaylistsPage } from './personal/PlaylistsPage'
 import { shelfNames, shelves } from './personal/shelves'
 import { queryKeys } from './queryKeys'
 import { AppShell } from './shell/AppShell'
@@ -78,6 +80,9 @@ function SignedIn({ account }: { account: Account }) {
             element={<LibraryPage account={account} shelf={shelf} />}
           />
         ))}
+        <Route path="playlists" element={<PlaylistsPage account={account} />} />
+        {/* A Playlist's page is the Library narrowed to it, the way a shelf's page is. */}
+        <Route path="playlists/:playlistId" element={<PlaylistPage account={account} />} />
         <Route path="account" element={<AccountPage account={account} />} />
         {administrator && (
           <Route path="admin">
