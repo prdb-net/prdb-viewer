@@ -122,7 +122,7 @@ export function LibraryControls({
                 <option value="QualityDescending">Best quality first</option>
                 <option value="LongestFirst">Longest first</option>
                 <option value="RecentlyPlayed">Recently played</option>
-                <option value="BestRated">Best rated</option>
+                <option value="BestReaction">Your reaction</option>
                 {shelfOrder && <option value="ShelfOrder">{shelfOrder}</option>}
               </select>
             </label>

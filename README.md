@@ -668,7 +668,18 @@ Equivalence is established. The browser resumes that file, reports subsequent
 activity, and derives Continue Watching from a qualifying unfinished Viewing
 Session. Users can dismiss a Continue Watching entry without deleting history,
 and can independently maintain Favourites, the oldest-first Watch Later queue,
-and an optional one-to-five Personal Rating.
+and an optional Personal Reaction.
+
+A Personal Reaction is one of Dislike, Shrug, Like or Love, and having said
+nothing is a different fact from a Shrug. Setting the same reaction again
+changes nothing, setting another replaces it, and clearing removes the statement
+rather than storing a fifth value. A Dislike keeps the Video out of every
+recommendation section and hides it from nothing else — not the Library, not
+search, and not the Account's own lists. Upgrading discards every one-to-five
+Personal Rating an older installation held, with no mapping and no way back;
+restoring an older Backup Archive discards them too. That loss is deliberate,
+and [ADR 0022](docs/adr/0022-recommend-from-return-interest-rather-than-completion.md)
+says why.
 
 Every Personal State endpoint derives its Account from the authenticated local
 session and requires CSRF protection for changes. That token is derived from the

@@ -46,6 +46,10 @@ export type ActorSummary = components['schemas']['ActorSummary']
 export type ActorSortOrder = components['schemas']['ActorSortOrder']
 export type WorkFacts = components['schemas']['WorkFacts']
 export type FavouriteActorResult = components['schemas']['FavouriteActorResult']
+// The contract states a Personal Reaction as one of four values, and states its absence by the
+// property being null. The generated union folds the two together, so the absence is taken back
+// out here: a reaction is one of four, and null is the answer to a different question.
+export type PersonalReaction = NonNullable<components['schemas']['PersonalReaction']>
 
 export type LibraryFilters = {
   query: string
@@ -328,18 +332,18 @@ export const api = {
       selected ? 'PUT' : 'DELETE',
       csrfToken,
     ),
-  setRating: (videoId: string, rating: number | null, csrfToken: string) =>
-    rating === null
+  setReaction: (videoId: string, reaction: PersonalReaction | null, csrfToken: string) =>
+    reaction === null
       ? mutate<PersonalStateMutation>(
-          `/api/personal/videos/${videoId}/rating`,
+          `/api/personal/videos/${videoId}/reaction`,
           'DELETE',
           csrfToken,
         )
       : mutate<PersonalStateMutation>(
-          `/api/personal/videos/${videoId}/rating`,
+          `/api/personal/videos/${videoId}/reaction`,
           'PUT',
           csrfToken,
-          { rating },
+          { reaction },
         ),
   dismissContinueWatching: (videoId: string, csrfToken: string) =>
     post<PersonalStateMutation>(

@@ -1,14 +1,14 @@
 import { useMutation, useMutationState, useQueryClient } from '@tanstack/react-query'
 
-import { api, type Account, type VideoSummary } from '../api/client'
+import { api, type Account, type PersonalReaction, type VideoSummary } from '../api/client'
 import { queryKeys } from '../queryKeys'
 
-export type PersonalActionKind = 'favourite' | 'watch-later' | 'rating' | 'dismiss'
+export type PersonalActionKind = 'favourite' | 'watch-later' | 'reaction' | 'dismiss'
 
 export type PersonalAction = (
   kind: PersonalActionKind,
   video: VideoSummary,
-  value?: boolean | number | null,
+  value?: boolean | PersonalReaction | null,
 ) => void
 
 /// Whether this Video in particular is waiting on an action of its own.
@@ -18,7 +18,7 @@ type PersonalActionVariables = {
   kind: PersonalActionKind
   video: VideoSummary
   selected?: boolean
-  rating?: number | null
+  reaction?: PersonalReaction | null
 }
 
 /// One Account's private organisation of a Video, from wherever it is offered.
@@ -34,15 +34,15 @@ export function usePersonalActions(account: Account) {
   const queryClient = useQueryClient()
   const mutation = useMutation({
     mutationKey: queryKeys.personalAction,
-    mutationFn: ({ kind, video, selected, rating }: PersonalActionVariables) => {
+    mutationFn: ({ kind, video, selected, reaction }: PersonalActionVariables) => {
       if (kind === 'favourite') {
         return api.setFavourite(video.id, selected === true, account.csrfToken)
       }
       if (kind === 'watch-later') {
         return api.setWatchLater(video.id, selected === true, account.csrfToken)
       }
-      if (kind === 'rating') {
-        return api.setRating(video.id, rating ?? null, account.csrfToken)
+      if (kind === 'reaction') {
+        return api.setReaction(video.id, reaction ?? null, account.csrfToken)
       }
       return api.dismissContinueWatching(video.id, account.csrfToken)
     },
@@ -64,7 +64,7 @@ export function usePersonalActions(account: Account) {
     kind,
     video,
     selected: typeof value === 'boolean' ? value : undefined,
-    rating: typeof value === 'number' || value === null ? value : undefined,
+    reaction: typeof value === 'string' || value === null ? value : undefined,
   })
 
   const pending: PersonalPending = (videoId) => saving.includes(videoId)

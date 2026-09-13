@@ -206,19 +206,45 @@ public sealed class PersonalStateServiceTests
             selected: true,
             TestContext.Current.CancellationToken);
         Assert.True(watchLater.PersonalState!.WatchLater);
-        var rated = await service.SetRatingAsync(
+        var loved = await service.SetReactionAsync(
             seeded.FirstAccountId,
             seeded.VideoId,
-            5,
+            PersonalReaction.Love,
             TestContext.Current.CancellationToken);
-        Assert.Equal(5, rated.PersonalState!.PersonalRating);
-        Assert.Equal(
-            PersonalStateMutationVerdict.InvalidRating,
-            (await service.SetRatingAsync(
+        Assert.Equal(PersonalReaction.Love, loved.PersonalState!.Reaction);
+
+        // A Shrug is a statement of indifference, and clearing is the absence of a statement. The
+        // two are not the same answer, which is the whole reason a reaction is optional.
+        var shrugged = await service.SetReactionAsync(
+            seeded.FirstAccountId,
+            seeded.VideoId,
+            PersonalReaction.Shrug,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(PersonalReaction.Shrug, shrugged.PersonalState!.Reaction);
+        var cleared = await service.SetReactionAsync(
+            seeded.FirstAccountId,
+            seeded.VideoId,
+            null,
+            TestContext.Current.CancellationToken);
+        Assert.Null(cleared.PersonalState!.Reaction);
+
+        // Another Account's reaction is its own, and neither Account reads the other's.
+        await service.SetReactionAsync(
+            seeded.SecondAccountId,
+            seeded.VideoId,
+            PersonalReaction.Dislike,
+            TestContext.Current.CancellationToken);
+        Assert.Null(
+            (await service.GetSummaryAsync(
                 seeded.FirstAccountId,
                 seeded.VideoId,
-                6,
-                TestContext.Current.CancellationToken)).Verdict);
+                TestContext.Current.CancellationToken)).Reaction);
+        Assert.Equal(
+            PersonalReaction.Dislike,
+            (await service.GetSummaryAsync(
+                seeded.SecondAccountId,
+                seeded.VideoId,
+                TestContext.Current.CancellationToken)).Reaction);
 
         Assert.Single((await OnShelfAsync(discovery, seeded.FirstAccountId, PersonalShelf.Favourites)).Videos);
         Assert.Single((await OnShelfAsync(discovery, seeded.FirstAccountId, PersonalShelf.WatchLater)).Videos);

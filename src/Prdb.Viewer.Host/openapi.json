@@ -1800,7 +1800,7 @@
         }
       }
     },
-    "/api/personal/videos/{videoId}/rating": {
+    "/api/personal/videos/{videoId}/reaction": {
       "put": {
         "tags": [
           "Personal State"
@@ -1820,7 +1820,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PersonalRatingRequest"
+                "$ref": "#/components/schemas/PersonalReactionRequest"
               }
             }
           },
@@ -4708,7 +4708,7 @@
           "QualityDescending",
           "LongestFirst",
           "RecentlyPlayed",
-          "BestRated",
+          "BestReaction",
           "ShelfOrder"
         ]
       },
@@ -4764,20 +4764,23 @@
           "Completed"
         ]
       },
-      "PersonalRatingRequest": {
+      "PersonalReaction": {
+        "enum": [
+          "Dislike",
+          "Shrug",
+          "Like",
+          "Love",
+          null
+        ]
+      },
+      "PersonalReactionRequest": {
         "required": [
-          "rating"
+          "reaction"
         ],
         "type": "object",
         "properties": {
-          "rating": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+          "reaction": {
+            "$ref": "#/components/schemas/PersonalReaction"
           }
         }
       },
@@ -4806,8 +4809,7 @@
       "PersonalStateMutationVerdict": {
         "enum": [
           "Updated",
-          "VideoNotFound",
-          "InvalidRating"
+          "VideoNotFound"
         ]
       },
       "PersonalVideoStateSummary": {
@@ -4821,7 +4823,7 @@
           "continueWatching",
           "favourite",
           "watchLater",
-          "personalRating"
+          "reaction"
         ],
         "type": "object",
         "properties": {
@@ -4872,14 +4874,15 @@
           "watchLater": {
             "type": "boolean"
           },
-          "personalRating": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+          "reaction": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PersonalReaction"
+              }
+            ]
           }
         }
       },

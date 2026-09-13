@@ -148,7 +148,7 @@ export function personalState(overrides: Record<string, unknown> = {}) {
     continueWatching: false,
     favourite: false,
     watchLater: false,
-    personalRating: null,
+    reaction: null,
     ...overrides,
   }
 }

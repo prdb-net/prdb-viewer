@@ -57,7 +57,8 @@ public sealed class BackupDocument
 /// precious column can be forgotten when the model grows. Only value-typed columns travel;
 /// navigation properties are dropped because their targets are already carried as their own
 /// sections. Reading refuses unknown members, because a field this version cannot read might hold
-/// state that must not be silently omitted.
+/// state that must not be silently omitted — which is exactly why a column the product has
+/// deliberately retired must be named here as retired rather than simply deleted.
 /// </summary>
 public static class BackupDocumentSerializer
 {
@@ -68,7 +69,7 @@ public static class BackupDocumentSerializer
         Converters = { new JsonStringEnumConverter() },
         TypeInfoResolver = new DefaultJsonTypeInfoResolver
         {
-            Modifiers = { DropNavigationProperties },
+            Modifiers = { DropNavigationProperties, DiscardRetiredMembers },
         },
     };
 
@@ -92,6 +93,30 @@ public static class BackupDocumentSerializer
                 type.Properties.RemoveAt(index);
             }
         }
+    }
+
+    /// <summary>
+    /// The columns older archives carry that this product version has deliberately stopped
+    /// keeping. Each is read and thrown away, so a supported restore neither fails on a member it
+    /// refuses to guess at nor quietly resurrects state a decision removed. Nothing is written
+    /// back: an archive this version produces does not carry them at all.
+    /// </summary>
+    /// <remarks>
+    /// `personalRating` is the one-to-five score ADR 0022 discarded in favour of the Personal
+    /// Reaction. There is no mapping, by decision: three stars is not a shrug.
+    /// </remarks>
+    private static void DiscardRetiredMembers(JsonTypeInfo type)
+    {
+        if (type.Type != typeof(PersonalVideoStateRow))
+        {
+            return;
+        }
+
+        var retired = type.CreateJsonPropertyInfo(typeof(int?), "personalRating");
+        retired.Get = _ => null;
+        retired.Set = (_, _) => { };
+        retired.ShouldSerialize = (_, _) => false;
+        type.Properties.Add(retired);
     }
 
     private static bool IsNavigation(Type property) =>

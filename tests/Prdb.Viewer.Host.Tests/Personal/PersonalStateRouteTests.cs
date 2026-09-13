@@ -91,13 +91,62 @@ public sealed class PersonalStateRouteTests
             TestContext.Current.CancellationToken);
         Assert.Empty(userLibrary.GetProperty("videos").EnumerateArray());
 
-        var rating = await SendJsonAsync(
+        var loved = await SendJsonAsync(
             administrator,
             HttpMethod.Put,
-            $"/api/personal/videos/{video.VideoId}/rating",
-            new { rating = 5 },
+            $"/api/personal/videos/{video.VideoId}/reaction",
+            new { reaction = "Love" },
             administratorCsrf);
-        Assert.Equal(5, rating.GetProperty("personalState").GetProperty("personalRating").GetInt32());
+        Assert.Equal("Love", loved.GetProperty("personalState").GetProperty("reaction").GetString());
+
+        // Setting the same reaction again is the same answer, and setting another replaces it.
+        var again = await SendJsonAsync(
+            administrator,
+            HttpMethod.Put,
+            $"/api/personal/videos/{video.VideoId}/reaction",
+            new { reaction = "Love" },
+            administratorCsrf);
+        Assert.Equal("Love", again.GetProperty("personalState").GetProperty("reaction").GetString());
+        var shrugged = await SendJsonAsync(
+            administrator,
+            HttpMethod.Put,
+            $"/api/personal/videos/{video.VideoId}/reaction",
+            new { reaction = "Shrug" },
+            administratorCsrf);
+        Assert.Equal("Shrug", shrugged.GetProperty("personalState").GetProperty("reaction").GetString());
+
+        // A Shrug is a statement; clearing removes the statement. The wire distinguishes them,
+        // because a screen that showed "no opinion" for both would be inventing one of the two.
+        var cleared = await SendJsonAsync(
+            administrator,
+            HttpMethod.Delete,
+            $"/api/personal/videos/{video.VideoId}/reaction",
+            null,
+            administratorCsrf);
+        Assert.Equal(
+            JsonValueKind.Null,
+            cleared.GetProperty("personalState").GetProperty("reaction").ValueKind);
+
+        // What one Account says about a Video is not what the other reads.
+        await SendJsonAsync(
+            administrator,
+            HttpMethod.Put,
+            $"/api/personal/videos/{video.VideoId}/reaction",
+            new { reaction = "Dislike" },
+            administratorCsrf);
+        var theirs = await SendJsonAsync(
+            user,
+            HttpMethod.Put,
+            $"/api/personal/videos/{video.VideoId}/reaction",
+            new { reaction = "Like" },
+            userCsrf);
+        Assert.Equal("Like", theirs.GetProperty("personalState").GetProperty("reaction").GetString());
+        var mine = await administrator.GetFromJsonAsync<JsonElement>(
+            $"/api/library/videos/{video.VideoId}",
+            TestContext.Current.CancellationToken);
+        Assert.Equal(
+            "Dislike",
+            mine.GetProperty("video").GetProperty("personalState").GetProperty("reaction").GetString());
     }
 
     private static object Report(
@@ -185,12 +234,12 @@ public sealed class PersonalStateRouteTests
         HttpClient client,
         HttpMethod method,
         string path,
-        object body,
+        object? body,
         string csrfToken)
     {
         using var request = new HttpRequestMessage(method, path)
         {
-            Content = JsonContent.Create(body),
+            Content = body is null ? null : JsonContent.Create(body),
         };
         request.Headers.Add("X-CSRF-Token", csrfToken);
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);

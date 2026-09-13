@@ -362,25 +362,21 @@ public sealed class PersonalStateService(
             state => state.ContinueWatchingDismissedAt = UtcNow(),
             cancellationToken);
 
-    public async Task<PersonalStateMutationResult> SetRatingAsync(
+    /// <summary>
+    /// Records what this Account says about the Video, or clears it. Setting the reaction that is
+    /// already set changes nothing and answers the same way, setting another replaces it, and null
+    /// removes the statement rather than storing a fifth value.
+    /// </summary>
+    public Task<PersonalStateMutationResult> SetReactionAsync(
         Guid accountId,
         Guid videoId,
-        int? rating,
-        CancellationToken cancellationToken = default)
-    {
-        if (rating is not null && !PersonalRatingRule.IsValid(rating.Value))
-        {
-            return new PersonalStateMutationResult(
-                PersonalStateMutationVerdict.InvalidRating,
-                null);
-        }
-
-        return await MutateAsync(
+        PersonalReaction? reaction,
+        CancellationToken cancellationToken = default) =>
+        MutateAsync(
             accountId,
             videoId,
-            state => state.PersonalRating = rating,
+            state => state.Reaction = reaction,
             cancellationToken);
-    }
 
     public async Task<PersonalVideoStateSummary> GetSummaryAsync(
         Guid accountId,
@@ -448,7 +444,7 @@ public sealed class PersonalStateService(
                     ContinueWatchingDismissedAt = state.ContinueWatchingDismissedAt,
                     FavouriteAddedAt = state.FavouriteAddedAt,
                     WatchLaterAddedAt = state.WatchLaterAddedAt,
-                    PersonalRating = state.PersonalRating,
+                    Reaction = state.Reaction,
                     UpdatedAt = state.UpdatedAt,
                 });
             }
@@ -530,7 +526,7 @@ public sealed class PersonalStateService(
         foreach (var source in sources.Where(state =>
                      state.FavouriteAddedAt is not null ||
                      state.WatchLaterAddedAt is not null ||
-                     state.PersonalRating is not null ||
+                     state.Reaction is not null ||
                      state.ContinueWatchingDismissedAt is not null))
         {
             var target = await GetOrCreateStateAsync(
@@ -540,11 +536,11 @@ public sealed class PersonalStateService(
                 cancellationToken);
             target.FavouriteAddedAt = source.FavouriteAddedAt;
             target.WatchLaterAddedAt = source.WatchLaterAddedAt;
-            target.PersonalRating = source.PersonalRating;
+            target.Reaction = source.Reaction;
             target.ContinueWatchingDismissedAt = source.ContinueWatchingDismissedAt;
             source.FavouriteAddedAt = null;
             source.WatchLaterAddedAt = null;
-            source.PersonalRating = null;
+            source.Reaction = null;
             source.ContinueWatchingDismissedAt = null;
         }
 
@@ -650,11 +646,11 @@ public sealed class PersonalStateService(
             target.PlayState = merged.PlayState;
             target.PlayStateChangedAt = merged.PlayStateChangedAt;
             target.LastQualifiedActivityAt = merged.LastQualifiedActivityAt;
-            target.PersonalRating = merged.PersonalRating ?? target.PersonalRating;
+            target.Reaction = merged.Reaction ?? target.Reaction;
         }
         else
         {
-            target.PersonalRating ??= merged.PersonalRating;
+            target.Reaction ??= merged.Reaction;
         }
 
         target.UpdatedAt = Later(target.UpdatedAt, merged.UpdatedAt) ?? target.UpdatedAt;
@@ -834,7 +830,7 @@ public sealed class PersonalStateService(
             continueWatching,
             state.FavouriteAddedAt is not null,
             state.WatchLaterAddedAt is not null,
-            state.PersonalRating);
+            state.Reaction);
     }
 
     internal static PersonalVideoStateSummary EmptySummary() =>

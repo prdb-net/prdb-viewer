@@ -36,7 +36,11 @@ public sealed class PersonalVideoStateRow
 
     public DateTime? WatchLaterAddedAt { get; set; }
 
-    public int? PersonalRating { get; set; }
+    /// <summary>
+    /// What this Account said about the Video, where it said anything. Null is not a fifth value:
+    /// it is the absence of a statement, which a Shrug is not.
+    /// </summary>
+    public PersonalReaction? Reaction { get; set; }
 
     public DateTime UpdatedAt { get; set; }
 }

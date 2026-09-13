@@ -643,9 +643,11 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
     /// <summary>
     /// Discovery Date descending by default, so later enrichment never makes an old Video look
     /// newly added. Title A-Z, best Video Quality first and longest runtime first are the explicit
-    /// alternatives that hold for every Account; most recently played and best rated read this
-    /// Account's own Personal State, and put the Videos it has no such state for last. Shelf order
-    /// is the order the chosen Personal Shelf keeps, and Newest where none is chosen.
+    /// alternatives that hold for every Account; most recently played and warmest reaction read this
+    /// Account's own Personal State. Most recently played puts the Videos it never played last;
+    /// warmest reaction puts the ones it said nothing about between Shrug and Dislike, because
+    /// silence is not a rejection. Shelf order is the order the chosen Personal Shelf keeps, and
+    /// Newest where none is chosen.
     /// </summary>
     private IQueryable<VideoRow> Order(
         IQueryable<VideoRow> videos,
@@ -678,11 +680,15 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
                     .FirstOrDefault())
                 .ThenByDescending(video => video.DiscoveryDate)
                 .ThenBy(video => video.Id),
-            LibrarySortOrder.BestRated => videos
+            LibrarySortOrder.BestReaction => videos
                 .OrderByDescending(video => database.PersonalVideoStates
                     .Where(state => state.AccountId == accountId && state.VideoId == video.Id)
-                    .Select(state => state.PersonalRating)
-                    .FirstOrDefault())
+                    .Select(state =>
+                        state.Reaction == PersonalReaction.Love ? (int?)4 :
+                        state.Reaction == PersonalReaction.Like ? 3 :
+                        state.Reaction == PersonalReaction.Shrug ? 2 :
+                        state.Reaction == PersonalReaction.Dislike ? 0 : 1)
+                    .FirstOrDefault() ?? 1)
                 .ThenByDescending(video => video.DiscoveryDate)
                 .ThenBy(video => video.Id),
             // Watch Later is a queue, oldest addition first; every other shelf leads with what

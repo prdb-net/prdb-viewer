@@ -17,7 +17,7 @@ public sealed record PersonalVideoStateSummary(
     bool ContinueWatching,
     bool Favourite,
     bool WatchLater,
-    int? PersonalRating);
+    PersonalReaction? Reaction);
 
 public sealed record PlaybackAttemptResult(
     PlaybackAttemptVerdict Verdict,

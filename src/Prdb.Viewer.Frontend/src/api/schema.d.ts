@@ -2069,7 +2069,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/personal/videos/{videoId}/rating": {
+    "/api/personal/videos/{videoId}/reaction": {
         parameters: {
             query?: never;
             header?: never;
@@ -2088,7 +2088,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["PersonalRatingRequest"];
+                    "application/json": components["schemas"]["PersonalReactionRequest"];
                 };
             };
             responses: {
@@ -2811,7 +2811,7 @@ export interface components {
             count: number | string;
         };
         /** @enum {unknown} */
-        LibrarySortOrder: "Newest" | "TitleAscending" | "QualityDescending" | "LongestFirst" | "RecentlyPlayed" | "BestRated" | "ShelfOrder";
+        LibrarySortOrder: "Newest" | "TitleAscending" | "QualityDescending" | "LongestFirst" | "RecentlyPlayed" | "BestReaction" | "ShelfOrder";
         /** @enum {unknown} */
         ObservedPlaybackOutcome: "Succeeded" | "Failed" | null;
         ObservedPlaybackOutcomeRequest: {
@@ -2825,16 +2825,17 @@ export interface components {
         };
         /** @enum {unknown} */
         PersonalPlayState: "Unplayed" | "InProgress" | "Completed";
-        PersonalRatingRequest: {
-            /** Format: int32 */
-            rating: null | number | string;
+        /** @enum {unknown} */
+        PersonalReaction: "Dislike" | "Shrug" | "Like" | "Love" | null;
+        PersonalReactionRequest: {
+            reaction: components["schemas"]["PersonalReaction"];
         };
         PersonalStateMutationResult: {
             verdict: components["schemas"]["PersonalStateMutationVerdict"];
             personalState: null | components["schemas"]["PersonalVideoStateSummary"];
         };
         /** @enum {unknown} */
-        PersonalStateMutationVerdict: "Updated" | "VideoNotFound" | "InvalidRating";
+        PersonalStateMutationVerdict: "Updated" | "VideoNotFound";
         PersonalVideoStateSummary: {
             /** Format: int64 */
             playbackProgressMilliseconds: null | number | string;
@@ -2849,8 +2850,7 @@ export interface components {
             continueWatching: boolean;
             favourite: boolean;
             watchLater: boolean;
-            /** Format: int32 */
-            personalRating: null | number | string;
+            reaction: null | components["schemas"]["PersonalReaction"];
         };
         PlaybackAttemptRequest: {
             /** Format: uuid */

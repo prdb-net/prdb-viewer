@@ -10,7 +10,7 @@ import {
   siteProvenanceLabel,
 } from '../lib/format'
 import { withReturnTo } from '../lib/returnTo'
-import { StarRating } from '../personal/StarRating'
+import { ReactionControl } from '../personal/ReactionControl'
 import type { PersonalAction, PersonalPending } from '../personal/usePersonalActions'
 import { HeartIcon } from '../ui'
 import { VideoArt } from './VideoArt'
@@ -27,7 +27,14 @@ import { VideoArt } from './VideoArt'
 /// times and distinguished nothing; the ordinary case is now silent, and what a card states is an
 /// exception — an Unknown Video, a review, a Site recognised only locally, a file that will not
 /// play here.
-export function VideoCard({ video, act, pending, from, dismissible = false }: {
+export function VideoCard({
+  video,
+  act,
+  pending,
+  from,
+  dismissible = false,
+  reactions = 'whenSet',
+}: {
   video: VideoSummary
   act: PersonalAction
   pending: PersonalPending
@@ -35,6 +42,10 @@ export function VideoCard({ video, act, pending, from, dismissible = false }: {
   /// narrowing the reader was actually looking at rather than to the top of the Library.
   from: string
   dismissible?: boolean
+  /// Whether the four reactions are always offered, or only shown where one is already set. A
+  /// recommendation is there to be reacted to, so its cards offer them; a Library card is not, and
+  /// forty controls nobody asked for is what the Library used to look like.
+  reactions?: 'whenSet' | 'always'
 }) {
   // This card is busy only while one of its own actions is in flight, not while any card's is.
   const busy = pending(video.id)
@@ -42,8 +53,7 @@ export function VideoCard({ video, act, pending, from, dismissible = false }: {
   const progress = Number(video.personalState.playbackProgressMilliseconds ?? 0)
   const resume = progress > 0 && video.personalState.playState === 'InProgress'
   const playable = source !== undefined && video.playability !== 'NotDirectlyPlayable'
-  const rating = video.personalState.personalRating
-  const rated = rating !== null && rating !== undefined
+  const reaction = video.personalState.reaction ?? null
   const kept = video.personalState.favourite || video.personalState.watchLater
 
   return (
@@ -81,16 +91,16 @@ export function VideoCard({ video, act, pending, from, dismissible = false }: {
         <CardFacts video={video} source={source} />
       </div>
       <div className="card-actions">
-        {/* A Personal Rating is shown where there is one, and can be changed where it is shown.
-            Five empty stars on every unrated card were a control nobody had asked for, forty
-            times over; the Video's own page is where a first rating is given. It sits above the
-            play action so that the play actions of a row stay level whether or not a card carries
-            a rating. */}
-        {rated && (
-          <StarRating
+        {/* A Personal Reaction is shown where there is one, and can be changed where it is
+            shown. Four empty choices on every card would be a control nobody had asked for, forty
+            times over; a first reaction is given where the Video is, or where it is recommended
+            and the reaction is the point. It sits above the play action so that the play actions
+            of a row stay level whether or not a card carries a reaction. */}
+        {(reactions === 'always' || reaction !== null) && (
+          <ReactionControl
             title={video.displayTitle}
-            value={rating}
-            onChange={(score) => act('rating', video, score)}
+            value={reaction}
+            onChange={(chosen) => act('reaction', video, chosen)}
             disabled={busy}
           />
         )}
@@ -195,12 +205,20 @@ function BookmarkIcon() {
   )
 }
 
-export function VideoGrid({ videos, act, pending, from, dismissible = false }: {
+export function VideoGrid({
+  videos,
+  act,
+  pending,
+  from,
+  dismissible = false,
+  reactions = 'whenSet',
+}: {
   videos: VideoSummary[]
   act: PersonalAction
   pending: PersonalPending
   from: string
   dismissible?: boolean
+  reactions?: 'whenSet' | 'always'
 }) {
   return (
     <div className="video-grid">
@@ -212,6 +230,7 @@ export function VideoGrid({ videos, act, pending, from, dismissible = false }: {
           pending={pending}
           from={from}
           dismissible={dismissible}
+          reactions={reactions}
         />
       ))}
     </div>

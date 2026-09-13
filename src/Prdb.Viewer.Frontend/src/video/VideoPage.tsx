@@ -29,7 +29,7 @@ import {
   qualitySource,
 } from '../lib/quality'
 import { returnTo } from '../lib/returnTo'
-import { StarRating } from '../personal/StarRating'
+import { ReactionControl } from '../personal/ReactionControl'
 import { usePersonalActions } from '../personal/usePersonalActions'
 import { queryKeys } from '../queryKeys'
 import { firstError, Notice, PageHeading, RequestError } from '../ui'
@@ -317,10 +317,10 @@ export function VideoPage({ account }: { account: Account }) {
               disabled={saving}
             >Watch Later</button>
           </div>
-          <StarRating
+          <ReactionControl
             title={video.displayTitle}
-            value={video.personalState.personalRating}
-            onChange={(score) => personal.act('rating', video, score)}
+            value={video.personalState.reaction}
+            onChange={(reaction) => personal.act('reaction', video, reaction)}
             disabled={saving}
             size="large"
           />

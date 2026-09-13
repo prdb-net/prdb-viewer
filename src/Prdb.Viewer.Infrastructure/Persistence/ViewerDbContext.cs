@@ -552,11 +552,9 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
         builder.Entity<PersonalVideoStateRow>(state =>
         {
             state.ToTable("personal_video_state");
-            state.ToTable(table => table.HasCheckConstraint(
-                "CK_personal_video_state_PersonalRating",
-                "\"PersonalRating\" IS NULL OR \"PersonalRating\" BETWEEN 1 AND 5"));
             state.HasKey(row => new { row.AccountId, row.VideoId });
             state.Property(row => row.PlayState).HasConversion<string>();
+            state.Property(row => row.Reaction).HasConversion<string>();
             state.HasIndex(row => new { row.AccountId, row.LastQualifiedActivityAt });
             state.HasIndex(row => new { row.AccountId, row.FavouriteAddedAt });
             state.HasIndex(row => new { row.AccountId, row.WatchLaterAddedAt });
