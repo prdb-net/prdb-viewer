@@ -434,7 +434,9 @@ body.filters-open .app-content {
 /* One section of the Recommendations page. The heading says what the section is and what it is
    for, because three grids of Videos with three short titles would be three unexplained lists. */
 .recommendation-section { margin-top: 2rem; }
-.recommendation-section .section-heading { align-items: baseline; gap: .7rem; flex-wrap: wrap; }
+/* The explanation belongs beside the heading it explains, not at the far edge of a wide screen
+   with a metre of nothing between the two. */
+.recommendation-section .section-heading { justify-content: flex-start; align-items: baseline; gap: .7rem; flex-wrap: wrap; }
 .recommendation-section .section-heading h3 { margin: 0; font-size: 1rem; }
 .recommendation-section .section-empty { margin: .4rem 0 0; font-size: .85rem; }
 /* Why a card is here, said in one line under the facts about it. */
@@ -452,8 +454,12 @@ body.filters-open .app-content {
 .quiet-button.danger:hover { color: #ffd0d0; background: rgb(255 120 120 / 12%); }
 
 /* The Playlists an Account keeps: one row each, and the form that makes another. */
-.playlist-new { display: flex; align-items: flex-end; gap: .6rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
-.playlist-new .field { flex: 1 1 16rem; }
+/* Naming a Playlist is a small form rather than a page action, so the button is beside the field
+   it belongs to. `.primary-button` is full width by default, which is right where it is the one
+   thing a card asks for and wrong here. */
+.playlist-new { display: flex; align-items: flex-end; gap: .6rem; max-width: 34rem; margin-bottom: 1.4rem; flex-wrap: wrap; }
+.playlist-new .field { flex: 1 1 14rem; }
+.playlist-new .primary-button, .playlist-rename .primary-button { width: auto; margin-top: 0; padding: .85rem 1.4rem; }
 .playlist-list { display: grid; gap: .5rem; margin: 0; padding: 0; list-style: none; }
 .playlist-row { display: flex; align-items: center; gap: .7rem; padding: .7rem .9rem; border: 1px solid rgb(255 255 255 / 8%); border-radius: .7rem; background: #1c1a23; flex-wrap: wrap; }
 .playlist-row .playlist-name { flex: 1 1 12rem; color: #efe8ff; font-weight: 750; text-decoration: none; }
