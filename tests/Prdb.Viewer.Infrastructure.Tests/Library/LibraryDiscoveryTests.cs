@@ -401,8 +401,8 @@ public sealed class LibraryDiscoveryTests
                 .ToDictionaryAsync(video => video.DisplayLabel, TestContext.Current.CancellationToken);
             var now = DateTime.SpecifyKind(new DateTime(2026, 9, 1, 12, 0, 0), DateTimeKind.Utc);
 
-            // The short one was played most recently and rated lowest; the middle one was played
-            // earlier and rated highest; the long one has no Personal State at all.
+            // The short one was played most recently and disliked; the middle one was played
+            // earlier and loved; the long one has no Personal State at all.
             database.PersonalVideoStates.AddRange(
                 new PersonalVideoStateRow
                 {
@@ -410,7 +410,7 @@ public sealed class LibraryDiscoveryTests
                     VideoId = videos["short"].Id,
                     PlayState = PersonalPlayState.InProgress,
                     PlayStateChangedAt = now,
-                    PersonalRating = 2,
+                    Reaction = PersonalReaction.Dislike,
                     UpdatedAt = now,
                 },
                 new PersonalVideoStateRow
@@ -419,7 +419,7 @@ public sealed class LibraryDiscoveryTests
                     VideoId = videos["middle"].Id,
                     PlayState = PersonalPlayState.Completed,
                     PlayStateChangedAt = now.AddDays(-1),
-                    PersonalRating = 5,
+                    Reaction = PersonalReaction.Love,
                     UpdatedAt = now,
                 });
             await database.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -436,10 +436,12 @@ public sealed class LibraryDiscoveryTests
             ["short", "middle", "long"],
             await OrderedAsync(scope, accountId, LibrarySortOrder.RecentlyPlayed));
 
-        // What was never rated comes after everything that was.
+        // Love leads, and a Dislike comes below the Video nobody said anything about: silence
+        // is not a rejection, so it must not be sorted as one. This is PersonalReactionRule's
+        // ranking, answered in SQL.
         Assert.Equal(
-            ["middle", "short", "long"],
-            await OrderedAsync(scope, accountId, LibrarySortOrder.BestRated));
+            ["middle", "long", "short"],
+            await OrderedAsync(scope, accountId, LibrarySortOrder.BestReaction));
     }
 
     private static async Task<IEnumerable<string>> OrderedAsync(

@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Prdb.Viewer.Core.Access;
 using Prdb.Viewer.Core.Configuration;
 using Prdb.Viewer.Core.Library;
+using Prdb.Viewer.Core.Personal;
 using Prdb.Viewer.Core.Recovery;
 using Prdb.Viewer.Infrastructure.Access;
 using Prdb.Viewer.Infrastructure.Library;
@@ -89,7 +90,7 @@ public sealed class BackupTests
             var personal = await database.PersonalVideoStates.SingleAsync(
                 TestContext.Current.CancellationToken);
             Assert.NotNull(personal.FavouriteAddedAt);
-            Assert.Equal(4, personal.PersonalRating);
+            Assert.Equal(PersonalReaction.Love, personal.Reaction);
 
             // A Favourite Actor is Personal State and cannot be obtained again, so it is the one
             // thing this installation keeps about Actors that the archive carries. The profile
@@ -382,10 +383,10 @@ public sealed class BackupTests
                 videoId,
                 true,
                 TestContext.Current.CancellationToken);
-            await personal.SetRatingAsync(
+            await personal.SetReactionAsync(
                 accountId,
                 videoId,
-                4,
+                PersonalReaction.Love,
                 TestContext.Current.CancellationToken);
             await personal.SetFavouriteActorAsync(
                 accountId,
@@ -396,6 +397,75 @@ public sealed class BackupTests
 
         return store;
     }
+
+    /// <summary>
+    /// A format 1 or 2 archive carries a one-to-five Personal Rating on every Personal Video
+    /// State. ADR 0022 discards those values rather than mapping them, and the reader refuses
+    /// members it does not recognise — so the retired column has to be read and thrown away on
+    /// purpose. Getting this wrong in either direction is visible: refusing the member makes an
+    /// older archive unrestorable, and keeping it would resurrect the ratings a decision removed.
+    /// </summary>
+    [Fact]
+    public void An_older_archive_restores_with_its_star_ratings_discarded_and_the_rest_intact()
+    {
+        Assert.True(BackupArchiveFormat.CanRestoreDirectly(1));
+        Assert.True(BackupArchiveFormat.CanRestoreDirectly(2));
+
+        var accountId = Guid.CreateVersion7();
+        var videoId = Guid.CreateVersion7();
+        var favouritedAt = new DateTime(2026, 3, 4, 5, 6, 7, DateTimeKind.Utc);
+        var document = Empty(
+        [
+            new PersonalVideoStateRow
+            {
+                AccountId = accountId,
+                VideoId = videoId,
+                PlayCount = 3,
+                FavouriteAddedAt = favouritedAt,
+                PlayState = PersonalPlayState.Completed,
+                HasViewingCompletion = true,
+                UpdatedAt = favouritedAt,
+            },
+        ]);
+
+        // What an older product wrote: the same row, with the score this version no longer keeps.
+        var older = System.Text.Encoding.UTF8
+            .GetString(BackupDocumentSerializer.Serialize(document))
+            .Replace("\"playCount\":3", "\"playCount\":3,\"personalRating\":4", StringComparison.Ordinal);
+        Assert.Contains("personalRating", older, StringComparison.Ordinal);
+
+        var restored = BackupDocumentSerializer.Deserialize(System.Text.Encoding.UTF8.GetBytes(older));
+
+        var state = Assert.Single(restored!.PersonalVideoStates);
+        Assert.Null(state.Reaction);
+        Assert.Equal(3, state.PlayCount);
+        Assert.Equal(favouritedAt, state.FavouriteAddedAt);
+        Assert.Equal(PersonalPlayState.Completed, state.PlayState);
+        Assert.True(state.HasViewingCompletion);
+
+        // Nothing this version writes carries the retired name onwards.
+        Assert.DoesNotContain(
+            "personalRating",
+            System.Text.Encoding.UTF8.GetString(BackupDocumentSerializer.Serialize(restored)),
+            StringComparison.Ordinal);
+    }
+
+    private static BackupDocument Empty(IReadOnlyList<PersonalVideoStateRow> personalVideoStates) => new()
+    {
+        InstallationConfiguration = new InstallationConfigurationRow(),
+        Accounts = [],
+        LibraryDirectories = [],
+        Videos = [],
+        VideoFiles = [],
+        VideoMetadata = [],
+        IdentificationClaims = [],
+        IdentificationCandidates = [],
+        IdentificationDecisions = [],
+        PersonalVideoStates = personalVideoStates,
+        PlaybackAttempts = [],
+        PlaybackReports = [],
+        PlaybackAttemptVideoFiles = [],
+    };
 
     private static async Task<Dictionary<string, byte[]>> BytesAsync(TestDatabase store)
     {

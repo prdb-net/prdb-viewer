@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 
 using Prdb.Viewer.Core.Library;
+using Prdb.Viewer.Core.Personal;
 using Prdb.Viewer.Host.Access;
 using Prdb.Viewer.Host.Library;
 using Prdb.Viewer.Infrastructure.Library;
@@ -99,18 +100,24 @@ public static class PersonalStateEndpoints
                 request.ActiveWatchingMilliseconds,
                 request.NaturalEndConfirmed,
                 request.EndSession,
+                http.ClientContextKey(),
                 cancellationToken)))
             .RequireCsrf();
 
+        // The client says how the session ended where it observed anything. It is a query
+        // parameter rather than a body because this call is also made from a page that is going
+        // away, where a request with a body is the one most likely not to be sent at all.
         personal.MapPost("/playback-attempts/{playbackAttemptId:guid}/end", async (
             Guid playbackAttemptId,
             PersonalStateService service,
             HttpContext http,
-            CancellationToken cancellationToken) =>
+            CancellationToken cancellationToken,
+            PlaybackDeparture departure = PlaybackDeparture.Unknown) =>
             TypedResults.Ok(new EndPlaybackAttemptResponse(
                 await service.EndPlaybackAttemptAsync(
                     http.User.AccountId()!.Value,
                     playbackAttemptId,
+                    departure,
                     cancellationToken))))
             .RequireCsrf();
 
@@ -193,28 +200,31 @@ public static class PersonalStateEndpoints
                 cancellationToken)))
             .RequireCsrf();
 
-        personal.MapPut("/videos/{videoId:guid}/rating", async (
+        // Setting and clearing are two verbs rather than one nullable body, the way the Personal
+        // Shelves already are: a reaction is either stated or absent, and a DELETE says the second
+        // of those without asking a reader what a null in a body means.
+        personal.MapPut("/videos/{videoId:guid}/reaction", async (
             Guid videoId,
-            PersonalRatingRequest request,
+            PersonalReactionRequest request,
             PersonalStateService service,
             HttpContext http,
             CancellationToken cancellationToken) =>
-            TypedResults.Ok(await service.SetRatingAsync(
+            TypedResults.Ok(await service.SetReactionAsync(
                 http.User.AccountId()!.Value,
                 videoId,
-                request.Rating,
+                request.Reaction,
                 cancellationToken)))
             .RequireCsrf();
 
-        personal.MapDelete("/videos/{videoId:guid}/rating", async (
+        personal.MapDelete("/videos/{videoId:guid}/reaction", async (
             Guid videoId,
             PersonalStateService service,
             HttpContext http,
             CancellationToken cancellationToken) =>
-            TypedResults.Ok(await service.SetRatingAsync(
+            TypedResults.Ok(await service.SetReactionAsync(
                 http.User.AccountId()!.Value,
                 videoId,
-                rating: null,
+                reaction: null,
                 cancellationToken)))
             .RequireCsrf();
 
@@ -254,6 +264,6 @@ public sealed record PlaybackReportRequest(
     bool NaturalEndConfirmed,
     bool EndSession);
 
-public sealed record PersonalRatingRequest(int? Rating);
+public sealed record PersonalReactionRequest(PersonalReaction Reaction);
 
 public sealed record EndPlaybackAttemptResponse(bool Ended);

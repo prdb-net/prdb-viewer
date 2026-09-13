@@ -1368,6 +1368,7 @@ export interface paths {
                     quality?: string;
                     playState?: string;
                     shelf?: string;
+                    playlist?: string;
                     skip?: number | string;
                     take?: number | string;
                 };
@@ -1461,6 +1462,7 @@ export interface paths {
                     quality?: string;
                     playState?: string;
                     shelf?: string;
+                    playlist?: string;
                     siteSearch?: string;
                     actorSearch?: string;
                 };
@@ -1855,7 +1857,9 @@ export interface paths {
         put?: never;
         post: {
             parameters: {
-                query?: never;
+                query?: {
+                    departure?: components["schemas"]["PlaybackDeparture"];
+                };
                 header?: never;
                 path: {
                     playbackAttemptId: string;
@@ -2069,7 +2073,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/personal/videos/{videoId}/rating": {
+    "/api/personal/videos/{videoId}/reaction": {
         parameters: {
             query?: never;
             header?: never;
@@ -2088,7 +2092,7 @@ export interface paths {
             };
             requestBody: {
                 content: {
-                    "application/json": components["schemas"]["PersonalRatingRequest"];
+                    "application/json": components["schemas"]["PersonalReactionRequest"];
                 };
             };
             responses: {
@@ -2163,6 +2167,385 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/playlists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    videoId?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaylistsResponse"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PlaylistNameRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaylistResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaylistResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/playlists/{playlistId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    playlistId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PlaylistNameRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaylistResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaylistResult"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    playlistId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaylistDeletion"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/playlists/{playlistId}/videos/{videoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    playlistId: string;
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaylistResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaylistResult"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    playlistId: string;
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaylistResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaylistResult"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/playlists/{playlistId}/videos/{videoId}/position": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    playlistId: string;
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PlaylistPositionRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaylistResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PlaylistResult"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/recommendations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: {
+                    seed?: number | string;
+                    take?: number | string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RecommendationPage"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/personal/recommendations/videos/{videoId}/not-today": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DismissalResult"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    videoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["DismissalResult"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -2367,6 +2750,9 @@ export interface components {
         ClientVideoPlayability: "ReadyForDirectPlay" | "CompatibilityUncertain" | "NotDirectlyPlayable";
         /** @enum {unknown} */
         DirectPlayClassification: "BaselineCandidate" | "ClientDependent" | "Unsupported" | "Undetermined";
+        DismissalResult: {
+            dismissed: boolean;
+        };
         EndPlaybackAttemptResponse: {
             ended: boolean;
         };
@@ -2811,7 +3197,7 @@ export interface components {
             count: number | string;
         };
         /** @enum {unknown} */
-        LibrarySortOrder: "Newest" | "TitleAscending" | "QualityDescending" | "LongestFirst" | "RecentlyPlayed" | "BestRated" | "ShelfOrder";
+        LibrarySortOrder: "Newest" | "TitleAscending" | "QualityDescending" | "LongestFirst" | "RecentlyPlayed" | "BestReaction" | "ShelfOrder" | "PlaylistOrder";
         /** @enum {unknown} */
         ObservedPlaybackOutcome: "Succeeded" | "Failed" | null;
         ObservedPlaybackOutcomeRequest: {
@@ -2825,16 +3211,17 @@ export interface components {
         };
         /** @enum {unknown} */
         PersonalPlayState: "Unplayed" | "InProgress" | "Completed";
-        PersonalRatingRequest: {
-            /** Format: int32 */
-            rating: null | number | string;
+        /** @enum {unknown} */
+        PersonalReaction: "Dislike" | "Shrug" | "Like" | "Love" | null;
+        PersonalReactionRequest: {
+            reaction: components["schemas"]["PersonalReaction"];
         };
         PersonalStateMutationResult: {
             verdict: components["schemas"]["PersonalStateMutationVerdict"];
             personalState: null | components["schemas"]["PersonalVideoStateSummary"];
         };
         /** @enum {unknown} */
-        PersonalStateMutationVerdict: "Updated" | "VideoNotFound" | "InvalidRating";
+        PersonalStateMutationVerdict: "Updated" | "VideoNotFound";
         PersonalVideoStateSummary: {
             /** Format: int64 */
             playbackProgressMilliseconds: null | number | string;
@@ -2849,8 +3236,9 @@ export interface components {
             continueWatching: boolean;
             favourite: boolean;
             watchLater: boolean;
-            /** Format: int32 */
-            personalRating: null | number | string;
+            reaction: null | components["schemas"]["PersonalReaction"];
+            /** Format: date-time */
+            lastWatchedAt: null | string;
         };
         PlaybackAttemptRequest: {
             /** Format: uuid */
@@ -2865,6 +3253,8 @@ export interface components {
         };
         /** @enum {unknown} */
         PlaybackAttemptVerdict: "Started" | "VideoNotFound" | "VideoFileUnavailable";
+        /** @enum {unknown} */
+        PlaybackDeparture: "Unknown" | "AnotherVideo" | "TechnicalFailure" | "Closed" | "Inactivity";
         /** @enum {unknown} */
         PlaybackFailureCategory: "Media" | "Availability" | "Delivery" | "Network" | null;
         PlaybackReportRequest: {
@@ -2926,6 +3316,37 @@ export interface components {
             selectionReason: components["schemas"]["VariantSelectionReason"];
             timelineEquivalentVideoFileIds: string[];
         };
+        PlaylistDeletion: {
+            deleted: boolean;
+        };
+        PlaylistNameRequest: {
+            name: null | string;
+        };
+        PlaylistPositionRequest: {
+            /** Format: int32 */
+            position: number | string;
+        };
+        PlaylistResult: {
+            verdict: components["schemas"]["PlaylistVerdict"];
+            playlist: null | components["schemas"]["PlaylistSummary"];
+        };
+        PlaylistsResponse: {
+            playlists: components["schemas"]["PlaylistSummary"][];
+        };
+        PlaylistSummary: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** Format: int32 */
+            videoCount: number | string;
+            contains: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @enum {unknown} */
+        PlaylistVerdict: "Updated" | "NotFound" | "VideoNotFound" | "InvalidName";
         /** @enum {unknown} */
         PrdbConnectionIssue: "ExternalAuthority" | "ExternalAvailability" | "ReplacementRejected" | null;
         /** @enum {unknown} */
@@ -2947,6 +3368,25 @@ export interface components {
         };
         /** @enum {unknown} */
         QueueLibraryScanVerdict: "Queued" | "Coalesced" | "NotFound";
+        RecommendationPage: {
+            sections: components["schemas"]["RecommendationSectionPage"][];
+            /** Format: int32 */
+            seed: number | string;
+            hasHistory: boolean;
+        };
+        /** @enum {unknown} */
+        RecommendationReason: "Loved" | "Liked" | "InAPlaylist" | "Favourite" | "WatchedRepeatedly" | "WatchedAtLength" | "WatchedWithoutInterruption" | "WatchedBefore" | "JustWatchedInThisVisit" | "NotWatchedForAWhile" | "WatchedLongAgo" | "NeverWatched" | "WithAFavouriteActor" | "SharesAnActorYouWatch" | "FromASiteYouWatch" | "SomethingDifferent";
+        /** @enum {unknown} */
+        RecommendationSection: "ForYouToWatchAgain" | "LongUnseen" | "NotYetDiscovered";
+        RecommendationSectionPage: {
+            section: components["schemas"]["RecommendationSection"];
+            videos: components["schemas"]["RecommendedVideo"][];
+            exhausted: boolean;
+        };
+        RecommendedVideo: {
+            video: components["schemas"]["VideoSummary"];
+            reasons: components["schemas"]["RecommendationReason"][];
+        };
         RecoverRequest: {
             username: null | string;
             recoveryCode: null | string;

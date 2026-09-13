@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 
 import {
   api,
+  type PlaybackDeparture,
   type PlaybackFailureCategory,
   type PlaybackReportRequest,
   type PlaybackVariant,
@@ -112,23 +113,36 @@ export function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, r
 
   useEffect(() => {
     const interval = window.setInterval(() => void current.current.flush(false, false), 5_000)
-    const end = () => {
+    const end = (departure: PlaybackDeparture) => {
       ended.current = true
       void api
-        .endPlaybackAttempt(current.current.playbackAttemptId, current.current.csrfToken, true)
+        .endPlaybackAttempt(
+          current.current.playbackAttemptId,
+          current.current.csrfToken,
+          true,
+          departure,
+        )
         .catch(() => undefined)
     }
-    window.addEventListener('pagehide', end)
+    // Closing the tab is an ordinary end to an ordinary session, and it is the one thing the
+    // browser tells us for certain: nothing was navigated to.
+    const closed = () => end('Closed')
+    window.addEventListener('pagehide', closed)
     return () => {
       window.clearInterval(interval)
-      window.removeEventListener('pagehide', end)
+      window.removeEventListener('pagehide', closed)
       // Leaving the page ends the attempt as surely as closing the player does. Without this a
       // navigation would leave the attempt open until the session expired.
+      //
+      // Where it went is read from the address rather than guessed at. The router has already put
+      // the destination there by the time this unmount is committed, so a reader who left this
+      // Video for a different one is an observation rather than an inference — which is the only
+      // basis on which a short visit is ever allowed to count against a Video.
       if (!ended.current) {
-        end()
+        end(departedToAnotherVideo(video.id) ? 'AnotherVideo' : 'Closed')
       }
     }
-  }, [])
+  }, [video.id])
 
   const stop = async () => {
     recordEvidence()
@@ -136,7 +150,9 @@ export function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, r
       await flush(false, true)
     } finally {
       ended.current = true
-      await api.endPlaybackAttempt(playbackAttemptId, csrfToken).catch(() => undefined)
+      await api
+        .endPlaybackAttempt(playbackAttemptId, csrfToken, false, 'Closed')
+        .catch(() => undefined)
       close()
     }
   }
@@ -183,7 +199,11 @@ export function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, r
         onEnded={finish}
         onError={(event) => {
           ended.current = true
-          void api.endPlaybackAttempt(playbackAttemptId, csrfToken).catch(() => undefined)
+          // A failure is evidence about a Video File and about nothing else. Saying so here is
+          // what stops it from ever being read as an opinion about the Video.
+          void api
+            .endPlaybackAttempt(playbackAttemptId, csrfToken, false, 'TechnicalFailure')
+            .catch(() => undefined)
           // Where the viewer actually was, which the page cannot see from outside the element. A
           // fallback to a Video File whose timeline is equivalent resumes there instead of at the
           // beginning, which is what a Playback Attempt outliving one of its files should cost.
@@ -194,6 +214,15 @@ export function TrackedPlayer({ video, source, videoFileId, playbackAttemptId, r
       >Your browser cannot play this Video File.</video>
     </div>
   )
+}
+
+/// Whether the browser is now on a different Video's page than the one that was playing.
+///
+/// It is asked of the address the browser has actually arrived at, after the router wrote it, so
+/// it states where the reader went rather than where they might have been going.
+function departedToAnotherVideo(videoId: string) {
+  const match = /^\/videos\/([^/?#]+)/.exec(window.location.pathname)
+  return match !== null && match[1] !== videoId
 }
 
 /// Which kind of failure just happened. The browser says only that playback failed, so the same

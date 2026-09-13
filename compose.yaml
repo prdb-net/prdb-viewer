@@ -13,7 +13,7 @@
 
 services:
   viewer:
-    image: prdbnet/prdb-viewer:0.17.0
+    image: prdbnet/prdb-viewer:0.18.0
     restart: unless-stopped
 
     ports:

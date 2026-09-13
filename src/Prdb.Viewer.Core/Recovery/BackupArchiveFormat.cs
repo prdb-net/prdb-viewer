@@ -32,15 +32,21 @@ public static class BackupArchiveFormat
     /// so a version 1 archive restores into this version unchanged and simply carries none.
     /// Counting up rather than leaving the number alone is what lets an older product version say
     /// which product wrote the archive instead of failing on a field it does not know.
+    ///
+    /// Version 3 replaces the one-to-five Personal Rating with a Personal Reaction and adds each
+    /// Account's Playlists and Temporary Dismissals. A version 1 or 2 archive still restores: it carries no Playlists, and
+    /// the ratings it carries are discarded rather than mapped, per ADR 0022. That is why the
+    /// reader has to know the retired name at all — it refuses members it does not recognise, so a
+    /// field that is deliberately dropped has to be dropped deliberately.
     /// </remarks>
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     /// <summary>
     /// The earlier formats this product version restores directly. An archive older than this range
     /// names the next intermediate version an operator must use; a newer one is refused before any
     /// mutation rather than guessed at.
     /// </summary>
-    public static readonly int[] DirectlySupportedVersions = [1, 2];
+    public static readonly int[] DirectlySupportedVersions = [1, 2, 3];
 
     public const int SaltBytes = 16;
     public const int NonceBytes = 12;

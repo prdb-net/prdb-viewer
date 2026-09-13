@@ -46,6 +46,18 @@ export type ActorSummary = components['schemas']['ActorSummary']
 export type ActorSortOrder = components['schemas']['ActorSortOrder']
 export type WorkFacts = components['schemas']['WorkFacts']
 export type FavouriteActorResult = components['schemas']['FavouriteActorResult']
+// The contract states a Personal Reaction as one of four values, and states its absence by the
+// property being null. The generated union folds the two together, so the absence is taken back
+// out here: a reaction is one of four, and null is the answer to a different question.
+export type PersonalReaction = NonNullable<components['schemas']['PersonalReaction']>
+export type Playlist = components['schemas']['PlaylistSummary']
+export type PlaybackDeparture = components['schemas']['PlaybackDeparture']
+export type RecommendationPage = components['schemas']['RecommendationPage']
+export type RecommendationSectionPage = components['schemas']['RecommendationSectionPage']
+export type RecommendedVideo = components['schemas']['RecommendedVideo']
+export type RecommendationReason = components['schemas']['RecommendationReason']
+export type RecommendationSection = components['schemas']['RecommendationSection']
+export type PlaylistResult = components['schemas']['PlaylistResult']
 
 export type LibraryFilters = {
   query: string
@@ -62,6 +74,10 @@ export type LibraryFilters = {
   /// The Personal Shelves to narrow to, by the API's names. A shelf page pins one here; the
   /// browsing screen offers them as a facet like any other.
   shelf: string[]
+  /// The Playlist to narrow to. Only a Playlist's own page pins one, so unlike a shelf it is never
+  /// offered as a facet: a Playlist is one of as many as the User made, and a facet listing all of
+  /// them would be a second, worse index of them.
+  playlist: string
 }
 
 export const emptyFilters: LibraryFilters = {
@@ -77,6 +93,7 @@ export const emptyFilters: LibraryFilters = {
   quality: [],
   playState: [],
   shelf: [],
+  playlist: '',
 }
 
 /// The narrowing every Library question carries: what the search and the facets admit. The sort
@@ -94,6 +111,7 @@ function narrowingQuery(filters: LibraryFilters) {
   if (filters.quality.length) parameters.set('quality', filters.quality.join(','))
   if (filters.playState.length) parameters.set('playState', filters.playState.join(','))
   if (filters.shelf.length) parameters.set('shelf', filters.shelf.join(','))
+  if (filters.playlist) parameters.set('playlist', filters.playlist)
   return parameters
 }
 
@@ -256,6 +274,47 @@ export const api = {
       skip: String(skip),
       take: String(take),
     }).toString()}`),
+  recommendations: (seed?: number, take = 12) =>
+    request<RecommendationPage>(`/api/personal/recommendations?${new URLSearchParams({
+      ...(seed === undefined ? {} : { seed: String(seed) }),
+      take: String(take),
+    }).toString()}`),
+  setNotToday: (videoId: string, dismissed: boolean, csrfToken: string) =>
+    mutate<{ dismissed: boolean }>(
+      `/api/personal/recommendations/videos/${videoId}/not-today`,
+      dismissed ? 'POST' : 'DELETE',
+      csrfToken,
+    ),
+  playlists: (videoId?: string) =>
+    request<{ playlists: Playlist[] }>(
+      `/api/personal/playlists${videoId ? `?videoId=${videoId}` : ''}`,
+    ),
+  createPlaylist: (name: string, csrfToken: string) =>
+    post<PlaylistResult>('/api/personal/playlists', { name }, csrfToken),
+  renamePlaylist: (playlistId: string, name: string, csrfToken: string) =>
+    mutate<PlaylistResult>(`/api/personal/playlists/${playlistId}`, 'PUT', csrfToken, { name }),
+  deletePlaylist: (playlistId: string, csrfToken: string) =>
+    mutate<{ deleted: boolean }>(`/api/personal/playlists/${playlistId}`, 'DELETE', csrfToken),
+  setPlaylistMembership: (
+    playlistId: string,
+    videoId: string,
+    member: boolean,
+    csrfToken: string,
+  ) => mutate<PlaylistResult>(
+    `/api/personal/playlists/${playlistId}/videos/${videoId}`,
+    member ? 'PUT' : 'DELETE',
+    csrfToken,
+  ),
+  movePlaylistEntry: (
+    playlistId: string,
+    videoId: string,
+    position: number,
+    csrfToken: string,
+  ) => post<PlaylistResult>(
+    `/api/personal/playlists/${playlistId}/videos/${videoId}/position`,
+    { position },
+    csrfToken,
+  ),
   libraryFacets: (filters: LibraryFilters, search?: FacetSearch) =>
     request<LibraryFacets>(`/api/library/facets?${facetQuery(filters, search).toString()}`),
   setIncludeNotReady: (included: boolean, csrfToken: string) =>
@@ -307,9 +366,17 @@ export const api = {
     report,
     csrfToken,
   ),
-  endPlaybackAttempt: (playbackAttemptId: string, csrfToken: string, keepalive = false) =>
+  /// Ends a Viewing Session, saying how it ended where the browser saw anything. The reason
+  /// travels in the address rather than in a body because this is also called from a page that is
+  /// going away, and a request with a body is the one least likely to be sent at all.
+  endPlaybackAttempt: (
+    playbackAttemptId: string,
+    csrfToken: string,
+    keepalive = false,
+    departure: PlaybackDeparture = 'Unknown',
+  ) =>
     request<{ ended: boolean }>(
-      `/api/personal/playback-attempts/${playbackAttemptId}/end`,
+      `/api/personal/playback-attempts/${playbackAttemptId}/end?departure=${departure}`,
       {
         method: 'POST',
         headers: { 'X-CSRF-Token': csrfToken },
@@ -328,18 +395,18 @@ export const api = {
       selected ? 'PUT' : 'DELETE',
       csrfToken,
     ),
-  setRating: (videoId: string, rating: number | null, csrfToken: string) =>
-    rating === null
+  setReaction: (videoId: string, reaction: PersonalReaction | null, csrfToken: string) =>
+    reaction === null
       ? mutate<PersonalStateMutation>(
-          `/api/personal/videos/${videoId}/rating`,
+          `/api/personal/videos/${videoId}/reaction`,
           'DELETE',
           csrfToken,
         )
       : mutate<PersonalStateMutation>(
-          `/api/personal/videos/${videoId}/rating`,
+          `/api/personal/videos/${videoId}/reaction`,
           'PUT',
           csrfToken,
-          { rating },
+          { reaction },
         ),
   dismissContinueWatching: (videoId: string, csrfToken: string) =>
     post<PersonalStateMutation>(

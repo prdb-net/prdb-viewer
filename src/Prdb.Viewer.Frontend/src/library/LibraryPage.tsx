@@ -11,6 +11,7 @@ import {
 } from '../api/client'
 import { shelves, type Shelf } from '../personal/shelves'
 import { usePersonalActions } from '../personal/usePersonalActions'
+import { usePlaylists } from '../personal/usePlaylists'
 import { queryKeys } from '../queryKeys'
 import { firstError, PageHeading, RequestError } from '../ui'
 import { VideoGrid } from '../video/VideoCard'
@@ -36,11 +37,22 @@ const emptyLibraryPollMilliseconds = 30_000
 /// their own that loaded everything on them and offered nothing to narrow it; the search in the
 /// header led away from them to the whole Library. A shelf is a way of narrowing the Library, so
 /// it has what the Library has, and the search stays on it.
-export function LibraryPage({ account, shelf }: { account: Account; shelf?: Shelf }) {
+///
+/// A Playlist is the same screen with a Playlist pinned, and one thing more: while nothing narrows
+/// it, each card offers the arrangement — move up, move down, take out. Those controls disappear
+/// the moment a search or a facet hides part of the Playlist, because moving a card past a
+/// neighbour that is not on screen rearranges entries the reader cannot see.
+export function LibraryPage({ account, shelf, playlist }: {
+  account: Account
+  shelf?: Shelf
+  playlist?: { id: string, name: string }
+}) {
   const queryClient = useQueryClient()
   const location = useLocation()
-  const { filters, pages, narrow, toggle, clear, showMore, narrowed } = useLibraryFilters(shelf)
+  const { filters, pages, narrow, toggle, clear, showMore, narrowed } =
+    useLibraryFilters(shelf, playlist?.id)
   const description = shelf ? shelves[shelf] : undefined
+  const { move, setMembership } = usePlaylists(account, undefined)
   // The facets are counted against what is chosen, so a count says what choosing that value would
   // leave. The sort order is not part of what is chosen, so changing it does not ask again; and
   // the previous answer stays on screen while the next one arrives, so the rows do not empty and
@@ -83,15 +95,20 @@ export function LibraryPage({ account, shelf }: { account: Account; shelf?: Shel
   const empty = (videos.data?.pages[0]?.videos.length ?? 0) === 0
 
   useEffect(() => {
-    // An empty shelf waits for the User, not for inspection, so it does not look again on its own.
-    if (!empty || isFetching || shelf) return
+    // An empty list of the Account's own waits for the User, not for inspection, so it does not
+    // look again on its own.
+    if (!empty || isFetching || shelf || playlist) return
 
     const timer = window.setTimeout(() => void refetch(), emptyLibraryPollMilliseconds)
     return () => window.clearTimeout(timer)
-  }, [empty, isFetching, refetch, shelf])
+  }, [empty, isFetching, refetch, shelf, playlist])
 
   if (videos.isPending) {
-    return <p role="status">{description ? 'Opening your library…' : 'Opening the shared library…'}</p>
+    return (
+      <p role="status">
+        {description || playlist ? 'Opening your library…' : 'Opening the shared library…'}
+      </p>
+    )
   }
 
   if (videos.isError) {
@@ -108,9 +125,22 @@ export function LibraryPage({ account, shelf }: { account: Account; shelf?: Shel
   // shelf. It is the one thing a shelf that came up short cannot answer by itself.
   const wholeLibrary = { pathname: '/', search: location.search }
 
+  // The arrangement can only be offered where every entry is on screen in its own order. A
+  // narrowed page hides neighbours, and any other order makes "up" mean something the Playlist
+  // will not keep.
+  const arranging = playlist !== undefined && !narrowed && filters.sort === 'PlaylistOrder'
+
   return (
     <>
-      {description
+      {playlist
+        ? (
+          <PageHeading eyebrow="Playlist" title={playlist.name}>
+            {narrowed
+              ? 'The Videos in this Playlist your search and filters admit. Only you can see this.'
+              : 'The Videos you put here, in the order you put them in. Only you can see this.'}
+          </PageHeading>
+          )
+        : description
         ? (
           <PageHeading eyebrow="Yours" title={description.title}>
             {narrowed
@@ -132,7 +162,7 @@ export function LibraryPage({ account, shelf }: { account: Account; shelf?: Shel
           keep out, and Filters is the way to them — so it keeps its controls even with nothing on
           screen. A shelf emptied by its own filters keeps them too, because taking one out is
           exactly what is left to do. */}
-      {(!description || shown.length > 0 || narrowed) && (
+      {(!(description || playlist) || shown.length > 0 || narrowed) && (
         <LibraryControls
           filters={filters}
           facets={facets.data}
@@ -141,30 +171,66 @@ export function LibraryPage({ account, shelf }: { account: Account; shelf?: Shel
           clear={clear}
           narrowed={narrowed}
           pinned={shelf}
+          playlist={playlist !== undefined}
           total={Number(page.totalMatches)}
           finding={finding}
           find={setFinding}
         />
       )}
 
-      {description && narrowed && shown.length > 0 && (
+      {(description || playlist) && narrowed && shown.length > 0 && (
         <p className="scope-escape">
-          Only this shelf is searched. <Link to={wholeLibrary}>Search the whole library instead</Link>
+          Only this {playlist ? 'Playlist' : 'shelf'} is searched.{' '}
+          <Link to={wholeLibrary}>Search the whole library instead</Link>
+        </p>
+      )}
+
+      {/* Why the arrangement is not on offer, said where it would otherwise be. Silently
+          withdrawing the controls would read as them being broken. */}
+      {playlist && !narrowed && filters.sort !== 'PlaylistOrder' && shown.length > 0 && (
+        <p className="scope-escape">
+          Reordering needs the Playlist in the order you arranged it.{' '}
+          <button className="quiet-button" onClick={() => narrow({ sort: 'PlaylistOrder' })}>
+            Show that order
+          </button>
+        </p>
+      )}
+      {playlist && narrowed && shown.length > 0 && (
+        <p className="scope-escape">
+          Reordering needs the whole Playlist, so it is not offered while this is narrowed.
         </p>
       )}
 
       {shown.length === 0 && (
         <div className="empty-library">
-          <strong>{narrowed ? 'Nothing matches' : description ? 'Nothing here yet' : 'No Videos yet'}</strong>
+          <strong>
+            {narrowed
+              ? 'Nothing matches'
+              : description || playlist ? 'Nothing here yet' : 'No Videos yet'}
+          </strong>
           {narrowed
             ? (
               <p>
-                {description ? 'Nothing on this shelf matches. ' : ''}
+                {playlist
+                  ? 'Nothing in this Playlist matches. '
+                  : description ? 'Nothing on this shelf matches. ' : ''}
                 Adjust the search or the filters
-                {description ? <>, or <Link to={wholeLibrary}>search the whole library</Link></> : ''}.
+                {description || playlist
+                  ? <>, or <Link to={wholeLibrary}>search the whole library</Link></>
+                  : ''}.
               </p>
               )
-            : description
+            : playlist
+              ? (
+                <>
+                  <p>
+                    This Playlist is empty. A Video is added to one from its own page, and it goes
+                    to the end of the order.
+                  </p>
+                  <p><Link className="quiet-button" to="/">Browse the library</Link></p>
+                </>
+                )
+              : description
               ? (
                 <>
                   {/* An empty shelf is a dead end otherwise: it explains what would put something here
@@ -183,6 +249,22 @@ export function LibraryPage({ account, shelf }: { account: Account; shelf?: Shel
         pending={personal.pending}
         from={`${location.pathname}${location.search}`}
         dismissible={shelf === 'ContinueWatching'}
+        arrangement={arranging
+          ? {
+              total: Number(page.totalMatches),
+              move: (video, to) => move.mutate({
+                playlistId: playlist!.id,
+                video: video.id,
+                position: to,
+              }),
+              remove: (video) => setMembership.mutate({
+                playlistId: playlist!.id,
+                video: video.id,
+                member: false,
+              }),
+              busy: move.isPending || setMembership.isPending,
+            }
+          : undefined}
       />
 
       <HiddenMatches
@@ -212,8 +294,15 @@ export function LibraryPage({ account, shelf }: { account: Account; shelf?: Shel
         </div>
       )}
 
-      {(personal.failed || includeNotReady.isError) && (
-        <RequestError error={firstError(personal.error, includeNotReady.error)} />
+      {(personal.failed || includeNotReady.isError || move.isError || setMembership.isError) && (
+        <RequestError
+          error={firstError(
+            personal.error,
+            includeNotReady.error,
+            move.error,
+            setMembership.error,
+          )}
+        />
       )}
     </>
   )

@@ -354,6 +354,27 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.ToTable("bootstrap_authorization", (string)null);
                 });
 
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.BrowsingVisitWatchRow", b =>
+                {
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClientContextKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("VideoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("WatchedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("AccountId", "ClientContextKey", "VideoId");
+
+                    b.HasIndex("VideoId");
+
+                    b.ToTable("browsing_visit_watch", (string)null);
+                });
+
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ClientPlaybackAssessmentRow", b =>
                 {
                     b.Property<Guid>("AccountId")
@@ -854,8 +875,8 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("LastQualifiedActivityAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("PersonalRating")
-                        .HasColumnType("INTEGER");
+                    b.Property<DateTime?>("LastWatchedAt")
+                        .HasColumnType("TEXT");
 
                     b.Property<int>("PlayCount")
                         .HasColumnType("INTEGER");
@@ -873,6 +894,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<Guid?>("ProgressVideoFileId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Reaction")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
@@ -887,12 +911,11 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AccountId", "LastQualifiedActivityAt");
 
+                    b.HasIndex("AccountId", "LastWatchedAt");
+
                     b.HasIndex("AccountId", "WatchLaterAddedAt");
 
-                    b.ToTable("personal_video_state", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_personal_video_state_PersonalRating", "\"PersonalRating\" IS NULL OR \"PersonalRating\" BETWEEN 1 AND 5");
-                        });
+                    b.ToTable("personal_video_state", (string)null);
                 });
 
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PlaybackAttemptRow", b =>
@@ -912,6 +935,19 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<bool>("CompletionRecorded")
                         .HasColumnType("INTEGER");
 
+                    b.Property<long?>("CurrentRunEndPositionMilliseconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("CurrentRunMilliseconds")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid?>("CurrentRunVideoFileId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Departure")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("EndedAt")
                         .HasColumnType("TEXT");
 
@@ -922,6 +958,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("LastReportSequence")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("LongestUninterruptedRunMilliseconds")
                         .HasColumnType("INTEGER");
 
                     b.Property<bool>("Qualified")
@@ -994,6 +1033,54 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.ToTable("playback_report", (string)null);
                 });
 
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PlaylistEntryRow", b =>
+                {
+                    b.Property<Guid>("PlaylistId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("VideoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("PlaylistId", "VideoId");
+
+                    b.HasIndex("VideoId");
+
+                    b.HasIndex("PlaylistId", "Position");
+
+                    b.ToTable("playlist_entry", (string)null);
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PlaylistRow", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AccountId", "Name");
+
+                    b.ToTable("playlist", (string)null);
+                });
+
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ProposedWorkRow", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1055,6 +1142,26 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                         .IsUnique();
 
                     b.ToTable("proposed_work", (string)null);
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.RecommendationDismissalRow", b =>
+                {
+                    b.Property<Guid>("AccountId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("VideoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("DismissedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("AccountId", "VideoId");
+
+                    b.HasIndex("VideoId");
+
+                    b.HasIndex("AccountId", "DismissedAt");
+
+                    b.ToTable("recommendation_dismissal", (string)null);
                 });
 
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.RecoveryCodeRow", b =>
@@ -1826,6 +1933,25 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Navigation("LibraryDirectory");
                 });
 
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.BrowsingVisitWatchRow", b =>
+                {
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.AccountRow", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.VideoRow", "Video")
+                        .WithMany()
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("Video");
+                });
+
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ClientPlaybackAssessmentRow", b =>
                 {
                     b.HasOne("Prdb.Viewer.Infrastructure.Persistence.AccountRow", "Account")
@@ -1983,6 +2109,55 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Navigation("PlaybackAttempt");
                 });
 
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PlaylistEntryRow", b =>
+                {
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.PlaylistRow", "Playlist")
+                        .WithMany("Entries")
+                        .HasForeignKey("PlaylistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.VideoRow", "Video")
+                        .WithMany()
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Playlist");
+
+                    b.Navigation("Video");
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PlaylistRow", b =>
+                {
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.AccountRow", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.RecommendationDismissalRow", b =>
+                {
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.AccountRow", "Account")
+                        .WithMany()
+                        .HasForeignKey("AccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Prdb.Viewer.Infrastructure.Persistence.VideoRow", "Video")
+                        .WithMany()
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Account");
+
+                    b.Navigation("Video");
+                });
+
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.RecoveryCodeRow", b =>
                 {
                     b.HasOne("Prdb.Viewer.Infrastructure.Persistence.AccountRow", "Account")
@@ -2117,6 +2292,11 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Navigation("Reports");
 
                     b.Navigation("VideoFiles");
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.PlaylistRow", b =>
+                {
+                    b.Navigation("Entries");
                 });
 
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.VideoFileRow", b =>

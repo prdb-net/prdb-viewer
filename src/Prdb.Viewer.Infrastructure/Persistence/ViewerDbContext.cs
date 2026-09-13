@@ -59,6 +59,15 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
 
     public DbSet<PersonalActorStateRow> PersonalActorStates => Set<PersonalActorStateRow>();
 
+    public DbSet<PlaylistRow> Playlists => Set<PlaylistRow>();
+
+    public DbSet<PlaylistEntryRow> PlaylistEntries => Set<PlaylistEntryRow>();
+
+    public DbSet<BrowsingVisitWatchRow> BrowsingVisitWatches => Set<BrowsingVisitWatchRow>();
+
+    public DbSet<RecommendationDismissalRow> RecommendationDismissals =>
+        Set<RecommendationDismissalRow>();
+
     public DbSet<PlaybackAttemptRow> PlaybackAttempts => Set<PlaybackAttemptRow>();
 
     public DbSet<PlaybackReportRow> PlaybackReports => Set<PlaybackReportRow>();
@@ -297,6 +306,39 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
                 .WithMany()
                 .HasForeignKey(row => row.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PlaylistRow>(playlist =>
+        {
+            playlist.ToTable("playlist");
+            playlist.HasKey(row => row.Id);
+            playlist.Property(row => row.Id).ValueGeneratedNever();
+            playlist.Property(row => row.Name).IsRequired();
+            playlist.HasIndex(row => new { row.AccountId, row.Name });
+            playlist.HasOne(row => row.Account)
+                .WithMany()
+                .HasForeignKey(row => row.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PlaylistEntryRow>(entry =>
+        {
+            entry.ToTable("playlist_entry");
+            // One Video appears at most once in one Playlist, which the key says rather than a
+            // check somewhere in the service: adding what is already there is then idempotent
+            // because the database could not hold the second copy in the first place.
+            entry.HasKey(row => new { row.PlaylistId, row.VideoId });
+            entry.HasIndex(row => new { row.PlaylistId, row.Position });
+            entry.HasOne(row => row.Playlist)
+                .WithMany(row => row.Entries)
+                .HasForeignKey(row => row.PlaylistId)
+                .OnDelete(DeleteBehavior.Cascade);
+            // A Video is never deleted out from under a personal list; a Removed Video keeps its
+            // row and its place, the way every other personal reference to one does.
+            entry.HasOne(row => row.Video)
+                .WithMany()
+                .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         builder.Entity<ActorRow>(actor =>
@@ -552,12 +594,11 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
         builder.Entity<PersonalVideoStateRow>(state =>
         {
             state.ToTable("personal_video_state");
-            state.ToTable(table => table.HasCheckConstraint(
-                "CK_personal_video_state_PersonalRating",
-                "\"PersonalRating\" IS NULL OR \"PersonalRating\" BETWEEN 1 AND 5"));
             state.HasKey(row => new { row.AccountId, row.VideoId });
             state.Property(row => row.PlayState).HasConversion<string>();
+            state.Property(row => row.Reaction).HasConversion<string>();
             state.HasIndex(row => new { row.AccountId, row.LastQualifiedActivityAt });
+            state.HasIndex(row => new { row.AccountId, row.LastWatchedAt });
             state.HasIndex(row => new { row.AccountId, row.FavouriteAddedAt });
             state.HasIndex(row => new { row.AccountId, row.WatchLaterAddedAt });
             state.HasOne(row => row.Account)
@@ -570,11 +611,42 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
                 .OnDelete(DeleteBehavior.Restrict);
         });
 
+        builder.Entity<BrowsingVisitWatchRow>(watch =>
+        {
+            watch.ToTable("browsing_visit_watch");
+            watch.HasKey(row => new { row.AccountId, row.ClientContextKey, row.VideoId });
+            watch.Property(row => row.ClientContextKey).IsRequired();
+            watch.HasOne(row => row.Account)
+                .WithMany()
+                .HasForeignKey(row => row.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+            watch.HasOne(row => row.Video)
+                .WithMany()
+                .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<RecommendationDismissalRow>(dismissal =>
+        {
+            dismissal.ToTable("recommendation_dismissal");
+            dismissal.HasKey(row => new { row.AccountId, row.VideoId });
+            dismissal.HasIndex(row => new { row.AccountId, row.DismissedAt });
+            dismissal.HasOne(row => row.Account)
+                .WithMany()
+                .HasForeignKey(row => row.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+            dismissal.HasOne(row => row.Video)
+                .WithMany()
+                .HasForeignKey(row => row.VideoId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         builder.Entity<PlaybackAttemptRow>(attempt =>
         {
             attempt.ToTable("playback_attempt");
             attempt.HasKey(row => row.Id);
             attempt.Property(row => row.Id).ValueGeneratedNever();
+            attempt.Property(row => row.Departure).HasConversion<string>();
             attempt.HasIndex(row => new { row.AccountId, row.VideoId, row.AttemptedAt });
             attempt.HasIndex(row => new { row.AccountId, row.EndedAt, row.LastActivityAt });
             attempt.HasOne(row => row.Account)

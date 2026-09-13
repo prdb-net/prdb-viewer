@@ -51,6 +51,49 @@ export function noFacets(overrides: Record<string, unknown> = {}) {
   }
 }
 
+export function playlist(overrides: Record<string, unknown> = {}) {
+  return {
+    id: '01994dd4-2a0a-7000-8000-0000000000f1',
+    name: 'Sunday evening',
+    videoCount: 2,
+    contains: false,
+    createdAt: '2026-09-01T12:00:00Z',
+    updatedAt: '2026-09-01T12:00:00Z',
+    ...overrides,
+  }
+}
+
+export function isRecommendationsRequest(input: unknown) {
+  return typeof input === 'string' && input.startsWith('/api/personal/recommendations?')
+}
+
+/// One page of Recommendations, as the API answers it. Sections a test does not name come back
+/// empty and exhausted, which is what a small library actually answers.
+export function recommendationPage(
+  sections: Partial<Record<string, unknown[]>>,
+  overrides: Record<string, unknown> = {},
+) {
+  const named = ['ForYouToWatchAgain', 'LongUnseen', 'NotYetDiscovered']
+  return {
+    seed: 42,
+    hasHistory: true,
+    sections: named.map((section) => ({
+      section,
+      videos: sections[section] ?? [],
+      exhausted: (sections[section] ?? []).length < 12,
+    })),
+    ...overrides,
+  }
+}
+
+export function recommended(video: unknown, reasons: string[]) {
+  return { video, reasons }
+}
+
+export function isPlaylistsRequest(input: unknown) {
+  return typeof input === 'string' && input.startsWith('/api/personal/playlists')
+}
+
 export function isLibraryRequest(input: unknown) {
   return typeof input === 'string' && input.startsWith('/api/library/videos?')
 }
@@ -148,7 +191,7 @@ export function personalState(overrides: Record<string, unknown> = {}) {
     continueWatching: false,
     favourite: false,
     watchLater: false,
-    personalRating: null,
+    reaction: null,
     ...overrides,
   }
 }
@@ -246,6 +289,10 @@ export function signedInAs(
       })
     }
     if (input === '/api/personal/playback-profiles') return json([])
+    if (typeof input === 'string' && input.startsWith('/api/personal/playlists')) {
+      return json({ playlists: [] })
+    }
+    if (isRecommendationsRequest(input)) return json(recommendationPage({}))
     if (input === '/api/admin/background-work/') return json({ work: [], issues: [] })
     if (input === '/api/admin/identification/queue') return json(reviewQueue([]))
     if (isFacetRequest(input)) return json(noFacets())

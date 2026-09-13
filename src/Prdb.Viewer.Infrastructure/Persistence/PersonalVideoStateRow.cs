@@ -30,13 +30,24 @@ public sealed class PersonalVideoStateRow
 
     public DateTime? LastQualifiedActivityAt { get; set; }
 
+    /// <summary>
+    /// When this Account last had confirmed Active Watching of this Video. It is a summary of the
+    /// Playback Attempts rather than a fact of its own, kept here so that "not watched for a
+    /// while" is one indexed column rather than a scan of every session an Account ever had.
+    /// </summary>
+    public DateTime? LastWatchedAt { get; set; }
+
     public DateTime? ContinueWatchingDismissedAt { get; set; }
 
     public DateTime? FavouriteAddedAt { get; set; }
 
     public DateTime? WatchLaterAddedAt { get; set; }
 
-    public int? PersonalRating { get; set; }
+    /// <summary>
+    /// What this Account said about the Video, where it said anything. Null is not a fifth value:
+    /// it is the absence of a statement, which a Shrug is not.
+    /// </summary>
+    public PersonalReaction? Reaction { get; set; }
 
     public DateTime UpdatedAt { get; set; }
 }

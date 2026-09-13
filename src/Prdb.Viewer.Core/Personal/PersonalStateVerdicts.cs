@@ -20,5 +20,4 @@ public enum PersonalStateMutationVerdict
 {
     Updated,
     VideoNotFound,
-    InvalidRating,
 }

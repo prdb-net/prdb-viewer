@@ -1179,7 +1179,7 @@ describe('App', () => {
         site: claim({ resolution: 'Established', targetTitle: 'Known Site' }),
         actors: ['Sam Roe', 'Alex Doe'],
       }),
-      personalState: personalState({ personalRating: 4 }),
+      personalState: personalState({ reaction: 'Love' }),
     })
     const plain = libraryVideo({
       id: '01994dd4-2a0a-7000-8000-000000000041',
@@ -1211,9 +1211,9 @@ describe('App', () => {
     expect(within(cards[0] as HTMLElement).queryByText('Sam Roe, Alex Doe')).not.toBeInTheDocument()
     expect(within(cards[1] as HTMLElement).getByText('Alex Doe')).toBeInTheDocument()
 
-    // The runtime is on the picture, and a Personal Rating is shown only where there is one.
+    // The runtime is on the picture, and a Personal Reaction is shown only where there is one.
     expect(within(cards[0] as HTMLElement).getByText('10 s')).toBeInTheDocument()
-    expect(within(cards[0] as HTMLElement).getByRole('radio', { name: '4 of 5' })).toBeChecked()
+    expect(within(cards[0] as HTMLElement).getByRole('radio', { name: 'Love' })).toBeChecked()
     expect(within(cards[1] as HTMLElement).queryByRole('radio')).not.toBeInTheDocument()
 
     // Favourite and Watch Later are still on every card, as controls on the picture.

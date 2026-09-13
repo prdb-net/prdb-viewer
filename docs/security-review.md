@@ -6,7 +6,7 @@ knowingly carries. It is a review of this codebase rather than a general threat
 model for self-hosting.
 
 First reviewed at product version 0.1.0 on 2026-08-28, and revisited at
-0.16.0 on 2026-09-04 and 0.17.0 on 2026-09-13. Sections carry what is true of
+0.16.0 on 2026-09-04, 0.17.0 on 2026-09-13, and 0.18.0 on 2026-09-13. Sections carry what is true of
 the current product;
 [Since the first review](#since-the-first-review) records what was added
 after 0.1.0 and what it changed here.
@@ -249,3 +249,34 @@ The trust boundaries this product actually has:
   restores directly, and an archive of either format fails authentication
   before any decrypted data is produced. Actor Profiles are not in it, because
   a projection is regenerated rather than restored.
+- Personal recommendations, added in 0.18.0, are the largest addition to Personal
+  State since the MVP and add no outbound surface whatever. A page is computed
+  from the current Account's own rows, and a structural test asserts that none of
+  the services on that path takes a dependency that could reach the network — no
+  HTTP client, no prdb client, nothing. The recommender is not a place a User's
+  viewing could leave the installation from, and that is asserted rather than
+  intended.
+- Its endpoints — reactions, Playlists, Temporary Dismissals and the page itself —
+  all take the Account from the authenticated session and never from the request,
+  so there is no identifier a caller could put in one to reach somebody else's.
+  Every state-changing route requires the CSRF token. A Playlist somebody else
+  owns answers exactly as one that does not exist, and naming it in a Library
+  request narrows the answer to nothing rather than to its contents, because the
+  Account is part of the query rather than a check taken beforehand. **An
+  Administrator has no authority here at all**, which is the case worth stating:
+  everywhere else in this product an Administrator has more.
+- A Browsing Visit holds which Videos one Account and client watched during the
+  half hour it is open, and nothing else. It is deliberately not a navigation
+  history — it cannot answer what anybody looked at — and the previous visit's
+  marks are deleted when a new one starts, so what is retained is one visit
+  rather than a record of them. Temporary Dismissals are deleted as they expire
+  for the same reason.
+- **The one thing this release deletes on purpose.** Every one-to-five Personal
+  Rating is dropped by migration, and an older Backup Archive's ratings are read
+  and discarded rather than restored. This is approved data loss rather than an
+  oversight (ADR 0022), and it is stated here because a release that removes
+  somebody's data should have to say so in the place risks are recorded.
+- Backup Archive format 3, written since 0.18.0, adds each Account's Playlists
+  and Temporary Dismissals and changes nothing about how the payload is
+  protected. Its envelope, cipher, and KDF floor are unchanged, and formats 1 and
+  2 still restore directly.

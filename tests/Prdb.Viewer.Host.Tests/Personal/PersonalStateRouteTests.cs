@@ -91,13 +91,203 @@ public sealed class PersonalStateRouteTests
             TestContext.Current.CancellationToken);
         Assert.Empty(userLibrary.GetProperty("videos").EnumerateArray());
 
-        var rating = await SendJsonAsync(
+        var loved = await SendJsonAsync(
             administrator,
             HttpMethod.Put,
-            $"/api/personal/videos/{video.VideoId}/rating",
-            new { rating = 5 },
+            $"/api/personal/videos/{video.VideoId}/reaction",
+            new { reaction = "Love" },
             administratorCsrf);
-        Assert.Equal(5, rating.GetProperty("personalState").GetProperty("personalRating").GetInt32());
+        Assert.Equal("Love", loved.GetProperty("personalState").GetProperty("reaction").GetString());
+
+        // Setting the same reaction again is the same answer, and setting another replaces it.
+        var again = await SendJsonAsync(
+            administrator,
+            HttpMethod.Put,
+            $"/api/personal/videos/{video.VideoId}/reaction",
+            new { reaction = "Love" },
+            administratorCsrf);
+        Assert.Equal("Love", again.GetProperty("personalState").GetProperty("reaction").GetString());
+        var shrugged = await SendJsonAsync(
+            administrator,
+            HttpMethod.Put,
+            $"/api/personal/videos/{video.VideoId}/reaction",
+            new { reaction = "Shrug" },
+            administratorCsrf);
+        Assert.Equal("Shrug", shrugged.GetProperty("personalState").GetProperty("reaction").GetString());
+
+        // A Shrug is a statement; clearing removes the statement. The wire distinguishes them,
+        // because a screen that showed "no opinion" for both would be inventing one of the two.
+        var cleared = await SendJsonAsync(
+            administrator,
+            HttpMethod.Delete,
+            $"/api/personal/videos/{video.VideoId}/reaction",
+            null,
+            administratorCsrf);
+        Assert.Equal(
+            JsonValueKind.Null,
+            cleared.GetProperty("personalState").GetProperty("reaction").ValueKind);
+
+        // What one Account says about a Video is not what the other reads.
+        await SendJsonAsync(
+            administrator,
+            HttpMethod.Put,
+            $"/api/personal/videos/{video.VideoId}/reaction",
+            new { reaction = "Dislike" },
+            administratorCsrf);
+        var theirs = await SendJsonAsync(
+            user,
+            HttpMethod.Put,
+            $"/api/personal/videos/{video.VideoId}/reaction",
+            new { reaction = "Like" },
+            userCsrf);
+        Assert.Equal("Like", theirs.GetProperty("personalState").GetProperty("reaction").GetString());
+        var mine = await administrator.GetFromJsonAsync<JsonElement>(
+            $"/api/library/videos/{video.VideoId}",
+            TestContext.Current.CancellationToken);
+        Assert.Equal(
+            "Dislike",
+            mine.GetProperty("video").GetProperty("personalState").GetProperty("reaction").GetString());
+
+        await PlaylistsBelongToOneAccountAsync(
+            administrator,
+            administratorCsrf,
+            user,
+            userCsrf,
+            video.VideoId);
+
+        await RecommendationsBelongToOneAccountAsync(
+            administrator,
+            administratorCsrf,
+            user,
+            video.VideoId);
+    }
+
+    /// <summary>
+    /// Recommendations are Personal State, evidence and all. Nobody signed out reads them, a
+    /// dismissal needs the CSRF token every change needs, and what one Account put aside is
+    /// invisible to the other — including to the Administrator, who has no authority here.
+    /// </summary>
+    private static async Task RecommendationsBelongToOneAccountAsync(
+        HttpClient administrator,
+        string administratorCsrf,
+        HttpClient user,
+        Guid videoId)
+    {
+        using var anonymous = new HttpRequestMessage(HttpMethod.Get, "/api/personal/recommendations");
+        using var refused = await administrator.SendAsync(
+            new HttpRequestMessage(HttpMethod.Post, $"/api/personal/recommendations/videos/{videoId}/not-today"),
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Forbidden, refused.StatusCode);
+
+        var dismissed = await SendJsonAsync(
+            administrator,
+            HttpMethod.Post,
+            $"/api/personal/recommendations/videos/{videoId}/not-today",
+            null,
+            administratorCsrf);
+        Assert.True(dismissed.GetProperty("dismissed").GetBoolean());
+
+        var mine = await administrator.GetFromJsonAsync<JsonElement>(
+            "/api/personal/recommendations",
+            TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(
+            videoId,
+            mine.GetProperty("sections").EnumerateArray()
+                .SelectMany(section => section.GetProperty("videos").EnumerateArray())
+                .Select(offered => offered.GetProperty("video").GetProperty("id").GetGuid()));
+
+        // The other Account is unaffected by what this one put aside, and the page it is answered
+        // is computed from its own state.
+        var theirs = await user.GetFromJsonAsync<JsonElement>(
+            "/api/personal/recommendations",
+            TestContext.Current.CancellationToken);
+        Assert.Contains(
+            videoId,
+            theirs.GetProperty("sections").EnumerateArray()
+                .SelectMany(section => section.GetProperty("videos").EnumerateArray())
+                .Select(offered => offered.GetProperty("video").GetProperty("id").GetGuid()));
+    }
+
+    /// <summary>
+    /// A Playlist is one Account's own filing. Another Account cannot list it, narrow the Library
+    /// to it, change it, or delete it, and an Administrator has no more authority over one than
+    /// anybody else — which is the case worth stating, because everywhere else in this product an
+    /// Administrator has more.
+    /// </summary>
+    private static async Task PlaylistsBelongToOneAccountAsync(
+        HttpClient administrator,
+        string administratorCsrf,
+        HttpClient user,
+        string userCsrf,
+        Guid videoId)
+    {
+        using var missingCsrf = await user.PostAsJsonAsync(
+            "/api/personal/playlists",
+            new { name = "Without a token" },
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.Forbidden, missingCsrf.StatusCode);
+
+        var created = await SendJsonAsync(
+            user,
+            HttpMethod.Post,
+            "/api/personal/playlists",
+            new { name = "Theirs" },
+            userCsrf);
+        var playlistId = created.GetProperty("playlist").GetProperty("id").GetGuid();
+
+        await SendJsonAsync(
+            user,
+            HttpMethod.Put,
+            $"/api/personal/playlists/{playlistId}/videos/{videoId}",
+            null,
+            userCsrf);
+
+        var theirs = await user.GetFromJsonAsync<JsonElement>(
+            $"/api/personal/playlists?videoId={videoId}",
+            TestContext.Current.CancellationToken);
+        var listed = Assert.Single(theirs.GetProperty("playlists").EnumerateArray());
+        Assert.True(listed.GetProperty("contains").GetBoolean());
+        Assert.Equal(1, listed.GetProperty("videoCount").GetInt32());
+
+        // The Administrator's own list is empty, and naming the other Account's Playlist in a
+        // Library request narrows to nothing rather than to its contents.
+        var mine = await administrator.GetFromJsonAsync<JsonElement>(
+            "/api/personal/playlists",
+            TestContext.Current.CancellationToken);
+        Assert.Empty(mine.GetProperty("playlists").EnumerateArray());
+        var borrowed = await administrator.GetFromJsonAsync<JsonElement>(
+            $"/api/library/videos?playlist={playlistId}&sort=PlaylistOrder",
+            TestContext.Current.CancellationToken);
+        Assert.Empty(borrowed.GetProperty("videos").EnumerateArray());
+
+        using var rename = new HttpRequestMessage(
+            HttpMethod.Put,
+            $"/api/personal/playlists/{playlistId}");
+        rename.Headers.Add("X-CSRF-Token", administratorCsrf);
+        rename.Content = JsonContent.Create(new { name = "Mine now" });
+        using var renamed = await administrator.SendAsync(
+            rename,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.BadRequest, renamed.StatusCode);
+
+        using var delete = new HttpRequestMessage(
+            HttpMethod.Delete,
+            $"/api/personal/playlists/{playlistId}");
+        delete.Headers.Add("X-CSRF-Token", administratorCsrf);
+        using var deleted = await administrator.SendAsync(
+            delete,
+            TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NotFound, deleted.StatusCode);
+
+        // And it is still there, under the name its owner gave it.
+        var after = await user.GetFromJsonAsync<JsonElement>(
+            "/api/personal/playlists",
+            TestContext.Current.CancellationToken);
+        Assert.Equal(
+            "Theirs",
+            Assert.Single(after.GetProperty("playlists").EnumerateArray())
+                .GetProperty("name")
+                .GetString());
     }
 
     private static object Report(
@@ -185,12 +375,12 @@ public sealed class PersonalStateRouteTests
         HttpClient client,
         HttpMethod method,
         string path,
-        object body,
+        object? body,
         string csrfToken)
     {
         using var request = new HttpRequestMessage(method, path)
         {
-            Content = JsonContent.Create(body),
+            Content = body is null ? null : JsonContent.Create(body),
         };
         request.Headers.Add("X-CSRF-Token", csrfToken);
         using var response = await client.SendAsync(request, TestContext.Current.CancellationToken);
@@ -224,7 +414,15 @@ public sealed class PersonalStateRouteTests
             CreatedAt = file.LastWriteTimeUtc,
             ActivatedAt = file.LastWriteTimeUtc,
         });
-        database.Videos.Add(new VideoRow { Id = videoId, DiscoveryDate = file.LastWriteTimeUtc });
+        // The projection would normally supply these; this row is written straight in, and
+        // Ordinary Discovery reads them.
+        database.Videos.Add(new VideoRow
+        {
+            Id = videoId,
+            DiscoveryDate = file.LastWriteTimeUtc,
+            Availability = VideoAvailability.Available,
+            BestClassification = DirectPlayClassification.BaselineCandidate,
+        });
         database.VideoFiles.Add(new VideoFileRow
         {
             Id = videoFileId,

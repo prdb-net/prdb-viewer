@@ -17,7 +17,14 @@ public sealed record PersonalVideoStateSummary(
     bool ContinueWatching,
     bool Favourite,
     bool WatchLater,
-    int? PersonalRating);
+    PersonalReaction? Reaction,
+    /// <summary>
+    /// When this Account last had confirmed Active Watching of this Video. Null where it never
+    /// has, and — on an installation restored from before this was kept — where the Playback
+    /// Attempts it would be summarised from are not there to summarise. It is never guessed at
+    /// from a Play Count.
+    /// </summary>
+    DateTimeOffset? LastWatchedAt);
 
 public sealed record PlaybackAttemptResult(
     PlaybackAttemptVerdict Verdict,

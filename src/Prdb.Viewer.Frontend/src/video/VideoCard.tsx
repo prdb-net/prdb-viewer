@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 
-import type { VideoSummary } from '../api/client'
+import type { RecommendationReason, VideoSummary } from '../api/client'
 import {
   formatDay,
   formatDuration,
@@ -10,10 +10,31 @@ import {
   siteProvenanceLabel,
 } from '../lib/format'
 import { withReturnTo } from '../lib/returnTo'
-import { StarRating } from '../personal/StarRating'
+import { ReactionControl } from '../personal/ReactionControl'
 import type { PersonalAction, PersonalPending } from '../personal/usePersonalActions'
 import { HeartIcon } from '../ui'
 import { VideoArt } from './VideoArt'
+
+/// What a Playlist's own page lets a reader do to one of its entries: move it within the whole
+/// arrangement, or take it out of the Playlist.
+///
+/// The destination is an absolute place in the Playlist rather than "swap with the card beside
+/// me", because those are the same thing only while nothing is filtered out — and a narrowed
+/// Playlist page does not offer these at all for exactly that reason.
+/// What a card offers when it is a Recommendation rather than a Library entry: the facts that put
+/// it here, and the control that puts it aside for the day.
+export type RecommendationControls = {
+  reasons: RecommendationReason[]
+  notToday: (video: VideoSummary) => void
+  busy: boolean
+}
+
+export type PlaylistArrangement = {
+  total: number
+  move: (video: VideoSummary, to: number) => void
+  remove: (video: VideoSummary) => void
+  busy: boolean
+}
 
 /// One Video as the Library shows it.
 ///
@@ -27,7 +48,17 @@ import { VideoArt } from './VideoArt'
 /// times and distinguished nothing; the ordinary case is now silent, and what a card states is an
 /// exception — an Unknown Video, a review, a Site recognised only locally, a file that will not
 /// play here.
-export function VideoCard({ video, act, pending, from, dismissible = false }: {
+export function VideoCard({
+  video,
+  act,
+  pending,
+  from,
+  dismissible = false,
+  reactions = 'whenSet',
+  arrangement,
+  index = 0,
+  recommendation,
+}: {
   video: VideoSummary
   act: PersonalAction
   pending: PersonalPending
@@ -35,6 +66,17 @@ export function VideoCard({ video, act, pending, from, dismissible = false }: {
   /// narrowing the reader was actually looking at rather than to the top of the Library.
   from: string
   dismissible?: boolean
+  /// Whether the four reactions are always offered, or only shown where one is already set. A
+  /// recommendation is there to be reacted to, so its cards offer them; a Library card is not, and
+  /// forty controls nobody asked for is what the Library used to look like.
+  reactions?: 'whenSet' | 'always'
+  /// Present only on a Playlist's own page, and only while nothing narrows it.
+  arrangement?: PlaylistArrangement
+  /// Where this card sits in the arrangement, which is its place in the Playlist while these
+  /// controls are offered at all.
+  index?: number
+  /// Present only on the Recommendations page.
+  recommendation?: RecommendationControls
 }) {
   // This card is busy only while one of its own actions is in flight, not while any card's is.
   const busy = pending(video.id)
@@ -42,8 +84,7 @@ export function VideoCard({ video, act, pending, from, dismissible = false }: {
   const progress = Number(video.personalState.playbackProgressMilliseconds ?? 0)
   const resume = progress > 0 && video.personalState.playState === 'InProgress'
   const playable = source !== undefined && video.playability !== 'NotDirectlyPlayable'
-  const rating = video.personalState.personalRating
-  const rated = rating !== null && rating !== undefined
+  const reaction = video.personalState.reaction ?? null
   const kept = video.personalState.favourite || video.personalState.watchLater
 
   return (
@@ -79,18 +120,23 @@ export function VideoCard({ video, act, pending, from, dismissible = false }: {
       </div>
       <div className="card-facts">
         <CardFacts video={video} source={source} />
+        {recommendation && recommendation.reasons.length > 0 && (
+          <small className="card-line why">
+            <span>{explain(recommendation.reasons)}</span>
+          </small>
+        )}
       </div>
       <div className="card-actions">
-        {/* A Personal Rating is shown where there is one, and can be changed where it is shown.
-            Five empty stars on every unrated card were a control nobody had asked for, forty
-            times over; the Video's own page is where a first rating is given. It sits above the
-            play action so that the play actions of a row stay level whether or not a card carries
-            a rating. */}
-        {rated && (
-          <StarRating
+        {/* A Personal Reaction is shown where there is one, and can be changed where it is
+            shown. Four empty choices on every card would be a control nobody had asked for, forty
+            times over; a first reaction is given where the Video is, or where it is recommended
+            and the reaction is the point. It sits above the play action so that the play actions
+            of a row stay level whether or not a card carries a reaction. */}
+        {(reactions === 'always' || reaction !== null) && (
+          <ReactionControl
             title={video.displayTitle}
-            value={rating}
-            onChange={(score) => act('rating', video, score)}
+            value={reaction}
+            onChange={(chosen) => act('reaction', video, chosen)}
             disabled={busy}
           />
         )}
@@ -111,6 +157,44 @@ export function VideoCard({ video, act, pending, from, dismissible = false }: {
           <button className="dismiss-button" onClick={() => act('dismiss', video)} disabled={busy}>
             Dismiss
           </button>
+        )}
+        {recommendation && (
+          <button
+            className="quiet-button not-today"
+            aria-label={`Not today: put ${video.displayTitle} aside for 24 hours`}
+            onClick={() => recommendation.notToday(video)}
+            disabled={recommendation.busy || busy}
+          >
+            Not today
+          </button>
+        )}
+        {arrangement && (
+          <div className="arrange-actions">
+            <button
+              className="quiet-button"
+              aria-label={`Move ${video.displayTitle} up`}
+              onClick={() => arrangement.move(video, index - 1)}
+              disabled={arrangement.busy || index === 0}
+            >
+              ↑
+            </button>
+            <button
+              className="quiet-button"
+              aria-label={`Move ${video.displayTitle} down`}
+              onClick={() => arrangement.move(video, index + 1)}
+              disabled={arrangement.busy || index >= arrangement.total - 1}
+            >
+              ↓
+            </button>
+            <button
+              className="quiet-button danger"
+              aria-label={`Remove ${video.displayTitle} from this Playlist`}
+              onClick={() => arrangement.remove(video)}
+              disabled={arrangement.busy}
+            >
+              Remove
+            </button>
+          </div>
         )}
       </div>
     </article>
@@ -171,6 +255,35 @@ function CardFacts({ video, source }: {
   )
 }
 
+/// What each reason says on a card. They are short because a card has room for one line, and
+/// factual because the reader's own activity produced every one of them: nothing here claims a
+/// preference that was not evidenced, and nothing generalises one Video into a claim about a
+/// person.
+const reasonText: Record<RecommendationReason, string> = {
+  Loved: 'You loved this',
+  Liked: 'You liked this',
+  InAPlaylist: 'In one of your Playlists',
+  Favourite: 'One of your Favourites',
+  WatchedRepeatedly: 'You have come back to this',
+  WatchedAtLength: 'You watched a good while of this',
+  WatchedWithoutInterruption: 'You watched it straight through',
+  WatchedBefore: 'You watched this before',
+  JustWatchedInThisVisit: 'You watched this just now',
+  NotWatchedForAWhile: 'You have not watched this for a while',
+  WatchedLongAgo: 'You watched this long ago',
+  NeverWatched: 'You have not watched this',
+  WithAFavouriteActor: 'With one of your favourite Actors',
+  SharesAnActorYouWatch: 'Shares an Actor with Videos you watch',
+  FromASiteYouWatch: 'From a Site you watch',
+  SomethingDifferent: 'Something different',
+}
+
+/// The two most telling reasons, joined. Listing all of them would fill the card with sentences
+/// that mostly repeat each other; the first two are the ones the selection actually turned on.
+function explain(reasons: RecommendationReason[]) {
+  return reasons.slice(0, 2).map((reason) => reasonText[reason]).join(' · ')
+}
+
 /// Whether a title says nothing the Actors' names do not: "Alex Doe", or "Alex Doe And Sam Roe".
 function titleNamesActors(title: string, actors: string[]) {
   if (actors.length === 0) return false
@@ -195,16 +308,29 @@ function BookmarkIcon() {
   )
 }
 
-export function VideoGrid({ videos, act, pending, from, dismissible = false }: {
+export function VideoGrid({
+  videos,
+  act,
+  pending,
+  from,
+  dismissible = false,
+  reactions = 'whenSet',
+  arrangement,
+  recommendation,
+}: {
   videos: VideoSummary[]
   act: PersonalAction
   pending: PersonalPending
   from: string
   dismissible?: boolean
+  reactions?: 'whenSet' | 'always'
+  arrangement?: PlaylistArrangement
+  /// The Recommendation controls for one Video, where this grid is a Recommendation Section.
+  recommendation?: (video: VideoSummary) => RecommendationControls
 }) {
   return (
     <div className="video-grid">
-      {videos.map((video) => (
+      {videos.map((video, index) => (
         <VideoCard
           key={video.id}
           video={video}
@@ -212,6 +338,10 @@ export function VideoGrid({ videos, act, pending, from, dismissible = false }: {
           pending={pending}
           from={from}
           dismissible={dismissible}
+          reactions={reactions}
+          arrangement={arrangement}
+          index={index}
+          recommendation={recommendation?.(video)}
         />
       ))}
     </div>

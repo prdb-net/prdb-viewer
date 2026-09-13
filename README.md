@@ -599,9 +599,11 @@ narrowing a deep list does not begin with a scroll back to the top.
 The default order is Discovery Date descending, so later enrichment never makes
 an old Video look newly added; Title A-Z, best quality first and longest first
 are the alternatives that hold for every Account, the quality order falling back
-to the default inside one band. Recently played and best rated order by the
-Account's own Personal State, and put the Videos it has none for last. The shelf
-order is the order a Personal Shelf keeps.
+to the default inside one band. Recently played and your reaction order by
+the Account's own Personal State; recently played puts the Videos it never played
+last, and your reaction runs Love, Like, Shrug, the Videos nothing was said about,
+and Dislike, because silence is not a rejection. The shelf order is the order a
+Personal Shelf keeps, and the Playlist order the one you arranged.
 
 Continue Watching, Favourites and Watch Later are Personal Shelves: the library
 narrowed to what the Account keeps on them. Each has the same search, facets,
@@ -613,6 +615,18 @@ shelf shows what was put on it whether or not this browser can play it, and the
 card says when a Video will not play here; on the browsing screen the shelves
 are one facet among the others. See
 [ADR 0019](docs/adr/0019-treat-personal-shelves-as-narrowings-of-the-library.md).
+
+A Playlist is a named set of Videos in an order you arrange yourself. It is the
+library narrowed to it in the same way a shelf is, with the same search, facets
+and paging, over its own manual order; a Video appears at most once in one
+Playlist and may be in several. Videos are added from a Video's own page, which
+also says which Playlists already hold it, and the arrangement — move up, move
+down, take out — is offered on the Playlist's own page while nothing narrows it.
+It disappears under a search or a filter, because moving a card past a neighbour
+that is not on screen would rearrange entries you cannot see. Deleting a Playlist
+deletes the arrangement and nothing else: the Videos, what you said about them,
+and every other list they are on are untouched. A Playlist is private to its
+Account, and no other Account and no Administrator can read or change one.
 
 Ordinary results contain a Video while it is Available and ready for direct
 play. When the current rules keep matches out, the view says how many and offers
@@ -668,7 +682,157 @@ Equivalence is established. The browser resumes that file, reports subsequent
 activity, and derives Continue Watching from a qualifying unfinished Viewing
 Session. Users can dismiss a Continue Watching entry without deleting history,
 and can independently maintain Favourites, the oldest-first Watch Later queue,
-and an optional one-to-five Personal Rating.
+and an optional Personal Reaction.
+
+A Personal Reaction is one of Dislike, Shrug, Like or Love, and having said
+nothing is a different fact from a Shrug. Setting the same reaction again
+changes nothing, setting another replaces it, and clearing removes the statement
+rather than storing a fifth value. A Dislike keeps the Video out of every
+recommendation section and hides it from nothing else — not the Library, not
+search, and not the Account's own lists. Upgrading discards every one-to-five
+Personal Rating an older installation held, with no mapping and no way back;
+restoring an older Backup Archive discards them too. That loss is deliberate,
+and [ADR 0022](docs/adr/0022-recommend-from-return-interest-rather-than-completion.md)
+says why.
+
+Two further summaries are kept for recommendations, and nothing else is. Each
+Viewing Session records its longest **Uninterrupted Run** — the longest stretch
+of contiguous Active Watching in it — which a seek, a pause, buffering, a Video
+File switch or stale evidence ends without costing the session any of its total.
+And a session records how it ended, but only where the browser observed
+something: navigation to a different Video, a technical failure, an ordinary
+closure, or the inactivity timeout. Anything else stays Unknown, and Unknown is
+never read as an opinion about a Video. A failure, a closed tab and a session
+nothing accounts for are all ways of not knowing.
+
+Both are one value per session rather than a list of events, and a summarised
+last-watched moment sits on the Personal Video State so that "not watched for a
+while" is one indexed column rather than a scan. Upgrading fills that moment in
+from the Playback Attempts already retained; where an installation has none, it
+stays empty, and the recommender reads that as watching that happened at a moment
+nobody recorded rather than as never watched. Uninterrupted runs and departures
+are not backfilled at all, because nothing recorded them.
+
+## Rank what to watch again
+
+Return Interest is decided by one policy in the Core, from one Account's own
+Personal State, and is a pure function of the evidence it is given: the same
+evidence ranks the same way twice, and the ordering can be reproduced without a
+database. The rules are ADR 0022's and are settled; the numbers below are
+initial tuning, and may change so long as the ordering examples the tests state
+keep holding.
+
+Per Viewing Session, Active Watching under a minute contributes nothing; a minute
+contributes 1, two minutes 2, five minutes 3, and ten minutes or more 4. An
+Uninterrupted Run of a minute or more adds 0.5 to a session that already counts.
+The five strongest sessions are added up, plus 0.6 for each further meaningful
+visit up to five of them, so coming back repeatedly says more than one long
+sitting and the twentieth visit says no more than the sixth. Being in a Playlist
+adds 1 once, however many Playlists hold the Video; an explicit Favourite adds 1.
+
+Explicit reactions are tiers rather than points: a Love outranks a Like, and both
+outrank anything watching alone can produce, so a Video somebody loved can be
+offered with no watching history at all while a behaviour-only Video needs
+evidence. Within a tier the score decides, then the most recently watched, then
+the Video's identity — so a page is the same page twice.
+
+A visit shorter than fifteen seconds that ended in a positively observed move to
+another Video subtracts 0.5, to a maximum of 1.5 however many there were. It
+applies to nothing else: a failure, a closed tab, an inactivity timeout, and an
+under-minute visit that simply ended are all neutral. It never applies at all
+after a Like or a Love, and it can never erase what a real session established —
+half of the strongest session always survives. Viewing Completion, the fraction
+watched and Play Count are not consulted anywhere in this.
+
+## The Recommendations screen
+
+**For you** is its own destination in the sidebar and its own address. It draws
+the three sections one under the other, each with a heading that says what it is
+and what it is for, and each card carrying one short line saying why it is there
+— drawn from evidence your own activity produced.
+
+Every card offers all four reactions and clearing, because a recommendation is
+there to be reacted to. A Dislike takes the Video out of every section at once; a
+Shrug does not. **Not today** puts one Video aside for twenty-four hours, and the
+card is replaced in place by a line saying it is not a dislike, that nothing about
+your history changed, and offering the undo where the card was. **Other
+suggestions** asks for a different page rather than reshuffling this one.
+
+A section with nothing in it says why, rather than looking like something that
+failed, and a page for somebody who has watched nothing here says plainly that
+these are Videos from the library rather than anything about their taste. The
+screen changes nothing about Home or Continue Watching.
+
+## Compose a page of recommendations
+
+The three sections share their exclusions, so they cannot disagree about them: a
+Dislike keeps a Video out of all of them until it is changed or cleared, and a
+Temporary Dismissal does the same for twenty-four hours from the moment it was
+made. Every candidate satisfies Ordinary Discovery for the current Account and
+client, so nothing is offered that cannot be pressed play on.
+
+No Video appears twice on one page. Long unseen chooses first and its choices are
+reserved, because it draws from the same pool that For you to watch again does
+and is the narrower of the two; the reader still sees return interest first,
+because that is the question the page answers. A section that has run out says so
+rather than being padded — nothing manufactures a candidate.
+
+**Not today** is Account-private and holds across that Account's clients, so
+putting something aside on a phone also removes it from the television. It changes
+no preference and no playback state, and undoing it is deleting the statement
+rather than reasoning about a deadline. Expired dismissals are deleted as they are
+met, so what is kept is today rather than a history of everything anybody ever put
+aside.
+
+A page is chosen from a seed, which the answer carries back. Rendering and paging
+against the same seed give the same page; **Other suggestions** sends a different
+one and gets a different page. Without a seed the answer is stable for the Account
+for the day. Sections are bounded by the ordinary paging conventions, and the
+whole library is never sent to a browser.
+
+No other Account and no Administrator can read an Account's recommendations, the
+evidence behind them, or what it has put aside.
+
+## Resurface and discover
+
+Long unseen needs both prior positive interest and prior confirmed watching, and
+by default at least fourteen days since the last of it. Age orders it, and only
+among Videos there is positive evidence for: a Video somebody sampled for eight
+seconds two years ago is not a forgotten favourite. Watching that happened before
+this installation kept the moment still counts as watching, and the card says it
+was watched long ago rather than inventing a number of days.
+
+Not yet discovered means no confirmed Active Watching at all — which is a stronger
+statement than an Unplayed Personal Play State or a Play Count of zero. A Video
+whose only history is a failed attempt has never been watched and stays eligible;
+one an older installation accumulated watching against has been, whatever its
+current state says, because claiming somebody has never seen something they have
+is the worse mistake.
+
+Two thirds of a discovery page is led by affinity and one third is chosen without
+reference to any of it. Affinity is a rate rather than a count: an Actor or a Site
+is judged by how many of their Videos this Account showed positive evidence for
+against how many of them the library holds, with a smoothing term, so whoever
+appears most often cannot win on volume and a two-for-two record cannot beat a
+twenty-for-forty one. Two Videos are the minimum — watching one Video says
+nothing about everybody in it — and an explicitly kept Favourite Actor counts for
+more than any inference. A Dislike belongs to its Video and is never held against
+its Actors or its Site.
+
+The independent third is what reaches the Videos with barely any metadata to
+infer from, and it is mixed through the page rather than appended to it. Selection
+is deterministic from a seed, so one page generation is reproducible and paging is
+stable; a new seed is a different page, which is what Other suggestions asks for.
+Both sections read a bounded window that the seed rotates through the pool, so
+older overlooked Videos are reachable rather than only the newest part of a large
+library.
+
+A **Browsing Visit** is one Account and client browsing continuously, ending
+after thirty minutes without activity. It exists only so that a Video watched
+during the visit can move down a page of recommendations without being excluded,
+and it holds nothing but which Videos this visit saw watched: no navigation, no
+searches, no history of earlier visits. Starting a visit deletes the previous
+one's marks, and two clients of one Account browse separately.
 
 Every Personal State endpoint derives its Account from the authenticated local
 session and requires CSRF protection for changes. That token is derived from the

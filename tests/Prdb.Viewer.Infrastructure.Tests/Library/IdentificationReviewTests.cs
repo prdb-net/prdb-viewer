@@ -575,7 +575,7 @@ public sealed class IdentificationReviewTests
             11_000,
             false,
             true,
-            TestContext.Current.CancellationToken);
+            cancellationToken: TestContext.Current.CancellationToken);
         Assert.Equal(Core.Personal.PlaybackReportVerdict.Accepted, report.Verdict);
     }
 

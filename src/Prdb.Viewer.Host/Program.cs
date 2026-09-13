@@ -174,6 +174,8 @@ app.MapIdentification();
 app.MapVideos();
 app.MapActors();
 app.MapPersonalState();
+app.MapPlaylists();
+app.MapRecommendations();
 
 app.MapFallback("/api/{*rest}", () => Results.NotFound());
 app.MapFallbackToFile("index.html").AllowAnonymous();

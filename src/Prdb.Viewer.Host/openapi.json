@@ -1090,6 +1090,14 @@
             }
           },
           {
+            "name": "playlist",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
             "name": "skip",
             "in": "query",
             "schema": {
@@ -1245,6 +1253,14 @@
             "in": "query",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "playlist",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -1604,6 +1620,14 @@
               "type": "string",
               "format": "uuid"
             }
+          },
+          {
+            "name": "departure",
+            "in": "query",
+            "schema": {
+              "default": "Unknown",
+              "$ref": "#/components/schemas/PlaybackDeparture"
+            }
           }
         ],
         "responses": {
@@ -1800,7 +1824,7 @@
         }
       }
     },
-    "/api/personal/videos/{videoId}/rating": {
+    "/api/personal/videos/{videoId}/reaction": {
       "put": {
         "tags": [
           "Personal State"
@@ -1820,7 +1844,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PersonalRatingRequest"
+                "$ref": "#/components/schemas/PersonalReactionRequest"
               }
             }
           },
@@ -1891,6 +1915,415 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PersonalStateMutationResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/playlists": {
+      "get": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistsResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Personal State"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistNameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/playlists/{playlistId}": {
+      "put": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistNameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistDeletion"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
+    "/api/personal/playlists/{playlistId}/videos/{videoId}": {
+      "put": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/playlists/{playlistId}/videos/{videoId}/position": {
+      "post": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "playlistId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlaylistPositionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaylistResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/recommendations": {
+      "get": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "seed",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "take",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32",
+              "default": 12
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecommendationPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/personal/recommendations/videos/{videoId}/not-today": {
+      "post": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DismissalResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Personal State"
+        ],
+        "parameters": [
+          {
+            "name": "videoId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DismissalResult"
                 }
               }
             }
@@ -2788,6 +3221,17 @@
           "Unsupported",
           "Undetermined"
         ]
+      },
+      "DismissalResult": {
+        "required": [
+          "dismissed"
+        ],
+        "type": "object",
+        "properties": {
+          "dismissed": {
+            "type": "boolean"
+          }
+        }
       },
       "EndPlaybackAttemptResponse": {
         "required": [
@@ -4708,8 +5152,9 @@
           "QualityDescending",
           "LongestFirst",
           "RecentlyPlayed",
-          "BestRated",
-          "ShelfOrder"
+          "BestReaction",
+          "ShelfOrder",
+          "PlaylistOrder"
         ]
       },
       "ObservedPlaybackOutcome": {
@@ -4764,20 +5209,23 @@
           "Completed"
         ]
       },
-      "PersonalRatingRequest": {
+      "PersonalReaction": {
+        "enum": [
+          "Dislike",
+          "Shrug",
+          "Like",
+          "Love",
+          null
+        ]
+      },
+      "PersonalReactionRequest": {
         "required": [
-          "rating"
+          "reaction"
         ],
         "type": "object",
         "properties": {
-          "rating": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
+          "reaction": {
+            "$ref": "#/components/schemas/PersonalReaction"
           }
         }
       },
@@ -4806,8 +5254,7 @@
       "PersonalStateMutationVerdict": {
         "enum": [
           "Updated",
-          "VideoNotFound",
-          "InvalidRating"
+          "VideoNotFound"
         ]
       },
       "PersonalVideoStateSummary": {
@@ -4821,7 +5268,8 @@
           "continueWatching",
           "favourite",
           "watchLater",
-          "personalRating"
+          "reaction",
+          "lastWatchedAt"
         ],
         "type": "object",
         "properties": {
@@ -4872,14 +5320,22 @@
           "watchLater": {
             "type": "boolean"
           },
-          "personalRating": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
+          "reaction": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PersonalReaction"
+              }
+            ]
+          },
+          "lastWatchedAt": {
             "type": [
               "null",
-              "integer",
               "string"
             ],
-            "format": "int32"
+            "format": "date-time"
           }
         }
       },
@@ -4929,6 +5385,15 @@
           "Started",
           "VideoNotFound",
           "VideoFileUnavailable"
+        ]
+      },
+      "PlaybackDeparture": {
+        "enum": [
+          "Unknown",
+          "AnotherVideo",
+          "TechnicalFailure",
+          "Closed",
+          "Inactivity"
         ]
       },
       "PlaybackFailureCategory": {
@@ -5227,6 +5692,130 @@
           }
         }
       },
+      "PlaylistDeletion": {
+        "required": [
+          "deleted"
+        ],
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PlaylistNameRequest": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "PlaylistPositionRequest": {
+        "required": [
+          "position"
+        ],
+        "type": "object",
+        "properties": {
+          "position": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        }
+      },
+      "PlaylistResult": {
+        "required": [
+          "verdict",
+          "playlist"
+        ],
+        "type": "object",
+        "properties": {
+          "verdict": {
+            "$ref": "#/components/schemas/PlaylistVerdict"
+          },
+          "playlist": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlaylistSummary"
+              }
+            ]
+          }
+        }
+      },
+      "PlaylistsResponse": {
+        "required": [
+          "playlists"
+        ],
+        "type": "object",
+        "properties": {
+          "playlists": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlaylistSummary"
+            }
+          }
+        }
+      },
+      "PlaylistSummary": {
+        "required": [
+          "id",
+          "name",
+          "videoCount",
+          "contains",
+          "createdAt",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "videoCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "contains": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PlaylistVerdict": {
+        "enum": [
+          "Updated",
+          "NotFound",
+          "VideoNotFound",
+          "InvalidName"
+        ]
+      },
       "PrdbConnectionIssue": {
         "enum": [
           "ExternalAuthority",
@@ -5311,6 +5900,100 @@
           "Coalesced",
           "NotFound"
         ]
+      },
+      "RecommendationPage": {
+        "required": [
+          "sections",
+          "seed",
+          "hasHistory"
+        ],
+        "type": "object",
+        "properties": {
+          "sections": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendationSectionPage"
+            }
+          },
+          "seed": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "hasHistory": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RecommendationReason": {
+        "enum": [
+          "Loved",
+          "Liked",
+          "InAPlaylist",
+          "Favourite",
+          "WatchedRepeatedly",
+          "WatchedAtLength",
+          "WatchedWithoutInterruption",
+          "WatchedBefore",
+          "JustWatchedInThisVisit",
+          "NotWatchedForAWhile",
+          "WatchedLongAgo",
+          "NeverWatched",
+          "WithAFavouriteActor",
+          "SharesAnActorYouWatch",
+          "FromASiteYouWatch",
+          "SomethingDifferent"
+        ]
+      },
+      "RecommendationSection": {
+        "enum": [
+          "ForYouToWatchAgain",
+          "LongUnseen",
+          "NotYetDiscovered"
+        ]
+      },
+      "RecommendationSectionPage": {
+        "required": [
+          "section",
+          "videos",
+          "exhausted"
+        ],
+        "type": "object",
+        "properties": {
+          "section": {
+            "$ref": "#/components/schemas/RecommendationSection"
+          },
+          "videos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendedVideo"
+            }
+          },
+          "exhausted": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RecommendedVideo": {
+        "required": [
+          "video",
+          "reasons"
+        ],
+        "type": "object",
+        "properties": {
+          "video": {
+            "$ref": "#/components/schemas/VideoSummary"
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RecommendationReason"
+            }
+          }
+        }
       },
       "RecoverRequest": {
         "required": [

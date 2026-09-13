@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 
 import { ADMINISTRATOR } from './installation'
 
@@ -251,6 +251,83 @@ test('a Video says what prdb knows about the work beyond its title', async ({ pa
     expect(source).toMatch(/^\/media\/works\//)
   }
 })
+
+test('the recommendations screen answers from what this Account actually did', async ({ page }) => {
+  // Nothing has been watched, so the whole page is honest discovery and says so. This is the cold
+  // start the rules ask for, against a real installation rather than a stub.
+  await page.getByRole('link', { name: 'For you' }).click()
+  await expect(page.getByRole('heading', { name: 'For you', exact: true })).toBeVisible()
+  await expect(page.getByText(/rather than anything about your taste/)).toBeVisible()
+  await expect(page.getByText(/Watch something for a minute or two/)).toBeVisible()
+
+  const discovered = page.locator('.recommendation-section', { hasText: 'Not yet discovered' })
+  await expect(discovered.locator('.video-card')).toHaveCount(4)
+  // Every card says why it is there, and for a Video nobody has watched that is exactly one fact.
+  await expect(discovered.locator('.card-line.why').first()).toContainText('You have not watched this')
+
+  // A Dislike takes a Video out of every section, at the server: the page is asked again and the
+  // card is gone rather than hidden by the browser.
+  const first = discovered.locator('.video-card').first()
+  const title = (await first.locator('.video-title').textContent())!.trim()
+  const address = await idOf(page, title)
+  await react(first, 'Dislike')
+  await expect(page.locator('.video-card', { hasText: title })).toHaveCount(0)
+
+  // Clearing it gives the Video back, which is what makes a Dislike a statement rather than a
+  // deletion.
+  await page.goto(`/videos/${address}`)
+  await page.getByRole('button', { name: /^Clear your reaction/ }).click()
+  await page.goto('/recommendations')
+  await expect(page.locator('.video-card', { hasText: title })).toHaveCount(1)
+
+  // Not today is a day rather than a dislike, and the undo is where the card was.
+  await page.locator('.video-card', { hasText: title })
+    .getByRole('button', { name: /^Not today/ })
+    .click()
+  await expect(page.getByText(/is put aside for 24 hours/)).toBeVisible()
+  await expect(page.getByText(/It is not a/)).toBeVisible()
+  await page.getByRole('button', { name: `Undo putting ${title} aside` }).click()
+  await expect(page.locator('.video-card', { hasText: title })).toHaveCount(1)
+})
+
+test('loving a Video makes it something to watch again without having watched it', async ({ page }) => {
+  // The rule that separates an explicit reaction from behaviour: a Love is offerable on its own,
+  // where a Video nobody has watched and nobody has said anything about is not. The seeded clips
+  // are two seconds long, so this is the half of the journey a real installation can prove — the
+  // watching thresholds are held to their examples where the evidence can be made exactly.
+  await page.getByRole('link', { name: 'For you' }).click()
+  const again = page.locator('.recommendation-section', { hasText: 'For you to watch again' })
+  await expect(again.locator('.video-card')).toHaveCount(0)
+
+  const card = page.locator('.recommendation-section', { hasText: 'Not yet discovered' })
+    .locator('.video-card', { hasText: 'The Second Film' })
+  await react(card, 'Love')
+
+  await expect(again.locator('.video-card', { hasText: 'The Second Film' })).toHaveCount(1)
+  await expect(again.locator('.card-line.why')).toContainText('You loved this')
+  // And it has left the section for Videos nobody has watched, because a page never repeats one.
+  await expect(
+    page.locator('.recommendation-section', { hasText: 'Not yet discovered' })
+      .locator('.video-card', { hasText: 'The Second Film' }),
+  ).toHaveCount(0)
+
+  await page.getByRole('button', { name: /^Clear your reaction/ }).click()
+  await expect(again.locator('.video-card')).toHaveCount(0)
+})
+
+/// Sets a reaction on one card. The radio behind each label is an off-screen pixel, so the label
+/// is what a pointer and this test both press.
+async function react(card: Locator, reaction: 'Dislike' | 'Shrug' | 'Like' | 'Love') {
+  await card.locator('label.reaction', { hasText: reaction }).click()
+}
+
+/// The identity behind a title, taken from the link the card carries.
+async function idOf(page: Page, title: string) {
+  const href = await page.locator('.video-card', { hasText: title })
+    .locator('a.video-link')
+    .getAttribute('href')
+  return /\/videos\/([^?#]+)/.exec(href!)![1]
+}
 
 function facets(page: Page, group: 'Sites' | 'Actors' | 'Quality') {
   return page.locator(`[aria-label="${group}"] button.facet`)

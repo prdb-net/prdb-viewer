@@ -32,6 +32,7 @@ export function LibraryControls({
   clear,
   narrowed,
   pinned,
+  playlist,
   total,
   finding,
   find,
@@ -47,6 +48,9 @@ export function LibraryControls({
   narrowed: boolean
   /// The shelf this screen is, when it is one.
   pinned?: Shelf
+  /// True where a Playlist is pinned instead. The Playlist's own order is then on offer, and the
+  /// shelves are not, because this screen is already narrowed to a list of the Account's own.
+  playlist?: boolean
   /// How many Videos the current narrowing admits.
   total: number
   /// What is being looked for inside a facet, and how to change it. It is not part of the
@@ -60,7 +64,7 @@ export function LibraryControls({
   // upper two thirds of it, so the browsing screen opened on one row of Videos.
   const [facetsOpen, setFacetsOpen] = useState(false)
   const filtersToggle = useRef<HTMLButtonElement>(null)
-  const chosen = chosenFilters(filters, narrow, toggle, pinned)
+  const chosen = chosenFilters(filters, narrow, toggle, pinned || playlist)
   // A shelf keeps an order of its own, named for what it is on that shelf; with several chosen
   // the name has to cover them all.
   const shelfOrder = pinned
@@ -122,8 +126,9 @@ export function LibraryControls({
                 <option value="QualityDescending">Best quality first</option>
                 <option value="LongestFirst">Longest first</option>
                 <option value="RecentlyPlayed">Recently played</option>
-                <option value="BestRated">Best rated</option>
+                <option value="BestReaction">Your reaction</option>
                 {shelfOrder && <option value="ShelfOrder">{shelfOrder}</option>}
+                {playlist && <option value="PlaylistOrder">The order you arranged</option>}
               </select>
             </label>
           </div>
@@ -177,7 +182,7 @@ export function LibraryControls({
         </div>
 
         <div className="facet-groups">
-          {!pinned && (
+          {!pinned && !playlist && (
             <FacetGroup label="Yours">
               {shelfNames.map((shelf) => (
                 <FacetToggle
@@ -280,7 +285,10 @@ function chosenFilters(
   filters: LibraryFilters,
   narrow: (change: Partial<LibraryFilters>) => void,
   toggle: (key: FacetKey, value: string) => void,
-  pinned?: Shelf,
+  /// Whether this screen already stands for a list of the Account's own — a shelf or a Playlist.
+  /// What is pinned is the set being narrowed rather than a narrowing, so it is not listed as one
+  /// and cannot be taken out from here.
+  pinned?: Shelf | boolean,
 ): ChosenFilter[] {
   const chosen: ChosenFilter[] = []
   const query = filters.query.trim()

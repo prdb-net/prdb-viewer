@@ -23,10 +23,10 @@ public enum LibrarySortOrder
     RecentlyPlayed,
 
     /// <summary>
-    /// The highest Personal Rating first. Videos this Account has not rated come last, newest
-    /// first among themselves.
+    /// What this Account said about the Video, warmest first: Love, Like, Shrug, then the Videos
+    /// it has said nothing about, and Dislike last. Newest first within one of those groups.
     /// </summary>
-    BestRated,
+    BestReaction,
 
     /// <summary>
     /// The order a Personal Shelf keeps: Continue Watching by latest qualifying activity, Favourites
@@ -34,6 +34,12 @@ public enum LibrarySortOrder
     /// shelves chosen, the latest entry into any of them leads; with none chosen it is Newest.
     /// </summary>
     ShelfOrder,
+
+    /// <summary>
+    /// The order the User arranged a Playlist in by hand, which is its default. Outside a Playlist
+    /// it is Newest, because there is no hand-made order to keep.
+    /// </summary>
+    PlaylistOrder,
 }
 
 /// <summary>
