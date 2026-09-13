@@ -65,7 +65,7 @@ is a multi-user product from the beginning so that sharing does not require a
 later redesign, but it is not a multi-tenant service. Every approved user sees
 the complete shared library and uses the same installation-wide prdb
 connection; per-directory and per-video access rules are deliberately out of
-scope. Accounts, viewing history, playback progress, favourites, votes,
+scope. Accounts, viewing history, playback progress, favourites, reactions,
 playlists and recommendations remain per user.
 
 The installation owner needs an active prdb.net subscription and API key. That
@@ -82,15 +82,20 @@ metadata and file variants, and starts playback without sending the user through
 a separate media server.
 
 The application remembers what each user watches, how often they return to it,
-and how long they watch. That history is useful immediately for resuming and
-revisiting videos, and later becomes the basis for local recommendations. The
-goal is not merely to answer "what files do I have?", but also "what do I feel
-like watching?", "what have I forgotten about?", and "how do I make sense of
-this collection in my own way?"
+and how long they watch. That history resumes and revisits videos, and it is
+what the local recommendations are computed from. The goal is not merely to
+answer "what files do I have?", but also "what do I feel like watching?", "what
+have I forgotten about?", and "how do I make sense of this collection in my own
+way?"
+
+Rewatching is a first-class answer rather than a sign that a video is spent. A
+private collection is largely returned to, so recommendations are led by how
+much of a video someone actually watched and how often they came back to it,
+never by how much of it they finished.
 
 The user will gain several overlapping ways to organise and rediscover the
-library: favourites, watch-later lists, playlists, voting, saved filters and
-recommendations. No single taxonomy will fit every large collection, so the
+library: favourites, watch-later lists, playlists, reactions, saved filters
+and recommendations. No single taxonomy will fit every large collection, so the
 product should provide building blocks instead of imposing one perfect folder
 structure.
 
@@ -354,7 +359,8 @@ actually browse rather than a collection they only know is on disk:
 - The status view answers both "is it still working?" and "what needs my
   attention?" without requiring container logs for ordinary problems.
 - Continue Watching, favourites and Watch Later give users an immediate reason
-  to return even before personalised recommendations exist.
+  to return, and personal recommendations answer what to watch next from that
+  same history.
 - Day-to-day browsing and playback require no administrative maintenance once
   directories and the prdb connection are configured.
 
@@ -389,7 +395,7 @@ to solve every kind of recognition or organisation. It includes:
     playability.
 11. Per-user playback progress, watch duration and play-count tracking, so the
    product does not lose the history that later recommendations require.
-12. Per-user Continue Watching, favourites, Watch Later and Personal Rating
+12. Per-user Continue Watching, favourites, Watch Later and Personal Reaction
     surfaces.
 13. A preference and filter for showing unsupported files, including their
     titles and previews when available.
@@ -416,8 +422,8 @@ easier to rediscover:
   cases rather than tens;
 - personal recommendations derived from local viewing behaviour, with reasons
   the user can understand and controls that prevent a narrow feedback loop;
-- playlists, voting, saved filters and other user-defined ways to organise the
-  shared library;
+- playlists, reactions, saved filters and other user-defined ways to organise
+  the shared library;
 - better resurfacing of unfinished, frequently watched, long-unseen and newly
   added videos;
 - improved explanations and diagnostics for browser compatibility, scanning,
@@ -515,8 +521,6 @@ making the user read container logs.
   capability checks refine it.
 - Which personal organisation features make the smallest coherent set after the
   MVP.
-- How much viewing-event detail is necessary for useful recommendations without
-  collecting events that do not improve the result.
 - Which NAS platforms and Compose volume patterns need first-class examples
   beyond the host-mounted SMB and NFS approach supported by the MVP.
 - How the backup file protects secrets while keeping restore simple and

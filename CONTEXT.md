@@ -278,6 +278,14 @@ _Avoid_: Playback Attempt, browser session, uninterrupted Video File playback
 Confirmed time during which playback normally advances for a User. Pausing, buffering, seeking, an open but inactive player, and time without sufficiently recent playback evidence do not count.
 _Avoid_: player-open time, elapsed session time, timeline coverage
 
+**Uninterrupted Run**:
+The longest stretch of contiguous Active Watching within one Viewing Session. A seek, a pause, buffering, a Video File change, or evidence too old to be contiguous ends a run and starts the measurement again; none of those is negative, and the Viewing Session keeps its total across them.
+_Avoid_: Viewing Session, Accumulated Watch Duration, timeline coverage
+
+**Deliberate Departure**:
+A Viewing Session that ended because the User positively went to another Video. It is recorded only when it is observed, and is distinct from a technical failure, from ordinary closure of the application, and from a departure nothing accounts for.
+_Avoid_: session end, playback failure, dismissal
+
 **Playback Progress**:
 The latest confirmed meaningful resume position for a User's Video, even when it is earlier than a position reached previously. Seeking alone does not establish it; playback must advance at the destination. A position transfers automatically between Video Files only when their timelines are known to be equivalent.
 _Avoid_: furthest position reached, accumulated watch duration, completion
@@ -332,9 +340,13 @@ _Avoid_: Favourite, Personal Shelf, recommendation
 A User-owned, explicitly maintained queue of Video references ordered from oldest to newest addition. Playback and completion do not alter its membership.
 _Avoid_: Continue Watching, playlist, viewing history
 
-**Personal Rating**:
-A User-owned optional score from one to five for a Video. Setting the same score is idempotent, changing it replaces the previous score, and clearing it removes only the score; it is independent of Favourite, Watch Later, and playback activity.
-_Avoid_: Favourite, vote, shared rating
+**Personal Reaction**:
+A User-owned optional statement about a Video, one of Dislike, Shrug, Like, or Love. Setting the same reaction is idempotent, setting another replaces it, and clearing it removes the statement; a Shrug is a statement of indifference and is a different fact from no reaction at all. It is independent of Favourite, Watch Later, Playlist membership, and playback activity, and it grants no access another Account does not have.
+_Avoid_: Personal Rating, star, vote, shared rating
+
+**Playlist**:
+A User-owned, named, ordered set of Video references that the User maintains by hand. A Video appears at most once in one Playlist and may belong to several; playback, completion, and availability never alter membership, and deleting a Playlist deletes the organisation rather than the Videos, reactions, or viewing history in it. It is not a Personal Shelf, because the shelves are three fixed lists while Playlists are as many as the User makes, but it is narrowed the same way: the same search, facets, and paging hold inside one, over its own manual order.
+_Avoid_: Personal Shelf, Watch Later, saved filter, queue
 
 **Personal Shelf**:
 One of the User-owned lists — Continue Watching, Favourites, Watch Later — taken as a way of narrowing the Library rather than a library of its own: a shelf admits the same search, facets, order and paging the Library does, keeps an order of its own, and shows what the User put there whether or not the current client can play it.
@@ -353,3 +365,33 @@ _Avoid_: Ordinary Discovery eligibility time, first playback time, metadata upda
 **Direct Address**:
 Reaching one Video by its own address rather than by finding it in a presentation. It does not apply the admission rule of Ordinary Discovery, because following a link is the User's own decision to look at a Video rather than the Library's decision to offer it; only what has left the active Library is refused, and an identity absorbed by a merge answers as the Video that survived it.
 _Avoid_: Ordinary Discovery, search result, deep link to a Video File
+
+### Recommendations
+
+**Return Interest**:
+The evidence that a User wants to watch a Video again: confirmed Active Watching in its Viewing Sessions, how many separate meaningful visits it has drawn, and what the User said about it explicitly. Viewing Completion, the fraction of a Video watched, and the Video's duration are not part of it, and a Video is never demoted for having been finished.
+_Avoid_: Viewing Completion, watch percentage, popularity, Play Count
+
+**Recommendation**:
+One Video offered to a User with a short factual reason, chosen from that User's own Personal State on this installation. It is Personal State: no other Account and no Administrator can read the evidence behind it, and computing one sends nothing outbound.
+_Avoid_: shared recommendation, trending, editorial pick
+
+**Recommendation Section**:
+One of the three groups the Recommendations page is made of: For you to watch again, which is led by Return Interest; Long unseen, which resurfaces Videos with prior positive interest and prior confirmed watching that the User has not watched for a while; and Not yet discovered, which offers Videos with no confirmed Active Watching at all. A Video appears in at most one of them on one page.
+_Avoid_: row, shelf, feed
+
+**Recommendation Reason**:
+The short factual statement a Recommendation carries about why it is there, drawn from evidence the User's own activity actually produced. It never claims a preference that was not evidenced, and never generalises one Video's evidence into a claim about an Actor or a Site.
+_Avoid_: explanation of the algorithm, confidence score, inferred taste claim
+
+**Browsing Visit**:
+One Account and client context browsing continuously, ending after thirty minutes without activity. It exists so that a Video watched during the visit can move down within it without being excluded; a later visit removes that adjustment. It holds no navigation history, and clients of the same Account browse in separate visits.
+_Avoid_: Viewing Session, Client Context, sign-in session, browsing history
+
+**Temporary Dismissal**:
+The User's statement that one Video should not be offered today. It excludes the Video from every Recommendation Section for twenty-four hours from the action, across that Account's clients, and can be undone. It changes no preference and no playback state, and it is a different thing from a Continue Watching dismissal, which suppresses one surface indefinitely.
+_Avoid_: Dislike, Continue Watching dismissal, hide, block
+
+**Discovery Affinity**:
+The cautious, bounded inference from a User's own evidence about which Actors and Sites to try for Videos they have not watched, normalised so that a prolific Actor or Site cannot lead by count alone. A Dislike applies to its Video and is never propagated to that Video's Actors or Site. Part of discovery is deliberately selected independently of it.
+_Avoid_: taste profile, similarity score, collaborative filtering
