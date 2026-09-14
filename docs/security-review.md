@@ -6,7 +6,8 @@ knowingly carries. It is a review of this codebase rather than a general threat
 model for self-hosting.
 
 First reviewed at product version 0.1.0 on 2026-08-28, and revisited at
-0.16.0 on 2026-09-04, 0.17.0 on 2026-09-13, and 0.18.0 on 2026-09-13. Sections carry what is true of
+0.16.0 on 2026-09-04, 0.17.0 on 2026-09-13, 0.18.0 on 2026-09-13, and 0.19.0 on
+2026-09-14. Sections carry what is true of
 the current product;
 [Since the first review](#since-the-first-review) records what was added
 after 0.1.0 and what it changed here.
@@ -280,3 +281,20 @@ The trust boundaries this product actually has:
   and Temporary Dismissals and changes nothing about how the payload is
   protected. Its envelope, cipher, and KDF floor are unchanged, and formats 1 and
   2 still restore directly.
+- The diagnostics added in 0.19.0 add no outbound surface and no new reader. What
+  a scan walked past — the counts and the leading file extensions — is a Work
+  Issue detail and therefore Administrator-only, alongside the container paths
+  those issues already carried. The outcome counts a settled lane now keeps are
+  bookkeeping over answers the lane had already received; nothing is sent to ask
+  for them.
+- The one addition an ordinary User sees is why a Video has no picture, and it is
+  deliberately a fact about the Video rather than about the installation: that a
+  preview has not been generated yet, that no frame could be read, or that the
+  files cannot currently be read. It names no path, no Library Directory and no
+  Work Issue, so the placeholder explains itself without becoming a way to learn
+  what the storage looks like.
+- Naming a Video File's container and saying which part of it has no browser path
+  discloses nothing the Video page did not already print: the container and the
+  codecs were both on it, less legibly. It remains a statement about the file
+  rather than about the client, and no Account's playback evidence is exposed by
+  it.

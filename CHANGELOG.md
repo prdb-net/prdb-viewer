@@ -7,6 +7,63 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.19.0] - 2026-09-14
+
+The administrative surface and the Video page managed "what" and left "why" to
+the reader. This release is the next layer of it, and every sentence in it was
+produced by an installation broken the way real libraries break: an unreadable
+subdirectory, a directory of `.flv` and half-finished downloads, an empty mount,
+a Matroska carrying H.264, an AVI carrying MPEG-4 Part 2, and an MP4 whose frames
+do not decode. Nothing here needs configuring, and nothing here sends anything
+outbound. **This release migrates**, by adding columns; no data is changed or
+discarded.
+
+### Added
+
+- A Library Scan that reads a whole directory and admits nothing from it says
+  why. A directory whose files the recognised-extension policy passes over raises
+  an issue naming how many entries were walked, which extensions led among them,
+  and the extensions the product does admit — which is the whole answer to a
+  library of `.flv` or of half-finished downloads. A directory the scan read in
+  full and found nothing whatever in raises a different one, because that is a
+  question about the mount rather than about the files. Either closes by itself
+  as soon as a scan admits one candidate, and the lane's own line carries the
+  count of what it walked past.
+- A Video with no picture says which kind of missing that is: a preview still to
+  be generated, one the attempt produced no frame for, or one that cannot be made
+  while the files cannot be read. They were the same neutral placeholder and the
+  same silence, and they are opposite facts — only one of them means the picture
+  is as good as it is going to get. The placeholder says the same thing to a
+  screen reader, which was previously told nothing whatever about it.
+- A settled Identification, Site Recognition or Enrichment lane says what it came
+  to, not only how far it got: `3 files done · 1 identified, 1 unknown to prdb,
+  1 to review`. A run that came to nothing says so. Without it, an installation
+  whose matches dried up read exactly like one with nothing left to do.
+
+### Changed
+
+- A Video with no browser path names the obstacle instead of asking for a
+  conversion. A Matroska carrying H.264 and AAC is held back by its container
+  alone — every supported browser plays those streams — while an AVI carrying
+  MPEG-4 Part 2 has no codec any of them decodes, and "needs conversion" was
+  equally true and equally useless about both. The product still converts
+  nothing, which it now says once, after the file has been accounted for.
+- Containers are named as people name them — MP4, WebM, Matroska, AVI — rather
+  than as `ffprobe` lists the formats its demuxer accepts. `matroska,webm` ends
+  in the name of the container browsers do read, so a sentence explaining that
+  such a file cannot be played appeared to say the opposite.
+- A Video File the installation itself ruled out no longer says its assessment is
+  still to come: no client will ever be asked about it. Its row says it has no
+  browser path, and offers Try anyway rather than an ordinary play action.
+
+### Fixed
+
+- A lane that met an obstacle for the first time reported a clean `Completed`.
+  Only the next run — which re-observed the same obstacle — reported `Completed
+  with Issues`, so the moment the state mattered most was the moment it was
+  silent. A run now settles by what it actually observed, including what it has
+  just recorded.
+
 ## [0.18.0] - 2026-09-13
 
 The viewer answers "what do I feel like watching?" from your own history on your
