@@ -15,6 +15,12 @@ public sealed record BackgroundWorkSummary(
     // How many entries a traversal read and did not admit. It is what tells a Library Directory
     // that holds nothing apart from one that holds nothing this product knows how to read.
     int PassedOverEntryCount,
+    // What the run came to about the items it advanced, where its lane asks a question that can be
+    // answered three ways. A lane that only ever said how far it got could not be asked why it
+    // established less than the run before it.
+    int EstablishedCount,
+    int UnansweredCount,
+    int ReviewableCount,
     int IssueCount,
     // Only present when a stable denominator and a credible estimate exist. Open-ended discovery
     // reports its concrete counts and phase instead of a fabricated percentage.

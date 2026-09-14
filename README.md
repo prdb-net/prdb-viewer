@@ -955,6 +955,16 @@ trigger, state, current phase, observed counts, and the condition it is waiting
 for. A percentage appears only where a stable denominator exists; open-ended
 traversal reports concrete counts and phases instead of a fabricated estimate.
 
+A settled lane whose question can be answered more than one way says what it came
+to as well as how far it got. Identification names how many files it identified,
+how many prdb had never heard of, and how many it left as a reviewable candidate;
+Site Recognition and Enrichment do the same for their own answers, and Enrichment
+counts works rather than files because two occurrences of one Video are one
+question. A run that came to nothing says so. Without it, an installation whose
+matches dried up — because prdb started answering differently, because a
+credential was replaced, or because the files being offered changed — read
+exactly like one with nothing left to do.
+
 Routine diagnosis never requires container logs. Every obstacle is a **Work
 Issue** with a stable reference, one of the eight Work Issue Causes, a severity,
 and exactly one current Remediation Owner:

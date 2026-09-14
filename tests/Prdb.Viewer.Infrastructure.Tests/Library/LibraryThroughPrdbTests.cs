@@ -381,6 +381,88 @@ public sealed class LibraryThroughPrdbTests
                 TestContext.Current.CancellationToken));
     }
 
+    /// <summary>
+    /// What a settled Identification run came to, beside how far it got. Three files done is the
+    /// same number whether prdb identified all three, had never heard of any of them, or left all
+    /// three for a person — so an installation whose matches dried up read exactly like one with
+    /// nothing to do.
+    /// </summary>
+    [Fact]
+    public async Task A_settled_identification_run_counts_what_it_established()
+    {
+        var prdb = new FakePrdb()
+            .Recognises("known.mp4", "A Known Work", "Known Site")
+            .Recognises("guessed.mp4", "A Guessed Work", "Known Site", matchedBy: 2);
+        await using var store = await CreateAsync(prdb);
+        // `stranger.mp4` is in no catalogue, which is the answer prdb actually gives for most of a
+        // private library: it answers, and holds nothing.
+        await ScanAsync(store, "known.mp4", "guessed.mp4", "stranger.mp4");
+
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var runs = await database.BackgroundWork
+            .Where(work => work.Category == BackgroundWorkCategory.Identification)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        // The lane runs more than once as the pipeline drains, so what it came to is the sum of
+        // its runs rather than of whichever one happened to be last.
+        Assert.Equal(1, runs.Sum(run => run.EstablishedCount));
+        Assert.Equal(1, runs.Sum(run => run.ReviewableCount));
+        Assert.Equal(1, runs.Sum(run => run.UnansweredCount));
+        Assert.Equal(3, runs.Sum(run => run.CompletedItemCount));
+
+        // Every file the lane advanced is accounted for exactly once, so the outcome counts and
+        // the item count cannot drift apart into two different stories about one run.
+        Assert.Equal(
+            runs.Sum(run => run.CompletedItemCount),
+            runs.Sum(run => run.EstablishedCount + run.ReviewableCount + run.UnansweredCount));
+    }
+
+    [Fact]
+    public async Task A_settled_site_recognition_run_counts_what_the_paths_said()
+    {
+        var prdb = new FakePrdb();
+        prdb.PublishedSites.Add("Known Site");
+        await using var store = await CreateAsync(prdb);
+        await ScanAsync(
+            store,
+            Path.Combine("Known Site", "recognised.mp4"),
+            Path.Combine("Nowhere In Particular", "anonymous.mp4"));
+
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var runs = await database.BackgroundWork
+            .Where(work => work.Category == BackgroundWorkCategory.SiteRecognition)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, runs.Sum(run => run.EstablishedCount));
+        Assert.Equal(1, runs.Sum(run => run.UnansweredCount));
+        Assert.Equal(
+            runs.Sum(run => run.CompletedItemCount),
+            runs.Sum(run => run.EstablishedCount + run.ReviewableCount + run.UnansweredCount));
+    }
+
+    /// <summary>
+    /// Enrichment asks about works rather than about files, so its counts are works: two
+    /// occurrences of one Video are one question and one answer.
+    /// </summary>
+    [Fact]
+    public async Task A_settled_enrichment_run_counts_the_works_prdb_answered_for()
+    {
+        var prdb = new FakePrdb().Recognises("known.mp4", "A Known Work", "Known Site");
+        await using var store = await CreateAsync(prdb);
+        await ScanAsync(store, "known.mp4");
+
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var runs = await database.BackgroundWork
+            .Where(work => work.Category == BackgroundWorkCategory.Enrichment)
+            .ToListAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, runs.Sum(run => run.EstablishedCount));
+        Assert.Equal(0, runs.Sum(run => run.UnansweredCount));
+    }
+
     private static Task<TestDatabase> CreateAsync(FakePrdb prdb) =>
         TestDatabase.CreateAsync(
             mediaProbe: new FixtureProbe(),

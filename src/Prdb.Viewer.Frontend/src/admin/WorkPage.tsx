@@ -65,9 +65,70 @@ function progress(work: BackgroundWorkSummary) {
   }
 
   if (found === 0) return settled ? 'nothing to do' : 'nothing to do yet'
+  // While a lane is in flight, how far it has got is the useful fact. What it came to is the
+  // question a settled run is asked, and only then.
   if (!settled) return `${done} of ${files(found)}`
 
-  return done >= found ? `${files(found)} done` : `${done} of ${files(found)} done`
+  const reached = outcome(work)
+  const account = done >= found ? `${files(found)} done` : `${done} of ${files(found)} done`
+
+  return reached ? `${account} · ${reached}` : account
+}
+
+/// What a settled run came to, for the lanes whose question can be answered more than one way.
+///
+/// `3 files done` was the whole account an Identification lane gave of itself, and three files
+/// identified, three prdb had never heard of and three left for a person to settle are the same
+/// three files done. An installation whose matches dried up therefore looked exactly like one with
+/// nothing left to do.
+function outcome(work: BackgroundWorkSummary) {
+  const words = outcomeWords[work.category]
+  if (!words) return null
+
+  const counts: [number, string][] = [
+    [Number(work.establishedCount ?? 0), words.established],
+    [Number(work.unansweredCount ?? 0), words.unanswered],
+    [Number(work.reviewableCount ?? 0), words.reviewable],
+  ]
+  const said = counts.filter(([count]) => count > 0)
+
+  if (said.length > 0) return said.map(([count, word]) => `${count} ${word}`).join(', ')
+
+  // A run that advanced items and came to nothing says so, rather than leaving the reader to
+  // infer it from an absence. One that advanced none has nothing to account for, and the count
+  // beside it already says as much.
+  return Number(work.completedItemCount) > 0 ? words.nothing : null
+}
+
+/// The words each lane has for its own three answers. Identification asks prdb what a file is,
+/// Site Recognition reads a path against the Site Directory, and Enrichment asks prdb again about
+/// works that are already established; none of the three settles the same question.
+const outcomeWords: Record<string, {
+  established: string
+  unanswered: string
+  reviewable: string
+  nothing: string
+} | undefined> = {
+  Identification: {
+    established: 'identified',
+    unanswered: 'unknown to prdb',
+    reviewable: 'to review',
+    nothing: 'nothing identified',
+  },
+  SiteRecognition: {
+    established: 'recognised',
+    unanswered: 'with no site in the path',
+    reviewable: 'to review',
+    nothing: 'no site recognised',
+  },
+  // Enrichment asks about works rather than about files — several occurrences of one Video are
+  // one question — so its words say works, and the count beside them is not the file count.
+  Enrichment: {
+    established: 'works enriched',
+    unanswered: 'works prdb did not answer for',
+    reviewable: 'to review',
+    nothing: 'nothing enriched',
+  },
 }
 
 function files(count: number) {

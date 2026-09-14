@@ -149,6 +149,29 @@ public abstract class VideoFileWorkRunner(
             ? BackgroundWorkState.CompletedWithIssues
             : BackgroundWorkState.Completed;
 
+    /// <summary>
+    /// Records what this run came to about one thing it asked about. It is kept beside the item
+    /// count rather than derived afterwards, because the same three files done can be three
+    /// identifications, three answers prdb had none of, or three questions left for a person.
+    /// </summary>
+    protected static void Count(BackgroundWorkRow work, WorkOutcome outcome)
+    {
+        switch (outcome)
+        {
+            case WorkOutcome.Established:
+                work.EstablishedCount++;
+                break;
+
+            case WorkOutcome.Reviewable:
+                work.ReviewableCount++;
+                break;
+
+            default:
+                work.UnansweredCount++;
+                break;
+        }
+    }
+
     protected Task ReportAsync(
         BackgroundWorkRow work,
         WorkIssueReport report,

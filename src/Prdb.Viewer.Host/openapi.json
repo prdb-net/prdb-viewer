@@ -2948,6 +2948,9 @@
           "discoveredCandidateCount",
           "completedItemCount",
           "passedOverEntryCount",
+          "establishedCount",
+          "unansweredCount",
+          "reviewableCount",
           "issueCount",
           "completedPercent",
           "waitingReason",
@@ -3001,6 +3004,30 @@
             "format": "int32"
           },
           "passedOverEntryCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "establishedCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "unansweredCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "reviewableCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",

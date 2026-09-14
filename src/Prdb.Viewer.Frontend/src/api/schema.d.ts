@@ -2701,6 +2701,12 @@ export interface components {
             /** Format: int32 */
             passedOverEntryCount: number | string;
             /** Format: int32 */
+            establishedCount: number | string;
+            /** Format: int32 */
+            unansweredCount: number | string;
+            /** Format: int32 */
+            reviewableCount: number | string;
+            /** Format: int32 */
             issueCount: number | string;
             /** Format: int32 */
             completedPercent: null | number | string;

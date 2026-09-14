@@ -65,6 +65,16 @@ public sealed class BackgroundWorkRow
 
     public int CompletedItemCount { get; set; }
 
+    /// <summary>
+    /// What this run came to, beside how far it got. A lane that says only `3 files done` cannot
+    /// be asked why it established less than the run before it; these are the counts that answer.
+    /// </summary>
+    public int EstablishedCount { get; set; }
+
+    public int UnansweredCount { get; set; }
+
+    public int ReviewableCount { get; set; }
+
     public int IssueCount { get; set; }
 
     /// <summary>
