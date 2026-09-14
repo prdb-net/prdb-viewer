@@ -128,9 +128,12 @@ public sealed class EnrichmentRunner(
             return;
         }
 
+        // Held onto, because what this slice asked about is not the whole of what it wants, and
+        // only what it asked about can be counted as answered or not.
+        var asking = wanted.Keys.Take(client.BatchLimit).ToArray();
         var result = await client.FetchAsync(
             configuration.ActivePrdbCredential,
-            wanted.Keys.Take(client.BatchLimit).ToArray(),
+            asking,
             cancellationToken);
 
         switch (result.Status)
@@ -180,8 +183,18 @@ public sealed class EnrichmentRunner(
             foreach (var videoId in videos)
             {
                 await identification.RefreshRetainedWorkAsync(videoId, fresh, cancellationToken);
+                Count(work, WorkOutcome.Established);
             }
         }
+
+        // A work prdb answered nothing about is what a run that enriched less than the last one
+        // is made of, so it is counted rather than left as the difference between two numbers
+        // nobody has.
+        var answered = result.Works.Select(fresh => fresh.PrdbVideoId).ToHashSet(
+            StringComparer.OrdinalIgnoreCase);
+        work.UnansweredCount += asking
+            .Where(key => !answered.Contains(key))
+            .Sum(key => wanted[key].Count);
 
         // A work prdb no longer answers for is asked about again at the next horizon, not on the
         // next slice. Without this the lane would offer the same unanswered work forever and

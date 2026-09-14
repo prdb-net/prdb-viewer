@@ -61,6 +61,54 @@ public sealed record MediaConfiguration(
         AudioCodec is null or "vorbis" or "opus";
 
     /// <summary>
+    /// The container as a person names it.
+    ///
+    /// <see cref="ContainerFormat"/> is the demuxer's own list — `matroska,webm` and
+    /// `mov,mp4,m4a,3gp,3g2,mj2` — which is a fact about `ffprobe` rather than about the file, and
+    /// a screen that prints it teaches a second vocabulary for one thing. Worse, the Matroska list
+    /// ends in the name of the container browsers do read, so a sentence explaining that a
+    /// `matroska,webm` file cannot be played appears to say the opposite of what it means.
+    /// </summary>
+    public string ContainerName
+    {
+        get
+        {
+            if (IsMp4)
+            {
+                return "MP4";
+            }
+
+            if (IsMatroskaFamily)
+            {
+                return IsConformingWebm ? "WebM" : "Matroska";
+            }
+
+            foreach (var format in Formats)
+            {
+                if (Names.TryGetValue(format, out var name))
+                {
+                    return name;
+                }
+            }
+
+            // A container nothing here has a name for is better named by the inspector's own word
+            // than by a guess, and this is the only place that word is allowed to reach a reader.
+            return Formats.Count > 0 ? Formats[0] : ContainerFormat;
+        }
+    }
+
+    private static readonly Dictionary<string, string> Names = new(StringComparer.Ordinal)
+    {
+        ["avi"] = "AVI",
+        ["asf"] = "Windows Media",
+        ["flv"] = "Flash Video",
+        ["mpeg"] = "MPEG program stream",
+        ["mpegts"] = "MPEG transport stream",
+        ["ogg"] = "Ogg",
+        ["rm"] = "RealMedia",
+    };
+
+    /// <summary>
     /// A stable, human-readable name for everything a client's decision depends on. Two Video
     /// Files that share it are the same question for a client, so one answer covers both and a
     /// library of thousands of files asks a handful of questions.

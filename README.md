@@ -469,6 +469,17 @@ resumes rather than skipped. A due Scan never competes with one already
 running, and `Scan now` remains the answer for the file that cannot wait out
 the period.
 
+A traversal that admits nothing says why rather than leaving it at `no files
+found`. A directory whose files the recognised-extension policy passes over
+raises an issue naming how many entries were walked, which extensions led among
+them, and the extensions the product does admit — which is the whole answer to a
+library of `.flv` or of half-finished downloads. A directory the scan read in
+full and found nothing whatever in raises a different one, because that is a
+question about the mount rather than about the files. Either closes by itself as
+soon as a scan admits one candidate, and the lane's own line carries the count of
+what it walked past. A cover image or an `.nfo` beside a film changes nothing:
+only a scan that admitted nothing at all has anything to explain.
+
 Recognised regular files are hashed and inspected with `ffprobe`. Technical
 facts are committed only if the file remains unchanged throughout inspection.
 A stable content identity preserves a Video File across a rename, while a
@@ -529,6 +540,17 @@ Directly Playable **for one Account on one browser**. Ready Videos get the
 ordinary Play action; uncertain ones get a labelled Try Direct Play with the
 reason; the rest keep their variant details and an explicit Try Anyway. See
 [ADR 0015](docs/adr/0015-decide-playability-per-account-and-client.md).
+
+A Video with no browser path says which part of the file has none, because the
+container and the codecs are different problems with different answers. A
+Matroska carrying H.264 and AAC is held back by its container alone — every
+supported browser plays those streams — while an AVI carrying MPEG-4 Part 2 has
+no codec any of them decodes, and "needs conversion" was equally true and equally
+useless about both. Containers are named as people name them, never as the
+inspector lists its demuxers, and a file the installation itself ruled out says
+so rather than claiming an assessment is still to come: no client will ever be
+asked about it. The product still converts nothing, which it says once, after the
+file has been accounted for.
 
 One deliberate play action tries each Available occurrence at most once, in the
 order the evidence dictates: what already played here, then what this browser
@@ -855,7 +877,12 @@ on their own durable schedule and never write beneath a Library Directory:
 2. **Preview generation** writes one still frame per Video File with `ffmpeg`
    into the application's own data directory. Previews are regenerable
    artefacts rather than identity, and a failed one is a visible Work Issue that
-   the next Library Scan retries.
+   the next Library Scan retries. A Video shown with a placeholder says which
+   kind of missing its picture is — still to be generated, attempted and
+   produced no frame, or unreachable while its files cannot be read — because
+   those are opposite facts behind one neutral placeholder, and only one of them
+   means the picture is as good as it is going to get. The placeholder says the
+   same thing to a screen reader, and playback never depends on it.
 3. **Identification** offers hashed files to the documented public prdb API in
    bounded batches through `Prdb.Sdk`. A missing credential, a refused key, or
    an outage leaves the lane visibly waiting with the condition it needs;
@@ -927,6 +954,16 @@ Administrator with its
 trigger, state, current phase, observed counts, and the condition it is waiting
 for. A percentage appears only where a stable denominator exists; open-ended
 traversal reports concrete counts and phases instead of a fabricated estimate.
+
+A settled lane whose question can be answered more than one way says what it came
+to as well as how far it got. Identification names how many files it identified,
+how many prdb had never heard of, and how many it left as a reviewable candidate;
+Site Recognition and Enrichment do the same for their own answers, and Enrichment
+counts works rather than files because two occurrences of one Video are one
+question. A run that came to nothing says so. Without it, an installation whose
+matches dried up — because prdb started answering differently, because a
+credential was replaced, or because the files being offered changed — read
+exactly like one with nothing left to do.
 
 Routine diagnosis never requires container logs. Every obstacle is a **Work
 Issue** with a stable reference, one of the eight Work Issue Causes, a severity,

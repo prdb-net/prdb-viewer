@@ -1,4 +1,5 @@
 import type { VideoSummary } from '../api/client'
+import { missingPreviewLabel, missingPreviewReason } from '../lib/format'
 import {
   formatRuntime,
   highFrameRateLabel,
@@ -24,9 +25,13 @@ export function VideoArt({ video, large = false }: { video: VideoSummary, large?
           />
           )
         : (
+          // A placeholder marked `aria-hidden` told a screen reader nothing at all, where a
+          // sighted reader at least saw that there was no picture. It is a picture of the missing
+          // picture, so it is announced as one and says which kind of missing it is.
           <div
             className={large ? 'video-placeholder large' : 'video-placeholder'}
-            aria-hidden="true"
+            role="img"
+            aria-label={missingPreviewLabel(video.previewState)}
           >▶</div>
           )}
       {!large && <RuntimeOverlay video={video} />}
@@ -34,6 +39,16 @@ export function VideoArt({ video, large = false }: { video: VideoSummary, large?
       <ProgressOverlay video={video} />
     </div>
   )
+}
+
+/// Why this Video has no picture, beneath the place the picture would have been.
+///
+/// Only where a page has room for a sentence: a grid of cards is not where a paragraph belongs,
+/// and their placeholders carry the same fact as their label instead.
+export function MissingPreviewNote({ video }: { video: VideoSummary }) {
+  const reason = video.previewUrl ? undefined : missingPreviewReason(video.previewState)
+
+  return reason ? <p className="missing-preview">{reason}</p> : null
 }
 
 /// How long the Video runs, in the corner of the picture where a runtime is looked for.

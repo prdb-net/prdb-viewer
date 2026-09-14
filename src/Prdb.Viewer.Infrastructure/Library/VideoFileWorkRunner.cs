@@ -139,18 +139,38 @@ public abstract class VideoFileWorkRunner(
     /// <summary>
     /// A settled run reports Completed only when this Library Directory carries no unresolved
     /// obstacle of its own category, so an item that is still explained does not vanish behind a
-    /// clean-looking outcome.
+    /// clean-looking outcome. What this slice has recorded and not yet committed counts as well,
+    /// so a lane that records and settles in one slice reports what it found the first time.
     /// </summary>
     private async Task<BackgroundWorkState> SettledStateAsync(
         BackgroundWorkRow work,
         CancellationToken cancellationToken) =>
-        await Database.WorkIssues.AnyAsync(
-            issue => issue.LibraryDirectoryId == work.LibraryDirectoryId &&
-                     issue.Category == Category &&
-                     issue.ResolvedAt == null,
-            cancellationToken)
+        await Issues.HasUnresolvedAsync(work.LibraryDirectoryId, Category, cancellationToken)
             ? BackgroundWorkState.CompletedWithIssues
             : BackgroundWorkState.Completed;
+
+    /// <summary>
+    /// Records what this run came to about one thing it asked about. It is kept beside the item
+    /// count rather than derived afterwards, because the same three files done can be three
+    /// identifications, three answers prdb had none of, or three questions left for a person.
+    /// </summary>
+    protected static void Count(BackgroundWorkRow work, WorkOutcome outcome)
+    {
+        switch (outcome)
+        {
+            case WorkOutcome.Established:
+                work.EstablishedCount++;
+                break;
+
+            case WorkOutcome.Reviewable:
+                work.ReviewableCount++;
+                break;
+
+            default:
+                work.UnansweredCount++;
+                break;
+        }
+    }
 
     protected Task ReportAsync(
         BackgroundWorkRow work,

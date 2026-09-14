@@ -14,6 +14,8 @@ public sealed record PlaybackVariantView(
     Guid VideoFileId,
     string DeliveryUrl,
     string ContainerFormat,
+    /// <summary>The container as a person names it, rather than as the inspector lists it.</summary>
+    string ContainerName,
     string VideoCodec,
     string? AudioCodec,
     int? Width,
@@ -29,6 +31,8 @@ public sealed record PlaybackVariantView(
     /// names the band the Library filtered by rather than deriving a second one.</summary>
     VideoQualityBand QualityBand,
     DirectPlayClassification DirectPlayClassification,
+    /// <summary>Which part of the configuration has no browser path, where one has none.</summary>
+    DirectPlayObstacle DirectPlayObstacle,
     string ProfileKey,
     /// <summary>The full RFC 6381 type a client measures with Media Capabilities, when the
     /// inspected facts determine every part of it.</summary>
@@ -220,6 +224,7 @@ public sealed class PlaybackPlanner(ViewerDbContext database)
             file.Id,
             $"/media/videos/{file.PublicDeliveryId}",
             file.ContainerFormat,
+            media.ContainerName,
             file.VideoCodec,
             file.AudioCodec,
             file.Width,
@@ -233,6 +238,7 @@ public sealed class PlaybackPlanner(ViewerDbContext database)
             file.DurationMilliseconds,
             media.QualityBand,
             file.DirectPlayClassification,
+            DirectPlayObstacleRule.For(media, file.DirectPlayClassification),
             file.ProfileKey,
             PlaybackProfileRule.PreciseVideoContentType(media),
             PlaybackProfileRule.PreciseAudioContentType(media),

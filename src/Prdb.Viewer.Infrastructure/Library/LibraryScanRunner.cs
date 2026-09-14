@@ -17,6 +17,9 @@ public sealed class LibraryScanRunner(
 {
     private const int DirectoriesPerSlice = 8;
 
+    /// <summary>How many distinct extensions a traversal carries between its slices.</summary>
+    private const int CarriedExtensions = 50;
+
     public async Task<bool> RunNextSliceAsync(CancellationToken cancellationToken = default)
     {
         if (await BackgroundWorkGate.IsPausedAsync(database, cancellationToken))
@@ -68,16 +71,20 @@ public sealed class LibraryScanRunner(
         work.UpdatedAt = now;
         var pending = Deserialize(work.PendingDirectoriesJson);
         var reports = new List<WorkIssueReport>();
+        // Carried across the slices of one traversal, because a scan of eight directories at a
+        // time still has to answer for the whole walk when it settles.
+        var passedOver = DeserializeCounts(work.PassedOverExtensionsJson);
         var processed = 0;
 
         while (pending.Count > 0 && processed++ < DirectoriesPerSlice)
         {
             var relativeDirectory = pending[0];
             pending.RemoveAt(0);
-            ScanDirectory(work, relativeDirectory, pending, reports);
+            ScanDirectory(work, relativeDirectory, pending, reports, passedOver);
         }
 
         work.PendingDirectoriesJson = JsonSerializer.Serialize(pending);
+        work.PassedOverExtensionsJson = SerializeCounts(passedOver);
 
         // A traversal has no step between finding a candidate and being done with it: the candidate
         // row is written as it is found. Counted before the slice rather than after it, the tally
@@ -105,7 +112,8 @@ public sealed class LibraryScanRunner(
         BackgroundWorkRow work,
         string relativeDirectory,
         List<string> pending,
-        List<WorkIssueReport> reports)
+        List<WorkIssueReport> reports,
+        Dictionary<string, int> passedOver)
     {
         var root = Path.TrimEndingDirectorySeparator(work.LibraryDirectory.ContainerPath);
         string path;
@@ -184,6 +192,12 @@ public sealed class LibraryScanRunner(
 
                 if (!VideoFileCandidatePolicy.Recognizes(Path.GetExtension(entry)))
                 {
+                    // Walked past, and counted rather than forgotten. A library of `.flv` beside a
+                    // library that is empty produced the same `no files found` and the same
+                    // silence, and the two are not the same question.
+                    work.SkippedItemCount++;
+                    var heading = PassedOverEntries.Heading(Path.GetExtension(entry));
+                    passedOver[heading] = passedOver.GetValueOrDefault(heading) + 1;
                     continue;
                 }
 
@@ -282,6 +296,72 @@ public sealed class LibraryScanRunner(
             ContainerPath = containerPath,
         };
 
+    /// <summary>
+    /// Says why a complete traversal admitted nothing, and takes the saying back once one admits
+    /// something. Only a traversal that saw the whole Library Directory answers here: where part of
+    /// it could not be read, the obstacle already has an issue of its own that explains the
+    /// emptiness better than any count of what the readable part held.
+    /// </summary>
+    private async Task AccountForAnEmptyWalkAsync(
+        BackgroundWorkRow work,
+        CancellationToken cancellationToken)
+    {
+        if (work.DiscoveredCandidateCount > 0)
+        {
+            await issues.ResolveAsync(
+                work.LibraryDirectoryId,
+                BackgroundWorkCategory.LibraryScan,
+                WorkIssueCause.Configuration,
+                "A Library Scan admitted a Video File Candidate from this Library Directory.",
+                cancellationToken);
+            return;
+        }
+
+        var name = work.LibraryDirectory.Name;
+        var walked = work.SkippedItemCount;
+        var leading = PassedOverEntries.Describe(DeserializeCounts(work.PassedOverExtensionsJson));
+
+        await issues.RecordAsync(
+            work,
+            new WorkIssueReport(
+                WorkIssueCause.Configuration,
+                WorkIssueSeverity.OperationalBlocker,
+                WorkIssueRetryDisposition.NoAutomaticRetry,
+                name,
+                $"{name}:empty",
+                BackgroundWorkPhases.Traversing,
+                walked > 0
+                    ? WorkIssueMessages.NothingRecognisedIn(name)
+                    : WorkIssueMessages.NothingIn(name),
+                walked > 0
+                    ? $"The Library Scan read the whole directory and walked past all " +
+                      $"{Files(walked)} of it, because no extension among them is one the " +
+                      $"product admits to inspection. The commonest were {leading}. The " +
+                      $"extensions it does admit are {VideoFileCandidatePolicy.Recognised}."
+                    : "The Library Scan read the whole directory and found no file at all in " +
+                      "it. A directory that holds files on the host and none in the container is " +
+                      "usually a mount pointed somewhere else.",
+                "No Video is discovered from this Library Directory, and every lane after the " +
+                "scan has nothing to advance.",
+                walked > 0
+                    ? "Check that this is the directory you meant, and convert or rename the " +
+                      "files whose extension the product does not admit. Then use Check again."
+                    : "Check that the Library Directory points at the mounted library, and that " +
+                      "the mount carries the files. Then use Check again.",
+                walked > 0
+                    ? $"A complete traversal admitted none of the {Files(walked)} it read."
+                    : "A complete traversal found nothing beneath the configured path.",
+                "A Library Scan that admits at least one Video File Candidate from this Library " +
+                "Directory.")
+            {
+                ContainerPath = work.LibraryDirectory.ContainerPath,
+                AggregatesItems = false,
+            },
+            cancellationToken);
+    }
+
+    private static string Files(int count) => count == 1 ? "1 file" : $"{count} files";
+
     /// <summary>The access class an operator may see, never a stack trace or host path.</summary>
     private static string SafeAccessCause(Exception exception) => exception switch
     {
@@ -323,13 +403,16 @@ public sealed class LibraryScanRunner(
                 WorkIssueCause.SourceAccess,
                 "A Library Scan completed its traversal of the whole Library Directory.",
                 cancellationToken);
+            await AccountForAnEmptyWalkAsync(work, cancellationToken);
         }
 
         var now = Now();
-        var unresolved = await database.WorkIssues.AnyAsync(
-            issue => issue.LibraryDirectoryId == work.LibraryDirectoryId &&
-                     issue.Category == BackgroundWorkCategory.LibraryScan &&
-                     issue.ResolvedAt == null,
+        // Including what this slice has just recorded: a traversal that met an obstacle for the
+        // first time records it and settles in the same slice, and asking the database alone would
+        // let that run report a clean Completed while owning the obstacle it had only just found.
+        var unresolved = await issues.HasUnresolvedAsync(
+            work.LibraryDirectoryId,
+            BackgroundWorkCategory.LibraryScan,
             cancellationToken);
         work.State = unresolved
             ? BackgroundWorkState.CompletedWithIssues
@@ -384,6 +467,24 @@ public sealed class LibraryScanRunner(
 
     private static List<string> Deserialize(string? json) =>
         JsonSerializer.Deserialize<List<string>>(json ?? "[]") ?? [];
+
+    private static Dictionary<string, int> DeserializeCounts(string? json) =>
+        JsonSerializer.Deserialize<Dictionary<string, int>>(json ?? "{}") ?? [];
+
+    /// <summary>
+    /// Bounds what is carried between slices. Only a handful of extensions is ever read from it,
+    /// and keeping the largest of a generous number means the leaders of a long walk survive the
+    /// slices without the map growing with the library. The total count is exact regardless: it is
+    /// kept separately, and nothing folded away here is lost from it.
+    /// </summary>
+    private static string? SerializeCounts(Dictionary<string, int> counts) =>
+        counts.Count == 0
+            ? null
+            : JsonSerializer.Serialize(counts
+                .OrderByDescending(entry => entry.Value)
+                .ThenBy(entry => entry.Key, StringComparer.Ordinal)
+                .Take(CarriedExtensions)
+                .ToDictionary(entry => entry.Key, entry => entry.Value));
 
     private static string ToStoredPath(string path) => path.Replace('\\', '/');
 

@@ -98,10 +98,12 @@ public sealed class SiteRecognitionRunner(
 
         foreach (var file in files)
         {
-            await identification.ApplyLocalSiteRecognitionAsync(
-                file.Id,
-                vocabulary.Recognise(file.RelativePath),
-                cancellationToken);
+            Count(
+                work,
+                await identification.ApplyLocalSiteRecognitionAsync(
+                    file.Id,
+                    vocabulary.Recognise(file.RelativePath),
+                    cancellationToken));
         }
 
         work.CompletedItemCount += files.Count;

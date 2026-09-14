@@ -2699,6 +2699,14 @@ export interface components {
             /** Format: int32 */
             completedItemCount: number | string;
             /** Format: int32 */
+            passedOverEntryCount: number | string;
+            /** Format: int32 */
+            establishedCount: number | string;
+            /** Format: int32 */
+            unansweredCount: number | string;
+            /** Format: int32 */
+            reviewableCount: number | string;
+            /** Format: int32 */
             issueCount: number | string;
             /** Format: int32 */
             completedPercent: null | number | string;
@@ -2750,6 +2758,8 @@ export interface components {
         ClientVideoPlayability: "ReadyForDirectPlay" | "CompatibilityUncertain" | "NotDirectlyPlayable";
         /** @enum {unknown} */
         DirectPlayClassification: "BaselineCandidate" | "ClientDependent" | "Unsupported" | "Undetermined";
+        /** @enum {unknown} */
+        DirectPlayObstacle: "None" | "Container" | "Codecs" | "ContainerAndCodecs" | "Undetermined";
         DismissalResult: {
             dismissed: boolean;
         };
@@ -2835,7 +2845,7 @@ export interface components {
             relativePath: string;
             availability: components["schemas"]["VideoFileAvailability"];
             directPlayClassification: components["schemas"]["DirectPlayClassification"];
-            containerFormat: string;
+            containerName: string;
             videoCodec: string;
             audioCodec: null | string;
             /** Format: int64 */
@@ -3282,6 +3292,7 @@ export interface components {
             videoFileId: string;
             deliveryUrl: string;
             containerFormat: string;
+            containerName: string;
             videoCodec: string;
             audioCodec: null | string;
             /** Format: int32 */
@@ -3304,6 +3315,7 @@ export interface components {
             durationMilliseconds: number | string;
             qualityBand: components["schemas"]["VideoQualityBand"];
             directPlayClassification: components["schemas"]["DirectPlayClassification"];
+            directPlayObstacle: components["schemas"]["DirectPlayObstacle"];
             profileKey: string;
             preciseVideoContentType: null | string;
             preciseAudioContentType: null | string;
@@ -3454,7 +3466,7 @@ export interface components {
             audioBitrate: null | number | string;
         };
         /** @enum {unknown} */
-        VariantSelectionReason: "PreviouslyPlayedHere" | "PositivelyAssessedAndSmooth" | "PositivelyAssessed" | "BaselineCandidate" | "NotYetAssessed" | "RuledOutHere";
+        VariantSelectionReason: "PreviouslyPlayedHere" | "PositivelyAssessedAndSmooth" | "PositivelyAssessed" | "BaselineCandidate" | "NotYetAssessed" | "NoBrowserPath" | "RuledOutHere";
         /** @enum {unknown} */
         VideoAvailability: "Available" | "Unavailable" | "Removed";
         VideoDetail: {
@@ -3469,6 +3481,8 @@ export interface components {
         /** @enum {unknown} */
         VideoFileHashState: "Pending" | "Computed" | "Incomplete" | "Failed";
         /** @enum {unknown} */
+        VideoPreviewState: "Present" | "Pending" | "NoFrame" | "Unreachable";
+        /** @enum {unknown} */
         VideoQualityBand: "Unknown" | "StandardDefinition" | "Hd720" | "FullHd1080" | "Qhd1440" | "Uhd2160" | "Uhd4320";
         VideoSummary: {
             /** Format: uuid */
@@ -3478,6 +3492,7 @@ export interface components {
             discoveryDate: string;
             availability: components["schemas"]["VideoAvailability"];
             previewUrl: null | string;
+            previewState: components["schemas"]["VideoPreviewState"];
             identification: components["schemas"]["IdentificationSummary"];
             playability: components["schemas"]["ClientVideoPlayability"];
             isUnsupportedVideo: boolean;

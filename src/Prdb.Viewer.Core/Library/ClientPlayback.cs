@@ -122,6 +122,13 @@ public enum VariantSelectionReason
     /// <summary>No client evidence either way; an attempt is still plausible.</summary>
     NotYetAssessed,
 
+    /// <summary>
+    /// The installation settled this from the file's own bytes: it has no direct-play path at all,
+    /// so no client will ever be asked about it. It is not the same as having no answer yet, and
+    /// saying so promised an assessment that was never coming.
+    /// </summary>
+    NoBrowserPath,
+
     /// <summary>This client has ruled the file out, so it is offered only if asked for explicitly.</summary>
     RuledOutHere,
 }
@@ -191,6 +198,14 @@ public static class VariantSelectionRule
             return VariantSelectionReason.PreviouslyPlayedHere;
         }
 
+        // Below a confirmed success, because a file that actually played here is the one fact that
+        // is not a prediction, and above everything else, because nothing a client might say later
+        // can change what the installation already read out of the file.
+        if (evidence.Classification == DirectPlayClassification.Unsupported)
+        {
+            return VariantSelectionReason.NoBrowserPath;
+        }
+
         if (evidence.Assessment == ClientPlaybackAssessmentVerdict.Positive)
         {
             return evidence.Smooth == true
@@ -212,6 +227,8 @@ public static class VariantSelectionRule
             VariantSelectionReason.PositivelyAssessed => 3,
             VariantSelectionReason.BaselineCandidate => 4,
             VariantSelectionReason.NotYetAssessed => 5,
+            // A file with no browser path and a file this client ruled out are both last: neither
+            // is a reasonable thing to reach for, and either is still there to be asked for.
             _ => 6,
         };
 }

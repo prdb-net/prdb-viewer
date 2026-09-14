@@ -197,7 +197,9 @@ public sealed class IdentificationRunner(
 
         foreach (var identified in result.Results)
         {
-            await identification.ApplyRemoteIdentificationAsync(identified, cancellationToken);
+            Count(
+                work,
+                await identification.ApplyRemoteIdentificationAsync(identified, cancellationToken));
 
             // What prdb has just established about this file is worth offering to the files of
             // this library that look like it — which is most of the value of having compared them.
@@ -221,6 +223,10 @@ public sealed class IdentificationRunner(
 
         if (unanswered.Length > 0)
         {
+            // A file prdb did not answer about at all is as much a part of what this run came to
+            // as one it did: a run whose matches dried up looks exactly like one with nothing to
+            // do until the difference is counted.
+            work.UnansweredCount += unanswered.Length;
             var now = Now();
             await Database.VideoFiles
                 .Where(file => unanswered.Contains(file.Id))

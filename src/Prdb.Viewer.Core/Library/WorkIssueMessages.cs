@@ -17,6 +17,11 @@ public static class WorkIssueMessages
     public static string PartOfDirectoryCannotBeScanned(string name) =>
         $"Part of “{name}” could not be scanned";
 
+    public static string NothingRecognisedIn(string name) =>
+        $"Nothing in “{name}” is a recognised video file";
+
+    public static string NothingIn(string name) => $"“{name}” holds no files";
+
     public static string FileIsStillChanging(string file) => $"“{file}” is still changing";
 
     public static string CannotInspect(string file) => $"Cannot inspect “{file}”";

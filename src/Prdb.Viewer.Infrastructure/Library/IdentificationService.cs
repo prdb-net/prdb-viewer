@@ -31,7 +31,7 @@ public sealed class IdentificationService(
     /// <summary>How a locally recognised Site was matched, as the review surfaces name it.</summary>
     public const string LocalSiteMatchedBy = "the file's own path";
 
-    public async Task ApplyRemoteIdentificationAsync(
+    public async Task<WorkOutcome> ApplyRemoteIdentificationAsync(
         RemoteIdentification result,
         CancellationToken cancellationToken = default)
     {
@@ -42,7 +42,7 @@ public sealed class IdentificationService(
 
         if (file is null)
         {
-            return;
+            return WorkOutcome.Unanswered;
         }
 
         var video = await LoadAsync(file.VideoId, cancellationToken);
@@ -52,6 +52,17 @@ public sealed class IdentificationService(
             result.Confidence,
             result.PrdbVideoId is not null,
             result.Candidates.Count);
+
+        // What this file came to, taken from the branch that is about to run rather than read back
+        // off the claim afterwards: a Video already carrying an Established Work Identification
+        // would make every answer look like an establishment this run had made.
+        var outcome = workEvidence switch
+        {
+            IdentificationEvidenceClass.Conclusive when result.PrdbVideoId is not null =>
+                WorkOutcome.Established,
+            IdentificationEvidenceClass.Suggestive => WorkOutcome.Reviewable,
+            _ => WorkOutcome.Unanswered,
+        };
 
         if (workEvidence == IdentificationEvidenceClass.Conclusive && result.PrdbVideoId is not null)
         {
@@ -112,6 +123,7 @@ public sealed class IdentificationService(
         await projection.RefreshTrackedAsync(cancellationToken);
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        return outcome;
     }
 
     /// <summary>
@@ -120,7 +132,7 @@ public sealed class IdentificationService(
     /// Recognition; an ambiguous or weak reading only proposes. Neither replaces an Established
     /// claim, so a prdb-established Site keeps its place and a disagreement goes to review.
     /// </summary>
-    public async Task ApplyLocalSiteRecognitionAsync(
+    public async Task<WorkOutcome> ApplyLocalSiteRecognitionAsync(
         Guid videoFileId,
         LocalSiteRecognition recognition,
         CancellationToken cancellationToken = default)
@@ -132,10 +144,16 @@ public sealed class IdentificationService(
 
         if (file is null)
         {
-            return;
+            return WorkOutcome.Unanswered;
         }
 
         var video = await LoadAsync(file.VideoId, cancellationToken);
+        var outcome = recognition.Evidence switch
+        {
+            IdentificationEvidenceClass.Conclusive => WorkOutcome.Established,
+            IdentificationEvidenceClass.Suggestive => WorkOutcome.Reviewable,
+            _ => WorkOutcome.Unanswered,
+        };
 
         switch (recognition.Evidence)
         {
@@ -182,6 +200,7 @@ public sealed class IdentificationService(
         await projection.RefreshTrackedAsync(cancellationToken);
         await database.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+        return outcome;
     }
 
     /// <summary>

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Prdb.Viewer.Infrastructure.Persistence;
 
@@ -10,9 +11,11 @@ using Prdb.Viewer.Infrastructure.Persistence;
 namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(ViewerDbContext))]
-    partial class ViewerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260914063656_AccountForWhatAScanWalkedPast")]
+    partial class AccountForWhatAScanWalkedPast
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.10");
@@ -270,9 +273,6 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<int>("DiscoveredCandidateCount")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("EstablishedCount")
-                        .HasColumnType("INTEGER");
-
                     b.Property<DateTime?>("FinishedAt")
                         .HasColumnType("TEXT");
 
@@ -307,9 +307,6 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("RequestedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("ReviewableCount")
-                        .HasColumnType("INTEGER");
-
                     b.Property<int>("SkippedItemCount")
                         .HasColumnType("INTEGER");
 
@@ -326,9 +323,6 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("Trigger")
                         .IsRequired()
                         .HasColumnType("TEXT");
-
-                    b.Property<int>("UnansweredCount")
-                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");

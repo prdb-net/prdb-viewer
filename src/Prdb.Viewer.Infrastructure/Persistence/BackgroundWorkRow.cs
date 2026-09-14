@@ -45,13 +45,35 @@ public sealed class BackgroundWorkRow
     /// </summary>
     public BackgroundWorkState? StateBeforePause { get; set; }
 
+    /// <summary>
+    /// How many entries a traversal walked past without admitting them, because their extension is
+    /// not one the candidate policy recognises. It is what separates a Library Directory holding
+    /// nothing from one holding nothing this product knows how to read.
+    /// </summary>
     public int SkippedItemCount { get; set; }
+
+    /// <summary>
+    /// The extensions among those entries and how many carried each, kept as a small map so a
+    /// scan that found nothing can say what it did see. It is a diagnostic rather than an index:
+    /// only the leading few are ever read from it.
+    /// </summary>
+    public string? PassedOverExtensionsJson { get; set; }
 
     public DateTime? LastActivityAt { get; set; }
 
     public int DiscoveredCandidateCount { get; set; }
 
     public int CompletedItemCount { get; set; }
+
+    /// <summary>
+    /// What this run came to, beside how far it got. A lane that says only `3 files done` cannot
+    /// be asked why it established less than the run before it; these are the counts that answer.
+    /// </summary>
+    public int EstablishedCount { get; set; }
+
+    public int UnansweredCount { get; set; }
+
+    public int ReviewableCount { get; set; }
 
     public int IssueCount { get; set; }
 

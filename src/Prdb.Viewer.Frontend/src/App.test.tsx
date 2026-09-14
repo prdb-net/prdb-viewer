@@ -258,6 +258,7 @@ describe('App', () => {
   it('says what a Video is worth watching at, on the shelf and on its own page', async () => {
     const file = variant({
       containerFormat: 'mov,mp4',
+      containerName: 'MP4',
       videoCodec: 'h264',
       audioCodec: 'aac',
       qualityBand: 'Uhd2160',
@@ -291,7 +292,7 @@ describe('App', () => {
     expect(screen.getByText('24 Mbit/s')).toBeInTheDocument()
     expect(screen.getByText('aac · 5.1 · 48 kHz')).toBeInTheDocument()
     expect(screen.getByText('8.4 GB')).toBeInTheDocument()
-    expect(screen.getByText('4K · 60 fps · mov,mp4 (h264 + aac)')).toBeInTheDocument()
+    expect(screen.getByText('4K · 60 fps · MP4 (h264 + aac)')).toBeInTheDocument()
   })
 
   it('lets an Administrator preview and confirm an identification decision', async () => {
@@ -1230,6 +1231,7 @@ describe('App', () => {
       videoFileId: '01994dd4-2a0a-7000-8000-0000000000a1',
       deliveryUrl: '/media/videos/aaa',
       containerFormat: 'mov,mp4,m4a,3gp,3g2,mj2',
+      containerName: 'MP4',
       videoCodec: 'h264',
       audioCodec: 'aac',
       directPlayClassification: 'ClientDependent',
@@ -1478,6 +1480,34 @@ describe('App', () => {
     expect(reported[0].videoFileId).toBe('01994dd4-2a0a-7000-8000-0000000000a2')
   })
 
+  it('says why a Video has no picture, where the missing picture is', async () => {
+    const video = libraryVideo({
+      displayTitle: 'A Video Without A Picture',
+      previewUrl: null,
+      previewState: 'NoFrame',
+    })
+    signedInAs('User', (input) => {
+      if (isFacetRequest(input)) return json(noFacets())
+      if (isVideoRequest(input)) return json(videoDetail(video))
+      if (isLibraryRequest(input)) return json(libraryPage([video]))
+      return undefined
+    })
+
+    renderApp('/videos/01994dd4-2a0a-7000-8000-000000000010')
+
+    // A grey triangle and nothing else was the same screen for a preview still to be generated and
+    // one that could not be made at all.
+    expect(await screen.findByRole('heading', { name: 'A Video Without A Picture' }))
+      .toBeInTheDocument()
+    expect(screen.getByText(
+      /No frame could be read from this Video’s files, so it has no preview/,
+    )).toBeInTheDocument()
+
+    // And the placeholder was `aria-hidden`, so a screen reader was told nothing whatever.
+    expect(screen.getByRole('img', { name: 'No preview could be made from this Video' }))
+      .toBeInTheDocument()
+  })
+
   it('shows unsupported Videos with their title, preview, and the reason playback is unavailable', async () => {
     const unsupported = libraryVideo({
       displayTitle: 'An Unsupported Video',
@@ -1494,11 +1524,13 @@ describe('App', () => {
       isUnsupportedVideo: true,
       videoFiles: [variant({
         containerFormat: 'asf',
+        containerName: 'Windows Media',
         videoCodec: 'wmv3',
         audioCodec: 'wmav2',
         directPlayClassification: 'Unsupported',
+        directPlayObstacle: 'ContainerAndCodecs',
         readyForDirectPlay: false,
-        selectionReason: 'RuledOutHere',
+        selectionReason: 'NoBrowserPath',
         basicContentType: null,
       })],
     })
@@ -1530,7 +1562,11 @@ describe('App', () => {
       'src',
       '/media/previews/01994dd4-2a0a-7000-8000-000000000014',
     )
-    expect(screen.getByText(/asf \(wmv3 \+ wmav2\)/)).toBeInTheDocument()
+    // "needs conversion" said nothing about this file. The obstacle is named instead, and here
+    // both halves of it are: Windows Media has no browser path and neither do its codecs.
+    expect(screen.getByText(
+      /Neither the Windows Media container nor its wmv3 and wmav2 streams has a path to a browser/,
+    )).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: 'Play' })).not.toBeInTheDocument()
 
     // A locally recognised Site says so rather than looking like a prdb match.

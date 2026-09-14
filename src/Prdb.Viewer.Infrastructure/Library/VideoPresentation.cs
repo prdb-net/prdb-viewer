@@ -45,6 +45,20 @@ internal static class VideoPresentation
         return file is null ? null : $"/media/previews/{file.PublicPreviewId}";
     }
 
+    /// <summary>
+    /// Why a Video has no picture, asked of the same Video Files <see cref="PreviewUrl"/> looks
+    /// through, so a Video that says it is waiting is a Video the picture is genuinely still
+    /// coming for.
+    /// </summary>
+    public static VideoPreviewState PreviewState(VideoRow video) =>
+        VideoPreviewRule.For(
+            PreviewUrl(video) is not null,
+            video.VideoFiles
+                .Select(file => new VideoPreviewRule.Occurrence(
+                    file.Availability == VideoFileAvailability.Available,
+                    file.PreviewState))
+                .ToArray());
+
     public static IdentificationSummary Summarize(VideoRow video) =>
         new(
             ClaimView(video, IdentificationDimension.WorkIdentification),

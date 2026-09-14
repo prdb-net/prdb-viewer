@@ -368,7 +368,8 @@ public sealed record IdentificationCaseFile(
     string RelativePath,
     VideoFileAvailability Availability,
     DirectPlayClassification DirectPlayClassification,
-    string ContainerFormat,
+    /// <summary>The container as a person names it, rather than as the inspector lists it.</summary>
+    string ContainerName,
     string VideoCodec,
     string? AudioCodec,
     long DurationMilliseconds,

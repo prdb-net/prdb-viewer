@@ -1381,7 +1381,7 @@ public sealed class IdentificationReviewService(
                     file.RelativePath,
                     file.Availability,
                     file.DirectPlayClassification,
-                    file.ContainerFormat,
+                    file.Media.ContainerName,
                     file.VideoCodec,
                     file.AudioCodec,
                     file.DurationMilliseconds,

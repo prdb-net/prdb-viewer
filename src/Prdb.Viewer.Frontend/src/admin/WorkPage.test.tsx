@@ -100,13 +100,15 @@ describe('Background work', () => {
             }),
             // A queued lane has no counts worth printing; its state already says it is waiting.
             run({ id: 'queued', category: 'Hashing', state: 'Queued', phase: 'Waiting to start' }),
-            // A run that stopped short keeps both numbers, so the shortfall stays visible.
+            // A run that stopped short keeps both numbers, so the shortfall stays visible, and
+            // still accounts for what it reached before it stopped.
             run({
               id: 'cancelled',
               category: 'Identification',
               state: 'Cancelled',
               discoveredCandidateCount: 12,
               completedItemCount: 4,
+              establishedCount: 4,
             }),
             run({
               id: 'done',
@@ -135,12 +137,143 @@ describe('Background work', () => {
 
     expect(await within(panel).findByText('1 file found so far')).toBeInTheDocument()
     expect(within(panel).getByText('4 of 12 files')).toBeInTheDocument()
-    expect(within(panel).getByText('4 of 12 files done')).toBeInTheDocument()
+    expect(within(panel).getByText('4 of 12 files done · 4 identified')).toBeInTheDocument()
     expect(within(panel).getByText('12 files done')).toBeInTheDocument()
 
     const queued = within(panel).getByText('Hashing').closest('article')!
     expect(within(queued).getByText(/Waiting to start/)).toBeInTheDocument()
     expect(within(queued).queryByText(/file/)).not.toBeInTheDocument()
+  })
+
+  it('says what a scan that found nothing walked past', async () => {
+    signedInAs('Administrator', (input) => {
+      if (input === '/api/admin/background-work/') {
+        return json({
+          work: [
+            // A library the product cannot read a single file of.
+            run({ id: 'unrecognised', category: 'LibraryScan', passedOverEntryCount: 412 }),
+            // A mount with nothing behind it, which is a different question and says less.
+            run({
+              id: 'empty',
+              category: 'TechnicalInspection',
+              libraryDirectoryName: 'Ordeno',
+            }),
+          ],
+          issues: [],
+          resolvedIssues: [],
+          operationalAttention: false,
+          operationalAttentionCount: 0,
+          paused: false,
+        })
+      }
+      if (input === '/api/admin/configuration/') {
+        return json({ status: 'Configured', libraryDirectories: [] })
+      }
+      return undefined
+    })
+
+    renderApp('/admin/work')
+
+    const lanes = await screen.findByRole('heading', { name: 'Lanes' })
+    const panel = lanes.closest('section')!
+
+    // `no files found` on its own could not tell a wrong mount from a library of `.flv`.
+    const scan = (await within(panel).findByText('Library Scan')).closest('article')!
+    expect(within(scan).getByText('no files found · 412 entries passed over')).toBeInTheDocument()
+
+    // A derived lane counts admitted files, so it has nothing to say about what a walk passed.
+    const inspection = within(panel).getByText('Technical Inspection').closest('article')!
+    expect(within(inspection).getByText('nothing to do')).toBeInTheDocument()
+  })
+
+  it('says what a settled prdb lane came to, not only how far it got', async () => {
+    signedInAs('Administrator', (input) => {
+      if (input === '/api/admin/background-work/') {
+        return json({
+          work: [
+            // Three files done used to be the whole account, and these three are three different
+            // things: one match, one file prdb has never heard of, one question for a person.
+            run({
+              id: 'identification',
+              category: 'Identification',
+              discoveredCandidateCount: 3,
+              completedItemCount: 3,
+              establishedCount: 1,
+              unansweredCount: 1,
+              reviewableCount: 1,
+            }),
+            // A run whose matches dried up looked exactly like one with nothing to do.
+            run({
+              id: 'site-recognition',
+              category: 'SiteRecognition',
+              discoveredCandidateCount: 4,
+              completedItemCount: 4,
+              establishedCount: 1,
+              unansweredCount: 3,
+            }),
+            // Enrichment asks about works rather than files, and says so.
+            run({
+              id: 'enrichment',
+              category: 'Enrichment',
+              discoveredCandidateCount: 5,
+              completedItemCount: 5,
+              establishedCount: 2,
+            }),
+            // A run that advanced six files and came to nothing, which is what an installation
+            // whose matches dried up actually looks like.
+            run({
+              id: 'dried-up',
+              category: 'Identification',
+              libraryDirectoryId: 'other-directory',
+              libraryDirectoryName: 'Ordeno',
+              discoveredCandidateCount: 6,
+              completedItemCount: 6,
+            }),
+            // A lane that settles no such question says nothing extra.
+            run({
+              id: 'hashing',
+              category: 'Hashing',
+              discoveredCandidateCount: 3,
+              completedItemCount: 3,
+            }),
+          ],
+          issues: [],
+          resolvedIssues: [],
+          operationalAttention: false,
+          operationalAttentionCount: 0,
+          paused: false,
+        })
+      }
+      if (input === '/api/admin/configuration/') {
+        return json({ status: 'Configured', libraryDirectories: [] })
+      }
+      return undefined
+    })
+
+    renderApp('/admin/work')
+
+    const lanes = await screen.findByRole('heading', { name: 'Lanes' })
+    const panel = lanes.closest('section')!
+
+    expect(await within(panel).findByText(
+      '3 files done · 1 identified, 1 unknown to prdb, 1 to review',
+    )).toBeInTheDocument()
+    expect(within(panel).getByText(
+      '4 files done · 1 recognised, 3 with no site in the path',
+    )).toBeInTheDocument()
+
+    // Enrichment counts works rather than files, because two occurrences of one Video are one
+    // question, and its words say so.
+    const enrichment = within(panel).getByText('Enrichment').closest('article')!
+    expect(within(enrichment).getByText('5 files done · 2 works enriched')).toBeInTheDocument()
+
+    // And a run that came to nothing says that, rather than leaving it to be inferred from an
+    // absence — which is exactly how an installation whose matches dried up went unnoticed.
+    expect(within(panel).getByText('6 files done · nothing identified')).toBeInTheDocument()
+
+    // Hashing computes a hash or does not; there is no third answer to account for.
+    const hashing = within(panel).getByText('Hashing').closest('article')!
+    expect(within(hashing).getByText('3 files done')).toBeInTheDocument()
   })
 
   it('says when a Library Directory is read again without anyone asking', async () => {
@@ -197,6 +330,10 @@ function run(overrides: Record<string, unknown> = {}) {
     libraryDirectoryName: 'Fab',
     discoveredCandidateCount: 0,
     completedItemCount: 0,
+    passedOverEntryCount: 0,
+    establishedCount: 0,
+    unansweredCount: 0,
+    reviewableCount: 0,
     issueCount: 0,
     completedPercent: null,
     waitingReason: null,

@@ -36,7 +36,7 @@ import { queryKeys } from '../queryKeys'
 import { firstError, Notice, PageHeading, RequestError } from '../ui'
 import { Provenance } from './Provenance'
 import { TrackedPlayer } from './TrackedPlayer'
-import { VideoArt } from './VideoArt'
+import { MissingPreviewNote, VideoArt } from './VideoArt'
 
 /// One deliberate play action in progress: the variant being tried, the ones left to try, and the
 /// ones already attempted, so no occurrence is tried twice and the failure can name them all.
@@ -273,6 +273,7 @@ export function VideoPage({ account }: { account: Account }) {
           ) : (
             <>
               <VideoArt video={video} large />
+              <MissingPreviewNote video={video} />
               <PlayAction video={video} play={play} pending={busy} />
             </>
           )}
@@ -357,8 +358,14 @@ export function VideoPage({ account }: { account: Account }) {
               {transferability(variant, video.personalState) && (
                 <small className="muted">{transferability(variant, video.personalState)}</small>
               )}
+              {/* An occurrence nothing expects to play is asked for rather than offered. A file
+                  this client ruled out and one with no browser path at all are different facts
+                  about different things, and neither is an ordinary play action. */}
               <button className="quiet-button" onClick={() => play(variant)} disabled={busy}>
-                {variant.selectionReason === 'RuledOutHere' ? 'Try anyway' : 'Play this one'}
+                {variant.selectionReason === 'RuledOutHere' ||
+                  variant.selectionReason === 'NoBrowserPath'
+                  ? 'Try anyway'
+                  : 'Play this one'}
               </button>
             </li>
           ))}

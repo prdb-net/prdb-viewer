@@ -448,7 +448,7 @@ export function IdentificationPage({ account }: { account: Account }) {
                 )}
                 {openCase.data!.videoFiles.length === 1 && <code>{file.relativePath}</code>}
                 <small>
-                  {file.containerFormat} · {file.videoCodec} · {friendlyState(file.hashState)}
+                  {file.containerName} · {file.videoCodec} · {friendlyState(file.hashState)}
                   {file.osHashSummary ? ` · osHash ${file.osHashSummary}` : ''}
                 </small>
               </li>
