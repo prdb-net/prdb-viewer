@@ -326,10 +326,12 @@ public sealed class LibraryScanRunner(
         }
 
         var now = Now();
-        var unresolved = await database.WorkIssues.AnyAsync(
-            issue => issue.LibraryDirectoryId == work.LibraryDirectoryId &&
-                     issue.Category == BackgroundWorkCategory.LibraryScan &&
-                     issue.ResolvedAt == null,
+        // Including what this slice has just recorded: a traversal that met an obstacle for the
+        // first time records it and settles in the same slice, and asking the database alone would
+        // let that run report a clean Completed while owning the obstacle it had only just found.
+        var unresolved = await issues.HasUnresolvedAsync(
+            work.LibraryDirectoryId,
+            BackgroundWorkCategory.LibraryScan,
             cancellationToken);
         work.State = unresolved
             ? BackgroundWorkState.CompletedWithIssues

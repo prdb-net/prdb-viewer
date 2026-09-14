@@ -122,6 +122,70 @@ public sealed class LibraryProcessingTests
     }
 
     [Fact]
+    public async Task The_first_scan_to_meet_an_unreadable_subtree_settles_with_issues()
+    {
+        Assert.SkipWhen(
+            OperatingSystem.IsWindows() || Environment.IsPrivilegedProcess,
+            "The test needs an unprivileged process on a Unix-like filesystem.");
+
+        if (!OperatingSystem.IsWindows())
+        {
+            await FirstScanReportsWhatItCouldNotReadAsync();
+        }
+    }
+
+    /// <summary>
+    /// The run that records an obstacle and the run that reports one used to be different runs. A
+    /// Library Scan records its issues and settles within one slice, and the state was decided by a
+    /// database query that could not yet see what the slice had added — so the first scan over a
+    /// newly unreadable subtree read `Completed`, and only the second one, which aggregated onto a
+    /// row already committed, read `Completed with Issues`.
+    /// </summary>
+    [System.Runtime.Versioning.UnsupportedOSPlatform("windows")]
+    private static async Task FirstScanReportsWhatItCouldNotReadAsync()
+    {
+        await using var store = await TestDatabase.CreateAsync(mediaProbe: new FixtureProbe());
+        var source = Path.Combine(store.LibraryMountRoot.Path, "source");
+        var closed = Path.Combine(source, "re-encodes");
+        Directory.CreateDirectory(closed);
+        await File.WriteAllBytesAsync(
+            Path.Combine(source, "readable.mp4"),
+            [1],
+            TestContext.Current.CancellationToken);
+        File.SetUnixFileMode(closed, UnixFileMode.None);
+
+        try
+        {
+            _ = await ActivateAsync(store, source);
+            await DrainAsync(store);
+
+            await using var scope = store.Scope();
+            var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+            var scan = await database.BackgroundWork.SingleAsync(
+                work => work.Category == BackgroundWorkCategory.LibraryScan,
+                TestContext.Current.CancellationToken);
+            var issue = await database.WorkIssues.SingleAsync(
+                row => row.Category == BackgroundWorkCategory.LibraryScan,
+                TestContext.Current.CancellationToken);
+
+            Assert.Equal(BackgroundWorkState.CompletedWithIssues, scan.State);
+            Assert.Equal(WorkIssueCause.SourceAccess, issue.Cause);
+            Assert.Equal(WorkIssueSeverity.OperationalBlocker, issue.Severity);
+            Assert.Equal(1, issue.OccurrenceCount);
+            // The readable sibling was still admitted: an incomplete observation stops the scan
+            // claiming completeness, not the library from growing.
+            Assert.Single(await database.VideoFiles.ToListAsync(
+                TestContext.Current.CancellationToken));
+        }
+        finally
+        {
+            File.SetUnixFileMode(
+                closed,
+                UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+    }
+
+    [Fact]
     public async Task A_scan_that_finishes_in_one_slice_settles_at_the_candidates_it_recorded()
     {
         await using var store = await TestDatabase.CreateAsync(mediaProbe: new FixtureProbe());

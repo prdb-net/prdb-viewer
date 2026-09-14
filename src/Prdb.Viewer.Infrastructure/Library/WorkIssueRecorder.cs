@@ -153,8 +153,7 @@ public sealed class WorkIssueRecorder(ViewerDbContext database, TimeProvider tim
         CancellationToken cancellationToken = default)
     {
         var now = Now();
-
-        return await database.WorkIssues
+        var resolved = await database.WorkIssues
             .Where(issue => issue.LibraryDirectoryId == libraryDirectoryId &&
                             issue.Category == category &&
                             issue.Cause == cause &&
@@ -166,7 +165,42 @@ public sealed class WorkIssueRecorder(ViewerDbContext database, TimeProvider tim
                     .SetProperty(issue => issue.RemediationOwner, RemediationOwner.AutomaticRecovery)
                     .SetProperty(issue => issue.Version, issue => issue.Version + 1),
                 cancellationToken);
+
+        // The update went straight to the database and left any copy this slice is tracking
+        // claiming to be unresolved. Whoever asks next asks both, so the two are made to agree here
+        // rather than at every reading.
+        foreach (var issue in Tracked().Where(issue =>
+                     issue.LibraryDirectoryId == libraryDirectoryId &&
+                     issue.Category == category &&
+                     issue.Cause == cause &&
+                     issue.ResolvedAt == null))
+        {
+            issue.ResolvedAt = now;
+            issue.ResolutionEvidence = evidence;
+            issue.RemediationOwner = RemediationOwner.AutomaticRecovery;
+        }
+
+        return resolved;
     }
+
+    /// <summary>
+    /// Whether a work area currently carries an unresolved Work Issue, counting the ones this
+    /// slice has recorded and not yet saved. A lane settles by this answer, so the change tracker
+    /// has to be part of the question: an obstacle met for the first time is exactly the one a run
+    /// most needs to report, and a database query on its own cannot see it until the slice commits.
+    /// </summary>
+    public async Task<bool> HasUnresolvedAsync(
+        Guid libraryDirectoryId,
+        BackgroundWorkCategory category,
+        CancellationToken cancellationToken = default) =>
+        Tracked().Any(issue => issue.LibraryDirectoryId == libraryDirectoryId &&
+                               issue.Category == category &&
+                               issue.ResolvedAt == null) ||
+        await database.WorkIssues.AnyAsync(
+            issue => issue.LibraryDirectoryId == libraryDirectoryId &&
+                     issue.Category == category &&
+                     issue.ResolvedAt == null,
+            cancellationToken);
 
     /// <summary>
     /// Removes one item from an aggregated issue after that item succeeded, and closes the issue
@@ -245,6 +279,16 @@ public sealed class WorkIssueRecorder(ViewerDbContext database, TimeProvider tim
     /// </summary>
     public static string ReferenceFor(Guid id) =>
         $"WI-{Convert.ToHexString(id.ToByteArray().AsSpan(10, 6))}";
+
+    /// <summary>
+    /// The issues this slice has written or changed and not yet committed. A row that was only
+    /// read stays out of it: it is already the database's own answer.
+    /// </summary>
+    private IEnumerable<WorkIssueRow> Tracked() =>
+        database.ChangeTracker
+            .Entries<WorkIssueRow>()
+            .Where(entry => entry.State is EntityState.Added or EntityState.Modified)
+            .Select(entry => entry.Entity);
 
     private async Task RecordItemAsync(
         WorkIssueRow issue,

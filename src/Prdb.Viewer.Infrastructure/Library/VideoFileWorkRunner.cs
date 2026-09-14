@@ -139,16 +139,13 @@ public abstract class VideoFileWorkRunner(
     /// <summary>
     /// A settled run reports Completed only when this Library Directory carries no unresolved
     /// obstacle of its own category, so an item that is still explained does not vanish behind a
-    /// clean-looking outcome.
+    /// clean-looking outcome. What this slice has recorded and not yet committed counts as well,
+    /// so a lane that records and settles in one slice reports what it found the first time.
     /// </summary>
     private async Task<BackgroundWorkState> SettledStateAsync(
         BackgroundWorkRow work,
         CancellationToken cancellationToken) =>
-        await Database.WorkIssues.AnyAsync(
-            issue => issue.LibraryDirectoryId == work.LibraryDirectoryId &&
-                     issue.Category == Category &&
-                     issue.ResolvedAt == null,
-            cancellationToken)
+        await Issues.HasUnresolvedAsync(work.LibraryDirectoryId, Category, cancellationToken)
             ? BackgroundWorkState.CompletedWithIssues
             : BackgroundWorkState.Completed;
 
