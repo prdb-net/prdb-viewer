@@ -257,6 +257,7 @@ export function libraryVideo(overrides: Record<string, unknown> = {}) {
     discoveryDate: '2026-08-27T12:00:00Z',
     availability: 'Available',
     previewUrl: null,
+    previewState: 'Pending',
     identification: identification(),
     playability: 'ReadyForDirectPlay',
     isUnsupportedVideo: false,

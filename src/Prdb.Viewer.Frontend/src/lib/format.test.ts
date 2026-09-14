@@ -1,4 +1,10 @@
-import { fileFormat, playbackUnavailableReason, variantReason } from './format'
+import {
+  fileFormat,
+  missingPreviewLabel,
+  missingPreviewReason,
+  playbackUnavailableReason,
+  variantReason,
+} from './format'
 import type { PlaybackVariant, VideoSummary } from '../api/client'
 
 /// What a Video with no browser path says about itself.
@@ -112,3 +118,27 @@ function unsupported(...files: Partial<PlaybackVariant>[]) {
     videoFiles: files.map(file),
   } as unknown as VideoSummary
 }
+
+/// The three ways a Video can have no picture, which used to be one grey triangle and no words.
+describe('why a Video has no picture', () => {
+  it('says a preview is still to come while the lane has not reached it', () => {
+    expect(missingPreviewReason('Pending')).toBe(
+      'A preview for this Video has not been generated yet.')
+    expect(missingPreviewLabel('Pending')).toBe('Preview not generated yet')
+  })
+
+  it('says the attempt was made and produced nothing, and that playback is unaffected', () => {
+    expect(missingPreviewReason('NoFrame')).toContain('No frame could be read')
+    expect(missingPreviewReason('NoFrame')).toContain('Playback is unaffected')
+    expect(missingPreviewLabel('NoFrame')).toBe('No preview could be made from this Video')
+  })
+
+  it('says an unreadable file is a question about where the file is', () => {
+    expect(missingPreviewReason('Unreachable')).toContain('cannot be read')
+    expect(missingPreviewLabel('Unreachable')).toBe('No preview while this Video cannot be read')
+  })
+
+  it('says nothing about a Video that has its picture', () => {
+    expect(missingPreviewReason('Present')).toBeUndefined()
+  })
+})

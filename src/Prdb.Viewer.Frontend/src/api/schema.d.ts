@@ -3475,6 +3475,8 @@ export interface components {
         /** @enum {unknown} */
         VideoFileHashState: "Pending" | "Computed" | "Incomplete" | "Failed";
         /** @enum {unknown} */
+        VideoPreviewState: "Present" | "Pending" | "NoFrame" | "Unreachable";
+        /** @enum {unknown} */
         VideoQualityBand: "Unknown" | "StandardDefinition" | "Hd720" | "FullHd1080" | "Qhd1440" | "Uhd2160" | "Uhd4320";
         VideoSummary: {
             /** Format: uuid */
@@ -3484,6 +3486,7 @@ export interface components {
             discoveryDate: string;
             availability: components["schemas"]["VideoAvailability"];
             previewUrl: null | string;
+            previewState: components["schemas"]["VideoPreviewState"];
             identification: components["schemas"]["IdentificationSummary"];
             playability: components["schemas"]["ClientVideoPlayability"];
             isUnsupportedVideo: boolean;

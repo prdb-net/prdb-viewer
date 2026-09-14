@@ -877,7 +877,12 @@ on their own durable schedule and never write beneath a Library Directory:
 2. **Preview generation** writes one still frame per Video File with `ffmpeg`
    into the application's own data directory. Previews are regenerable
    artefacts rather than identity, and a failed one is a visible Work Issue that
-   the next Library Scan retries.
+   the next Library Scan retries. A Video shown with a placeholder says which
+   kind of missing its picture is — still to be generated, attempted and
+   produced no frame, or unreachable while its files cannot be read — because
+   those are opposite facts behind one neutral placeholder, and only one of them
+   means the picture is as good as it is going to get. The placeholder says the
+   same thing to a screen reader, and playback never depends on it.
 3. **Identification** offers hashed files to the documented public prdb API in
    bounded batches through `Prdb.Sdk`. A missing credential, a refused key, or
    an outage leaves the lane visibly waiting with the condition it needs;

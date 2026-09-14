@@ -12,6 +12,8 @@ public sealed record VideoSummary(
     DateTimeOffset DiscoveryDate,
     VideoAvailability Availability,
     string? PreviewUrl,
+    /// <summary>Why there is no picture, where there is none.</summary>
+    VideoPreviewState PreviewState,
     IdentificationSummary Identification,
     /// <summary>Whether this Account's current client can play the Video directly.</summary>
     ClientVideoPlayability Playability,
@@ -64,6 +66,7 @@ public sealed class VideoCatalog(ViewerDbContext database, PlaybackPlanner plann
             AsOffset(video.DiscoveryDate),
             AvailabilityOf(trackedFiles),
             VideoPresentation.PreviewUrl(video),
+            VideoPresentation.PreviewState(video),
             VideoPresentation.Summarize(video),
             plan.Playability,
             plan.IsUnsupportedVideo,

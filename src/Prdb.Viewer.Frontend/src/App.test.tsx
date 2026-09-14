@@ -1480,6 +1480,34 @@ describe('App', () => {
     expect(reported[0].videoFileId).toBe('01994dd4-2a0a-7000-8000-0000000000a2')
   })
 
+  it('says why a Video has no picture, where the missing picture is', async () => {
+    const video = libraryVideo({
+      displayTitle: 'A Video Without A Picture',
+      previewUrl: null,
+      previewState: 'NoFrame',
+    })
+    signedInAs('User', (input) => {
+      if (isFacetRequest(input)) return json(noFacets())
+      if (isVideoRequest(input)) return json(videoDetail(video))
+      if (isLibraryRequest(input)) return json(libraryPage([video]))
+      return undefined
+    })
+
+    renderApp('/videos/01994dd4-2a0a-7000-8000-000000000010')
+
+    // A grey triangle and nothing else was the same screen for a preview still to be generated and
+    // one that could not be made at all.
+    expect(await screen.findByRole('heading', { name: 'A Video Without A Picture' }))
+      .toBeInTheDocument()
+    expect(screen.getByText(
+      /No frame could be read from this Video’s files, so it has no preview/,
+    )).toBeInTheDocument()
+
+    // And the placeholder was `aria-hidden`, so a screen reader was told nothing whatever.
+    expect(screen.getByRole('img', { name: 'No preview could be made from this Video' }))
+      .toBeInTheDocument()
+  })
+
   it('shows unsupported Videos with their title, preview, and the reason playback is unavailable', async () => {
     const unsupported = libraryVideo({
       displayTitle: 'An Unsupported Video',

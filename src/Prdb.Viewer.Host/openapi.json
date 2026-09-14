@@ -6403,6 +6403,14 @@
           "Failed"
         ]
       },
+      "VideoPreviewState": {
+        "enum": [
+          "Present",
+          "Pending",
+          "NoFrame",
+          "Unreachable"
+        ]
+      },
       "VideoQualityBand": {
         "enum": [
           "Unknown",
@@ -6421,6 +6429,7 @@
           "discoveryDate",
           "availability",
           "previewUrl",
+          "previewState",
           "identification",
           "playability",
           "isUnsupportedVideo",
@@ -6448,6 +6457,9 @@
               "null",
               "string"
             ]
+          },
+          "previewState": {
+            "$ref": "#/components/schemas/VideoPreviewState"
           },
           "identification": {
             "$ref": "#/components/schemas/IdentificationSummary"

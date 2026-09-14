@@ -36,7 +36,7 @@ import { queryKeys } from '../queryKeys'
 import { firstError, Notice, PageHeading, RequestError } from '../ui'
 import { Provenance } from './Provenance'
 import { TrackedPlayer } from './TrackedPlayer'
-import { VideoArt } from './VideoArt'
+import { MissingPreviewNote, VideoArt } from './VideoArt'
 
 /// One deliberate play action in progress: the variant being tried, the ones left to try, and the
 /// ones already attempted, so no occurrence is tried twice and the failure can name them all.
@@ -273,6 +273,7 @@ export function VideoPage({ account }: { account: Account }) {
           ) : (
             <>
               <VideoArt video={video} large />
+              <MissingPreviewNote video={video} />
               <PlayAction video={video} play={play} pending={busy} />
             </>
           )}

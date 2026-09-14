@@ -107,6 +107,32 @@ function directPlayObstacle(file: PlaybackVariant) {
     'a browser would make of it.'
 }
 
+/// Why a Video is shown with a placeholder instead of a picture.
+///
+/// A preview still to be generated and one that could not be produced were the same grey `▶` and
+/// the same silence, and they are opposite facts. The Administrator had the distinction in a Work
+/// Issue; the person looking at the missing picture had nothing at all.
+export function missingPreviewReason(state: string | null | undefined) {
+  if (state === 'Pending') return 'A preview for this Video has not been generated yet.'
+  if (state === 'NoFrame') {
+    return 'No frame could be read from this Video’s files, so it has no preview. Playback is ' +
+      'unaffected.'
+  }
+  if (state === 'Unreachable') {
+    return 'No preview could be made while this Video’s files cannot be read.'
+  }
+  return undefined
+}
+
+/// The same fact in the words a placeholder can carry, for a card that has no room for a sentence
+/// and for a screen reader, which was told nothing whatever by an `aria-hidden` triangle.
+export function missingPreviewLabel(state: string | null | undefined) {
+  if (state === 'Pending') return 'Preview not generated yet'
+  if (state === 'NoFrame') return 'No preview could be made from this Video'
+  if (state === 'Unreachable') return 'No preview while this Video cannot be read'
+  return 'No preview'
+}
+
 /// The playable occurrence a play action would reach for, which is also what decides whether the
 /// card offers to play at all.
 export function playableSource(video: VideoSummary) {

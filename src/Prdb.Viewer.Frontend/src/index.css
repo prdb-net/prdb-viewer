@@ -397,6 +397,7 @@ body.filters-open .app-content {
 @media (hover: none) { .art-actions { opacity: 1; } }
 .video-card .primary-button { margin-top: .6rem; padding: .65rem 1rem; }
 .unsupported { display: block; margin-top: .8rem; color: #d7bdc1; font-size: .78rem; }
+.missing-preview { margin: .8rem 0 0; color: #9aa0b4; font-size: .78rem; }
 .play-state { color: #bcb4c9; }
 .personal-actions { display: grid; grid-template-columns: 1fr 1fr; gap: .45rem; margin-top: .65rem; }
 /* A finger is not a cursor: these were half the height a touch target needs, on the screens most
