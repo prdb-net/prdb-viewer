@@ -3231,6 +3231,15 @@
           "Undetermined"
         ]
       },
+      "DirectPlayObstacle": {
+        "enum": [
+          "None",
+          "Container",
+          "Codecs",
+          "ContainerAndCodecs",
+          "Undetermined"
+        ]
+      },
       "DismissalResult": {
         "required": [
           "dismissed"
@@ -3580,7 +3589,7 @@
           "relativePath",
           "availability",
           "directPlayClassification",
-          "containerFormat",
+          "containerName",
           "videoCodec",
           "audioCodec",
           "durationMilliseconds",
@@ -3603,7 +3612,7 @@
           "directPlayClassification": {
             "$ref": "#/components/schemas/DirectPlayClassification"
           },
-          "containerFormat": {
+          "containerName": {
             "type": "string"
           },
           "videoCodec": {
@@ -5502,6 +5511,7 @@
           "videoFileId",
           "deliveryUrl",
           "containerFormat",
+          "containerName",
           "videoCodec",
           "audioCodec",
           "width",
@@ -5515,6 +5525,7 @@
           "durationMilliseconds",
           "qualityBand",
           "directPlayClassification",
+          "directPlayObstacle",
           "profileKey",
           "preciseVideoContentType",
           "preciseAudioContentType",
@@ -5537,6 +5548,9 @@
             "type": "string"
           },
           "containerFormat": {
+            "type": "string"
+          },
+          "containerName": {
             "type": "string"
           },
           "videoCodec": {
@@ -5632,6 +5646,9 @@
           },
           "directPlayClassification": {
             "$ref": "#/components/schemas/DirectPlayClassification"
+          },
+          "directPlayObstacle": {
+            "$ref": "#/components/schemas/DirectPlayObstacle"
           },
           "profileKey": {
             "type": "string"
@@ -6320,6 +6337,7 @@
           "PositivelyAssessed",
           "BaselineCandidate",
           "NotYetAssessed",
+          "NoBrowserPath",
           "RuledOutHere"
         ]
       },

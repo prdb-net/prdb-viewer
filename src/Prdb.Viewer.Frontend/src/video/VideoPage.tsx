@@ -357,8 +357,14 @@ export function VideoPage({ account }: { account: Account }) {
               {transferability(variant, video.personalState) && (
                 <small className="muted">{transferability(variant, video.personalState)}</small>
               )}
+              {/* An occurrence nothing expects to play is asked for rather than offered. A file
+                  this client ruled out and one with no browser path at all are different facts
+                  about different things, and neither is an ordinary play action. */}
               <button className="quiet-button" onClick={() => play(variant)} disabled={busy}>
-                {variant.selectionReason === 'RuledOutHere' ? 'Try anyway' : 'Play this one'}
+                {variant.selectionReason === 'RuledOutHere' ||
+                  variant.selectionReason === 'NoBrowserPath'
+                  ? 'Try anyway'
+                  : 'Play this one'}
               </button>
             </li>
           ))}

@@ -541,6 +541,17 @@ ordinary Play action; uncertain ones get a labelled Try Direct Play with the
 reason; the rest keep their variant details and an explicit Try Anyway. See
 [ADR 0015](docs/adr/0015-decide-playability-per-account-and-client.md).
 
+A Video with no browser path says which part of the file has none, because the
+container and the codecs are different problems with different answers. A
+Matroska carrying H.264 and AAC is held back by its container alone — every
+supported browser plays those streams — while an AVI carrying MPEG-4 Part 2 has
+no codec any of them decodes, and "needs conversion" was equally true and equally
+useless about both. Containers are named as people name them, never as the
+inspector lists its demuxers, and a file the installation itself ruled out says
+so rather than claiming an assessment is still to come: no client will ever be
+asked about it. The product still converts nothing, which it says once, after the
+file has been accounted for.
+
 One deliberate play action tries each Available occurrence at most once, in the
 order the evidence dictates: what already played here, then what this browser
 assessed positively — smooth and energy-efficient first — then the conservative

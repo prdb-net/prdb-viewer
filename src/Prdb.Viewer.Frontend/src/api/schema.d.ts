@@ -2752,6 +2752,8 @@ export interface components {
         ClientVideoPlayability: "ReadyForDirectPlay" | "CompatibilityUncertain" | "NotDirectlyPlayable";
         /** @enum {unknown} */
         DirectPlayClassification: "BaselineCandidate" | "ClientDependent" | "Unsupported" | "Undetermined";
+        /** @enum {unknown} */
+        DirectPlayObstacle: "None" | "Container" | "Codecs" | "ContainerAndCodecs" | "Undetermined";
         DismissalResult: {
             dismissed: boolean;
         };
@@ -2837,7 +2839,7 @@ export interface components {
             relativePath: string;
             availability: components["schemas"]["VideoFileAvailability"];
             directPlayClassification: components["schemas"]["DirectPlayClassification"];
-            containerFormat: string;
+            containerName: string;
             videoCodec: string;
             audioCodec: null | string;
             /** Format: int64 */
@@ -3284,6 +3286,7 @@ export interface components {
             videoFileId: string;
             deliveryUrl: string;
             containerFormat: string;
+            containerName: string;
             videoCodec: string;
             audioCodec: null | string;
             /** Format: int32 */
@@ -3306,6 +3309,7 @@ export interface components {
             durationMilliseconds: number | string;
             qualityBand: components["schemas"]["VideoQualityBand"];
             directPlayClassification: components["schemas"]["DirectPlayClassification"];
+            directPlayObstacle: components["schemas"]["DirectPlayObstacle"];
             profileKey: string;
             preciseVideoContentType: null | string;
             preciseAudioContentType: null | string;
@@ -3456,7 +3460,7 @@ export interface components {
             audioBitrate: null | number | string;
         };
         /** @enum {unknown} */
-        VariantSelectionReason: "PreviouslyPlayedHere" | "PositivelyAssessedAndSmooth" | "PositivelyAssessed" | "BaselineCandidate" | "NotYetAssessed" | "RuledOutHere";
+        VariantSelectionReason: "PreviouslyPlayedHere" | "PositivelyAssessedAndSmooth" | "PositivelyAssessed" | "BaselineCandidate" | "NotYetAssessed" | "NoBrowserPath" | "RuledOutHere";
         /** @enum {unknown} */
         VideoAvailability: "Available" | "Unavailable" | "Removed";
         VideoDetail: {

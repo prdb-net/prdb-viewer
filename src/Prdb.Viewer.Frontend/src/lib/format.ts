@@ -31,9 +31,15 @@ export function formatDuration(milliseconds: number) {
   return `${Math.floor(totalSeconds / 60)}:${(totalSeconds % 60).toString().padStart(2, '0')}`
 }
 
+/// What a Video File is, in the words its container has rather than the ones its inspector uses.
+///
+/// `containerFormat` is `ffprobe`'s list of every format its demuxer accepts — `matroska,webm`,
+/// `mov,mp4,m4a,3gp,3g2,mj2` — and printing it taught the reader a second vocabulary for one
+/// thing. The Matroska list was the worse half of it: it ends in the name of the container
+/// browsers do read, so a sentence saying that file cannot be played appeared to say the opposite.
 export function fileFormat(file: PlaybackVariant) {
   const codecs = [file.videoCodec, file.audioCodec].filter(Boolean).join(' + ')
-  return `${file.containerFormat} (${codecs})`
+  return `${file.containerName} (${codecs})`
 }
 
 /// How one variant came to its place in the order, in the User's words.
@@ -47,6 +53,9 @@ export function variantReason(variant: PlaybackVariant) {
   if (variant.selectionReason === 'RuledOutHere') {
     return variant.outcome === 'Failed' ? 'failed here before' : 'this browser rejects it'
   }
+  // An Unsupported file used to read "not assessed yet", which promised an assessment no client
+  // was ever going to be asked for: the installation settled this from the file's own bytes.
+  if (variant.selectionReason === 'NoBrowserPath') return 'no browser path'
   return 'not assessed yet'
 }
 
@@ -57,10 +66,45 @@ export function playbackUnavailableReason(video: VideoSummary) {
   if (video.videoFiles.length === 0) {
     return 'No Video File of this Video is currently available.'
   }
-  const formats = Array.from(new Set(video.videoFiles.map(fileFormat))).join(' or ')
-  return video.isUnsupportedVideo
-    ? `Not directly playable: ${formats} needs conversion, which this product deliberately does not do.`
-    : `This browser did not play ${formats}. Another browser or device may still play it.`
+
+  if (!video.isUnsupportedVideo) {
+    const formats = Array.from(new Set(video.videoFiles.map(fileFormat))).join(' or ')
+    return `This browser did not play ${formats}. Another browser or device may still play it.`
+  }
+
+  // Said once per distinct obstacle, because two occurrences of one Video usually have the same
+  // one and repeating it would be the sentence written twice.
+  const obstacles = Array.from(new Set(video.videoFiles.map(directPlayObstacle)))
+
+  // The product's boundary is one short sentence at the end rather than the whole explanation:
+  // "needs conversion, which this product deliberately does not do" answered a question about the
+  // product where the reader had asked one about their file.
+  return `${obstacles.join(' ')} This product does not convert video, so the file is offered as ` +
+    'it is or not at all.'
+}
+
+/// Which part of one Video File's configuration has no path to a browser, said so that a reader
+/// knows what would have to change. The codecs and the container are different problems with
+/// different answers, and collapsing both into "needs conversion" hid the one that is actionable.
+function directPlayObstacle(file: PlaybackVariant) {
+  const codecs = [file.videoCodec, file.audioCodec].filter(Boolean).join(' and ')
+
+  if (file.directPlayObstacle === 'Container') {
+    return `No browser reads the ${file.containerName} container. Its ${codecs} streams are ones ` +
+      'browsers do play, so the container alone is what stands in the way.'
+  }
+
+  if (file.directPlayObstacle === 'Codecs') {
+    return `No supported browser decodes ${codecs}, whichever container carries them.`
+  }
+
+  if (file.directPlayObstacle === 'ContainerAndCodecs') {
+    return `Neither the ${file.containerName} container nor its ${codecs} streams has a path to ` +
+      'a browser.'
+  }
+
+  return `Inspection did not establish enough about this ${file.containerName} file to say what ` +
+    'a browser would make of it.'
 }
 
 /// The playable occurrence a play action would reach for, which is also what decides whether the
