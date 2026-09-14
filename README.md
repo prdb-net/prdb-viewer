@@ -469,6 +469,17 @@ resumes rather than skipped. A due Scan never competes with one already
 running, and `Scan now` remains the answer for the file that cannot wait out
 the period.
 
+A traversal that admits nothing says why rather than leaving it at `no files
+found`. A directory whose files the recognised-extension policy passes over
+raises an issue naming how many entries were walked, which extensions led among
+them, and the extensions the product does admit — which is the whole answer to a
+library of `.flv` or of half-finished downloads. A directory the scan read in
+full and found nothing whatever in raises a different one, because that is a
+question about the mount rather than about the files. Either closes by itself as
+soon as a scan admits one candidate, and the lane's own line carries the count of
+what it walked past. A cover image or an `.nfo` beside a film changes nothing:
+only a scan that admitted nothing at all has anything to explain.
+
 Recognised regular files are hashed and inspected with `ffprobe`. Technical
 facts are committed only if the file remains unchanged throughout inspection.
 A stable content identity preserves a Video File across a rename, while a

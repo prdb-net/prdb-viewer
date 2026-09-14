@@ -143,6 +143,47 @@ describe('Background work', () => {
     expect(within(queued).queryByText(/file/)).not.toBeInTheDocument()
   })
 
+  it('says what a scan that found nothing walked past', async () => {
+    signedInAs('Administrator', (input) => {
+      if (input === '/api/admin/background-work/') {
+        return json({
+          work: [
+            // A library the product cannot read a single file of.
+            run({ id: 'unrecognised', category: 'LibraryScan', passedOverEntryCount: 412 }),
+            // A mount with nothing behind it, which is a different question and says less.
+            run({
+              id: 'empty',
+              category: 'TechnicalInspection',
+              libraryDirectoryName: 'Ordeno',
+            }),
+          ],
+          issues: [],
+          resolvedIssues: [],
+          operationalAttention: false,
+          operationalAttentionCount: 0,
+          paused: false,
+        })
+      }
+      if (input === '/api/admin/configuration/') {
+        return json({ status: 'Configured', libraryDirectories: [] })
+      }
+      return undefined
+    })
+
+    renderApp('/admin/work')
+
+    const lanes = await screen.findByRole('heading', { name: 'Lanes' })
+    const panel = lanes.closest('section')!
+
+    // `no files found` on its own could not tell a wrong mount from a library of `.flv`.
+    const scan = (await within(panel).findByText('Library Scan')).closest('article')!
+    expect(within(scan).getByText('no files found · 412 entries passed over')).toBeInTheDocument()
+
+    // A derived lane counts admitted files, so it has nothing to say about what a walk passed.
+    const inspection = within(panel).getByText('Technical Inspection').closest('article')!
+    expect(within(inspection).getByText('nothing to do')).toBeInTheDocument()
+  })
+
   it('says when a Library Directory is read again without anyone asking', async () => {
     signedInAs('Administrator', (input) => {
       if (input === '/api/admin/background-work/') {
@@ -197,6 +238,7 @@ function run(overrides: Record<string, unknown> = {}) {
     libraryDirectoryName: 'Fab',
     discoveredCandidateCount: 0,
     completedItemCount: 0,
+    passedOverEntryCount: 0,
     issueCount: 0,
     completedPercent: null,
     waitingReason: null,

@@ -121,6 +121,134 @@ public sealed class LibraryProcessingTests
                     work.State == BackgroundWorkState.CompletedWithIssues);
     }
 
+    /// <summary>
+    /// A directory full of files the product does not admit, and one that holds nothing at all,
+    /// both used to settle at `no files found` and say no more. They are different questions —
+    /// the first is about the files, the second about the mount — and neither could be answered
+    /// from any screen.
+    /// </summary>
+    [Fact]
+    public async Task A_scan_that_admits_nothing_says_what_it_walked_past()
+    {
+        await using var store = await TestDatabase.CreateAsync(mediaProbe: new FixtureProbe());
+        var source = Path.Combine(store.LibraryMountRoot.Path, "source");
+        Directory.CreateDirectory(source);
+        foreach (var name in new[]
+        {
+            "first.flv", "second.flv", "third.divx", "fourth.mp4.part", "cover",
+        })
+        {
+            await File.WriteAllBytesAsync(
+                Path.Combine(source, name),
+                [1],
+                TestContext.Current.CancellationToken);
+        }
+        var directoryId = await ActivateAsync(store, source);
+
+        await DrainAsync(store);
+
+        await using (var scope = store.Scope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+            var scan = await database.BackgroundWork.SingleAsync(
+                work => work.Category == BackgroundWorkCategory.LibraryScan,
+                TestContext.Current.CancellationToken);
+            var issue = await database.WorkIssues.SingleAsync(TestContext.Current.CancellationToken);
+
+            Assert.Equal(0, scan.DiscoveredCandidateCount);
+            Assert.Equal(5, scan.SkippedItemCount);
+            Assert.Equal(BackgroundWorkState.CompletedWithIssues, scan.State);
+            Assert.Equal(WorkIssueCause.Configuration, issue.Cause);
+            Assert.Equal(WorkIssueSeverity.OperationalBlocker, issue.Severity);
+            Assert.Equal(RemediationOwner.Administrator, issue.RemediationOwner);
+            Assert.Contains("recognised video file", issue.Summary);
+            // What it saw, largest first, and what it would have admitted. Both are needed: one
+            // says what this library is, the other says what it would have to be.
+            Assert.Contains(".flv (2)", issue.Detail);
+            Assert.Contains(".divx (1)", issue.Detail);
+            Assert.Contains(".part (1)", issue.Detail);
+            Assert.Contains("no extension (1)", issue.Detail);
+            Assert.Contains(".mkv", issue.Detail);
+            Assert.Contains(".webm", issue.Detail);
+        }
+
+        await File.WriteAllBytesAsync(
+            Path.Combine(source, "fifth.mp4"),
+            [1],
+            TestContext.Current.CancellationToken);
+        await QueueAndDrainAsync(store, directoryId);
+
+        await using (var scope = store.Scope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+            var issue = await database.WorkIssues.SingleAsync(TestContext.Current.CancellationToken);
+
+            // One admitted candidate is the evidence that disproves the cause, so the issue closes
+            // on its own rather than waiting to be acknowledged.
+            Assert.NotNull(issue.ResolvedAt);
+            Assert.Single(await database.VideoFiles.ToListAsync(
+                TestContext.Current.CancellationToken));
+        }
+    }
+
+    [Fact]
+    public async Task A_scan_of_an_empty_directory_asks_about_the_mount_rather_than_the_files()
+    {
+        await using var store = await TestDatabase.CreateAsync(mediaProbe: new FixtureProbe());
+        var source = Path.Combine(store.LibraryMountRoot.Path, "source");
+        Directory.CreateDirectory(source);
+        _ = await ActivateAsync(store, source);
+
+        await DrainAsync(store);
+
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var scan = await database.BackgroundWork.SingleAsync(
+            work => work.Category == BackgroundWorkCategory.LibraryScan,
+            TestContext.Current.CancellationToken);
+        var issue = await database.WorkIssues.SingleAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, scan.SkippedItemCount);
+        Assert.Equal(WorkIssueCause.Configuration, issue.Cause);
+        Assert.Contains("holds no files", issue.Summary);
+        Assert.Contains("mount", issue.RequiredAction);
+        // Naming extensions here would be answering a question the traversal never asked.
+        Assert.DoesNotContain(".mkv", issue.Detail);
+    }
+
+    /// <summary>
+    /// A library where a cover image sits beside a film is ordinary, and turning that into an
+    /// issue would make the surface unreadable for exactly the installations that are healthy.
+    /// </summary>
+    [Fact]
+    public async Task A_scan_that_found_its_files_raises_nothing_about_the_ones_beside_them()
+    {
+        await using var store = await TestDatabase.CreateAsync(mediaProbe: new FixtureProbe());
+        var source = Path.Combine(store.LibraryMountRoot.Path, "source");
+        Directory.CreateDirectory(source);
+        foreach (var name in new[] { "film.mp4", "film.nfo", "folder.jpg" })
+        {
+            await File.WriteAllBytesAsync(
+                Path.Combine(source, name),
+                [1],
+                TestContext.Current.CancellationToken);
+        }
+        _ = await ActivateAsync(store, source);
+
+        await DrainAsync(store);
+
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var scan = await database.BackgroundWork.SingleAsync(
+            work => work.Category == BackgroundWorkCategory.LibraryScan,
+            TestContext.Current.CancellationToken);
+
+        Assert.Equal(1, scan.DiscoveredCandidateCount);
+        Assert.Equal(2, scan.SkippedItemCount);
+        Assert.Equal(BackgroundWorkState.Completed, scan.State);
+        Assert.Empty(await database.WorkIssues.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
     [Fact]
     public async Task The_first_scan_to_meet_an_unreadable_subtree_settles_with_issues()
     {

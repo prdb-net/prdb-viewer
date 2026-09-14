@@ -2947,6 +2947,7 @@
           "libraryDirectoryName",
           "discoveredCandidateCount",
           "completedItemCount",
+          "passedOverEntryCount",
           "issueCount",
           "completedPercent",
           "waitingReason",
@@ -2992,6 +2993,14 @@
             "format": "int32"
           },
           "completedItemCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "passedOverEntryCount": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",

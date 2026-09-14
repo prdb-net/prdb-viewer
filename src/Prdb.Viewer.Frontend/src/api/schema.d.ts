@@ -2699,6 +2699,8 @@ export interface components {
             /** Format: int32 */
             completedItemCount: number | string;
             /** Format: int32 */
+            passedOverEntryCount: number | string;
+            /** Format: int32 */
             issueCount: number | string;
             /** Format: int32 */
             completedPercent: null | number | string;

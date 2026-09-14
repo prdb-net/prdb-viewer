@@ -12,6 +12,9 @@ public sealed record BackgroundWorkSummary(
     string LibraryDirectoryName,
     int DiscoveredCandidateCount,
     int CompletedItemCount,
+    // How many entries a traversal read and did not admit. It is what tells a Library Directory
+    // that holds nothing apart from one that holds nothing this product knows how to read.
+    int PassedOverEntryCount,
     int IssueCount,
     // Only present when a stable denominator and a credible estimate exist. Open-ended discovery
     // reports its concrete counts and phase instead of a fabricated percentage.

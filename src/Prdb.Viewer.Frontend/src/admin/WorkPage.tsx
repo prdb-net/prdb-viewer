@@ -53,7 +53,14 @@ function progress(work: BackgroundWorkSummary) {
   const settled = work.phase === settledPhase
 
   if (work.category === 'LibraryScan') {
-    if (found === 0) return settled ? 'no files found' : 'looking for files'
+    // A scan that admitted nothing owes the reader what it did see. A scan that found what it
+    // was there to find does not: a `.nfo` beside a film is ordinary, and a second number on a
+    // healthy row would be noise rather than an answer.
+    if (found === 0) {
+      const passed = Number(work.passedOverEntryCount ?? 0)
+      if (!settled) return 'looking for files'
+      return passed > 0 ? `no files found · ${entries(passed)} passed over` : 'no files found'
+    }
     return settled ? `${files(found)} found` : `${files(found)} found so far`
   }
 
@@ -65,6 +72,10 @@ function progress(work: BackgroundWorkSummary) {
 
 function files(count: number) {
   return count === 1 ? '1 file' : `${count} files`
+}
+
+function entries(count: number) {
+  return count === 1 ? '1 entry' : `${count} entries`
 }
 
 export function WorkPage({ account }: { account: Account }) {

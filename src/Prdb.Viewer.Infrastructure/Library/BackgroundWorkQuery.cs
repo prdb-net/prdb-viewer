@@ -100,6 +100,7 @@ public sealed class BackgroundWorkQuery(ViewerDbContext database)
             row.LibraryDirectory.Name,
             row.DiscoveredCandidateCount,
             row.CompletedItemCount,
+            row.SkippedItemCount,
             row.IssueCount,
             Percent(row),
             row.WaitingReason,
