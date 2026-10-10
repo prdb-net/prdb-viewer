@@ -17,6 +17,14 @@ public sealed class VideoMetadataRow
 
     public string? SiteId { get; set; }
 
+    public int CatalogueRepairGeneration { get; set; }
+
+    public Prdb.Viewer.Core.Library.RemoteCatalogueState RemoteState { get; set; }
+    public DateTime? RemoteObservedAt { get; set; }
+    public DateTime? RemoteUpdatedAt { get; set; }
+    public DateTime? RemoteDeletedAt { get; set; }
+    public string? RemoteMergedIntoId { get; set; }
+
     public string? Description { get; set; }
 
     public Guid? StashdbSceneId { get; set; }

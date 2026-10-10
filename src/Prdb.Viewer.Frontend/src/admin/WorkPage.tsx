@@ -217,6 +217,17 @@ export function WorkPage({ account }: { account: Account }) {
       {/* A row of buttons is an instruction, and read on its own it says that pressing one is how
           a new file is ever found. It is not: every Library Directory falls due on its own, and
           the button is only for the file that was copied in a minute ago. */}
+      {(status.data?.catalogueFeeds?.length ?? 0) > 0 && <section aria-label="Catalogue refresh">
+        <h3>Catalogue refresh</h3>
+        {status.data?.catalogueFeeds?.map((feed) => <p key={feed.feed}>
+          <strong>{feed.feed === 'sites' ? 'Site Directory' : 'Retained works'}</strong>: {feed.phase}
+          {!feed.baselineComplete && ' · baseline pending'}
+          {feed.lastSuccessfulRefresh && ` · last successful refresh ${timeAgo(feed.lastSuccessfulRefresh)}`}
+          {Number(feed.lagSeconds) > 0 && ` · ${Math.round(Number(feed.lagSeconds) / 60)} minutes behind the server`}
+          {feed.nextAttemptAt && ` · next attempt ${exactTime(feed.nextAttemptAt)}`}
+        </p>)}
+      </section>}
+
       <Scheduled directories={configuration.data?.libraryDirectories ?? []} paused={status.data?.paused} />
 
       <section className="panel">

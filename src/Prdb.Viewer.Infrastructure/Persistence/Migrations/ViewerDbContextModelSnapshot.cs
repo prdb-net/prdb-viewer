@@ -392,7 +392,16 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("Feed")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AuthorityFingerprint")
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("BaselineComplete")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BurstPages")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CatchUpPending")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime?>("CompletedAt")
@@ -402,6 +411,16 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("NextAttemptAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Phase")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RepairGeneration")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ServerTime")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Since")
@@ -1149,6 +1168,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("ArtworkUrl")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("CatalogueRepairGeneration")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Description")
                         .HasColumnType("TEXT");
 
@@ -1166,6 +1188,21 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("ReleaseDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RemoteDeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemoteMergedIntoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RemoteObservedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RemoteState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("RemoteUpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SiteFactsJson")
@@ -1643,6 +1680,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("ArtworkUrl")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("CatalogueRepairGeneration")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Description")
                         .HasColumnType("TEXT");
 
@@ -1678,6 +1718,21 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ReleaseNamesJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RemoteDeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemoteMergedIntoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RemoteObservedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RemoteState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("RemoteUpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SiteFactsJson")

@@ -365,6 +365,10 @@ public sealed class IdentificationService(
                 VideoId = survivor.Id,
                 PrdbVideoId = metadata.PrdbVideoId,
                 Title = metadata.Title,
+                CatalogueRepairGeneration = metadata.CatalogueRepairGeneration,
+                RemoteState = metadata.RemoteState, RemoteObservedAt = metadata.RemoteObservedAt,
+                RemoteUpdatedAt = metadata.RemoteUpdatedAt, RemoteDeletedAt = metadata.RemoteDeletedAt,
+                RemoteMergedIntoId = metadata.RemoteMergedIntoId,
                 Description = metadata.Description,
                 StashdbSceneId = metadata.StashdbSceneId,
                 SiteFactsJson = metadata.SiteFactsJson,
@@ -635,7 +639,7 @@ public sealed class IdentificationService(
     /// file is still there, but it is no longer the picture prdb offers for this work, and a review
     /// that says a picture has not arrived is more use than one showing the wrong one.
     /// </remarks>
-    private async Task<ProposedWorkRow?> RetainProposedWorkAsync(
+    public async Task<ProposedWorkRow?> RetainProposedWorkAsync(
         RemoteWork? work,
         CancellationToken cancellationToken)
     {
@@ -664,6 +668,8 @@ public sealed class IdentificationService(
             work.ArtworkUrl,
             StringComparison.Ordinal);
 
+        retained.RemoteState = RemoteCatalogueState.Active;
+        retained.RemoteObservedAt = Now(); retained.RemoteDeletedAt = null; retained.RemoteMergedIntoId = null;
         retained.Title = work.Title;
         retained.Description = work.Description;
         retained.StashdbSceneId = work.StashdbSceneId;
@@ -700,7 +706,8 @@ public sealed class IdentificationService(
         RemoteWork work,
         CancellationToken cancellationToken = default)
     {
-        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = database.Database.CurrentTransaction is null
+            ? await database.Database.BeginTransactionAsync(cancellationToken) : null;
         var video = await LoadAsync(videoId, cancellationToken);
 
         if (!RetainMetadata(video, work))
@@ -709,12 +716,15 @@ public sealed class IdentificationService(
         }
 
         video.Metadata!.EnrichedAt = Now();
+        var generation = await database.CatalogueFeedStates.Where(row => row.Feed == "videos" && row.ServerTime != null)
+            .Select(row => (int?)row.RepairGeneration).SingleOrDefaultAsync(cancellationToken);
+        if (generation is { } currentGeneration) video.Metadata.CatalogueRepairGeneration = currentGeneration;
 
         // The retained facts feed the discovery projection — the Actor Credits above all — so it
         // is rebuilt inside the same transaction, as every other write path does (ADR 0013).
         await projection.RefreshTrackedAsync(cancellationToken);
         await database.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         return true;
     }
 
@@ -755,6 +765,8 @@ public sealed class IdentificationService(
         }
 
         metadata.PrdbVideoId = work.PrdbVideoId;
+        metadata.RemoteState = RemoteCatalogueState.Active;
+        metadata.RemoteObservedAt = Now(); metadata.RemoteDeletedAt = null; metadata.RemoteMergedIntoId = null;
         metadata.Title = work.Title;
         metadata.Description = work.Description;
         metadata.StashdbSceneId = work.StashdbSceneId;

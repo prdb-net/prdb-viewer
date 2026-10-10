@@ -2683,6 +2683,7 @@ export interface components {
             paused: boolean;
             /** Format: date-time */
             pausedAt: null | string;
+            catalogueFeeds?: null | components["schemas"]["CatalogueFeedProgress"][];
         };
         BackgroundWorkSummary: {
             /** Format: uuid */
@@ -2737,6 +2738,17 @@ export interface components {
         BootstrapResponse: {
             verdict: components["schemas"]["BootstrapClaimVerdict"];
             account: null | components["schemas"]["SignedInAccountResponse"];
+        };
+        CatalogueFeedProgress: {
+            feed: string;
+            baselineComplete: boolean;
+            phase: string;
+            /** Format: date-time */
+            lastSuccessfulRefresh: null | string;
+            /** Format: date-time */
+            nextAttemptAt: null | string;
+            /** Format: double */
+            lagSeconds: null | number | string;
         };
         ClientPlaybackAssessmentReport: {
             profileKey: string;

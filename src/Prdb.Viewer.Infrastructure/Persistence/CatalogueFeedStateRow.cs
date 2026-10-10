@@ -6,6 +6,12 @@ public sealed class CatalogueFeedStateRow
     public required string Feed { get; set; }
     public required string Since { get; set; }
     public Guid? SinceId { get; set; }
+    public string? AuthorityFingerprint { get; set; }
+    public int RepairGeneration { get; set; }
+    public string Phase { get; set; } = "Baseline pending";
+    public string? ServerTime { get; set; }
+    public int BurstPages { get; set; }
+    public bool CatchUpPending { get; set; }
     public bool BaselineComplete { get; set; }
     public DateTime? LastAppliedAt { get; set; }
     public DateTime? NextAttemptAt { get; set; }

@@ -42,6 +42,7 @@ public sealed class BackgroundWorkQuery(ViewerDbContext database)
             .Take(20)
             .ToListAsync(cancellationToken);
 
+        var feeds = await database.CatalogueFeedStates.AsNoTracking().OrderBy(row => row.Feed).ToListAsync(cancellationToken);
         return new BackgroundWorkStatus(
             work.Select(Summarize).ToArray(),
             unresolved
@@ -53,7 +54,12 @@ public sealed class BackgroundWorkQuery(ViewerDbContext database)
             unresolved.Any(issue => WorkIssueRule.EstablishesOperationalAttention(issue.Severity)),
             unresolved.Count(issue => WorkIssueRule.EstablishesOperationalAttention(issue.Severity)),
             configuration.BackgroundWorkPaused,
-            AsNullableOffset(configuration.BackgroundWorkPausedAt));
+            AsNullableOffset(configuration.BackgroundWorkPausedAt),
+            feeds.Select(row => new CatalogueFeedProgress(row.Feed, row.BaselineComplete,
+                configuration.BackgroundWorkPaused ? "Paused" : row.Phase,
+                AsNullableOffset(row.LastAppliedAt), AsNullableOffset(row.NextAttemptAt),
+                row.ServerTime is null ? null : Math.Max(0, (DateTimeOffset.Parse(row.ServerTime) - DateTimeOffset.Parse(row.Since)).TotalSeconds)))
+                .ToArray());
     }
 
     public async Task<IReadOnlyList<WorkIssueAffectedItem>?> GetAffectedItemsAsync(

@@ -82,7 +82,11 @@ public sealed record BackgroundWorkStatus(
     bool OperationalAttention,
     int OperationalAttentionCount,
     bool Paused,
-    DateTimeOffset? PausedAt);
+    DateTimeOffset? PausedAt,
+    IReadOnlyList<CatalogueFeedProgress>? CatalogueFeeds = null);
+
+public sealed record CatalogueFeedProgress(string Feed, bool BaselineComplete, string Phase,
+    DateTimeOffset? LastSuccessfulRefresh, DateTimeOffset? NextAttemptAt, double? LagSeconds);
 
 public enum QueueLibraryScanVerdict
 {

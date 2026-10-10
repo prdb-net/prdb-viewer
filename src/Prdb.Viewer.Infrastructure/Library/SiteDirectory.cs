@@ -31,7 +31,8 @@ public sealed record SiteDirectoryRefreshResult(
 public sealed class SiteDirectory(
     ViewerDbContext database,
     IPrdbSiteDirectoryClient client,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    Prdb.Viewer.Infrastructure.Configuration.PrdbEndpoint? endpoint = null)
 {
     public static readonly TimeSpan RefreshInterval = TimeSpan.FromHours(24);
 
@@ -41,11 +42,13 @@ public sealed class SiteDirectory(
     /// </summary>
     public async Task<bool> IsStaleAsync(CancellationToken cancellationToken = default)
     {
-        var fetchedAt = await database.InstallationConfigurations
-            .AsNoTracking()
-            .Select(configuration => configuration.SiteDirectoryFetchedAt)
-            .SingleOrDefaultAsync(cancellationToken);
-
+        var configuration = await database.InstallationConfigurations.AsNoTracking().SingleOrDefaultAsync(cancellationToken);
+        var state = await database.CatalogueFeedStates.AsNoTracking().SingleOrDefaultAsync(row => row.Feed == "sites", cancellationToken);
+        if (state is not null && (!state.BaselineComplete ||
+            (!string.IsNullOrEmpty(configuration?.ActivePrdbCredential) && state.AuthorityFingerprint !=
+                CatalogueCursor.Authority((endpoint ?? new Prdb.Viewer.Infrastructure.Configuration.PrdbEndpoint()).BaseUrl,
+                    configuration.ActivePrdbCredential)))) return true;
+        var fetchedAt = configuration?.SiteDirectoryFetchedAt;
         return fetchedAt is null || Now() - fetchedAt.Value >= RefreshInterval;
     }
 
@@ -72,20 +75,22 @@ public sealed class SiteDirectory(
         var now = Now();
         var state = await database.CatalogueFeedStates.AsTracking()
             .SingleOrDefaultAsync(row => row.Feed == "sites", cancellationToken);
-        if (state?.NextAttemptAt is { } due && due > now)
+        var authority = CatalogueCursor.Authority((endpoint ?? new Prdb.Viewer.Infrastructure.Configuration.PrdbEndpoint()).BaseUrl, credential);
+        if (state?.AuthorityFingerprint == authority && state.NextAttemptAt is { } due && due > now)
             return new(SiteDirectoryRefreshVerdict.Pending, 0, "The Site feed is waiting for its next permitted request.", due - now);
         await using (var preparation = await database.Database.BeginTransactionAsync(cancellationToken))
         {
             if (state is null)
             {
-                state = new CatalogueFeedStateRow { Feed = "sites", Since = CatalogueCursor.Baseline.Since };
+                state = new CatalogueFeedStateRow { Feed = "sites", Since = CatalogueCursor.Baseline.Since, AuthorityFingerprint = authority };
                 database.CatalogueFeedStates.Add(state);
                 await database.SiteDirectoryStaging.ExecuteDeleteAsync(cancellationToken);
             }
-            else if (state.LastAppliedAt is { } applied && now - applied >= TimeSpan.FromDays(90))
+            else if (state.AuthorityFingerprint != authority ||
+                     (state.LastAppliedAt is { } applied && now - applied >= TimeSpan.FromDays(90)))
             {
-                state.Since = CatalogueCursor.Baseline.Since; state.SinceId = null;
-                state.BaselineComplete = false;
+                state.Since = CatalogueCursor.Baseline.Since; state.SinceId = null; state.AuthorityFingerprint = authority;
+                state.BaselineComplete = false; state.AuthorityFingerprint = authority;
                 await database.SiteDirectoryStaging.ExecuteDeleteAsync(cancellationToken);
             }
             await database.SaveChangesAsync(cancellationToken);
@@ -132,6 +137,7 @@ public sealed class SiteDirectory(
         }
         if (result.Cursor is { } cursor) { state.Since = cursor.Since; state.SinceId = cursor.SinceId; }
         state.LastAppliedAt = now;
+        state.Phase = result.HasMore ? "Building or refreshing the Site Directory" : "Current";
         state.NextAttemptAt = result.RetryAfter is { } retry ? now + retry : null;
         await database.SaveChangesAsync(cancellationToken);
         if (!result.HasMore)
@@ -153,7 +159,7 @@ public sealed class SiteDirectory(
                 await database.SiteDirectoryStaging.ExecuteDeleteAsync(cancellationToken);
             }
             state.BaselineComplete = true;
-            state.CompletedAt = now;
+            state.CompletedAt = now; state.ServerTime = state.Since;
             configuration.SiteDirectoryFetchedAt = now;
         }
         await database.SaveChangesAsync(cancellationToken);

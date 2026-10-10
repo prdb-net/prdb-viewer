@@ -2933,6 +2933,15 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "catalogueFeeds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CatalogueFeedProgress"
+            }
           }
         }
       },
@@ -3169,6 +3178,51 @@
                 "$ref": "#/components/schemas/SignedInAccountResponse"
               }
             ]
+          }
+        }
+      },
+      "CatalogueFeedProgress": {
+        "required": [
+          "feed",
+          "baselineComplete",
+          "phase",
+          "lastSuccessfulRefresh",
+          "nextAttemptAt",
+          "lagSeconds"
+        ],
+        "type": "object",
+        "properties": {
+          "feed": {
+            "type": "string"
+          },
+          "baselineComplete": {
+            "type": "boolean"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "lastSuccessfulRefresh": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "nextAttemptAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lagSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },

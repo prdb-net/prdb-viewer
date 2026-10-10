@@ -40,6 +40,8 @@ public sealed class FakePrdb : HttpMessageHandler
         new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Every request this answered, so a test can assert on what was actually sent.</summary>
+    public Queue<string> VideoFeedReplies { get; } = new();
+
     public Queue<string> SiteFeedReplies { get; } = new();
 
     private readonly Dictionary<Guid, int> siteFeedPages = [];
@@ -137,6 +139,8 @@ public sealed class FakePrdb : HttpMessageHandler
 
         return path switch
         {
+            "/videos/changes" => Respond(HttpStatusCode.OK, VideoFeedReplies.Count > 0 ? VideoFeedReplies.Dequeue() :
+                """{"items":[],"hasMore":false,"pageSize":1000,"nextCursor":null,"serverTimeUtc":"2026-10-01T00:00:00Z"}"""),
             "/videos/identify" => await IdentifyAsync(request, cancellationToken),
             "/videos/batch" => await VideosByIdsAsync(request, cancellationToken),
             "/actors/batch" => await ActorsByIdsAsync(request, cancellationToken),

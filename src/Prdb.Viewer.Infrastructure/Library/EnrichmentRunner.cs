@@ -269,7 +269,8 @@ public sealed class EnrichmentRunner(
         var videoIds = files.Select(file => file.VideoId).Distinct().ToArray();
         var metadata = await Database.VideoMetadata
             .AsNoTracking()
-            .Where(row => videoIds.Contains(row.VideoId))
+            .Where(row => videoIds.Contains(row.VideoId) &&
+                          (row.EnrichedAt == null || row.EnrichedAt < Now() - RefreshHorizon))
             .Select(row => new { row.VideoId, row.PrdbVideoId })
             .ToListAsync(cancellationToken);
         var wanted = new Dictionary<string, List<Guid>>(StringComparer.OrdinalIgnoreCase);

@@ -10,6 +10,10 @@ public sealed record CatalogueCursor(string Since, Guid? SinceId)
     public static CatalogueCursor At(DateTimeOffset timestamp, Guid? id) =>
         new(timestamp.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture), id);
 
+    public static string Authority(string origin, string credential) =>
+        Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(origin + "\n" + credential)));
+
     public string Url(string origin, string feed) =>
         $"{origin.TrimEnd('/')}/{feed}/changes?Since={Uri.EscapeDataString(Since)}" +
         (SinceId is { } id ? $"&SinceId={id:D}" : "") + "&PageSize=1000";

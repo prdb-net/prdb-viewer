@@ -397,6 +397,15 @@ public sealed class BackupService(
         }
 
         database.VideoFiles.AddRange(document.VideoFiles);
+        foreach (var metadata in document.VideoMetadata)
+        {
+            metadata.CatalogueRepairGeneration = 0;
+            metadata.RemoteState = RemoteCatalogueState.Unknown;
+            metadata.RemoteObservedAt = null;
+            metadata.RemoteUpdatedAt = null;
+            metadata.RemoteDeletedAt = null;
+            metadata.RemoteMergedIntoId = null;
+        }
         database.VideoMetadata.AddRange(document.VideoMetadata);
         database.IdentificationClaims.AddRange(document.IdentificationClaims);
         database.IdentificationCandidates.AddRange(document.IdentificationCandidates);

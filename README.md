@@ -1161,3 +1161,21 @@ If an Administrator loses their password, use `recover-administrator` rather
 than a restore: it issues a single-use code that changes credential authority
 only, and leaves identity, role, Shared Library Knowledge, and Personal State
 untouched.
+
+### Catalogue refresh and recovery
+
+Established and proposed works use the current prdb Video feed. Each slice
+reads one page of at most 1,000 changes or repairs at most 50 locally held IDs.
+Four catch-up pages yield for five minutes; a settled feed checks every fifteen
+minutes. Only IDs already retained here are saved. A settled server boundary
+is captured before local detail repair, then changes since it are replayed.
+New local IDs are repaired even if their changes precede the cursor.
+
+Background Work shows baseline completion, last successful refresh, server lag
+and the next permitted attempt. Rate-limit guidance may delay refresh; retained
+facts remain browseable offline, and thirty-day detail refresh remains a
+fallback. A changed credential or catalogue origin, a missing cursor, or a
+ninety-day interruption starts a bounded local repair. Pause also pauses feeds.
+Feed cursors and Site baseline staging never travel in a Backup Archive;
+Restore keeps claims and facts, resets remote observations for revalidation and
+starts new feed boundaries after the credential is verified.
