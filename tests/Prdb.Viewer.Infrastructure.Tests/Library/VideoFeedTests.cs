@@ -169,6 +169,45 @@ public sealed class VideoFeedTests
             .SingleAsync(TestContext.Current.CancellationToken)).RepairGeneration);
     }
 
+    [Fact]
+    public async Task Replay_and_older_updates_cannot_resurrect_a_deleted_work_but_a_newer_update_can()
+    {
+        var prdb = new FakePrdb();
+        await using var store = await TestDatabase.CreateAsync(prdb: prdb);
+        await HeldAsync(store, WorkId);
+        await SliceAsync(store); await SliceAsync(store);
+        var deleted = JsonSerializer.Serialize(new {
+            hasMore = true, serverTimeUtc = "2026-10-03T00:00:00Z", pageSize = 1000,
+            nextCursor = new { updatedAtUtc = "2026-10-02T00:00:00Z", id = WorkId },
+            items = new[] { new { eventType = "deleted", video = new { id = WorkId, isDeleted = true,
+                updatedAtUtc = "2026-10-02T00:00:00Z", deletedAtUtc = "2026-10-02T00:00:00Z" } } }
+        });
+        prdb.VideoFeedReplies.Enqueue(deleted);
+        await SliceAsync(store);
+        // The page's own cursor advances, but it contains an old current-state observation.
+        var old = System.Text.Json.Nodes.JsonNode.Parse(Page("2026-10-03T00:00:00Z", WorkId, true, "Old title"))!;
+        old["items"]![0]!["video"]!["updatedAtUtc"] = "2026-10-01T00:00:00Z";
+        prdb.VideoFeedReplies.Enqueue(old.ToJsonString());
+        await SliceAsync(store);
+        await using (var scope = store.Scope())
+        {
+            var metadata = await scope.ServiceProvider.GetRequiredService<ViewerDbContext>().VideoMetadata.SingleAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(RemoteCatalogueState.Deleted, metadata.RemoteState);
+            Assert.Equal("Retained Work", metadata.Title);
+            // A detail answer has no feed revision and cannot undo a tombstone.
+            await scope.ServiceProvider.GetRequiredService<IdentificationService>().RefreshRetainedWorkAsync(
+                metadata.VideoId, new RemoteWork(WorkId, "Stale batch title", null, [], null, null, null), TestContext.Current.CancellationToken);
+        }
+        prdb.VideoFeedReplies.Enqueue(Page("2026-10-04T00:00:00Z", WorkId, false, "Restored title"));
+        await SliceAsync(store);
+        await using var final = store.Scope();
+        var restored = await final.ServiceProvider.GetRequiredService<ViewerDbContext>().VideoMetadata.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(RemoteCatalogueState.Active, restored.RemoteState);
+        Assert.Equal("Restored title", restored.Title);
+        Assert.Null(restored.RemoteDeletedAt);
+        Assert.Single(await final.ServiceProvider.GetRequiredService<ViewerDbContext>().IdentificationClaims.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
     private static async Task HeldAsync(TestDatabase store, string id)
     {
         await LibraryPipeline.SetCredentialAsync(store, "fixture");

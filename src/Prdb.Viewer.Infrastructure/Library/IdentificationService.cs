@@ -641,7 +641,8 @@ public sealed class IdentificationService(
     /// </remarks>
     public async Task<ProposedWorkRow?> RetainProposedWorkAsync(
         RemoteWork? work,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool authoritativeFeed = false)
     {
         if (work is null)
         {
@@ -662,6 +663,9 @@ public sealed class IdentificationService(
             };
             database.ProposedWorks.Add(retained);
         }
+
+        if (!authoritativeFeed && retained.RemoteState is RemoteCatalogueState.Deleted or RemoteCatalogueState.Merged)
+            return retained;
 
         var changedArtwork = !string.Equals(
             retained.ArtworkUrl,
@@ -704,13 +708,14 @@ public sealed class IdentificationService(
     public async Task<bool> RefreshRetainedWorkAsync(
         Guid videoId,
         RemoteWork work,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool authoritativeFeed = false)
     {
         await using var transaction = database.Database.CurrentTransaction is null
             ? await database.Database.BeginTransactionAsync(cancellationToken) : null;
         var video = await LoadAsync(videoId, cancellationToken);
 
-        if (!RetainMetadata(video, work))
+        if (!RetainMetadata(video, work, authoritativeFeed))
         {
             return false;
         }
@@ -740,7 +745,7 @@ public sealed class IdentificationService(
     /// Retains what prdb says about a work, but only while the Video is still identified as that
     /// work. A corrected identification must not keep collecting the superseded work's facts.
     /// </summary>
-    private bool RetainMetadata(VideoRow video, RemoteWork work)
+    private bool RetainMetadata(VideoRow video, RemoteWork work, bool authoritativeFeed = false)
     {
         var current = Current(video, IdentificationDimension.WorkIdentification);
 
@@ -751,6 +756,8 @@ public sealed class IdentificationService(
         }
 
         var metadata = video.Metadata;
+        if (!authoritativeFeed && metadata?.RemoteState is RemoteCatalogueState.Deleted or RemoteCatalogueState.Merged)
+            return false;
 
         if (metadata is null)
         {

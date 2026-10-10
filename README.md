@@ -1179,3 +1179,12 @@ ninety-day interruption starts a bounded local repair. Pause also pauses feeds.
 Feed cursors and Site baseline staging never travel in a Backup Archive;
 Restore keeps claims and facts, resets remote observations for revalidation and
 starts new feed boundaries after the credential is verified.
+
+An explicit prdb deletion or merge appears beside the retained facts on the
+Video page and in identification review, including the surviving remote ID for
+a merge. It never changes local file availability, existing identifications,
+Administrative Overrides or Personal State. Available files remain playable.
+A withdrawn proposed work stays visible but cannot be accepted as a candidate;
+an Administrator can review it or explicitly assign a current work. Older
+observations and unversioned detail responses cannot undo a newer tombstone;
+a newer authoritative feed update can restore the remote record.

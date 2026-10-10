@@ -149,7 +149,8 @@ public sealed record IdentificationProposalView(
     DateTimeOffset FetchedAt,
     string? Description = null,
     Guid? StashdbSceneId = null,
-    RemoteSite? Site = null);
+    RemoteSite? Site = null,
+    RemoteCatalogueStatus? CatalogueStatus = null);
 
 /// <summary>
 /// One decision this case offers for one candidate, and what the installation looks like once it
@@ -419,7 +420,8 @@ public sealed record IdentificationCase(
     string Explanation,
     /// <summary>Associations waiting for a decision on this Video, and those already settled.</summary>
     IReadOnlyList<IdentificationAssociationView> OpenAssociations,
-    IReadOnlyList<IdentificationAssociationView> AssociationHistory);
+    IReadOnlyList<IdentificationAssociationView> AssociationHistory,
+    RemoteCatalogueStatus? CatalogueStatus = null);
 
 public enum IdentificationDecisionVerdict
 {

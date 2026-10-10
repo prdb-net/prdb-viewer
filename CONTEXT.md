@@ -407,3 +407,11 @@ _Avoid_: Dislike, Continue Watching dismissal, hide, block
 **Discovery Affinity**:
 The cautious, bounded inference from a User's own evidence about which Actors and Sites to try for Videos they have not watched, normalised so that a prolific Actor or Site cannot lead by count alone. A Dislike applies to its Video and is never propagated to that Video's Actors or Site. Part of discovery is deliberately selected independently of it.
 _Avoid_: taste profile, similarity score, collaborative filtering
+
+**Remote Catalogue State**:
+A retained observation of prdb's work record: Unknown, Active, Deleted or Merged,
+with its remote ID, update/deletion time and optional surviving work ID. It is
+separate from local Video identity and Video/File Availability. A tombstone
+retains last known facts, claims, overrides and every Account's Personal State.
+A remote merge never merges local Videos or transfers Playback Progress.
+_Avoid_: Video Availability, Missing, Removed, local merge

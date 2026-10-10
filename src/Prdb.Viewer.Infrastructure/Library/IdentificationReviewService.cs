@@ -182,7 +182,9 @@ public sealed class IdentificationReviewService(
         var cases = await GroupCasesAsync(group, cancellationToken);
         var refusedBySite = group.Dimension == IdentificationDimension.SiteRecognition
             ? await RefusedSiteCasesAsync(group, cancellationToken)
-            : 0;
+            : await CandidatesOf(group).CountAsync(candidate => candidate.ProposedWork != null &&
+                (candidate.ProposedWork.RemoteState == RemoteCatalogueState.Deleted ||
+                 candidate.ProposedWork.RemoteState == RemoteCatalogueState.Merged), cancellationToken);
         var mergesInto = group.AssociationId is null &&
                          group.Dimension == IdentificationDimension.WorkIdentification &&
                          group.TargetKey is not null &&
@@ -788,6 +790,10 @@ public sealed class IdentificationReviewService(
                 row.Dimension == request.Dimension &&
                 row.Status == IdentificationCandidateStatus.Pending);
         var current = IdentificationService.Current(video, request.Dimension);
+        if (request.Action == IdentificationDecisionAction.AcceptCandidate &&
+            RemoteCatalogueStatus.Withdrawn(candidate?.ProposedWork))
+            return new IdentificationDecisionResult(IdentificationDecisionVerdict.ActionUnavailable,
+                Case: await CaseOfAsync(video, cancellationToken));
 
         if (request.Dimension == IdentificationDimension.SiteRecognition &&
             IdentificationCasePresentation.UnavailableSiteActions(video).Contains(request.Action))
@@ -1408,7 +1414,8 @@ public sealed class IdentificationReviewService(
                 .ToArray(),
             associations
                 .Where(association => association.Status != WorkAssociationStatus.Proposed)
-                .ToArray());
+                .ToArray(),
+            RemoteCatalogueStatus.Of(video.Metadata));
     }
 
     /// <summary>
@@ -1456,7 +1463,9 @@ public sealed class IdentificationReviewService(
                              video.VideoFiles.Count > 1)
             .Select(action => new IdentificationDecisionOutlook(
                 action,
-                IdentificationCasePresentation.RefusalOf(video, dimension, action, refused),
+                action == IdentificationDecisionAction.AcceptCandidate && RemoteCatalogueStatus.Withdrawn(candidate.ProposedWork)
+                    ? RemoteCatalogueStatus.WithdrawalReason
+                    : IdentificationCasePresentation.RefusalOf(video, dimension, action, refused),
                 IdentificationCasePresentation.Outcome(video, candidate, action, mergesWith)))
             .ToArray();
     }

@@ -1,3 +1,4 @@
+import { RemoteCatalogueNotice } from '../video/RemoteCatalogueNotice'
 import { CatalogueSiteFacts } from '../video/CatalogueSiteFacts'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -370,6 +371,7 @@ export function IdentificationPage({ account }: { account: Account }) {
                   Site and a cast above a cast. Two readings of one thing are compared by finding
                   each fact in the same place on both, not by reading a paragraph for it. */}
               <KnownFacts open={openCase.data!} dimension={selected!.dimension} />
+              <RemoteCatalogueNotice status={openCase.data!.catalogueStatus} />
               {/* The Video's own page owns playback and every fallback decision, so this is a link
                   to it rather than a second player. It carries the way back, so watching enough of
                   the file to decide does not cost the case that was open. */}
@@ -629,6 +631,7 @@ function ProposedFacts({ proposal }: { proposal: IdentificationProposal | null }
   ].filter((fact) => fact !== undefined)
 
   return <>
+    <RemoteCatalogueNotice status={proposal.catalogueStatus} proposed />
     {proposal.description && <p className="catalogue-description">{proposal.description}</p>}
     <CatalogueSiteFacts site={proposal.site} />
     {proposal.stashdbSceneId && <p>External scene ID: <code>{proposal.stashdbSceneId}</code></p>}

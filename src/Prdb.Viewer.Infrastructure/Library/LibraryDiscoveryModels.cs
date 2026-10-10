@@ -152,7 +152,8 @@ public sealed record WorkFacts(
     DateTimeOffset? FetchedAt,
     string? Description = null,
     Guid? StashdbSceneId = null,
-    RemoteSite? Site = null);
+    RemoteSite? Site = null,
+    RemoteCatalogueStatus? CatalogueStatus = null);
 
 /// <summary>
 /// One media configuration this Account's client has not answered for yet, with everything Media

@@ -113,7 +113,7 @@ public sealed class VideoCatalogueRefresh(ViewerDbContext database, IPrdbVideoFe
                 .ToListAsync(cancellationToken)).ToHashSet(StringComparer.OrdinalIgnoreCase);
             foreach (var change in page.Changes.Where(change => held.Contains(change.Id)))
             {
-                if (change.Work is { } work) await ApplyWorkAsync(work, cancellationToken);
+                if (change.Work is { } work) await ApplyWorkAsync(work, cancellationToken, change.UpdatedAt.UtcDateTime);
                 await ObserveAsync(change, now, cancellationToken);
             }
             state.Since = page.Cursor.Since; state.SinceId = page.Cursor.SinceId;
@@ -134,24 +134,28 @@ public sealed class VideoCatalogueRefresh(ViewerDbContext database, IPrdbVideoFe
         return true;
     }
 
-    private async Task ApplyWorkAsync(RemoteWork work, CancellationToken cancellationToken)
+    private async Task ApplyWorkAsync(RemoteWork work, CancellationToken cancellationToken, DateTime? updatedAt = null)
     {
-        var videos = await database.VideoMetadata.Where(row => row.PrdbVideoId == work.PrdbVideoId)
+        var videos = await database.VideoMetadata.Where(row => row.PrdbVideoId == work.PrdbVideoId &&
+                (updatedAt == null || row.RemoteUpdatedAt == null || row.RemoteUpdatedAt < updatedAt))
             .Select(row => row.VideoId).ToListAsync(cancellationToken);
-        foreach (var video in videos) await identification.RefreshRetainedWorkAsync(video, work, cancellationToken);
-        if (await database.ProposedWorks.AnyAsync(row => row.PrdbVideoId == work.PrdbVideoId, cancellationToken))
-            await identification.RetainProposedWorkAsync(work, cancellationToken);
+        foreach (var video in videos) await identification.RefreshRetainedWorkAsync(video, work, cancellationToken, updatedAt != null);
+        if (await database.ProposedWorks.AnyAsync(row => row.PrdbVideoId == work.PrdbVideoId &&
+                (updatedAt == null || row.RemoteUpdatedAt == null || row.RemoteUpdatedAt < updatedAt), cancellationToken))
+            await identification.RetainProposedWorkAsync(work, cancellationToken, updatedAt != null);
     }
 
     private async Task ObserveAsync(RemoteWorkChange change, DateTime now, CancellationToken cancellationToken)
     {
         var state = change.IsDeleted ? change.MergedIntoId is null ? RemoteCatalogueState.Deleted : RemoteCatalogueState.Merged : RemoteCatalogueState.Active;
-        await database.VideoMetadata.Where(row => row.PrdbVideoId == change.Id).ExecuteUpdateAsync(update => update
+        await database.VideoMetadata.Where(row => row.PrdbVideoId == change.Id &&
+                (row.RemoteUpdatedAt == null || row.RemoteUpdatedAt < change.UpdatedAt.UtcDateTime)).ExecuteUpdateAsync(update => update
             .SetProperty(row => row.RemoteState, state).SetProperty(row => row.RemoteObservedAt, now)
             .SetProperty(row => row.RemoteUpdatedAt, change.UpdatedAt.UtcDateTime)
             .SetProperty(row => row.RemoteDeletedAt, change.DeletedAt.HasValue ? change.DeletedAt.Value.UtcDateTime : (DateTime?)null)
             .SetProperty(row => row.RemoteMergedIntoId, change.MergedIntoId), cancellationToken);
-        await database.ProposedWorks.Where(row => row.PrdbVideoId == change.Id).ExecuteUpdateAsync(update => update
+        await database.ProposedWorks.Where(row => row.PrdbVideoId == change.Id &&
+                (row.RemoteUpdatedAt == null || row.RemoteUpdatedAt < change.UpdatedAt.UtcDateTime)).ExecuteUpdateAsync(update => update
             .SetProperty(row => row.RemoteState, state).SetProperty(row => row.RemoteObservedAt, now)
             .SetProperty(row => row.RemoteUpdatedAt, change.UpdatedAt.UtcDateTime)
             .SetProperty(row => row.RemoteDeletedAt, change.DeletedAt.HasValue ? change.DeletedAt.Value.UtcDateTime : (DateTime?)null)

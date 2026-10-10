@@ -3661,6 +3661,16 @@
             "items": {
               "$ref": "#/components/schemas/IdentificationAssociationView"
             }
+          },
+          "catalogueStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemoteCatalogueStatus"
+              }
+            ]
           }
         }
       },
@@ -4464,6 +4474,16 @@
               },
               {
                 "$ref": "#/components/schemas/RemoteSite"
+              }
+            ]
+          },
+          "catalogueStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemoteCatalogueStatus"
               }
             ]
           }
@@ -6256,6 +6276,52 @@
           "InstallationOperator"
         ]
       },
+      "RemoteCatalogueState": {
+        "enum": [
+          "Unknown",
+          "Active",
+          "Deleted",
+          "Merged"
+        ]
+      },
+      "RemoteCatalogueStatus": {
+        "required": [
+          "state",
+          "prdbVideoId",
+          "updatedAt",
+          "deletedAt",
+          "mergedIntoId"
+        ],
+        "type": "object",
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/RemoteCatalogueState"
+          },
+          "prdbVideoId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "mergedIntoId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
       "RemoteSite": {
         "required": [
           "id",
@@ -6764,6 +6830,16 @@
               },
               {
                 "$ref": "#/components/schemas/RemoteSite"
+              }
+            ]
+          },
+          "catalogueStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemoteCatalogueStatus"
               }
             ]
           }

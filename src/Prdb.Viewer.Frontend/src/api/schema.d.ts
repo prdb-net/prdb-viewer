@@ -2850,6 +2850,7 @@ export interface components {
             explanation: string;
             openAssociations: components["schemas"]["IdentificationAssociationView"][];
             associationHistory: components["schemas"]["IdentificationAssociationView"][];
+            catalogueStatus?: null | components["schemas"]["RemoteCatalogueStatus"];
         };
         IdentificationCaseFile: {
             /** Format: uuid */
@@ -3031,6 +3032,7 @@ export interface components {
             /** Format: uuid */
             stashdbSceneId?: null | string;
             site?: null | components["schemas"]["RemoteSite"];
+            catalogueStatus?: null | components["schemas"]["RemoteCatalogueStatus"];
         };
         IdentificationQueue: {
             /** Format: int32 */
@@ -3444,6 +3446,17 @@ export interface components {
         RegistrationRequestVerdict: "Submitted" | "InvalidInput" | "InstallationUnclaimed";
         /** @enum {unknown} */
         RemediationOwner: "AutomaticRecovery" | "Administrator" | "InstallationOperator";
+        /** @enum {unknown} */
+        RemoteCatalogueState: "Unknown" | "Active" | "Deleted" | "Merged";
+        RemoteCatalogueStatus: {
+            state: components["schemas"]["RemoteCatalogueState"];
+            prdbVideoId: string;
+            /** Format: date-time */
+            updatedAt: null | string;
+            /** Format: date-time */
+            deletedAt: null | string;
+            mergedIntoId: null | string;
+        };
         RemoteSite: {
             id: string;
             title: string;
@@ -3549,6 +3562,7 @@ export interface components {
             /** Format: uuid */
             stashdbSceneId?: null | string;
             site?: null | components["schemas"]["RemoteSite"];
+            catalogueStatus?: null | components["schemas"]["RemoteCatalogueStatus"];
         };
         /** @enum {unknown} */
         WorkIssueAction: "RetryNow" | "CheckAgain" | "OpenPrdbSettings" | "OpenLibraryDirectory" | "ViewAffectedItems" | "CopyOperatorHandoff";

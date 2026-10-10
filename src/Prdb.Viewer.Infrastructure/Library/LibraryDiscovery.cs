@@ -272,7 +272,8 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             VideoPresentation.AsOffset(metadata.FetchedAt),
             metadata.Description,
             metadata.StashdbSceneId,
-            await SiteFactsAsync(metadata.SiteFactsJson, metadata.SiteId, cancellationToken));
+            await SiteFactsAsync(metadata.SiteFactsJson, metadata.SiteId, cancellationToken),
+            RemoteCatalogueStatus.Of(metadata));
     }
 
     private async Task<RemoteSite?> SiteFactsAsync(string? json, string? siteId, CancellationToken cancellationToken)
