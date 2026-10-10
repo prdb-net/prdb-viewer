@@ -11,6 +11,8 @@ public sealed class SiteDirectoryEntryRow
 
     public required string Title { get; set; }
 
+    public bool IsDeleted { get; set; }
+
     public string? PlatformId { get; set; }
     public string? PlatformKey { get; set; }
     public string? PlatformTitle { get; set; }

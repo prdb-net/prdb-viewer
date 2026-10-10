@@ -387,6 +387,35 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.ToTable("browsing_visit_watch", (string)null);
                 });
 
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.CatalogueFeedStateRow", b =>
+                {
+                    b.Property<string>("Feed")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("BaselineComplete")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastAppliedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("NextAttemptAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Since")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SinceId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Feed");
+
+                    b.ToTable("CatalogueFeedStates");
+                });
+
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ClientPlaybackAssessmentRow", b =>
                 {
                     b.Property<Guid>("AccountId")
@@ -1259,6 +1288,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("AccountHandle")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("LinksJson")
                         .HasColumnType("TEXT");
 
@@ -1281,6 +1313,22 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.HasKey("SiteKey");
 
                     b.ToTable("site_directory_entry", (string)null);
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.SiteDirectoryStagingRow", b =>
+                {
+                    b.Property<string>("SiteKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FactsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("SiteKey");
+
+                    b.ToTable("SiteDirectoryStaging");
                 });
 
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.VideoActorRow", b =>

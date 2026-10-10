@@ -46,8 +46,8 @@ Conclusive, while names, paths, and heuristics are Suggestive.
 
 The vocabulary has to come from somewhere. Deriving it only from Sites the
 library has already established would recognise nothing in a library prdb never
-matched, which is the case the feature exists for. `GET /sites` answers that in
-one cheap request per day, and using prdb's own site identities means a locally
+matched, which is the case the feature exists for. The current-state Site feed answers that in
+bounded pages once per daily refresh, and using prdb's own site identities means a locally
 recognised site and a prdb-established one are the same site rather than two
 spellings of one.
 
@@ -59,6 +59,23 @@ Without the automatic supersession above, a stale local reading would block the
 identified work's canonical Site: the conflicting remote result would wait for a
 review decision that the rules do not offer, because a site conflict with an
 identified prdb work is corrected upstream rather than locally.
+
+## Incremental refresh
+
+The published Site changes feed replaces wholesale daily list retrieval. A baseline
+starts at `0001-01-01T00:00:00Z` without an ID, stages one page of at most 1,000
+rows per slice, and activates only once every page has arrived. The previous
+complete copy remains usable meanwhile. Delta pages apply directly and atomically
+with their timestamp-plus-UUID cursor. A nonempty final page retains the row
+cursor; an empty one uses only the server's settled `serverTimeUtc`. A future
+cursor is kept until that bound catches up. No client clock advances the feed.
+
+Tombstones remain as regenerable exclusions so established-claim fallback cannot
+reintroduce a deleted Site. History and overrides are untouched. Cursor/staging
+state is excluded from Backup Archives and cleared on Restore. A missing cursor
+or a gap of 90 days rebuilds a staged baseline; daily successful refreshes keep
+the existing cadence. Rate-limit guidance schedules a later attempt, with no SDK
+retry or sleep while holding the lane. SQLite transactions never span the network.
 
 ## Consequences
 

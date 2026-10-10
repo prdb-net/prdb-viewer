@@ -40,12 +40,18 @@ public sealed class FakePrdb : HttpMessageHandler
         new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>Every request this answered, so a test can assert on what was actually sent.</summary>
+    public Queue<string> SiteFeedReplies { get; } = new();
+
+    private readonly Dictionary<Guid, int> siteFeedPages = [];
+
     public List<JsonNode> IdentifyRequests { get; } = [];
 
     /// <summary>Every address that was asked, so a test can see where the client went.</summary>
     public List<Uri> Requested { get; } = [];
 
     /// <summary>When set, every endpoint answers with this instead, the way an outage does.</summary>
+    public TimeSpan? RetryAfter { get; set; }
+
     public HttpStatusCode? Failure { get; set; }
 
     /// <summary>
@@ -106,7 +112,9 @@ public sealed class FakePrdb : HttpMessageHandler
 
         if (Failure is { } failure)
         {
-            return Respond(failure, """{"title":"Refused by the fixture."}""");
+            var response = Respond(failure, """{"title":"Refused by the fixture."}""");
+            if (RetryAfter is { } retry) response.Headers.RetryAfter = new RetryConditionHeaderValue(retry);
+            return response;
         }
 
         if (RawBody is not null)
@@ -132,6 +140,7 @@ public sealed class FakePrdb : HttpMessageHandler
             "/videos/identify" => await IdentifyAsync(request, cancellationToken),
             "/videos/batch" => await VideosByIdsAsync(request, cancellationToken),
             "/actors/batch" => await ActorsByIdsAsync(request, cancellationToken),
+            "/sites/changes" => Respond(HttpStatusCode.OK, SiteChanges(request.RequestUri!)),
             "/sites" => Respond(HttpStatusCode.OK, Sites(request.RequestUri!)),
             "/rate-limit" => Respond(HttpStatusCode.OK, CatalogueAnswers.RateLimit()),
             _ => Respond(HttpStatusCode.NotFound, """{"title":"No such endpoint."}"""),
@@ -201,6 +210,38 @@ public sealed class FakePrdb : HttpMessageHandler
         ActorBatchRequests.Add(JsonNode.Parse(body)!);
 
         return Respond(HttpStatusCode.OK, CatalogueAnswers.ActorsByIds(body, catalogue));
+    }
+
+    private string SiteChanges(Uri uri)
+    {
+        if (SiteFeedReplies.Count > 0) return SiteFeedReplies.Dequeue();
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+        var page = Guid.TryParse(query["SinceId"], out var id) && siteFeedPages.TryGetValue(id, out var following) ? following : 1;
+        var source = JsonNode.Parse(Sites(new Uri($"https://prdb.net/sites?page={page}&pageSize=1000")))!;
+        var items = source["items"]!.AsArray();
+        var updated = new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero).AddSeconds(page);
+        var changes = new JsonArray();
+        foreach (var item in items)
+        {
+            var site = item!.DeepClone();
+            site["isDeleted"] = false; site["updatedAtUtc"] = updated;
+            changes.Add(new JsonObject { ["eventType"] = "updated", ["site"] = site });
+        }
+        JsonNode? cursor = null;
+        if (items.Count > 0)
+        {
+            var last = Guid.Parse(items.Last()!["id"]!.GetValue<string>());
+            siteFeedPages[last] = page + 1;
+            cursor = new JsonObject { ["updatedAtUtc"] = updated, ["id"] = last };
+        }
+        return new JsonObject
+        {
+            ["items"] = changes,
+            ["hasMore"] = items.Count == 1000,
+            ["pageSize"] = 1000,
+            ["nextCursor"] = cursor,
+            ["serverTimeUtc"] = updated.AddMinutes(1)
+        }.ToJsonString();
     }
 
     private string Sites(Uri uri)

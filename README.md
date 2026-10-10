@@ -936,11 +936,22 @@ established or an Administrator set; it does give way, without review, to the
 canonical Site of a work prdb later identifies, and the reading it replaces is
 kept as history.
 
-The vocabulary is the Site Directory: the list prdb publishes, fetched at most
-once a day and retained locally, together with every Site this installation has
+The vocabulary is the Site Directory: the list prdb publishes, refreshed at most
+once a day through the current-state Site feed and retained locally, together with every Site this installation has
 already established. Recognition therefore keeps working while prdb is
 unreachable. An installation that has never been able to fetch the list
-recognises nothing and says so once, as a Scoped Issue. See
+recognises nothing and says so once, as a Scoped Issue. The baseline is staged in
+pages of at most 1,000 Sites, with durable progress after each page and no 20-page
+ceiling. Its phase reports retained Sites while work remains. A prior complete
+copy stays active until the replacement is complete. Deleted upstream Sites leave
+recognition, including fallback from old claims; those claims retain their history.
+
+Cursors and staging are regenerable, omitted from Backup Archives and cleared by
+Restore. A missing cursor or 90 days without an applied page automatically builds
+a fresh baseline. To force a repair, stop the installation, back up its application
+state, and use SQLite to delete only the `sites` row from `CatalogueFeedStates`
+and clear `SiteDirectoryFetchedAt` in `installation_configuration`; the next
+Library Scan builds a replacement while retaining the old directory. See
 [ADR 0014](docs/adr/0014-recognise-sites-from-a-retained-site-directory.md).
 
 ## Review identifications

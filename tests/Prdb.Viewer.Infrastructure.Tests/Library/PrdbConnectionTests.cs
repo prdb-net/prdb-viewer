@@ -147,12 +147,17 @@ public sealed class PrdbConnectionTests
 
             // A page that is full is the only sign there is more to come, so a client that stopped
             // at the first one would silently hold an incomplete directory.
+            Assert.True(result.HasMore);
+            var next = await new PrdbSiteDirectoryClient(new FakePrdbTransport(prdb)).FetchPageAsync(
+                "fixture-credential", result.Cursor!, TestContext.Current.CancellationToken);
             Assert.Equal([1, 2], prdb.SitePagesRequested);
-            Assert.Equal(PageSize + 3, result.Sites.Count);
+            Assert.Equal(PageSize, result.Sites.Count);
+            Assert.Equal(3, next.Sites.Count);
+            Assert.False(next.HasMore);
         }
 
         [Fact]
-        public async Task A_catalogue_that_never_ends_is_left_after_a_fixed_number_of_pages()
+        public async Task A_full_page_yields_durable_progress_instead_of_claiming_a_complete_directory()
         {
             // Every page comes back full, which is what a miscounted or unbounded catalogue looks
             // like from here. The ceiling exists so a daily refresh cannot become a loop, and
@@ -167,7 +172,9 @@ public sealed class PrdbConnectionTests
             var result = await FetchAsync(prdb);
 
             Assert.Equal(SiteDirectoryFetchStatus.Fetched, result.Status);
-            Assert.Equal(20, prdb.SitePagesRequested.Count);
+            Assert.True(result.HasMore);
+            Assert.NotNull(result.Cursor);
+            Assert.Single(prdb.SitePagesRequested);
         }
 
         [Theory]

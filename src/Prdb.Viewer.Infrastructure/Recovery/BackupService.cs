@@ -359,6 +359,10 @@ public sealed class BackupService(
         // The Site Directory itself is regenerable and therefore not carried, so the target must
         // fetch it again rather than believe the source installation's last refresh.
         configuration.SiteDirectoryFetchedAt = null;
+        // Feed cursors and staged baselines are regenerable and do not travel in archives.
+        database.CatalogueFeedStates.ExecuteDelete();
+        database.SiteDirectoryStaging.ExecuteDelete();
+        database.SiteDirectoryEntries.ExecuteDelete();
         database.InstallationConfigurations
             .Where(row => row.Id == InstallationConfigurationRow.TheOnlyRow)
             .ExecuteDelete();

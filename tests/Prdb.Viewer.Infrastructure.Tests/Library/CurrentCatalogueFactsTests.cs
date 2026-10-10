@@ -93,10 +93,10 @@ public sealed class CurrentCatalogueFactsTests
     [Fact]
     public async Task Published_Site_links_and_platform_facts_are_read_without_inventing_nested_links()
     {
-        var prdb = new FakePrdb { RawBody = $$"""
-            {"items":[{"id":"{{SiteId}}","title":"Creator","platformId":"{{SiteId}}","platformKey":"platform",
+        var prdb = new FakePrdb { RawBody = $$$"""
+            {"hasMore":false,"serverTimeUtc":"2026-10-01T00:00:00Z","nextCursor":{"updatedAtUtc":"2026-09-30T00:00:00Z","id":"{{{SiteId}}}"},"items":[{"eventType":"updated","site":{"isDeleted":false,"updatedAtUtc":"2026-09-30T00:00:00Z","id":"{{{SiteId}}}","title":"Creator","platformId":"{{{SiteId}}}","platformKey":"platform",
              "platformTitle":"Platform","accountHandle":"alex","links":[{"label":"Profile","url":"https://example.test/alex"},
-             {"label":"Unsafe","url":"javascript:alert(1)"},{"url":"/relative"}]}]}
+             {"label":"Unsafe","url":"javascript:alert(1)"},{"url":"/relative"}]}}]}
             """ };
         var result = await new PrdbSiteDirectoryClient(new FakePrdbTransport(prdb))
             .FetchAsync("fixture", TestContext.Current.CancellationToken);

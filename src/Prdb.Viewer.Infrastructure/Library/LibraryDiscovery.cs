@@ -279,7 +279,7 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
     {
         var site = RetainedWorkFacts.Site(json);
         var directory = siteId is null ? null : await database.SiteDirectoryEntries.AsNoTracking()
-            .SingleOrDefaultAsync(row => row.SiteKey == siteId, cancellationToken);
+            .SingleOrDefaultAsync(row => row.SiteKey == siteId && !row.IsDeleted, cancellationToken);
         if (site is null || directory is null) return site;
         return site with { Links = RetainedWorkFacts.SiteLinks(directory.LinksJson) };
     }
