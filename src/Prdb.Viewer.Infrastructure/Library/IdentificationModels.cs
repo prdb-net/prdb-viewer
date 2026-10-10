@@ -11,7 +11,16 @@ public sealed record RemoteIdentificationRequest(
     string? PerceptualHash,
     string? Md5 = null);
 
-public sealed record RemoteSite(string Id, string Title, string? Url);
+public sealed record RemoteSite(string Id, string Title, string? Url)
+{
+    public string? PlatformId { get; init; }
+    public string? PlatformKey { get; init; }
+    public string? PlatformTitle { get; init; }
+    public string? AccountHandle { get; init; }
+    public IReadOnlyList<RemoteSiteLink> Links { get; init; } = [];
+}
+
+public sealed record RemoteSiteLink(string? Label, string Url);
 
 /// <summary>The network a Site belongs to, which is the one fact that relates two Sites.</summary>
 public sealed record RemoteNetwork(string Title, string? Url);
@@ -48,6 +57,10 @@ public sealed record RemoteWork(
     DateTime? ReleaseDate,
     long? DurationMilliseconds)
 {
+    public string? Description { get; init; }
+
+    public Guid? StashdbSceneId { get; init; }
+
     public RemoteNetwork? Network { get; init; }
 
     /// <summary>
@@ -133,7 +146,10 @@ public sealed record IdentificationProposalView(
     ProposedWorkArtworkState ArtworkState,
     DateTimeOffset? ReleaseDate,
     long? DurationMilliseconds,
-    DateTimeOffset FetchedAt);
+    DateTimeOffset FetchedAt,
+    string? Description = null,
+    Guid? StashdbSceneId = null,
+    RemoteSite? Site = null);
 
 /// <summary>
 /// One decision this case offers for one candidate, and what the installation looks like once it

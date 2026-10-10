@@ -19,7 +19,28 @@ public static class RemoteWorkFacts
             : new RemoteSite(id.Value.ToString(), title, url);
 
     public static RemoteSite? Site(VideoDetailSiteDto? site) =>
-        Site(site?.Id, site?.Title, site?.Url);
+        Site(site?.Id, site?.Title, site?.Url) is { } value ? value with
+        {
+            PlatformId = site?.PlatformId?.ToString(),
+            PlatformKey = site?.PlatformKey,
+            PlatformTitle = site?.PlatformTitle,
+            AccountHandle = site?.AccountHandle,
+        } : null;
+
+    public static RemoteSite? Site(SiteSummaryDto? site) =>
+        Site(site?.Id, site?.Title, site?.Url) is { } value ? value with
+        {
+            PlatformId = site?.PlatformId?.ToString(),
+            PlatformKey = site?.PlatformKey,
+            PlatformTitle = site?.PlatformTitle,
+            AccountHandle = site?.AccountHandle,
+            Links = (site?.Links ?? []).Where(link => SafeUrl(link.Url) is not null)
+                .Select(link => new RemoteSiteLink(link.Label, SafeUrl(link.Url)!)).ToArray(),
+        } : null;
+
+    public static string? SafeUrl(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        uri.Scheme is "http" or "https" && string.IsNullOrEmpty(uri.UserInfo) ? uri.AbsoluteUri : null;
 
     public static RemoteWork? Of(VideoDetailDto? video)
     {
@@ -42,6 +63,8 @@ public static class RemoteWorkFacts
             video.ReleaseDate?.DateTime,
             video.DurationMs)
         {
+            Description = video.Description,
+            StashdbSceneId = video.StashdbSceneId,
             Network = Network(video.Site?.Network),
             ReleaseNames = (video.PreNames ?? [])
                 .Select(name => name.Title)

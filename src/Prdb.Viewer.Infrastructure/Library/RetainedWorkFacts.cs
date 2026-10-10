@@ -24,6 +24,12 @@ public static class RetainedWorkFacts
     public static RemoteQualityOverview? QualityOverview(string? json) =>
         Read<RemoteQualityOverview>(json);
 
+    public static RemoteSite? Site(string? json) => Read<RemoteSite>(json);
+
+    public static IReadOnlyList<RemoteSiteLink> SiteLinks(string? json) =>
+        (Read<RemoteSiteLink[]>(json) ?? [])
+            .Where(link => RemoteWorkFacts.SafeUrl(link.Url) is not null).ToArray();
+
     private static T? Read<T>(string? json)
     {
         if (string.IsNullOrWhiteSpace(json))

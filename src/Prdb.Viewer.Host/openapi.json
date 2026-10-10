@@ -4389,6 +4389,29 @@
           "fetchedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "stashdbSceneId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "site": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemoteSite"
+              }
+            ]
           }
         }
       },
@@ -6179,6 +6202,76 @@
           "InstallationOperator"
         ]
       },
+      "RemoteSite": {
+        "required": [
+          "id",
+          "title",
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "platformId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "platformKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "platformTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "accountHandle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RemoteSiteLink"
+            }
+          }
+        }
+      },
+      "RemoteSiteLink": {
+        "required": [
+          "label",
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
       "SignedInAccountResponse": {
         "required": [
           "id",
@@ -6596,6 +6689,29 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "stashdbSceneId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "site": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemoteSite"
+              }
+            ]
           }
         }
       },

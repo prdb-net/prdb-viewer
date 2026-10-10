@@ -220,6 +220,18 @@ _Avoid_: automatic identification, confirmed match, deduplication
 A Video with no Established Work Identification. It may still have an Established Site Recognition, local file facts, Pending Identification Candidates, and an Identification Review Status of Review Needed.
 _Avoid_: unidentified file, unprocessed Video, Video without metadata
 
+### Retained catalogue facts
+
+**Creator Platform**:
+The publishing service prdb associates with a Site, identified by its own UUID,
+key and title. It is independent of the Site's studio Network and grants no local access.
+_Avoid_: Network, Site, local Account
+
+**Creator Account Handle**:
+The public handle prdb names for a Site on a Creator Platform. It is descriptive
+catalogue metadata, never a local Account or an inference of ownership from Actor Credits.
+_Avoid_: username, Account, owner
+
 ### Actors
 
 **Actor**:

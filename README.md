@@ -906,6 +906,14 @@ ordinary browsing. Video Files whose established work identity is the same are
 associated into one Video, keeping the earliest Discovery Date, both
 identification histories, and each Account's private viewing state.
 
+Descriptions are retained and shown as plain text on a Video's detail and on an
+Administrator's proposed-work comparison. External scene IDs are catalogue facts;
+they initiate no external service request and never infer a local merge. A Site
+may name a Creator Platform and public Creator Account Handle, independently of
+its Network and of every local Account. Additional Site links come from the Site
+Directory and only absolute HTTP(S) links without embedded credentials are shown.
+These facts remain available offline; proposed facts remain Administrator-only.
+
 ## Recognise sites locally
 
 A Video File whose path names exactly one known site — through the site's name,

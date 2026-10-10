@@ -365,6 +365,16 @@ public sealed class IdentificationService(
                 VideoId = survivor.Id,
                 PrdbVideoId = metadata.PrdbVideoId,
                 Title = metadata.Title,
+                Description = metadata.Description,
+                StashdbSceneId = metadata.StashdbSceneId,
+                SiteFactsJson = metadata.SiteFactsJson,
+                NetworkTitle = metadata.NetworkTitle,
+                NetworkUrl = metadata.NetworkUrl,
+                ReleaseNamesJson = metadata.ReleaseNamesJson,
+                DurationSpreadMilliseconds = metadata.DurationSpreadMilliseconds,
+                DurationFileCount = metadata.DurationFileCount,
+                QualityOverviewJson = metadata.QualityOverviewJson,
+                EnrichedAt = metadata.EnrichedAt,
                 SiteId = metadata.SiteId,
                 SiteTitle = metadata.SiteTitle,
                 SiteUrl = metadata.SiteUrl,
@@ -608,6 +618,9 @@ public sealed class IdentificationService(
             StringComparison.Ordinal);
 
         retained.Title = work.Title;
+        retained.Description = work.Description;
+        retained.StashdbSceneId = work.StashdbSceneId;
+        retained.SiteFactsJson = JsonSerializer.Serialize(work.Site, RetainedWorkFacts.Json);
         retained.SiteTitle = work.Site?.Title;
         retained.SiteUrl = work.Site?.Url;
         retained.ActorsJson = Retained(work.Actors);
@@ -696,6 +709,9 @@ public sealed class IdentificationService(
 
         metadata.PrdbVideoId = work.PrdbVideoId;
         metadata.Title = work.Title;
+        metadata.Description = work.Description;
+        metadata.StashdbSceneId = work.StashdbSceneId;
+        metadata.SiteFactsJson = JsonSerializer.Serialize(work.Site, RetainedWorkFacts.Json);
         metadata.SiteId = work.Site?.Id;
         metadata.SiteTitle = work.Site?.Title;
         metadata.SiteUrl = work.Site?.Url;

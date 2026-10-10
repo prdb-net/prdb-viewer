@@ -3015,6 +3015,10 @@ export interface components {
             durationMilliseconds: null | number | string;
             /** Format: date-time */
             fetchedAt: string;
+            description?: null | string;
+            /** Format: uuid */
+            stashdbSceneId?: null | string;
+            site?: null | components["schemas"]["RemoteSite"];
         };
         IdentificationQueue: {
             /** Format: int32 */
@@ -3428,6 +3432,20 @@ export interface components {
         RegistrationRequestVerdict: "Submitted" | "InvalidInput" | "InstallationUnclaimed";
         /** @enum {unknown} */
         RemediationOwner: "AutomaticRecovery" | "Administrator" | "InstallationOperator";
+        RemoteSite: {
+            id: string;
+            title: string;
+            url: null | string;
+            platformId?: null | string;
+            platformKey?: null | string;
+            platformTitle?: null | string;
+            accountHandle?: null | string;
+            links?: components["schemas"]["RemoteSiteLink"][];
+        };
+        RemoteSiteLink: {
+            label: null | string;
+            url: string;
+        };
         SignedInAccountResponse: {
             /** Format: uuid */
             id: string;
@@ -3515,6 +3533,10 @@ export interface components {
             imageUrls: string[];
             /** Format: date-time */
             fetchedAt: null | string;
+            description?: null | string;
+            /** Format: uuid */
+            stashdbSceneId?: null | string;
+            site?: null | components["schemas"]["RemoteSite"];
         };
         /** @enum {unknown} */
         WorkIssueAction: "RetryNow" | "CheckAgain" | "OpenPrdbSettings" | "OpenLibraryDirectory" | "ViewAffectedItems" | "CopyOperatorHandoff";

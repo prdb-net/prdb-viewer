@@ -79,7 +79,7 @@ public sealed class PrdbSiteDirectoryClient(
                 {
                     if (item.Id is { } id && !string.IsNullOrWhiteSpace(item.Title))
                     {
-                        sites.Add(new RemoteSite(id.ToString(), item.Title, item.Url));
+                        sites.Add(RemoteWorkFacts.Site(item)!);
                     }
                 }
 

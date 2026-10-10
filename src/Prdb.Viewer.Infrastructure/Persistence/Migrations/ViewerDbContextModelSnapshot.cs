@@ -1117,6 +1117,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("ArtworkUrl")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
                     b.Property<long?>("DurationMilliseconds")
                         .HasColumnType("INTEGER");
 
@@ -1133,10 +1136,16 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("ReleaseDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("SiteFactsJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SiteTitle")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SiteUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("StashdbSceneId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
@@ -1242,6 +1251,21 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.SiteDirectoryEntryRow", b =>
                 {
                     b.Property<string>("SiteKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AccountHandle")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LinksJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlatformId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlatformKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlatformTitle")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
@@ -1568,6 +1592,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("ArtworkUrl")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("DurationFileCount")
                         .HasColumnType("INTEGER");
 
@@ -1602,6 +1629,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("ReleaseNamesJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("SiteFactsJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SiteId")
                         .HasColumnType("TEXT");
 
@@ -1609,6 +1639,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SiteUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("StashdbSceneId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")

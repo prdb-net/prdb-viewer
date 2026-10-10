@@ -1,3 +1,4 @@
+import { CatalogueSiteFacts } from '../video/CatalogueSiteFacts'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
@@ -627,7 +628,12 @@ function ProposedFacts({ proposal }: { proposal: IdentificationProposal | null }
     runtime ? { term: 'Runtime', value: runtime } : undefined,
   ].filter((fact) => fact !== undefined)
 
-  return facts.length === 0 ? null : <Facts facts={facts} />
+  return <>
+    {proposal.description && <p className="catalogue-description">{proposal.description}</p>}
+    <CatalogueSiteFacts site={proposal.site} />
+    {proposal.stashdbSceneId && <p>External scene ID: <code>{proposal.stashdbSceneId}</code></p>}
+    {facts.length > 0 && <Facts facts={facts} />}
+  </>
 }
 
 /// The other Video File of this library a proposal came from.

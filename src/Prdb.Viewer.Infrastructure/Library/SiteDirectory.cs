@@ -86,6 +86,11 @@ public sealed class SiteDirectory(
                 SiteKey = site.Id,
                 Title = site.Title,
                 Url = site.Url,
+                PlatformId = site.PlatformId,
+                PlatformKey = site.PlatformKey,
+                PlatformTitle = site.PlatformTitle,
+                AccountHandle = site.AccountHandle,
+                LinksJson = System.Text.Json.JsonSerializer.Serialize(site.Links, RetainedWorkFacts.Json),
             })
             .ToArray();
 

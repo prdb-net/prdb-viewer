@@ -17,6 +17,12 @@ public sealed class VideoMetadataRow
 
     public string? SiteId { get; set; }
 
+    public string? Description { get; set; }
+
+    public Guid? StashdbSceneId { get; set; }
+
+    public string? SiteFactsJson { get; set; }
+
     public string? SiteTitle { get; set; }
 
     public string? SiteUrl { get; set; }
