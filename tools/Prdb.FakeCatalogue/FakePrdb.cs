@@ -54,6 +54,8 @@ public sealed class FakePrdb : HttpMessageHandler
     /// <summary>When set, every endpoint answers with this instead, the way an outage does.</summary>
     public TimeSpan? RetryAfter { get; set; }
 
+    public Dictionary<string, string> ResponseHeaders { get; } = [];
+
     public HttpStatusCode? Failure { get; set; }
 
     /// <summary>
@@ -280,11 +282,12 @@ public sealed class FakePrdb : HttpMessageHandler
         return CatalogueAnswers.Sites(page, pageSize, items);
     }
 
-    private static HttpResponseMessage Respond(HttpStatusCode status, string body) =>
-        new(status)
-        {
-            Content = new StringContent(body, Encoding.UTF8, "application/json"),
-        };
+    private HttpResponseMessage Respond(HttpStatusCode status, string body)
+    {
+        var response = new HttpResponseMessage(status) { Content = new StringContent(body, Encoding.UTF8, "application/json") };
+        foreach (var header in ResponseHeaders) response.Headers.TryAddWithoutValidation(header.Key, header.Value);
+        return response;
+    }
 }
 
 /// <summary>

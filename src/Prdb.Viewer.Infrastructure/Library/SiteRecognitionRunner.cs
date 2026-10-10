@@ -165,6 +165,9 @@ public sealed class SiteRecognitionRunner(
             return true;
         }
 
+        // A failed refresh cannot block Site Recognition when this directory has no
+        // eligible files (for example, inspection rejected every source candidate).
+        if (!await Outstanding(work.LibraryDirectoryId).AnyAsync(cancellationToken)) return true;
         await ReportAsync(work, Unfetched(refresh), cancellationToken);
         if (refresh.Verdict == SiteDirectoryRefreshVerdict.Unreachable)
             await WaitAsync(work, "prdb Site Directory is temporarily unavailable.",

@@ -1,4 +1,6 @@
 using System.Net;
+using System.Data.Common;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 using System.Text.Json;
 
 using Microsoft.EntityFrameworkCore;
@@ -52,7 +54,17 @@ public sealed class VideoFeedTests
         await SliceAsync(store);
         for (var i = 1; i <= 4; i++)
         {
-            prdb.VideoFeedReplies.Enqueue(Page($"2026-10-01T00:00:0{i}Z", OtherId, true, "Unrelated"));
+            var page = System.Text.Json.Nodes.JsonNode.Parse(Page($"2026-10-01T00:00:0{i}Z", OtherId, true, "Unrelated"))!;
+            var template = page["items"]![0]!.DeepClone();
+            var items = page["items"]!.AsArray(); items.Clear();
+            for (var row = 0; row < 999; row++)
+            {
+                var item = template.DeepClone();
+                item["video"]!["id"] = $"00000000-0000-4000-8000-{row:x12}";
+                items.Add(item);
+            }
+            items.Add(template);
+            prdb.VideoFeedReplies.Enqueue(page.ToJsonString());
             await SliceAsync(store);
         }
         var requests = prdb.RequestCount;
@@ -176,8 +188,11 @@ public sealed class VideoFeedTests
         await using var store = await TestDatabase.CreateAsync(prdb: prdb);
         await HeldAsync(store, WorkId);
         await SliceAsync(store); await SliceAsync(store);
-        var deleted = JsonSerializer.Serialize(new {
-            hasMore = true, serverTimeUtc = "2026-10-03T00:00:00Z", pageSize = 1000,
+        var deleted = JsonSerializer.Serialize(new
+        {
+            hasMore = true,
+            serverTimeUtc = "2026-10-03T00:00:00Z",
+            pageSize = 1000,
             nextCursor = new { updatedAtUtc = "2026-10-02T00:00:00Z", id = WorkId },
             items = new[] { new { eventType = "deleted", video = new { id = WorkId, isDeleted = true,
                 updatedAtUtc = "2026-10-02T00:00:00Z", deletedAtUtc = "2026-10-02T00:00:00Z" } } }
@@ -206,6 +221,69 @@ public sealed class VideoFeedTests
         Assert.Equal("Restored title", restored.Title);
         Assert.Null(restored.RemoteDeletedAt);
         Assert.Single(await final.ServiceProvider.GetRequiredService<ViewerDbContext>().IdentificationClaims.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task An_interruption_at_the_cursor_commit_rolls_back_content_and_replay_is_idempotent()
+    {
+        var prdb = new FakePrdb(); var failure = new CursorWriteFailure();
+        await using var store = await TestDatabase.CreateAsync(prdb: prdb, interceptor: failure);
+        await HeldAsync(store, WorkId); await SliceAsync(store); await SliceAsync(store);
+        var page = Page("2026-10-02T00:00:00Z", WorkId, false, "Corrected title");
+        prdb.VideoFeedReplies.Enqueue(page); failure.Armed = true;
+        var interruption = await Assert.ThrowsAsync<DbUpdateException>(() => SliceAsync(store));
+        Assert.IsType<IOException>(interruption.InnerException);
+        await using (var scope = store.Scope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+            Assert.Equal("Retained Work", (await db.VideoMetadata.SingleAsync(TestContext.Current.CancellationToken)).Title);
+            Assert.Null((await db.CatalogueFeedStates.SingleAsync(TestContext.Current.CancellationToken)).SinceId);
+        }
+        prdb.VideoFeedReplies.Enqueue(page); await SliceAsync(store);
+        await using var final = store.Scope();
+        var database = final.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        Assert.Equal("Corrected title", (await database.VideoMetadata.SingleAsync(TestContext.Current.CancellationToken)).Title);
+        Assert.Equal(Guid.Parse(WorkId), (await database.CatalogueFeedStates.SingleAsync(TestContext.Current.CancellationToken)).SinceId);
+        Assert.Single(await database.IdentificationClaims.ToListAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Local_detail_repair_honours_quota_reset_and_RetryAfter_without_immediate_requests(bool exhaustedSuccess)
+    {
+        var prdb = new FakePrdb();
+        await using var store = await TestDatabase.CreateAsync(prdb: prdb);
+        await HeldAsync(store, WorkId); await SliceAsync(store);
+        if (exhaustedSuccess)
+        {
+            prdb.ResponseHeaders["X-RateLimit-Limit-Hour"] = "1000";
+            prdb.ResponseHeaders["X-RateLimit-Remaining-Hour"] = "0";
+            prdb.ResponseHeaders["X-RateLimit-Reset-Hour"] = "7200";
+        }
+        else { prdb.Failure = HttpStatusCode.TooManyRequests; prdb.RetryAfter = TimeSpan.FromHours(2); }
+        await SliceAsync(store);
+        var requests = prdb.RequestCount;
+        Assert.False(await SliceAsync(store)); Assert.Equal(requests, prdb.RequestCount);
+        await using var final = store.Scope();
+        var db = final.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        Assert.True((await db.CatalogueFeedStates.SingleAsync(TestContext.Current.CancellationToken)).NextAttemptAt > DateTime.UtcNow.AddMinutes(119));
+        Assert.Equal("Retained Work", (await db.VideoMetadata.SingleAsync(TestContext.Current.CancellationToken)).Title);
+    }
+
+    private sealed class CursorWriteFailure : DbCommandInterceptor
+    {
+        public bool Armed { get; set; }
+        public override ValueTask<InterceptionResult<DbDataReader>> ReaderExecutingAsync(DbCommand command,
+            CommandEventData eventData, InterceptionResult<DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            if (Armed && command.CommandText.Contains("UPDATE \"CatalogueFeedStates\"", StringComparison.Ordinal))
+            {
+                Armed = false;
+                throw new IOException("Simulated process interruption at cursor commit.");
+            }
+            return ValueTask.FromResult(result);
+        }
     }
 
     private static async Task HeldAsync(TestDatabase store, string id)

@@ -159,7 +159,7 @@ public sealed class EnrichmentRunner(
                 await WaitAsync(
                     work,
                     "prdb is temporarily unavailable.",
-                    AvailabilityRetry,
+                    result.RetryAfter ?? AvailabilityRetry,
                     cancellationToken);
                 return;
         }
@@ -209,6 +209,11 @@ public sealed class EnrichmentRunner(
                 cancellationToken);
 
         work.CompletedItemCount += files.Count;
+        if (result.RetryAfter is { } retry)
+        {
+            await WaitAsync(work, "prdb deferred further catalogue requests.", retry, cancellationToken);
+            return;
+        }
         await RetainProfilesAsync(work, configuration.ActivePrdbCredential, cancellationToken);
     }
 

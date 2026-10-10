@@ -29,6 +29,40 @@ namespace Prdb.Viewer.Infrastructure.Tests.Library;
 public sealed class LibraryThroughPrdbTests
 {
     [Fact]
+    public async Task A_feed_correction_offers_new_Actor_credits_to_a_previously_completed_enrichment_lane()
+    {
+        var prdb = new FakePrdb().Recognises("first.mp4", "A Known Work", "Known Site", actors: ["Alex Doe"]);
+        await using var store = await CreateAsync(prdb); await ScanAsync(store, "first.mp4");
+        string id;
+        await using (var scope = store.Scope())
+            id = (await scope.ServiceProvider.GetRequiredService<ViewerDbContext>().VideoMetadata.SingleAsync(TestContext.Current.CancellationToken)).PrdbVideoId;
+        for (var i = 0; i < 2; i++)
+        {
+            await using var scope = store.Scope();
+            await scope.ServiceProvider.GetRequiredService<EnrichmentCoordinator>().RunNextSliceAsync(TestContext.Current.CancellationToken);
+        }
+        var actorId = Guid.NewGuid().ToString();
+        var requests = prdb.ActorBatchRequests.Count;
+        prdb.VideoFeedReplies.Enqueue(System.Text.Json.JsonSerializer.Serialize(new
+        {
+            hasMore = false,
+            serverTimeUtc = "2026-10-02T00:00:00Z",
+            pageSize = 1000,
+            nextCursor = new { updatedAtUtc = "2026-10-02T00:00:00Z", id },
+            items = new[] { new { eventType = "updated", video = new { id, isDeleted = false,
+                updatedAtUtc = "2026-10-02T00:00:00Z", title = "Corrected Work", actors = new[] { new { id = actorId, name = "New Credit" } } } } }
+        }));
+        await using (var scope = store.Scope())
+            await scope.ServiceProvider.GetRequiredService<EnrichmentCoordinator>().RunNextSliceAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(requests + 1, prdb.ActorBatchRequests.Count);
+        Assert.Contains(actorId, prdb.ActorBatchRequests.Last().ToJsonString());
+        await using var final = store.Scope();
+        var db = final.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        Assert.Equal("New Credit", (await db.VideoActors.SingleAsync(TestContext.Current.CancellationToken)).Name);
+        Assert.NotEqual(ActorProfileState.Pending, (await db.Actors.SingleAsync(row => row.PrdbActorId == actorId, TestContext.Current.CancellationToken)).ProfileState);
+    }
+
+    [Fact]
     public async Task A_remote_deletion_preserves_browsing_direct_delivery_and_two_Accounts_personal_state_offline()
     {
         var prdb = new FakePrdb().Recognises("first.mp4", "A Known Work", "Known Site");
@@ -45,8 +79,13 @@ public sealed class LibraryThroughPrdbTests
             remoteId = metadata.PrdbVideoId; videoId = file.VideoId; deliveryId = file.PublicDeliveryId;
             claimId = (await db.IdentificationClaims.SingleAsync(c => c.Dimension == IdentificationDimension.WorkIdentification,
                 TestContext.Current.CancellationToken)).Id;
-            db.PersonalVideoStates.AddRange(new PersonalVideoStateRow { AccountId = first, VideoId = videoId,
-                PlaybackProgressMilliseconds = 1200, FavouriteAddedAt = DateTime.UtcNow },
+            db.PersonalVideoStates.AddRange(new PersonalVideoStateRow
+            {
+                AccountId = first,
+                VideoId = videoId,
+                PlaybackProgressMilliseconds = 1200,
+                FavouriteAddedAt = DateTime.UtcNow
+            },
                 new PersonalVideoStateRow { AccountId = second, VideoId = videoId, PlaybackProgressMilliseconds = 3400, PlayCount = 2 });
             await db.SaveChangesAsync(TestContext.Current.CancellationToken);
         }
@@ -55,8 +94,11 @@ public sealed class LibraryThroughPrdbTests
             await using var scope = store.Scope();
             await scope.ServiceProvider.GetRequiredService<VideoCatalogueRefresh>().RunNextSliceAsync(TestContext.Current.CancellationToken);
         }
-        prdb.VideoFeedReplies.Enqueue(System.Text.Json.JsonSerializer.Serialize(new {
-            hasMore = false, serverTimeUtc = "2026-10-02T00:00:00Z", pageSize = 1000,
+        prdb.VideoFeedReplies.Enqueue(System.Text.Json.JsonSerializer.Serialize(new
+        {
+            hasMore = false,
+            serverTimeUtc = "2026-10-02T00:00:00Z",
+            pageSize = 1000,
             nextCursor = new { updatedAtUtc = "2026-10-02T00:00:00Z", id = remoteId },
             items = new[] { new { eventType = "deleted", video = new { id = remoteId, isDeleted = true,
                 updatedAtUtc = "2026-10-02T00:00:00Z", deletedAtUtc = "2026-10-02T00:00:00Z" } } }

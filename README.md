@@ -1175,7 +1175,8 @@ Background Work shows baseline completion, last successful refresh, server lag
 and the next permitted attempt. Rate-limit guidance may delay refresh; retained
 facts remain browseable offline, and thirty-day detail refresh remains a
 fallback. A changed credential or catalogue origin, a missing cursor, or a
-ninety-day interruption starts a bounded local repair. Pause also pauses feeds.
+ninety-day interruption or server lag starts a bounded local repair. Pause also
+pauses feeds.
 Feed cursors and Site baseline staging never travel in a Backup Archive;
 Restore keeps claims and facts, resets remote observations for revalidation and
 starts new feed boundaries after the credential is verified.
@@ -1188,3 +1189,11 @@ A withdrawn proposed work stays visible but cannot be accepted as a candidate;
 an Administrator can review it or explicitly assign a current work. Older
 observations and unversioned detail responses cannot undo a newer tombstone;
 a newer authoritative feed update can restore the remote record.
+
+The contract tests use SDK 0.17.0 fixtures without a live credential: 21,001
+Sites require 22 requests of at most 1,000 rows and remain staged until complete;
+four full pages of 4,000 irrelevant Video rows require four requests, advance the durable cursor
+and save no remote works before yielding. The upgrade test starts at the 0.19.0
+schema, preserves claims and two Accounts' private state, reads MD5 only for
+Unknown content, audits old shared-platform evidence and observes a later merge.
+An interrupted content/cursor commit rolls back as a unit and safely replays.

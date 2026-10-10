@@ -108,6 +108,7 @@ public sealed class SiteDirectory(
             return new(SiteDirectoryRefreshVerdict.Pending, 0, "Another slice advanced the Site feed.");
         if (result.Status != SiteDirectoryFetchStatus.Fetched)
         {
+            state.Phase = result.Status == SiteDirectoryFetchStatus.Rejected ? "Credential rejected" : "Waiting for prdb";
             state.NextAttemptAt = result.Status == SiteDirectoryFetchStatus.Rejected ? null : now + (result.RetryAfter ?? TimeSpan.FromMinutes(5));
             await database.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);

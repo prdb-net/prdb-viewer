@@ -84,7 +84,7 @@ Actors.
   local enrichment still receives its turn. The existing thirty-day detail
   horizon remains the fallback while the global feed cannot keep up.
 - Feed state survives restart but is regenerable: Restore, loss of a cursor,
-  a changed credential/origin, or a gap of ninety days starts another settled
+  a changed credential/origin, or a gap or server lag of ninety days starts another settled
   boundary and bounded repair without removing retained content. Background
   Work exposes baseline completion, last refresh, server lag and waiting.
   Browsing never invokes the remote catalogue.

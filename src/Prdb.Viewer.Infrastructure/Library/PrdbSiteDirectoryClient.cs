@@ -40,7 +40,7 @@ public interface IPrdbSiteDirectoryClient
 /// </summary>
 public sealed class PrdbSiteDirectoryClient(
     IHttpMessageHandlerFactory handlers,
-    PrdbEndpoint? endpoint = null)
+    PrdbEndpoint? endpoint = null, TimeProvider? timeProvider = null)
     : IPrdbSiteDirectoryClient
 {
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(60);
@@ -54,7 +54,7 @@ public sealed class PrdbSiteDirectoryClient(
         var origin = (endpoint ?? new PrdbEndpoint()).BaseUrl;
         var status = new ResponseStatusOption();
         var limits = new RateLimitOption();
-        using var guidance = new CatalogueResponseGuidance(handlers.CreateHandler(PrdbConnectionVerifier.TransportName));
+        using var guidance = new CatalogueResponseGuidance(handlers.CreateHandler(PrdbConnectionVerifier.TransportName), timeProvider ?? TimeProvider.System);
         var client = PrdbClientFactory.Create(credential, origin, transport: guidance,
             retry: PrdbRetryOptions.Disabled, timeout: RequestTimeout);
         try

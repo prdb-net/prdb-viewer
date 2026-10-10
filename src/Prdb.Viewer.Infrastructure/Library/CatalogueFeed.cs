@@ -20,7 +20,7 @@ public sealed record CatalogueCursor(string Since, Guid? SinceId)
 }
 
 /// <summary>Observes retry guidance without owning or retrying the shared credentialed handler.</summary>
-internal sealed class CatalogueResponseGuidance(HttpMessageHandler handler) : HttpMessageHandler
+internal sealed class CatalogueResponseGuidance(HttpMessageHandler handler, TimeProvider timeProvider) : HttpMessageHandler
 {
     private readonly HttpMessageInvoker transport = new(handler, disposeHandler: false);
     public TimeSpan? RetryAfter { get; private set; }
@@ -29,7 +29,7 @@ internal sealed class CatalogueResponseGuidance(HttpMessageHandler handler) : Ht
     {
         var response = await transport.SendAsync(request, cancellationToken);
         RetryAfter = response.Headers.RetryAfter?.Delta ??
-            (response.Headers.RetryAfter?.Date is { } at ? at - DateTimeOffset.UtcNow : null);
+            (response.Headers.RetryAfter?.Date is { } at ? at - timeProvider.GetUtcNow() : null);
         return response;
     }
 

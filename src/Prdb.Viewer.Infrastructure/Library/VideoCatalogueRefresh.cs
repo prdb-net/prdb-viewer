@@ -43,7 +43,9 @@ public sealed class VideoCatalogueRefresh(ViewerDbContext database, IPrdbVideoFe
         }
         var authority = CatalogueCursor.Authority(endpoint.BaseUrl, credential);
         if (state.AuthorityFingerprint != authority ||
-            (state.LastAppliedAt is { } last && now - last >= TimeSpan.FromDays(90)))
+            (state.LastAppliedAt is { } last && now - last >= TimeSpan.FromDays(90)) ||
+            (state.ServerTime is { } serverBoundary && DateTimeOffset.Parse(serverBoundary) -
+                DateTimeOffset.Parse(state.Since) >= TimeSpan.FromDays(90)))
         {
             state.AuthorityFingerprint = authority; state.RepairGeneration++;
             state.BaselineComplete = false; state.Since = CatalogueCursor.Baseline.Since; state.SinceId = null;
@@ -78,7 +80,7 @@ public sealed class VideoCatalogueRefresh(ViewerDbContext database, IPrdbVideoFe
         {
             var answer = await details.FetchAsync(credential, repair, cancellationToken);
             if (answer.Status != WorkDetailFetchStatus.Fetched)
-                return await DeferAsync(state, configuration, answer.Status, null, now, cancellationToken);
+                return await DeferAsync(state, configuration, answer.Status, answer.RetryAfter, now, cancellationToken);
             await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
             await database.Entry(state).ReloadAsync(cancellationToken);
             await database.Entry(configuration).ReloadAsync(cancellationToken);
@@ -92,6 +94,7 @@ public sealed class VideoCatalogueRefresh(ViewerDbContext database, IPrdbVideoFe
             await database.ProposedWorks.Where(row => repair.Contains(row.PrdbVideoId)).ExecuteUpdateAsync(update => update
                 .SetProperty(row => row.CatalogueRepairGeneration, generation), cancellationToken);
             state.Phase = "Repairing locally retained work IDs"; state.LastAppliedAt = now;
+            state.NextAttemptAt = answer.RetryAfter is { } retry ? now + retry : null;
             await database.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return true;
@@ -140,6 +143,18 @@ public sealed class VideoCatalogueRefresh(ViewerDbContext database, IPrdbVideoFe
                 (updatedAt == null || row.RemoteUpdatedAt == null || row.RemoteUpdatedAt < updatedAt))
             .Select(row => row.VideoId).ToListAsync(cancellationToken);
         foreach (var video in videos) await identification.RefreshRetainedWorkAsync(video, work, cancellationToken, updatedAt != null);
+        // A completed enrichment run must be offered the newly retained credits. Existing
+        // active/waiting work already sees them; do not clear its quota or outage deferral.
+        var directories = await database.VideoFiles.Where(file => videos.Contains(file.VideoId) &&
+                file.Availability == VideoFileAvailability.Available && file.LibraryDirectory.State == LibraryDirectoryState.Active)
+            .Select(file => new { file.LibraryDirectoryId, file.LibraryDirectory.ConfigurationGeneration }).Distinct()
+            .ToListAsync(cancellationToken);
+        foreach (var directory in directories)
+            if (!await database.BackgroundWork.AnyAsync(row => row.LibraryDirectoryId == directory.LibraryDirectoryId &&
+                row.Category == BackgroundWorkCategory.Enrichment && (row.State == BackgroundWorkState.Queued ||
+                    row.State == BackgroundWorkState.Running || row.State == BackgroundWorkState.Waiting || row.State == BackgroundWorkState.Paused), cancellationToken))
+                await DerivedWorkQueue.QueueAsync(database, directory.LibraryDirectoryId, directory.ConfigurationGeneration,
+                    BackgroundWorkCategory.Enrichment, BackgroundWorkTrigger.FollowUpWork, timeProvider.GetUtcNow().UtcDateTime, cancellationToken);
         if (await database.ProposedWorks.AnyAsync(row => row.PrdbVideoId == work.PrdbVideoId &&
                 (updatedAt == null || row.RemoteUpdatedAt == null || row.RemoteUpdatedAt < updatedAt), cancellationToken))
             await identification.RetainProposedWorkAsync(work, cancellationToken, updatedAt != null);

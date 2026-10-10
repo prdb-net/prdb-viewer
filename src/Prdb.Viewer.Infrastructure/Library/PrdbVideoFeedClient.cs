@@ -18,14 +18,14 @@ public interface IPrdbVideoFeedClient
     Task<VideoFeedFetchResult> FetchAsync(string credential, CatalogueCursor cursor, CancellationToken cancellationToken = default);
 }
 
-public sealed class PrdbVideoFeedClient(IHttpMessageHandlerFactory handlers, PrdbEndpoint? endpoint = null) : IPrdbVideoFeedClient
+public sealed class PrdbVideoFeedClient(IHttpMessageHandlerFactory handlers, PrdbEndpoint? endpoint = null, TimeProvider? timeProvider = null) : IPrdbVideoFeedClient
 {
     public async Task<VideoFeedFetchResult> FetchAsync(string credential, CatalogueCursor cursor, CancellationToken cancellationToken = default)
     {
         var origin = (endpoint ?? new PrdbEndpoint()).BaseUrl;
         var status = new ResponseStatusOption();
         var limits = new RateLimitOption();
-        using var guidance = new CatalogueResponseGuidance(handlers.CreateHandler(PrdbConnectionVerifier.TransportName));
+        using var guidance = new CatalogueResponseGuidance(handlers.CreateHandler(PrdbConnectionVerifier.TransportName), timeProvider ?? TimeProvider.System);
         var client = PrdbClientFactory.Create(credential, origin, transport: guidance,
             retry: PrdbRetryOptions.Disabled, timeout: TimeSpan.FromSeconds(60));
         try
