@@ -870,10 +870,15 @@ they remain dormant only while their Video is removed from the active Library.
 After technical inspection admits a Video File, four further bounded lanes run
 on their own durable schedule and never write beneath a Library Directory:
 
-1. **Hashing** computes the `osHash` and `pHash` of the inspected content with
+1. **Hashing** computes full-file MD5 by a cancellable, streaming, read-only
+   read, and the `osHash` and `pHash` of the inspected content with
    the official `Prdb.Hashing` package, so both values match what the prdb
    Public API stores. A file that yields neither hash stays in the library and
-   remains identifiable by its name.
+   remains identifiable by its name. Existing Available files of Unknown Videos
+   receive one MD5 backfill attempt per inspected content; established works are
+   not reread for this addition. A failed attempt retains its reason and can be
+   retried on a later scan; interruption commits no completion marker. Pause and
+   playback priority apply between files, the hashing lane's safe boundary.
 2. **Preview generation** writes one still frame per Video File with `ffmpeg`
    into the application's own data directory. Previews are regenerable
    artefacts rather than identity, and a failed one is a visible Work Issue that
@@ -901,6 +906,14 @@ ordinary browsing. Video Files whose established work identity is the same are
 associated into one Video, keeping the earliest Discovery Date, both
 identification histories, and each Account's private viewing state.
 
+Descriptions are retained and shown as plain text on a Video's detail and on an
+Administrator's proposed-work comparison. External scene IDs are catalogue facts;
+they initiate no external service request and never infer a local merge. A Site
+may name a Creator Platform and public Creator Account Handle, independently of
+its Network and of every local Account. Additional Site links come from the Site
+Directory and only absolute HTTP(S) links without embedded credentials are shown.
+These facts remain available offline; proposed facts remain Administrator-only.
+
 ## Recognise sites locally
 
 A Video File whose path names exactly one known site — through the site's name,
@@ -910,6 +923,12 @@ labelled as such wherever a Site is shown. The match is whole words of the path,
 so a folder called `midnightowl` never names the site `Night Owl`, and the
 longest name a path gives wins, so `Harbour Nights` is not read as `Harbour`.
 
+A Creator Platform domain alone (for example `onlyfans/unknown.mp4`) identifies
+no individual Creator Site. `platform/alice/scene.mp4` may name Alice only when
+prdb supplies that platform's explicit handle; `alice/scene.mp4` alone does not.
+A distinct Site title remains useful. Older local claims based only on a shared
+host keep their provenance and appear once in Administrator review.
+
 A path that names several known sites, or names one only through a word short
 enough to be an ordinary word, proposes an Identification Candidate instead and
 establishes nothing. A locally recognised Site never replaces one prdb
@@ -917,11 +936,22 @@ established or an Administrator set; it does give way, without review, to the
 canonical Site of a work prdb later identifies, and the reading it replaces is
 kept as history.
 
-The vocabulary is the Site Directory: the list prdb publishes, fetched at most
-once a day and retained locally, together with every Site this installation has
+The vocabulary is the Site Directory: the list prdb publishes, refreshed at most
+once a day through the current-state Site feed and retained locally, together with every Site this installation has
 already established. Recognition therefore keeps working while prdb is
 unreachable. An installation that has never been able to fetch the list
-recognises nothing and says so once, as a Scoped Issue. See
+recognises nothing and says so once, as a Scoped Issue. The baseline is staged in
+pages of at most 1,000 Sites, with durable progress after each page and no 20-page
+ceiling. Its phase reports retained Sites while work remains. A prior complete
+copy stays active until the replacement is complete. Deleted upstream Sites leave
+recognition, including fallback from old claims; those claims retain their history.
+
+Cursors and staging are regenerable, omitted from Backup Archives and cleared by
+Restore. A missing cursor or 90 days without an applied page automatically builds
+a fresh baseline. To force a repair, stop the installation, back up its application
+state, and use SQLite to delete only the `sites` row from `CatalogueFeedStates`
+and clear `SiteDirectoryFetchedAt` in `installation_configuration`; the next
+Library Scan builds a replacement while retaining the old directory. See
 [ADR 0014](docs/adr/0014-recognise-sites-from-a-retained-site-directory.md).
 
 ## Review identifications
@@ -1131,3 +1161,39 @@ If an Administrator loses their password, use `recover-administrator` rather
 than a restore: it issues a single-use code that changes credential authority
 only, and leaves identity, role, Shared Library Knowledge, and Personal State
 untouched.
+
+### Catalogue refresh and recovery
+
+Established and proposed works use the current prdb Video feed. Each slice
+reads one page of at most 1,000 changes or repairs at most 50 locally held IDs.
+Four catch-up pages yield for five minutes; a settled feed checks every fifteen
+minutes. Only IDs already retained here are saved. A settled server boundary
+is captured before local detail repair, then changes since it are replayed.
+New local IDs are repaired even if their changes precede the cursor.
+
+Background Work shows baseline completion, last successful refresh, server lag
+and the next permitted attempt. Rate-limit guidance may delay refresh; retained
+facts remain browseable offline, and thirty-day detail refresh remains a
+fallback. A changed credential or catalogue origin, a missing cursor, or a
+ninety-day interruption or server lag starts a bounded local repair. Pause also
+pauses feeds.
+Feed cursors and Site baseline staging never travel in a Backup Archive;
+Restore keeps claims and facts, resets remote observations for revalidation and
+starts new feed boundaries after the credential is verified.
+
+An explicit prdb deletion or merge appears beside the retained facts on the
+Video page and in identification review, including the surviving remote ID for
+a merge. It never changes local file availability, existing identifications,
+Administrative Overrides or Personal State. Available files remain playable.
+A withdrawn proposed work stays visible but cannot be accepted as a candidate;
+an Administrator can review it or explicitly assign a current work. Older
+observations and unversioned detail responses cannot undo a newer tombstone;
+a newer authoritative feed update can restore the remote record.
+
+The contract tests use SDK 0.17.0 fixtures without a live credential: 21,001
+Sites require 22 requests of at most 1,000 rows and remain staged until complete;
+four full pages of 4,000 irrelevant Video rows require four requests, advance the durable cursor
+and save no remote works before yielding. The upgrade test starts at the 0.19.0
+schema, preserves claims and two Accounts' private state, reads MD5 only for
+Unknown content, audits old shared-platform evidence and observes a later merge.
+An interrupted content/cursor commit rolls back as a unit and safely replays.

@@ -8,8 +8,8 @@ namespace Prdb.FakeCatalogue;
 /// <param name="Actors">Who is in it. The other facet row.</param>
 /// <param name="Confidence">0 None, 1 Partial, 2 Probable, 3 Strong, 4 Exact, 5 Ambiguous.</param>
 /// <param name="MatchedBy">
-/// 0 OsHash, 1 PHash, 2 Filename, 3 ReleaseName, 4 Site. It decides more than it looks: only a
-/// content match — OsHash or PHash — is evidence enough to establish a Work without a person
+/// 0 OsHash, 1 PHash, 2 Filename, 3 ReleaseName, 4 Site, 5 MD5. It decides more than it looks: only a
+/// content match — OsHash, PHash or MD5 — is evidence enough to establish a Work without a person
 /// agreeing to it. A name is not, however sure the catalogue sounds, so a match by file name
 /// lands in the identification review queue instead. Both are states worth seeing.
 /// </param>
@@ -42,7 +42,7 @@ public sealed record CatalogueEntry(
 /// was supposed to prove something goes green. That already happened once during this work, with a
 /// list of Sites answered under the wrong field name.
 ///
-/// The shapes come from the SDK's OpenAPI document. Two are worth stating outright, because
+/// The shapes are pinned to Prdb.Sdk 0.17.0 (prdb-sdk 3b31e32) OpenAPI and catalog-sync.md. Two are worth stating outright, because
 /// guessing them is how the above happens: `confidence` and `matchedBy` are integers rather than
 /// names, and the page of Sites is `items`.
 /// </summary>
@@ -266,6 +266,38 @@ public static class CatalogueAnswers
             .ToJsonString();
     }
 
+    /// <summary>A current-state page from the reviewed SDK contract, with a settled server boundary.</summary>
+    public static string Changes(string kind, IEnumerable<JsonObject> source, DateTimeOffset since,
+        Guid? sinceId, int pageSize, DateTimeOffset serverTime)
+    {
+        var changedAt = DateTimeOffset.Parse("2026-10-01T00:00:00.1234567Z");
+        var size = Math.Clamp(pageSize, 1, 1000);
+        var all = source.Select(record => (Record: record, Id: Guid.Parse(record["id"]!.GetValue<string>())))
+            .OrderBy(entry => entry.Id.ToString(), StringComparer.Ordinal)
+            .Where(entry => changedAt <= serverTime && (since < changedAt ||
+                (since == changedAt && (sinceId is null || string.CompareOrdinal(entry.Id.ToString(), sinceId.Value.ToString()) > 0))))
+            .ToArray();
+        var entries = all.Take(size).Select(entry =>
+        {
+            var record = (JsonObject)entry.Record.DeepClone();
+            record["isDeleted"] = false; record["updatedAtUtc"] = changedAt; record["deletedAtUtc"] = null;
+            if (kind == "video") record["mergedIntoId"] = null;
+            return (JsonNode)new JsonObject { ["eventType"] = "updated", [kind] = record };
+        }).ToArray();
+        return new JsonObject
+        {
+            ["items"] = new JsonArray(entries),
+            ["hasMore"] = all.Length > size,
+            ["pageSize"] = size,
+            ["serverTimeUtc"] = serverTime,
+            ["nextCursor"] = entries.Length == 0 ? null : new JsonObject
+            {
+                ["updatedAtUtc"] = changedAt,
+                ["id"] = all[Math.Min(size, all.Length) - 1].Id.ToString()
+            }
+        }.ToJsonString();
+    }
+
     /// <summary>
     /// One page of the Site directory. The field is `items`; a client reading it finds nothing
     /// under any other name and accepts the empty page without complaint.
@@ -307,7 +339,7 @@ public static class CatalogueAnswers
             ["monthly"] = Window(10_000),
         }.ToJsonString();
 
-    private static JsonObject Site(CatalogueEntry entry) =>
+    public static JsonObject Site(CatalogueEntry entry) =>
         SiteItem(entry.SiteId, entry.SiteTitle);
 
     /// <summary>

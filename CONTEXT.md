@@ -220,6 +220,18 @@ _Avoid_: automatic identification, confirmed match, deduplication
 A Video with no Established Work Identification. It may still have an Established Site Recognition, local file facts, Pending Identification Candidates, and an Identification Review Status of Review Needed.
 _Avoid_: unidentified file, unprocessed Video, Video without metadata
 
+### Retained catalogue facts
+
+**Creator Platform**:
+The publishing service prdb associates with a Site, identified by its own UUID,
+key and title. It is independent of the Site's studio Network and grants no local access.
+_Avoid_: Network, Site, local Account
+
+**Creator Account Handle**:
+The public handle prdb names for a Site on a Creator Platform. It is descriptive
+catalogue metadata, never a local Account or an inference of ownership from Actor Credits.
+_Avoid_: username, Account, owner
+
 ### Actors
 
 **Actor**:
@@ -395,3 +407,11 @@ _Avoid_: Dislike, Continue Watching dismissal, hide, block
 **Discovery Affinity**:
 The cautious, bounded inference from a User's own evidence about which Actors and Sites to try for Videos they have not watched, normalised so that a prolific Actor or Site cannot lead by count alone. A Dislike applies to its Video and is never propagated to that Video's Actors or Site. Part of discovery is deliberately selected independently of it.
 _Avoid_: taste profile, similarity score, collaborative filtering
+
+**Remote Catalogue State**:
+A retained observation of prdb's work record: Unknown, Active, Deleted or Merged,
+with its remote ID, update/deletion time and optional surviving work ID. It is
+separate from local Video identity and Video/File Availability. A tombstone
+retains last known facts, claims, overrides and every Account's Personal State.
+A remote merge never merges local Videos or transfers Playback Progress.
+_Avoid_: Video Availability, Missing, Removed, local merge

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 using PrdbOsHash = Prdb.Hashing.OsHash;
 using PrdbVideoPerceptualHasher = Prdb.Hashing.VideoPerceptualHasher;
 
@@ -11,11 +13,15 @@ namespace Prdb.Viewer.Infrastructure.Library;
 public sealed record VideoFileHashes(
     string? OsHash,
     string? PerceptualHash,
-    string? FailureReason);
+    string? FailureReason,
+    string? Md5 = null);
 
 public interface IVideoFileHasher
 {
     Task<VideoFileHashes> ComputeAsync(string path, CancellationToken cancellationToken = default);
+
+    Task<string?> ComputeMd5Async(string path, CancellationToken cancellationToken = default) =>
+        PrdbVideoFileHasher.ReadMd5Async(path, cancellationToken);
 }
 
 /// <summary>
@@ -47,6 +53,21 @@ public sealed class PrdbVideoFileHasher : IVideoFileHasher
         return new VideoFileHashes(
             osHash,
             result.Hash,
-            result.IsComputed ? null : $"No perceptual hash: {result.Outcome}.");
+            result.IsComputed ? null : $"No perceptual hash: {result.Outcome}.",
+            await ReadMd5Async(path, cancellationToken));
+    }
+
+    internal static async Task<string?> ReadMd5Async(string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read,
+                FileShare.Read, 128 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            return Convert.ToHexString(await MD5.HashDataAsync(stream, cancellationToken)).ToLowerInvariant();
+        }
+        catch (Exception exception) when (exception is UnauthorizedAccessException or IOException)
+        {
+            return null;
+        }
     }
 }

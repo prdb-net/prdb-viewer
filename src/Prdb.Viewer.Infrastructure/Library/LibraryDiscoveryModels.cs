@@ -149,7 +149,11 @@ public sealed record WorkFacts(
     /// thing from the preview, which is this installation's picture of the file it holds.
     /// </summary>
     IReadOnlyList<string> ImageUrls,
-    DateTimeOffset? FetchedAt);
+    DateTimeOffset? FetchedAt,
+    string? Description = null,
+    Guid? StashdbSceneId = null,
+    RemoteSite? Site = null,
+    RemoteCatalogueStatus? CatalogueStatus = null);
 
 /// <summary>
 /// One media configuration this Account's client has not answered for yet, with everything Media

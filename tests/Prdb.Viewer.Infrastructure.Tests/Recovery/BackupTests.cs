@@ -26,6 +26,18 @@ public sealed class BackupTests
     public async Task An_archive_validates_independently_and_returns_precious_state_to_an_empty_target()
     {
         await using var source = await PopulatedAsync();
+        await using (var seed = source.Scope())
+        {
+            var db = seed.ServiceProvider.GetRequiredService<ViewerDbContext>();
+            db.CatalogueFeedStates.Add(new CatalogueFeedStateRow { Feed = "videos", Since = "2026-10-01T00:00:00Z", RepairGeneration = 7 });
+            db.SiteDirectoryStaging.Add(new SiteDirectoryStagingRow { SiteKey = Guid.NewGuid().ToString(), FactsJson = "{}" });
+            await db.VideoMetadata.ExecuteUpdateAsync(update => update
+                .SetProperty(row => row.CatalogueRepairGeneration, 7)
+                .SetProperty(row => row.RemoteState, RemoteCatalogueState.Merged)
+                .SetProperty(row => row.RemoteUpdatedAt, DateTime.UtcNow)
+                .SetProperty(row => row.RemoteMergedIntoId, WorkId), TestContext.Current.CancellationToken);
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
         var sourceFiles = await BytesAsync(source);
         var archivePath = Path.Combine(source.Directory, "installation.prdbviewer");
 
@@ -112,6 +124,12 @@ public sealed class BackupTests
                 TestContext.Current.CancellationToken);
             Assert.Equal(WorkId, claim.TargetKey);
 
+            Assert.Empty(await database.CatalogueFeedStates.ToListAsync(TestContext.Current.CancellationToken));
+            Assert.Empty(await database.SiteDirectoryStaging.ToListAsync(TestContext.Current.CancellationToken));
+            var retained = await database.VideoMetadata.SingleAsync(TestContext.Current.CancellationToken);
+            Assert.Equal(RemoteCatalogueState.Unknown, retained.RemoteState);
+            Assert.Equal(0, retained.CatalogueRepairGeneration);
+            Assert.Null(retained.RemoteUpdatedAt); Assert.Null(retained.RemoteMergedIntoId);
             var file = await database.VideoFiles.SingleAsync(TestContext.Current.CancellationToken);
 
             // Backed-up availability is last-known history, never proof of current storage.
@@ -448,6 +466,26 @@ public sealed class BackupTests
             "personalRating",
             System.Text.Encoding.UTF8.GetString(BackupDocumentSerializer.Serialize(restored)),
             StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_019_archive_document_without_new_catalogue_columns_keeps_identity_and_defaults_to_unknown_remote_state()
+    {
+        var videoId = Guid.NewGuid(); var fileId = Guid.NewGuid(); var timestamp = DateTime.UtcNow;
+        var old = System.Text.Json.Nodes.JsonNode.Parse(BackupDocumentSerializer.Serialize(Empty([])))!;
+        old["videos"] = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(new[] { new {
+            id = videoId, discoveryDate = timestamp, displayLabel = "Old", searchText = "old", caseVersion = 3 } }));
+        old["videoFiles"] = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(new[] { new {
+            id = fileId, videoId, libraryDirectoryId = Guid.NewGuid(), relativePath = "old.mp4", size = 3,
+            lastWriteTimeUtc = timestamp, sha256 = "old-content", containerFormat = "mp4", videoCodec = "h264" } }));
+        old["videoMetadata"] = System.Text.Json.Nodes.JsonNode.Parse(System.Text.Json.JsonSerializer.Serialize(new[] { new {
+            videoId, prdbVideoId = WorkId, title = "Old Work", fetchedAt = timestamp } }));
+        var read = BackupDocumentSerializer.Deserialize(System.Text.Encoding.UTF8.GetBytes(old.ToJsonString()))!;
+        Assert.Equal(videoId, read.Videos.Single().Id); Assert.Equal(timestamp, read.Videos.Single().DiscoveryDate);
+        Assert.Equal(fileId, read.VideoFiles.Single().Id); Assert.Null(read.VideoFiles.Single().Md5);
+        Assert.Equal("Old Work", read.VideoMetadata.Single().Title);
+        Assert.Equal(RemoteCatalogueState.Unknown, read.VideoMetadata.Single().RemoteState);
+        Assert.Equal(0, read.VideoMetadata.Single().CatalogueRepairGeneration);
     }
 
     private static BackupDocument Empty(IReadOnlyList<PersonalVideoStateRow> personalVideoStates) => new()

@@ -23,12 +23,17 @@ public sealed class HashingRunner(
         Database.VideoFiles.Where(file =>
             file.LibraryDirectoryId == libraryDirectoryId &&
             file.Availability == VideoFileAvailability.Available &&
-            (file.HashedSha256 == null || file.HashedSha256 != file.Sha256));
+            (file.HashedSha256 == null || file.HashedSha256 != file.Sha256 ||
+             (file.Md5AttemptedSha256 != file.Sha256 &&
+              !Database.IdentificationClaims.Any(claim => claim.VideoId == file.VideoId &&
+                  claim.Dimension == IdentificationDimension.WorkIdentification &&
+                  claim.Status == IdentificationClaimStatus.Current))));
 
-    protected override Task RetryEarlierFailuresAsync(
+    protected override async Task RetryEarlierFailuresAsync(
         Guid libraryDirectoryId,
-        CancellationToken cancellationToken) =>
-        Database.VideoFiles
+        CancellationToken cancellationToken)
+    {
+        await Database.VideoFiles
             .Where(file => file.LibraryDirectoryId == libraryDirectoryId &&
                            file.Availability == VideoFileAvailability.Available &&
                            file.HashState == VideoFileHashState.Failed)
@@ -37,6 +42,13 @@ public sealed class HashingRunner(
                     .SetProperty(file => file.HashState, VideoFileHashState.Pending)
                     .SetProperty(file => file.HashedSha256, (string?)null),
                 cancellationToken);
+        await Database.VideoFiles
+            .Where(file => file.LibraryDirectoryId == libraryDirectoryId &&
+                           file.Availability == VideoFileAvailability.Available &&
+                           file.Md5FailureReason != null)
+            .ExecuteUpdateAsync(update => update.SetProperty(file => file.Md5AttemptedSha256, (string?)null),
+                cancellationToken);
+    }
 
     protected override async Task AdvanceAsync(
         BackgroundWorkRow work,
@@ -49,13 +61,26 @@ public sealed class HashingRunner(
             .SingleAsync(row => row.Id == file.Id, cancellationToken);
         var previousPerceptualHash = tracked.PerceptualHash;
         var path = SourceFile.Resolve(work.LibraryDirectory.ContainerPath, file.RelativePath);
-        var hashes = path is not null && IsStable(path, file)
+        var backfill = file.HashedSha256 == file.Sha256;
+        var hashes = backfill
+            ? new VideoFileHashes(file.OsHash, file.PerceptualHash, file.HashFailureReason,
+                path is not null && IsStable(path, file)
+                    ? await hasher.ComputeMd5Async(path, cancellationToken) : null)
+            : path is not null && IsStable(path, file)
             ? await hasher.ComputeAsync(path, cancellationToken)
             : new VideoFileHashes(null, null, "The Video File is not readable as inspected.");
 
         if (path is not null && !IsStable(path, file))
         {
             hashes = new VideoFileHashes(null, null, "The Video File changed while it was hashed.");
+        }
+
+        tracked.Md5 = hashes.Md5;
+        tracked.Md5AttemptedSha256 = file.Sha256;
+        tracked.Md5FailureReason = hashes.Md5 is null ? "No MD5 was obtained from stable content." : null;
+        if (hashes.Md5 is not null && backfill)
+        {
+            tracked.IdentifiedSha256 = null;
         }
 
         tracked.OsHash = hashes.OsHash;
@@ -66,7 +91,7 @@ public sealed class HashingRunner(
         tracked.HashState = (hashes.OsHash, hashes.PerceptualHash) switch
         {
             (not null, not null) => VideoFileHashState.Computed,
-            (null, null) => VideoFileHashState.Failed,
+            (null, null) when hashes.Md5 is null => VideoFileHashState.Failed,
             _ => VideoFileHashState.Incomplete,
         };
 

@@ -7,6 +7,33 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Optional full-file MD5 in bounded Background Work and identification through
+  prdb's MD5 rung. Legacy Unknown files are backfilled once; already identified
+  unchanged files are not reread solely for MD5.
+- Retained work descriptions, external scene identity, published Site links,
+  Creator Platform and creator account handles on Video and review pages.
+- Resumable Site baselines followed by daily change refresh, and a bounded Video
+  feed refreshing only locally retained established/proposed work IDs. Background
+  Work reports completion, lag, last success and waiting; quota guidance is kept
+  across restarts, with local detail repair and the existing refresh fallback.
+- Explicit remote deletion/merge notices retain last known facts and survivor
+  references. Local identity, availability, playback, overrides and each
+  Account's Personal State remain intact. Withdrawn proposals cannot be accepted.
+
+### Changed
+
+- Upgrade Prdb.Sdk to 0.17.0; Prdb.Hashing stays at 0.1.0. Existing authenticated
+  transports, credential-free artwork and disabled SDK retries remain in use.
+- Creator Site Recognition requires account-specific evidence. Shared platform
+  hosts, generic platform labels and bare handles cannot establish one account.
+  Historic local claims are checked once and offered for Administrator review
+  when their original path no longer uniquely names the Site.
+- Additive migrations preserve existing claims and private state. Restore keeps
+  precious facts, resets regenerable feed state and revalidates remote status.
+  Take an application-data snapshot before upgrading if rollback is needed.
+
 ## [0.19.0] - 2026-09-14
 
 The administrative surface and the Video page managed "what" and left "why" to

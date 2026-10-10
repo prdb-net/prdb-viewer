@@ -106,7 +106,8 @@ public sealed class IdentificationRunner(
                 Path.GetFileName(file.RelativePath),
                 file.Size,
                 file.OsHash,
-                file.PerceptualHash)).ToArray(),
+                file.PerceptualHash,
+                file.Md5)).ToArray(),
             cancellationToken);
 
         switch (result.Status)

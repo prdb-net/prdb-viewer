@@ -91,7 +91,7 @@ public sealed class EnrichmentWorker(
     ILogger<EnrichmentWorker> logger) : BackgroundService
 {
     protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
-        WorkerLoop.RunAsync<EnrichmentRunner>(
+        WorkerLoop.RunAsync<EnrichmentCoordinator>(
             scopes,
             logger,
             (runner, cancellationToken) => runner.RunNextSliceAsync(cancellationToken),

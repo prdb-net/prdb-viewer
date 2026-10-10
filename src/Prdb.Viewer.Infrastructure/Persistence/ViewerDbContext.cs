@@ -75,6 +75,10 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
     public DbSet<PlaybackAttemptVideoFileRow> PlaybackAttemptVideoFiles =>
         Set<PlaybackAttemptVideoFileRow>();
 
+    public DbSet<CatalogueFeedStateRow> CatalogueFeedStates => Set<CatalogueFeedStateRow>();
+
+    public DbSet<SiteDirectoryStagingRow> SiteDirectoryStaging => Set<SiteDirectoryStagingRow>();
+
     public DbSet<SiteDirectoryEntryRow> SiteDirectoryEntries => Set<SiteDirectoryEntryRow>();
 
     public DbSet<ProposedWorkRow> ProposedWorks => Set<ProposedWorkRow>();
@@ -573,6 +577,8 @@ public sealed class ViewerDbContext(DbContextOptions<ViewerDbContext> options) :
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
+        builder.Entity<CatalogueFeedStateRow>().HasKey(row => row.Feed);
+        builder.Entity<SiteDirectoryStagingRow>().HasKey(row => row.SiteKey);
         builder.Entity<SiteDirectoryEntryRow>(site =>
         {
             site.ToTable("site_directory_entry");

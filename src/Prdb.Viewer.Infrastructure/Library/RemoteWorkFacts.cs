@@ -19,7 +19,28 @@ public static class RemoteWorkFacts
             : new RemoteSite(id.Value.ToString(), title, url);
 
     public static RemoteSite? Site(VideoDetailSiteDto? site) =>
-        Site(site?.Id, site?.Title, site?.Url);
+        Site(site?.Id, site?.Title, site?.Url) is { } value ? value with
+        {
+            PlatformId = site?.PlatformId?.ToString(),
+            PlatformKey = site?.PlatformKey,
+            PlatformTitle = site?.PlatformTitle,
+            AccountHandle = site?.AccountHandle,
+        } : null;
+
+    public static RemoteSite? Site(SiteSummaryDto? site) =>
+        Site(site?.Id, site?.Title, site?.Url) is { } value ? value with
+        {
+            PlatformId = site?.PlatformId?.ToString(),
+            PlatformKey = site?.PlatformKey,
+            PlatformTitle = site?.PlatformTitle,
+            AccountHandle = site?.AccountHandle,
+            Links = (site?.Links ?? []).Where(link => SafeUrl(link.Url) is not null)
+                .Select(link => new RemoteSiteLink(link.Label, SafeUrl(link.Url)!)).ToArray(),
+        } : null;
+
+    public static string? SafeUrl(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        uri.Scheme is "http" or "https" && string.IsNullOrEmpty(uri.UserInfo) ? uri.AbsoluteUri : null;
 
     public static RemoteWork? Of(VideoDetailDto? video)
     {
@@ -42,6 +63,8 @@ public static class RemoteWorkFacts
             video.ReleaseDate?.DateTime,
             video.DurationMs)
         {
+            Description = video.Description,
+            StashdbSceneId = video.StashdbSceneId,
             Network = Network(video.Site?.Network),
             ReleaseNames = (video.PreNames ?? [])
                 .Select(name => name.Title)
@@ -55,6 +78,34 @@ public static class RemoteWorkFacts
             QualityOverview = Quality(video.QualityOverview),
         };
     }
+
+    public static RemoteWork? Of(VideoChangeVideoDto video) => Of(new VideoDetailDto
+    {
+        Id = video.Id,
+        Title = video.Title,
+        Description = video.Description,
+        StashdbSceneId = video.StashdbSceneId,
+        DurationMs = video.DurationMs,
+        DurationFileCount = video.DurationFileCount,
+        DurationSpreadMs = video.DurationSpreadMs,
+        ReleaseDate = video.ReleaseDate,
+        QualityOverview = video.QualityOverview,
+        Site = video.Site is null ? null : new VideoDetailSiteDto
+        {
+            Id = video.Site.Id,
+            Title = video.Site.Title,
+            Url = video.Site.Url,
+            PlatformId = video.Site.PlatformId,
+            PlatformKey = video.Site.PlatformKey,
+            PlatformTitle = video.Site.PlatformTitle,
+            AccountHandle = video.Site.AccountHandle,
+            Network = video.Site.Network is null ? null : new VideoDetailNetworkDto
+            { Title = video.Site.Network.Title, Url = video.Site.Network.Url },
+        },
+        Actors = (video.Actors ?? []).Select(actor => new VideoDetailActorDto { Id = actor.Id, Name = actor.Name }).ToList(),
+        Images = (video.Images ?? []).Select(image => new VideoDetailImageDto { Id = image.Id, Url = image.Url }).ToList(),
+        PreNames = (video.PreNames ?? []).Select(name => new VideoDetailPreNameDto { Title = name.Title }).ToList(),
+    });
 
     private static RemoteNetwork? Network(VideoDetailNetworkDto? network) =>
         network is null || string.IsNullOrWhiteSpace(network.Title)

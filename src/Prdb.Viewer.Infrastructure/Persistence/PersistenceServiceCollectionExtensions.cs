@@ -51,6 +51,9 @@ public static class PersistenceServiceCollectionExtensions
         services.AddScoped<SiteRecognitionRunner>();
         services.AddScoped<PerceptualNeighbourhoodRunner>();
         services.AddScoped<EnrichmentRunner>();
+        services.AddScoped<EnrichmentCoordinator>();
+        services.AddScoped<VideoCatalogueRefresh>();
+        services.AddScoped<IPrdbVideoFeedClient, PrdbVideoFeedClient>();
         services.AddScoped<IdentificationService>();
         services.AddScoped<LocalSimilarityService>();
         services.AddScoped<IdentificationReviewService>();

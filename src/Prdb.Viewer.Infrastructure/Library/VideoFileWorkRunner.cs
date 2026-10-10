@@ -80,6 +80,13 @@ public abstract class VideoFileWorkRunner(
             await Database.SaveChangesAsync(cancellationToken);
         }
 
+        if (!await BeforeSliceAsync(work, cancellationToken))
+        {
+            work.LastActivityAt = Now(); work.UpdatedAt = Now();
+            await Database.SaveChangesAsync(cancellationToken);
+            return true;
+        }
+
         var outstanding = await Outstanding(work.LibraryDirectoryId)
             .OrderBy(file => file.RelativePath)
             .Take(BatchSize)
@@ -118,6 +125,9 @@ public abstract class VideoFileWorkRunner(
         await Database.SaveChangesAsync(cancellationToken);
         return true;
     }
+
+    protected virtual Task<bool> BeforeSliceAsync(BackgroundWorkRow work, CancellationToken cancellationToken) =>
+        Task.FromResult(true);
 
     protected virtual int BatchSize => 1;
 

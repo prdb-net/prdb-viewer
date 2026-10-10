@@ -44,11 +44,16 @@ public sealed class SiteRecognitionRunner(
             file.Availability == VideoFileAvailability.Available &&
             file.IdentifiedSha256 != null &&
             file.IdentifiedSha256 == file.Sha256 &&
-            !Database.IdentificationClaims.Any(claim =>
+            ((!Database.IdentificationClaims.Any(claim =>
                 claim.VideoId == file.VideoId &&
                 claim.Dimension == IdentificationDimension.SiteRecognition &&
                 claim.Status == IdentificationClaimStatus.Current) &&
-            (file.SiteRecognisedPath == null || file.SiteRecognisedPath != file.RelativePath));
+              (file.SiteRecognisedPath == null || file.SiteRecognisedPath != file.RelativePath)) ||
+             Database.IdentificationClaims.Any(claim => claim.VideoId == file.VideoId &&
+                claim.Dimension == IdentificationDimension.SiteRecognition &&
+                claim.Status == IdentificationClaimStatus.Current &&
+                claim.Source == IdentificationSource.LocalInference && !claim.IsAdministrativeOverride &&
+                claim.SiteRecognitionPolicyVersion == 0)));
 
     /// <summary>
     /// A new run reads the paths of Videos whose Site is still Unknown again, because the Site
@@ -92,12 +97,14 @@ public sealed class SiteRecognitionRunner(
         IReadOnlyList<VideoFileRow> files,
         CancellationToken cancellationToken)
     {
-        await RefreshDirectoryAsync(work, cancellationToken);
-
         var vocabulary = await directory.ReadAsync(cancellationToken);
 
         foreach (var file in files)
         {
+            await identification.ReviewLegacySiteRecognitionAsync(file.VideoId, vocabulary, cancellationToken);
+            if (await Database.IdentificationClaims.AnyAsync(claim => claim.VideoId == file.VideoId &&
+                claim.Dimension == IdentificationDimension.SiteRecognition &&
+                claim.Status == IdentificationClaimStatus.Current, cancellationToken)) continue;
             Count(
                 work,
                 await identification.ApplyLocalSiteRecognitionAsync(
@@ -114,16 +121,13 @@ public sealed class SiteRecognitionRunner(
     /// Administrator can act on: nothing was ever fetched, so no site can be recognised at all. A
     /// stale copy that still recognises sites is not an obstacle and is not reported as one.
     /// </summary>
-    private async Task RefreshDirectoryAsync(
+    protected override async Task<bool> BeforeSliceAsync(
         BackgroundWorkRow work,
         CancellationToken cancellationToken)
     {
         // At most one request per run: a successful refresh then lasts a day, and an unsuccessful
         // one is retried by the next run rather than by every batch of files inside this one.
-        if (work.CompletedItemCount > 0 || !await directory.IsStaleAsync(cancellationToken))
-        {
-            return;
-        }
+        if (!await directory.IsStaleAsync(cancellationToken)) return true;
 
         var refresh = await directory.RefreshAsync(cancellationToken);
 
@@ -143,15 +147,33 @@ public sealed class SiteRecognitionRunner(
                     cancellationToken);
             }
 
-            return;
+            work.Phase = Phase;
+            return true;
         }
 
-        if (!await directory.IsEmptyAsync(cancellationToken))
+        if (refresh.Verdict == SiteDirectoryRefreshVerdict.Pending)
         {
-            return;
+            work.Phase = refresh.Detail ?? "Building the Site Directory baseline";
+            if (refresh.RetryAfter is { } retry) await WaitAsync(work, "prdb deferred the Site feed.", retry, cancellationToken);
+            return false;
         }
 
+        if (!await directory.IsEmptyAsync(cancellationToken) ||
+            !(await directory.ReadAsync(cancellationToken)).IsEmpty)
+        {
+            // Recognition remains available from the retained copy while this feed is deferred.
+            return true;
+        }
+
+        // A failed refresh cannot block Site Recognition when this directory has no
+        // eligible files (for example, inspection rejected every source candidate).
+        if (!await Outstanding(work.LibraryDirectoryId).AnyAsync(cancellationToken)) return true;
         await ReportAsync(work, Unfetched(refresh), cancellationToken);
+        if (refresh.Verdict == SiteDirectoryRefreshVerdict.Unreachable)
+            await WaitAsync(work, "prdb Site Directory is temporarily unavailable.",
+                refresh.RetryAfter ?? TimeSpan.FromMinutes(5), cancellationToken);
+        else await HoldAsync(work, "A verified prdb API key is required for the Site Directory.", cancellationToken);
+        return false;
     }
 
     private WorkIssueReport Unfetched(SiteDirectoryRefreshResult refresh) =>

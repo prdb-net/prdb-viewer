@@ -18,6 +18,29 @@ public sealed class IdentificationReviewTests
     private static readonly Guid Administrator = Guid.CreateVersion7();
 
     [Fact]
+    public async Task A_withdrawn_proposal_is_visible_but_cannot_be_accepted_even_with_confirmation()
+    {
+        var prdb = new FixtureIdentificationClient().Suggestive("first.mp4", WorkId, "A Guessed Work");
+        await using var store = await CreateAsync(prdb, ("first.mp4", [1, 2, 3, 4]));
+        await using (var seed = store.Scope())
+            await seed.ServiceProvider.GetRequiredService<ViewerDbContext>().ProposedWorks.ExecuteUpdateAsync(
+                update => update.SetProperty(row => row.RemoteState, RemoteCatalogueState.Deleted), TestContext.Current.CancellationToken);
+        await using var scope = store.Scope();
+        var review = scope.ServiceProvider.GetRequiredService<IdentificationReviewService>();
+        var item = (await review.QueueAsync(TestContext.Current.CancellationToken)).Single();
+        var open = await review.GetCaseAsync(item.VideoId, TestContext.Current.CancellationToken);
+        var candidate = Assert.Single(open!.OpenCandidates);
+        Assert.Equal(RemoteCatalogueState.Deleted, candidate.Proposal!.CatalogueStatus!.State);
+        Assert.Contains("withdrawn", candidate.Decisions.Single(d => d.Action == IdentificationDecisionAction.AcceptCandidate).Refusal);
+        var result = await review.DecideAsync(Administrator, item.VideoId, new IdentificationDecisionRequest(
+            IdentificationDecisionAction.AcceptCandidate, IdentificationDimension.WorkIdentification,
+            item.CaseVersion, Confirm: true, CandidateId: item.Candidate!.Id), TestContext.Current.CancellationToken);
+        Assert.Equal(IdentificationDecisionVerdict.ActionUnavailable, result.Verdict);
+        Assert.Equal(IdentificationResolution.Unknown, result.Case!.Identification.Work.Resolution);
+        Assert.Single(result.Case.OpenCandidates);
+    }
+
+    [Fact]
     public async Task Conclusive_conflicts_are_queued_before_suggestive_candidates()
     {
         var prdb = new FixtureIdentificationClient()

@@ -5,7 +5,9 @@ namespace Prdb.Viewer.Core.Library;
 /// the site's prdb identity, so a locally recognised site and a prdb-established one name the same
 /// thing and never split the library into two spellings of one site.
 /// </summary>
-public sealed record SiteVocabularyEntry(string Key, string Title, string? Url);
+public sealed record SiteVocabularyEntry(string Key, string Title, string? Url,
+    string? PlatformId = null, string? PlatformKey = null, string? PlatformTitle = null,
+    string? AccountHandle = null);
 
 /// <summary>One site a Video File's own path names, and the alias that named it.</summary>
 public sealed record LocalSiteMatch(SiteVocabularyEntry Site, string Alias);
@@ -42,18 +44,21 @@ public sealed class SiteVocabulary
 
     private readonly Dictionary<string, List<SiteVocabularyEntry>> byAlias;
     private readonly int longestAliasWords;
+    private readonly IReadOnlyList<SiteVocabularyEntry> creatorSites;
 
     private SiteVocabulary(
         Dictionary<string, List<SiteVocabularyEntry>> byAlias,
-        int longestAliasWords)
+        int longestAliasWords,
+        IReadOnlyList<SiteVocabularyEntry>? creatorSites = null)
     {
         this.byAlias = byAlias;
         this.longestAliasWords = longestAliasWords;
+        this.creatorSites = creatorSites ?? [];
     }
 
     public static readonly SiteVocabulary Empty = new([], 0);
 
-    public bool IsEmpty => byAlias.Count == 0;
+    public bool IsEmpty => byAlias.Count == 0 && creatorSites.Count == 0;
 
     /// <summary>
     /// Builds the lookup once for a whole batch of files. Two sites that share an alias keep it:
@@ -64,7 +69,8 @@ public sealed class SiteVocabulary
         var byAlias = new Dictionary<string, List<SiteVocabularyEntry>>(StringComparer.Ordinal);
         var longest = 0;
 
-        foreach (var entry in entries)
+        var retained = entries.ToArray();
+        foreach (var entry in retained)
         {
             foreach (var alias in AliasesOf(entry))
             {
@@ -84,7 +90,7 @@ public sealed class SiteVocabulary
             }
         }
 
-        return new SiteVocabulary(byAlias, longest);
+        return new SiteVocabulary(byAlias, longest, retained.Where(IsCreatorSite).ToArray());
     }
 
     /// <summary>
@@ -96,7 +102,14 @@ public sealed class SiteVocabulary
     {
         var aliases = new List<string>();
 
-        foreach (var candidate in new[] { LibrarySearchRule.Normalize(entry.Title), HostLabel(entry.Url) })
+        var generic = PlatformAliases(entry);
+        var title = LibrarySearchRule.Normalize(entry.Title);
+        var handle = LibrarySearchRule.Normalize(entry.AccountHandle ?? "");
+        foreach (var candidate in new[]
+        {
+            IsCreatorSite(entry) && (generic.Contains(title) || title == handle) ? "" : title,
+            IsCreatorSite(entry) ? "" : HostLabel(entry.Url),
+        })
         {
             Add(aliases, candidate);
             Add(aliases, candidate.Replace(" ", string.Empty));
@@ -119,6 +132,17 @@ public sealed class SiteVocabulary
 
         var words = WordsOf(relativePath);
         var matches = new List<LocalSiteMatch>();
+        var pathWords = " " + string.Join(' ', words) + " ";
+        foreach (var site in creatorSites)
+        {
+            var handle = LibrarySearchRule.Normalize(site.AccountHandle ?? "");
+            if (handle.Length > 0 && pathWords.Contains(" " + handle + " ", StringComparison.Ordinal) &&
+                PlatformAliases(site).Any(alias => alias.Length > 0 &&
+                    pathWords.Contains(" " + alias + " ", StringComparison.Ordinal)))
+            {
+                matches.Add(new LocalSiteMatch(site, $"{site.PlatformKey ?? HostLabel(site.Url)} {handle}"));
+            }
+        }
 
         for (var start = 0; start < words.Length;)
         {
@@ -244,6 +268,23 @@ public sealed class SiteVocabulary
 
         return labels.Length < 2 ? string.Empty : LibrarySearchRule.Normalize(candidate);
     }
+
+    private static bool IsCreatorSite(SiteVocabularyEntry entry) =>
+        entry.PlatformId is not null || entry.PlatformKey is not null || entry.PlatformTitle is not null ||
+        entry.AccountHandle is not null || IsSharedHost(entry.Url);
+
+    private static bool IsSharedHost(string? url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        new[] { "onlyfans.com", "fansly.com", "patreon.com", "manyvids.com", "fanvue.com" }
+            .Any(domain => uri.Host.Equals(domain, StringComparison.OrdinalIgnoreCase) ||
+                uri.Host.EndsWith("." + domain, StringComparison.OrdinalIgnoreCase));
+
+    private static IReadOnlyList<string> PlatformAliases(SiteVocabularyEntry entry) =>
+        new[] { entry.PlatformKey, entry.PlatformTitle, HostLabel(entry.Url) }
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .SelectMany(value => new[] { LibrarySearchRule.Normalize(value!),
+                LibrarySearchRule.Normalize(value!).Replace(" ", "") })
+            .Distinct(StringComparer.Ordinal).ToArray();
 
     private static void Add(List<string> aliases, string alias)
     {

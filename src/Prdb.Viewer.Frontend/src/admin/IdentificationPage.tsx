@@ -1,3 +1,5 @@
+import { RemoteCatalogueNotice } from '../video/RemoteCatalogueNotice'
+import { CatalogueSiteFacts } from '../video/CatalogueSiteFacts'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useSearchParams } from 'react-router'
@@ -369,6 +371,7 @@ export function IdentificationPage({ account }: { account: Account }) {
                   Site and a cast above a cast. Two readings of one thing are compared by finding
                   each fact in the same place on both, not by reading a paragraph for it. */}
               <KnownFacts open={openCase.data!} dimension={selected!.dimension} />
+              <RemoteCatalogueNotice status={openCase.data!.catalogueStatus} />
               {/* The Video's own page owns playback and every fallback decision, so this is a link
                   to it rather than a second player. It carries the way back, so watching enough of
                   the file to decide does not cost the case that was open. */}
@@ -449,6 +452,7 @@ export function IdentificationPage({ account }: { account: Account }) {
                 {openCase.data!.videoFiles.length === 1 && <code>{file.relativePath}</code>}
                 <small>
                   {file.containerName} · {file.videoCodec} · {friendlyState(file.hashState)}
+                  {file.md5Summary ? ` · MD5 ${file.md5Summary}` : ''}
                   {file.osHashSummary ? ` · osHash ${file.osHashSummary}` : ''}
                 </small>
               </li>
@@ -626,7 +630,13 @@ function ProposedFacts({ proposal }: { proposal: IdentificationProposal | null }
     runtime ? { term: 'Runtime', value: runtime } : undefined,
   ].filter((fact) => fact !== undefined)
 
-  return facts.length === 0 ? null : <Facts facts={facts} />
+  return <>
+    <RemoteCatalogueNotice status={proposal.catalogueStatus} proposed />
+    {proposal.description && <p className="catalogue-description">{proposal.description}</p>}
+    <CatalogueSiteFacts site={proposal.site} />
+    {proposal.stashdbSceneId && <p>External scene ID: <code>{proposal.stashdbSceneId}</code></p>}
+    {facts.length > 0 && <Facts facts={facts} />}
+  </>
 }
 
 /// The other Video File of this library a proposal came from.

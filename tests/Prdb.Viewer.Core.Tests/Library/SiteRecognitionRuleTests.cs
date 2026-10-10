@@ -17,6 +17,44 @@ public sealed class SiteRecognitionRuleTests
 
     private static readonly SiteVocabularyEntry Tiny = new("site-bay", "Bay", null);
 
+    private static SiteVocabularyEntry Creator(string key, string platform, string handle, string title) =>
+        new(key, title, $"https://{platform}.example/{handle}", key, platform, platform, handle);
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void A_shared_platform_alone_is_never_account_evidence(int count)
+    {
+        var sites = new[] { Creator("a", "platform", "alice", "Alice"), Creator("b", "platform", "bob", "Bob") };
+        Assert.Equal(IdentificationEvidenceClass.Insufficient,
+            Vocabulary(sites.Take(count).ToArray()).Recognise("platform/unknown.mp4").Evidence);
+        Assert.Equal(IdentificationEvidenceClass.Insufficient,
+            Vocabulary(sites.Take(count).ToArray()).Recognise("alice.mp4").Evidence);
+        Assert.Equal("a", Assert.Single(Vocabulary(sites.Take(count).ToArray())
+            .Recognise("platform/folder/alice.mp4").Matches).Site.Key);
+    }
+
+    [Fact]
+    public void Equal_handles_are_qualified_by_platform_and_distinct_titles_remain_usable()
+    {
+        var a = Creator("a", "first", "alex", "Alex Studio");
+        var b = Creator("b", "second", "alex", "Alex Other Studio");
+        var vocabulary = Vocabulary(a, b);
+        Assert.Equal("a", Assert.Single(vocabulary.Recognise("first/alex/scene.mp4").Matches).Site.Key);
+        Assert.Equal(IdentificationEvidenceClass.Insufficient, vocabulary.Recognise("alex/scene.mp4").Evidence);
+        Assert.Equal(IdentificationEvidenceClass.Conclusive, vocabulary.Recognise("Alex Studio/scene.mp4").Evidence);
+        Assert.Equal(IdentificationEvidenceClass.Suggestive, vocabulary.Recognise("first/second/alex.mp4").Evidence);
+    }
+
+    [Fact]
+    public void A_generic_title_or_a_legacy_shared_domain_never_names_an_individual_creator()
+    {
+        Assert.Empty(Vocabulary(Creator("a", "platform", "alice", "platform"))
+            .Recognise("platform.mp4").Matches);
+        Assert.Empty(Vocabulary(new SiteVocabularyEntry("a", "Alice", "https://onlyfans.com/alice"))
+            .Recognise("onlyfans.mp4").Matches);
+    }
+
     private static SiteVocabulary Vocabulary(params SiteVocabularyEntry[] entries) =>
         SiteVocabulary.From(entries);
 

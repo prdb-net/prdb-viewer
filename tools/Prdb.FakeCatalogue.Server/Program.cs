@@ -7,7 +7,7 @@ using Prdb.FakeCatalogue;
 // no Site, no Actor and therefore no facet row to look at. This answers for the files the seed
 // writes, so those screens have something to be right or wrong about.
 //
-// It serves plain http. SDK 0.13.0 exempts loopback addresses from the https requirement, on the
+// It serves plain http. SDK 0.17.0 exempts loopback addresses from the https requirement, on the
 // grounds that a request to 127.0.0.1 never leaves the machine and so has no wire the key could be
 // read from — which means no certificate for a server that only ever answers itself. The exemption
 // is `localhost`, `127.0.0.1` and `[::1]` literally, so the address below has to stay one of them.
@@ -107,6 +107,15 @@ app.MapGet("/sites", (int? page, int? pageSize) =>
         CatalogueAnswers.Sites(page ?? 1, pageSize ?? 1_000, items),
         "application/json");
 });
+
+app.MapGet("/sites/changes", (DateTimeOffset? since, Guid? sinceId, int? pageSize) =>
+    Results.Content(CatalogueAnswers.Changes("site", catalogue.Values.DistinctBy(entry => entry.SiteId).Select(CatalogueAnswers.Site),
+        since ?? DateTimeOffset.MinValue, sinceId, pageSize ?? 1000, DateTimeOffset.UtcNow.AddMinutes(-2)), "application/json"));
+
+app.MapGet("/videos/changes", (HttpRequest request, DateTimeOffset? since, Guid? sinceId, int? pageSize) =>
+    Results.Content(CatalogueAnswers.Changes("video", catalogue.Values.DistinctBy(entry => entry.VideoId)
+            .Select(entry => CatalogueAnswers.VideoDetail(entry, $"{request.Scheme}://{request.Host}")),
+        since ?? DateTimeOffset.MinValue, sinceId, pageSize ?? 1000, DateTimeOffset.UtcNow.AddMinutes(-2)), "application/json"));
 
 // Anything else is a 404 rather than a plausible-looking empty answer, so a call to an endpoint
 // this does not implement fails where it is made instead of somewhere later.

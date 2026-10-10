@@ -2933,6 +2933,15 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "catalogueFeeds": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/CatalogueFeedProgress"
+            }
           }
         }
       },
@@ -3169,6 +3178,51 @@
                 "$ref": "#/components/schemas/SignedInAccountResponse"
               }
             ]
+          }
+        }
+      },
+      "CatalogueFeedProgress": {
+        "required": [
+          "feed",
+          "baselineComplete",
+          "phase",
+          "lastSuccessfulRefresh",
+          "nextAttemptAt",
+          "lagSeconds"
+        ],
+        "type": "object",
+        "properties": {
+          "feed": {
+            "type": "string"
+          },
+          "baselineComplete": {
+            "type": "boolean"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "lastSuccessfulRefresh": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "nextAttemptAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "lagSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?$",
+            "type": [
+              "null",
+              "number",
+              "string"
+            ],
+            "format": "double"
           }
         }
       },
@@ -3607,6 +3661,16 @@
             "items": {
               "$ref": "#/components/schemas/IdentificationAssociationView"
             }
+          },
+          "catalogueStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemoteCatalogueStatus"
+              }
+            ]
           }
         }
       },
@@ -3673,6 +3737,12 @@
           },
           "hashState": {
             "$ref": "#/components/schemas/VideoFileHashState"
+          },
+          "md5Summary": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -4383,6 +4453,39 @@
           "fetchedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "stashdbSceneId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "site": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemoteSite"
+              }
+            ]
+          },
+          "catalogueStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemoteCatalogueStatus"
+              }
+            ]
           }
         }
       },
@@ -6173,6 +6276,122 @@
           "InstallationOperator"
         ]
       },
+      "RemoteCatalogueState": {
+        "enum": [
+          "Unknown",
+          "Active",
+          "Deleted",
+          "Merged"
+        ]
+      },
+      "RemoteCatalogueStatus": {
+        "required": [
+          "state",
+          "prdbVideoId",
+          "updatedAt",
+          "deletedAt",
+          "mergedIntoId"
+        ],
+        "type": "object",
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/RemoteCatalogueState"
+          },
+          "prdbVideoId": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "mergedIntoId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "RemoteSite": {
+        "required": [
+          "id",
+          "title",
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "platformId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "platformKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "platformTitle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "accountHandle": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RemoteSiteLink"
+            }
+          }
+        }
+      },
+      "RemoteSiteLink": {
+        "required": [
+          "label",
+          "url"
+        ],
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      },
       "SignedInAccountResponse": {
         "required": [
           "id",
@@ -6590,6 +6809,39 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "stashdbSceneId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uuid"
+          },
+          "site": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemoteSite"
+              }
+            ]
+          },
+          "catalogueStatus": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RemoteCatalogueStatus"
+              }
+            ]
           }
         }
       },

@@ -8,9 +8,19 @@ public sealed record RemoteIdentificationRequest(
     string FileName,
     long FileSize,
     string? OsHash,
-    string? PerceptualHash);
+    string? PerceptualHash,
+    string? Md5 = null);
 
-public sealed record RemoteSite(string Id, string Title, string? Url);
+public sealed record RemoteSite(string Id, string Title, string? Url)
+{
+    public string? PlatformId { get; init; }
+    public string? PlatformKey { get; init; }
+    public string? PlatformTitle { get; init; }
+    public string? AccountHandle { get; init; }
+    public IReadOnlyList<RemoteSiteLink> Links { get; init; } = [];
+}
+
+public sealed record RemoteSiteLink(string? Label, string Url);
 
 /// <summary>The network a Site belongs to, which is the one fact that relates two Sites.</summary>
 public sealed record RemoteNetwork(string Title, string? Url);
@@ -47,6 +57,10 @@ public sealed record RemoteWork(
     DateTime? ReleaseDate,
     long? DurationMilliseconds)
 {
+    public string? Description { get; init; }
+
+    public Guid? StashdbSceneId { get; init; }
+
     public RemoteNetwork? Network { get; init; }
 
     /// <summary>
@@ -132,7 +146,11 @@ public sealed record IdentificationProposalView(
     ProposedWorkArtworkState ArtworkState,
     DateTimeOffset? ReleaseDate,
     long? DurationMilliseconds,
-    DateTimeOffset FetchedAt);
+    DateTimeOffset FetchedAt,
+    string? Description = null,
+    Guid? StashdbSceneId = null,
+    RemoteSite? Site = null,
+    RemoteCatalogueStatus? CatalogueStatus = null);
 
 /// <summary>
 /// One decision this case offers for one candidate, and what the installation looks like once it
@@ -375,7 +393,8 @@ public sealed record IdentificationCaseFile(
     long DurationMilliseconds,
     string? OsHashSummary,
     string? PerceptualHashSummary,
-    VideoFileHashState HashState);
+    VideoFileHashState HashState,
+    string? Md5Summary = null);
 
 public sealed record IdentificationDecisionView(
     Guid Id,
@@ -401,7 +420,8 @@ public sealed record IdentificationCase(
     string Explanation,
     /// <summary>Associations waiting for a decision on this Video, and those already settled.</summary>
     IReadOnlyList<IdentificationAssociationView> OpenAssociations,
-    IReadOnlyList<IdentificationAssociationView> AssociationHistory);
+    IReadOnlyList<IdentificationAssociationView> AssociationHistory,
+    RemoteCatalogueStatus? CatalogueStatus = null);
 
 public enum IdentificationDecisionVerdict
 {

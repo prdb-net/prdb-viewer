@@ -1,3 +1,5 @@
+import { RemoteCatalogueNotice } from './RemoteCatalogueNotice'
+import { CatalogueSiteFacts } from './CatalogueSiteFacts'
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router'
@@ -439,7 +441,8 @@ function WorkFactsSection({ facts, previewed }: { facts: WorkFacts; previewed: b
   const images = facts.imageUrls ?? []
   const spread = Number(facts.durationSpreadMilliseconds ?? 0)
   const files = Number(facts.durationFileCount ?? 0)
-  const nothing = !facts.networkTitle &&
+  const nothing = !['Deleted', 'Merged'].includes(facts.catalogueStatus?.state ?? '') && !facts.networkTitle && !facts.description && !facts.site?.platformTitle &&
+    !facts.site?.accountHandle && !(facts.site?.links?.length) && !facts.stashdbSceneId &&
     releaseNames.length === 0 &&
     resolutions.length === 0 &&
     codecs.length === 0 &&
@@ -454,6 +457,10 @@ function WorkFactsSection({ facts, previewed }: { facts: WorkFacts; previewed: b
         <h3 id="work-facts-title">What prdb knows</h3>
       </div>
 
+      <RemoteCatalogueNotice status={facts.catalogueStatus} />
+      {facts.description && <p className="catalogue-description">{facts.description}</p>}
+      <CatalogueSiteFacts site={facts.site} />
+      {facts.stashdbSceneId && <p>External scene ID: <code>{facts.stashdbSceneId}</code></p>}
       <dl className="fact-list">
         {facts.networkTitle && (
           <div>

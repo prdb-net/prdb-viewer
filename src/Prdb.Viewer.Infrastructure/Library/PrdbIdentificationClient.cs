@@ -41,6 +41,7 @@ public sealed class PrdbIdentificationClient(
                 Ref = file.VideoFileId.ToString("n"),
                 Filename = file.FileName,
                 Filesize = file.FileSize,
+                Md5 = NormalizedMd5(file.Md5),
                 OsHash = ForLookup(file.OsHash),
                 PHash = ForLookup(file.PerceptualHash),
             }).ToList(),
@@ -80,6 +81,9 @@ public sealed class PrdbIdentificationClient(
         }
     }
 
+    private static string? NormalizedMd5(string? value) =>
+        value is { Length: 32 } && value.All(Uri.IsHexDigit) ? value.ToLowerInvariant() : null;
+
     private static string? ForLookup(string? hash) =>
         string.IsNullOrEmpty(hash) ? null : PrdbFileHashes.ForPrdbLookup(hash);
 
@@ -99,6 +103,7 @@ public sealed class PrdbIdentificationClient(
                 2 => RemoteMatchKind.Filename,
                 3 => RemoteMatchKind.ReleaseName,
                 4 => RemoteMatchKind.Site,
+                5 => RemoteMatchKind.Md5,
                 _ => null,
             },
             result.Confidence switch

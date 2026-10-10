@@ -478,7 +478,11 @@ internal static class IdentificationCasePresentation
                 work.ArtworkState,
                 VideoPresentation.AsOffset(work.ReleaseDate),
                 work.DurationMilliseconds,
-                VideoPresentation.AsOffset(work.FetchedAt)!.Value);
+                VideoPresentation.AsOffset(work.FetchedAt)!.Value,
+                work.Description,
+                work.StashdbSceneId,
+                RetainedWorkFacts.Site(work.SiteFactsJson),
+                RemoteCatalogueStatus.Of(work));
 
     /// <summary>
     /// What an Administrator is told the proposal rests on. A locally derived proposal says so,

@@ -18,7 +18,8 @@ public enum WorkDetailFetchStatus
 public sealed record WorkDetailFetchResult(
     WorkDetailFetchStatus Status,
     IReadOnlyList<RemoteWork> Works,
-    string? Detail = null);
+    string? Detail = null,
+    TimeSpan? RetryAfter = null);
 
 public interface IPrdbWorkDetailClient
 {
@@ -39,7 +40,7 @@ public interface IPrdbWorkDetailClient
 /// </summary>
 public sealed class PrdbWorkDetailClient(
     IHttpMessageHandlerFactory handlers,
-    PrdbEndpoint? endpoint = null)
+    PrdbEndpoint? endpoint = null, TimeProvider? timeProvider = null)
     : IPrdbWorkDetailClient
 {
     private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(60);
@@ -62,10 +63,12 @@ public sealed class PrdbWorkDetailClient(
         }
 
         var status = new ResponseStatusOption();
+        var limits = new RateLimitOption();
+        using var guidance = new CatalogueResponseGuidance(handlers.CreateHandler(PrdbConnectionVerifier.TransportName), timeProvider ?? TimeProvider.System);
         var client = PrdbClientFactory.Create(
             credential,
             (endpoint ?? new PrdbEndpoint()).BaseUrl,
-            transport: handlers.CreateHandler(PrdbConnectionVerifier.TransportName),
+            transport: guidance,
             retry: PrdbRetryOptions.Disabled,
             timeout: RequestTimeout);
 
@@ -73,7 +76,7 @@ public sealed class PrdbWorkDetailClient(
         {
             var response = await client.Videos.Batch.PostAsync(
                 new GetVideosByIdsRequest { Ids = wanted },
-                configuration => configuration.Options.Add(status),
+                configuration => { configuration.Options.Add(status); configuration.Options.Add(limits); },
                 cancellationToken);
 
             return new WorkDetailFetchResult(
@@ -81,7 +84,7 @@ public sealed class PrdbWorkDetailClient(
                 (response ?? [])
                     .Select(RemoteWorkFacts.Of)
                     .OfType<RemoteWork>()
-                    .ToArray());
+                    .ToArray(), RetryAfter: PrdbSiteDirectoryClient.Deferred(limits));
         }
         catch (Exception exception) when (exception is not OperationCanceledException ||
                                           !cancellationToken.IsCancellationRequested)
@@ -94,7 +97,8 @@ public sealed class PrdbWorkDetailClient(
                 : new WorkDetailFetchResult(
                     WorkDetailFetchStatus.Unavailable,
                     [],
-                    $"prdb could not be reached ({(int?)status.StatusCode ?? 0}).");
+                    $"prdb could not be reached ({(int?)status.StatusCode ?? 0}).",
+                    guidance.RetryAfter ?? PrdbSiteDirectoryClient.Deferred(limits));
         }
     }
 }

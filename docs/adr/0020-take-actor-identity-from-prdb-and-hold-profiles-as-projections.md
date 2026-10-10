@@ -72,9 +72,26 @@ Actors.
   succeeded, the library is browsable, and the loss is a paragraph or a
   placeholder. Calling an Administrator to a lane that is not blocked is the
   mistake `ProposedWorkArtworkRetention` already avoids.
-- The Enrichment lane exists to make old identifications carry identities, and
-  then keeps existing as a slow refresh. It asks `POST /videos/batch`, which
-  costs no hashing and no matching, in batches of fifty.
+- Enrichment first captures the settled Video feed boundary with an empty future
+  query, repairs only locally retained established/proposed IDs through
+  `POST /videos/batch` in batches of fifty, then replays changes from that
+  boundary. A global baseline is never downloaded or retained. Each page and
+  its exact timestamp/ID cursor commit together; unrelated rows only advance
+  the cursor. New local IDs receive bounded detail repair even behind a cursor.
+- One slice reads at most one 1,000-row feed page or one local detail batch.
+  Four catch-up pages yield for five minutes; settled feeds poll every fifteen
+  minutes. Retry-After and quota reset guidance defer Background Work, and
+  local enrichment still receives its turn. The existing thirty-day detail
+  horizon remains the fallback while the global feed cannot keep up.
+- Feed state survives restart but is regenerable: Restore, loss of a cursor,
+  a changed credential/origin, or a gap or server lag of ninety days starts another settled
+  boundary and bounded repair without removing retained content. Background
+  Work exposes baseline completion, last refresh, server lag and waiting.
+  Browsing never invokes the remote catalogue.
+- Explicit deletion/merge observations are remote catalogue facts, separate
+  from local identity, availability, Administrative Overrides and Personal
+  State. Missing detail members and failed requests never imply deletion.
+  Actor credits/projections and artwork use the existing local retention paths.
 - Deleting an installation's application data directory loses every profile and
   every picture and costs nothing but the requests to fetch them again. This is
   the property the decision is buying.

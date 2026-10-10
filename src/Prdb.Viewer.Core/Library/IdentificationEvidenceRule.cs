@@ -10,6 +10,7 @@ public enum RemoteMatchKind
     Filename,
     ReleaseName,
     Site,
+    Md5,
 }
 
 /// <summary>
@@ -46,7 +47,7 @@ public static class IdentificationEvidenceRule
             return IdentificationEvidenceClass.Insufficient;
         }
 
-        var contentMatch = matchedBy is RemoteMatchKind.OsHash or RemoteMatchKind.PerceptualHash;
+        var contentMatch = matchedBy is RemoteMatchKind.Md5 or RemoteMatchKind.OsHash or RemoteMatchKind.PerceptualHash;
 
         return contentMatch &&
                hasSingleTarget &&

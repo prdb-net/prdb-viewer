@@ -2683,6 +2683,7 @@ export interface components {
             paused: boolean;
             /** Format: date-time */
             pausedAt: null | string;
+            catalogueFeeds?: null | components["schemas"]["CatalogueFeedProgress"][];
         };
         BackgroundWorkSummary: {
             /** Format: uuid */
@@ -2737,6 +2738,17 @@ export interface components {
         BootstrapResponse: {
             verdict: components["schemas"]["BootstrapClaimVerdict"];
             account: null | components["schemas"]["SignedInAccountResponse"];
+        };
+        CatalogueFeedProgress: {
+            feed: string;
+            baselineComplete: boolean;
+            phase: string;
+            /** Format: date-time */
+            lastSuccessfulRefresh: null | string;
+            /** Format: date-time */
+            nextAttemptAt: null | string;
+            /** Format: double */
+            lagSeconds: null | number | string;
         };
         ClientPlaybackAssessmentReport: {
             profileKey: string;
@@ -2838,6 +2850,7 @@ export interface components {
             explanation: string;
             openAssociations: components["schemas"]["IdentificationAssociationView"][];
             associationHistory: components["schemas"]["IdentificationAssociationView"][];
+            catalogueStatus?: null | components["schemas"]["RemoteCatalogueStatus"];
         };
         IdentificationCaseFile: {
             /** Format: uuid */
@@ -2853,6 +2866,7 @@ export interface components {
             osHashSummary: null | string;
             perceptualHashSummary: null | string;
             hashState: components["schemas"]["VideoFileHashState"];
+            md5Summary?: null | string;
         };
         IdentificationClaimView: {
             dimension: components["schemas"]["IdentificationDimension"];
@@ -3014,6 +3028,11 @@ export interface components {
             durationMilliseconds: null | number | string;
             /** Format: date-time */
             fetchedAt: string;
+            description?: null | string;
+            /** Format: uuid */
+            stashdbSceneId?: null | string;
+            site?: null | components["schemas"]["RemoteSite"];
+            catalogueStatus?: null | components["schemas"]["RemoteCatalogueStatus"];
         };
         IdentificationQueue: {
             /** Format: int32 */
@@ -3427,6 +3446,31 @@ export interface components {
         RegistrationRequestVerdict: "Submitted" | "InvalidInput" | "InstallationUnclaimed";
         /** @enum {unknown} */
         RemediationOwner: "AutomaticRecovery" | "Administrator" | "InstallationOperator";
+        /** @enum {unknown} */
+        RemoteCatalogueState: "Unknown" | "Active" | "Deleted" | "Merged";
+        RemoteCatalogueStatus: {
+            state: components["schemas"]["RemoteCatalogueState"];
+            prdbVideoId: string;
+            /** Format: date-time */
+            updatedAt: null | string;
+            /** Format: date-time */
+            deletedAt: null | string;
+            mergedIntoId: null | string;
+        };
+        RemoteSite: {
+            id: string;
+            title: string;
+            url: null | string;
+            platformId?: null | string;
+            platformKey?: null | string;
+            platformTitle?: null | string;
+            accountHandle?: null | string;
+            links?: components["schemas"]["RemoteSiteLink"][];
+        };
+        RemoteSiteLink: {
+            label: null | string;
+            url: string;
+        };
         SignedInAccountResponse: {
             /** Format: uuid */
             id: string;
@@ -3514,6 +3558,11 @@ export interface components {
             imageUrls: string[];
             /** Format: date-time */
             fetchedAt: null | string;
+            description?: null | string;
+            /** Format: uuid */
+            stashdbSceneId?: null | string;
+            site?: null | components["schemas"]["RemoteSite"];
+            catalogueStatus?: null | components["schemas"]["RemoteCatalogueStatus"];
         };
         /** @enum {unknown} */
         WorkIssueAction: "RetryNow" | "CheckAgain" | "OpenPrdbSettings" | "OpenLibraryDirectory" | "ViewAffectedItems" | "CopyOperatorHandoff";

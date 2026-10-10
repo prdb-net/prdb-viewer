@@ -387,6 +387,54 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.ToTable("browsing_visit_watch", (string)null);
                 });
 
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.CatalogueFeedStateRow", b =>
+                {
+                    b.Property<string>("Feed")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AuthorityFingerprint")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("BaselineComplete")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("BurstPages")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("CatchUpPending")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastAppliedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("NextAttemptAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Phase")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RepairGeneration")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ServerTime")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Since")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("SinceId")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Feed");
+
+                    b.ToTable("CatalogueFeedStates");
+                });
+
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.ClientPlaybackAssessmentRow", b =>
                 {
                     b.Property<Guid>("AccountId")
@@ -545,6 +593,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
 
                     b.Property<string>("Note")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("SiteRecognitionPolicyVersion")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Source")
                         .IsRequired()
@@ -1117,6 +1168,12 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("ArtworkUrl")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("CatalogueRepairGeneration")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
                     b.Property<long?>("DurationMilliseconds")
                         .HasColumnType("INTEGER");
 
@@ -1133,10 +1190,31 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("ReleaseDate")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("RemoteDeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemoteMergedIntoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RemoteObservedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RemoteState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("RemoteUpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SiteFactsJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SiteTitle")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SiteUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("StashdbSceneId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")
@@ -1244,6 +1322,24 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("SiteKey")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AccountHandle")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LinksJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlatformId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlatformKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PlatformTitle")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -1254,6 +1350,22 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.HasKey("SiteKey");
 
                     b.ToTable("site_directory_entry", (string)null);
+                });
+
+            modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.SiteDirectoryStagingRow", b =>
+                {
+                    b.Property<string>("SiteKey")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FactsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("SiteKey");
+
+                    b.ToTable("SiteDirectoryStaging");
                 });
 
             modelBuilder.Entity("Prdb.Viewer.Infrastructure.Persistence.VideoActorRow", b =>
@@ -1398,6 +1510,15 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("LibraryDirectoryId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Md5")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Md5AttemptedSha256")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Md5FailureReason")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("NeighbourhoodComparedAt")
@@ -1559,6 +1680,12 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("ArtworkUrl")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("CatalogueRepairGeneration")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("DurationFileCount")
                         .HasColumnType("INTEGER");
 
@@ -1593,6 +1720,24 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("ReleaseNamesJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("RemoteDeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemoteMergedIntoId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RemoteObservedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RemoteState")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("RemoteUpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SiteFactsJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SiteId")
                         .HasColumnType("TEXT");
 
@@ -1600,6 +1745,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("SiteUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("StashdbSceneId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Title")

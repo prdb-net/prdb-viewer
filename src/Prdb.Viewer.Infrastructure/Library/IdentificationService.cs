@@ -365,6 +365,22 @@ public sealed class IdentificationService(
                 VideoId = survivor.Id,
                 PrdbVideoId = metadata.PrdbVideoId,
                 Title = metadata.Title,
+                CatalogueRepairGeneration = metadata.CatalogueRepairGeneration,
+                RemoteState = metadata.RemoteState,
+                RemoteObservedAt = metadata.RemoteObservedAt,
+                RemoteUpdatedAt = metadata.RemoteUpdatedAt,
+                RemoteDeletedAt = metadata.RemoteDeletedAt,
+                RemoteMergedIntoId = metadata.RemoteMergedIntoId,
+                Description = metadata.Description,
+                StashdbSceneId = metadata.StashdbSceneId,
+                SiteFactsJson = metadata.SiteFactsJson,
+                NetworkTitle = metadata.NetworkTitle,
+                NetworkUrl = metadata.NetworkUrl,
+                ReleaseNamesJson = metadata.ReleaseNamesJson,
+                DurationSpreadMilliseconds = metadata.DurationSpreadMilliseconds,
+                DurationFileCount = metadata.DurationFileCount,
+                QualityOverviewJson = metadata.QualityOverviewJson,
+                EnrichedAt = metadata.EnrichedAt,
                 SiteId = metadata.SiteId,
                 SiteTitle = metadata.SiteTitle,
                 SiteUrl = metadata.SiteUrl,
@@ -383,6 +399,52 @@ public sealed class IdentificationService(
             : merged.DiscoveryDate;
         survivor.CaseVersion++;
         return survivor;
+    }
+
+    public async Task ReviewLegacySiteRecognitionAsync(
+        Guid videoId, SiteVocabulary vocabulary, CancellationToken cancellationToken)
+    {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var video = await LoadAsync(videoId, cancellationToken);
+        var claims = video.IdentificationClaims.Where(claim =>
+            claim.Dimension == IdentificationDimension.SiteRecognition &&
+            claim.Status == IdentificationClaimStatus.Current &&
+            claim.Source == IdentificationSource.LocalInference &&
+            !claim.IsAdministrativeOverride && claim.SiteRecognitionPolicyVersion == 0).ToArray();
+        foreach (var claim in claims)
+        {
+            claim.SiteRecognitionPolicyVersion = 1;
+            var supporting = await database.VideoFiles.AsTracking().SingleOrDefaultAsync(
+                file => file.Id == claim.SupportingVideoFileId && file.VideoId == videoId, cancellationToken);
+            if (supporting is null) continue;
+            var reading = vocabulary.Recognise(supporting.SiteRecognisedPath ?? supporting.RelativePath);
+            if (reading.Evidence == IdentificationEvidenceClass.Conclusive &&
+                reading.Matches.Any(match => match.Site.Key == claim.TargetKey)) continue;
+            var key = $"SitePolicy:1:{claim.Id}";
+            if (video.IdentificationCandidates.Any(candidate => candidate.EvidenceKey == key)) continue;
+            video.IdentificationCandidates.Add(new IdentificationCandidateRow
+            {
+                Id = Guid.CreateVersion7(),
+                VideoId = video.Id,
+                Dimension = IdentificationDimension.SiteRecognition,
+                Status = IdentificationCandidateStatus.Pending,
+                TargetKey = claim.TargetKey,
+                TargetTitle = claim.TargetTitle,
+                TargetUrl = claim.TargetUrl,
+                Source = IdentificationSource.LocalInference,
+                EvidenceClass = IdentificationEvidenceClass.Suggestive,
+                Reason = IdentificationReviewReason.SuggestiveEvidence,
+                MatchedBy = "legacy path evidence no longer uniquely names this Site under the Creator Platform rule",
+                EvidenceKey = key,
+                SupportingVideoFileId = supporting.Id,
+                CreatedAt = Now(),
+            });
+            video.CaseVersion++;
+        }
+        await database.SaveChangesAsync(cancellationToken);
+        await projection.RefreshAsync(video.Id, cancellationToken);
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
     }
 
     public void AddClaim(
@@ -409,6 +471,7 @@ public sealed class IdentificationService(
             TargetUrl = target.Url,
             Source = source,
             EvidenceClass = evidence,
+            SiteRecognitionPolicyVersion = 1,
             MatchedBy = matchedBy,
             IsAdministrativeOverride = administrativeOverride,
             SupportingVideoFileId = supportingVideoFileId,
@@ -578,9 +641,10 @@ public sealed class IdentificationService(
     /// file is still there, but it is no longer the picture prdb offers for this work, and a review
     /// that says a picture has not arrived is more use than one showing the wrong one.
     /// </remarks>
-    private async Task<ProposedWorkRow?> RetainProposedWorkAsync(
+    public async Task<ProposedWorkRow?> RetainProposedWorkAsync(
         RemoteWork? work,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool authoritativeFeed = false)
     {
         if (work is null)
         {
@@ -602,12 +666,20 @@ public sealed class IdentificationService(
             database.ProposedWorks.Add(retained);
         }
 
+        if (!authoritativeFeed && retained.RemoteState is RemoteCatalogueState.Deleted or RemoteCatalogueState.Merged)
+            return retained;
+
         var changedArtwork = !string.Equals(
             retained.ArtworkUrl,
             work.ArtworkUrl,
             StringComparison.Ordinal);
 
+        retained.RemoteState = RemoteCatalogueState.Active;
+        retained.RemoteObservedAt = Now(); retained.RemoteDeletedAt = null; retained.RemoteMergedIntoId = null;
         retained.Title = work.Title;
+        retained.Description = work.Description;
+        retained.StashdbSceneId = work.StashdbSceneId;
+        retained.SiteFactsJson = JsonSerializer.Serialize(work.Site, RetainedWorkFacts.Json);
         retained.SiteTitle = work.Site?.Title;
         retained.SiteUrl = work.Site?.Url;
         retained.ActorsJson = Retained(work.Actors);
@@ -638,23 +710,28 @@ public sealed class IdentificationService(
     public async Task<bool> RefreshRetainedWorkAsync(
         Guid videoId,
         RemoteWork work,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool authoritativeFeed = false)
     {
-        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        await using var transaction = database.Database.CurrentTransaction is null
+            ? await database.Database.BeginTransactionAsync(cancellationToken) : null;
         var video = await LoadAsync(videoId, cancellationToken);
 
-        if (!RetainMetadata(video, work))
+        if (!RetainMetadata(video, work, authoritativeFeed))
         {
             return false;
         }
 
         video.Metadata!.EnrichedAt = Now();
+        var generation = await database.CatalogueFeedStates.Where(row => row.Feed == "videos" && row.ServerTime != null)
+            .Select(row => (int?)row.RepairGeneration).SingleOrDefaultAsync(cancellationToken);
+        if (generation is { } currentGeneration) video.Metadata.CatalogueRepairGeneration = currentGeneration;
 
         // The retained facts feed the discovery projection — the Actor Credits above all — so it
         // is rebuilt inside the same transaction, as every other write path does (ADR 0013).
         await projection.RefreshTrackedAsync(cancellationToken);
         await database.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
+        if (transaction is not null) await transaction.CommitAsync(cancellationToken);
         return true;
     }
 
@@ -670,7 +747,7 @@ public sealed class IdentificationService(
     /// Retains what prdb says about a work, but only while the Video is still identified as that
     /// work. A corrected identification must not keep collecting the superseded work's facts.
     /// </summary>
-    private bool RetainMetadata(VideoRow video, RemoteWork work)
+    private bool RetainMetadata(VideoRow video, RemoteWork work, bool authoritativeFeed = false)
     {
         var current = Current(video, IdentificationDimension.WorkIdentification);
 
@@ -681,6 +758,8 @@ public sealed class IdentificationService(
         }
 
         var metadata = video.Metadata;
+        if (!authoritativeFeed && metadata?.RemoteState is RemoteCatalogueState.Deleted or RemoteCatalogueState.Merged)
+            return false;
 
         if (metadata is null)
         {
@@ -695,7 +774,12 @@ public sealed class IdentificationService(
         }
 
         metadata.PrdbVideoId = work.PrdbVideoId;
+        metadata.RemoteState = RemoteCatalogueState.Active;
+        metadata.RemoteObservedAt = Now(); metadata.RemoteDeletedAt = null; metadata.RemoteMergedIntoId = null;
         metadata.Title = work.Title;
+        metadata.Description = work.Description;
+        metadata.StashdbSceneId = work.StashdbSceneId;
+        metadata.SiteFactsJson = JsonSerializer.Serialize(work.Site, RetainedWorkFacts.Json);
         metadata.SiteId = work.Site?.Id;
         metadata.SiteTitle = work.Site?.Title;
         metadata.SiteUrl = work.Site?.Url;
@@ -807,6 +891,7 @@ public sealed class IdentificationService(
     private static string EvidenceKeyOf(RemoteIdentification result, VideoFileRow file) =>
         result.MatchedBy switch
         {
+            RemoteMatchKind.Md5 => $"Md5:{file.Md5}",
             RemoteMatchKind.OsHash => $"OsHash:{file.OsHash}",
             RemoteMatchKind.PerceptualHash => $"PerceptualHash:{file.PerceptualHash}",
             RemoteMatchKind.Filename => $"Filename:{Path.GetFileName(file.RelativePath)}",

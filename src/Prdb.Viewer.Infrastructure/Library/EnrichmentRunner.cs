@@ -159,7 +159,7 @@ public sealed class EnrichmentRunner(
                 await WaitAsync(
                     work,
                     "prdb is temporarily unavailable.",
-                    AvailabilityRetry,
+                    result.RetryAfter ?? AvailabilityRetry,
                     cancellationToken);
                 return;
         }
@@ -209,6 +209,11 @@ public sealed class EnrichmentRunner(
                 cancellationToken);
 
         work.CompletedItemCount += files.Count;
+        if (result.RetryAfter is { } retry)
+        {
+            await WaitAsync(work, "prdb deferred further catalogue requests.", retry, cancellationToken);
+            return;
+        }
         await RetainProfilesAsync(work, configuration.ActivePrdbCredential, cancellationToken);
     }
 
@@ -269,7 +274,8 @@ public sealed class EnrichmentRunner(
         var videoIds = files.Select(file => file.VideoId).Distinct().ToArray();
         var metadata = await Database.VideoMetadata
             .AsNoTracking()
-            .Where(row => videoIds.Contains(row.VideoId))
+            .Where(row => videoIds.Contains(row.VideoId) &&
+                          (row.EnrichedAt == null || row.EnrichedAt < Now() - RefreshHorizon))
             .Select(row => new { row.VideoId, row.PrdbVideoId })
             .ToListAsync(cancellationToken);
         var wanted = new Dictionary<string, List<Guid>>(StringComparer.OrdinalIgnoreCase);

@@ -269,7 +269,20 @@ public sealed class LibraryDiscovery(ViewerDbContext database, PlaybackPlanner p
             quality?.Resolutions ?? [],
             quality?.VideoCodecs ?? [],
             images.Select(id => $"/media/works/{id}").ToArray(),
-            VideoPresentation.AsOffset(metadata.FetchedAt));
+            VideoPresentation.AsOffset(metadata.FetchedAt),
+            metadata.Description,
+            metadata.StashdbSceneId,
+            await SiteFactsAsync(metadata.SiteFactsJson, metadata.SiteId, cancellationToken),
+            RemoteCatalogueStatus.Of(metadata));
+    }
+
+    private async Task<RemoteSite?> SiteFactsAsync(string? json, string? siteId, CancellationToken cancellationToken)
+    {
+        var site = RetainedWorkFacts.Site(json);
+        var directory = siteId is null ? null : await database.SiteDirectoryEntries.AsNoTracking()
+            .SingleOrDefaultAsync(row => row.SiteKey == siteId && !row.IsDeleted, cancellationToken);
+        if (site is null || directory is null) return site;
+        return site with { Links = RetainedWorkFacts.SiteLinks(directory.LinksJson) };
     }
 
     /// <summary>
