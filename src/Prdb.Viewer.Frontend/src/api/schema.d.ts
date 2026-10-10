@@ -2853,6 +2853,7 @@ export interface components {
             osHashSummary: null | string;
             perceptualHashSummary: null | string;
             hashState: components["schemas"]["VideoFileHashState"];
+            md5Summary?: null | string;
         };
         IdentificationClaimView: {
             dimension: components["schemas"]["IdentificationDimension"];

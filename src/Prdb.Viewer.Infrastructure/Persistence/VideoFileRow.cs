@@ -76,6 +76,13 @@ public sealed class VideoFileRow
     /// </summary>
     public Guid? PreviousVideoId { get; set; }
 
+    public string? Md5 { get; set; }
+
+    /// <summary>The inspected content for which a full-file MD5 read was attempted.</summary>
+    public string? Md5AttemptedSha256 { get; set; }
+
+    public string? Md5FailureReason { get; set; }
+
     public string? OsHash { get; set; }
 
     public string? PerceptualHash { get; set; }

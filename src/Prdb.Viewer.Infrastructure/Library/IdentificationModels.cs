@@ -8,7 +8,8 @@ public sealed record RemoteIdentificationRequest(
     string FileName,
     long FileSize,
     string? OsHash,
-    string? PerceptualHash);
+    string? PerceptualHash,
+    string? Md5 = null);
 
 public sealed record RemoteSite(string Id, string Title, string? Url);
 
@@ -375,7 +376,8 @@ public sealed record IdentificationCaseFile(
     long DurationMilliseconds,
     string? OsHashSummary,
     string? PerceptualHashSummary,
-    VideoFileHashState HashState);
+    VideoFileHashState HashState,
+    string? Md5Summary = null);
 
 public sealed record IdentificationDecisionView(
     Guid Id,

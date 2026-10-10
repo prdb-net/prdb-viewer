@@ -7,6 +7,8 @@ namespace Prdb.Viewer.Core.Tests.Library;
 public sealed class IdentificationEvidenceRuleTests
 {
     [Theory]
+    [InlineData(RemoteMatchKind.Md5, RemoteMatchConfidence.Exact)]
+    [InlineData(RemoteMatchKind.Md5, RemoteMatchConfidence.Strong)]
     [InlineData(RemoteMatchKind.OsHash, RemoteMatchConfidence.Exact)]
     [InlineData(RemoteMatchKind.PerceptualHash, RemoteMatchConfidence.Strong)]
     public void A_definitive_match_on_the_inspected_content_is_conclusive(
@@ -24,6 +26,7 @@ public sealed class IdentificationEvidenceRuleTests
     [InlineData(RemoteMatchKind.Filename, RemoteMatchConfidence.Probable)]
     [InlineData(RemoteMatchKind.ReleaseName, RemoteMatchConfidence.Partial)]
     [InlineData(RemoteMatchKind.Site, RemoteMatchConfidence.Strong)]
+    [InlineData(RemoteMatchKind.Md5, RemoteMatchConfidence.Partial)]
     [InlineData(RemoteMatchKind.OsHash, RemoteMatchConfidence.Partial)]
     public void A_name_derived_or_weak_match_is_only_suggestive(
         RemoteMatchKind matchedBy,

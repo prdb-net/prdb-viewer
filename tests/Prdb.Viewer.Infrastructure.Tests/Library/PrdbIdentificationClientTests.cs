@@ -181,6 +181,22 @@ public sealed class PrdbIdentificationClientTests
         Assert.Empty(result.Results);
     }
 
+    [Fact]
+    public async Task An_MD5_only_match_uses_the_new_rung_and_a_normalized_full_file_hash()
+    {
+        var prdb = new FakePrdb().Recognises("md5.mp4", "MD5 Work", "MD5 Site", 4, 5);
+        var result = await new PrdbIdentificationClient(new FakePrdbTransport(prdb)).IdentifyAsync(
+            "fixture-credential",
+            [new RemoteIdentificationRequest(FirstFile, "md5.mp4", 123, null, null,
+                "900150983CD24FB0D6963F7D28E17F72")],
+            TestContext.Current.CancellationToken);
+        Assert.Equal(RemoteMatchKind.Md5, Assert.Single(result.Results).MatchedBy);
+        var sent = Assert.Single(prdb.IdentifyRequests)["files"]!.AsArray().Single()!;
+        Assert.Equal("900150983cd24fb0d6963f7d28e17f72", sent["md5"]!.GetValue<string>());
+        Assert.Null(sent["osHash"]);
+        Assert.Null(sent["pHash"]);
+    }
+
     private static Task<IdentificationBatchResult> IdentifyAsync(
         FakePrdb prdb,
         params (Guid Id, string Name)[] files) =>

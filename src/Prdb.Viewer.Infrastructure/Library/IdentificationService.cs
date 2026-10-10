@@ -807,6 +807,7 @@ public sealed class IdentificationService(
     private static string EvidenceKeyOf(RemoteIdentification result, VideoFileRow file) =>
         result.MatchedBy switch
         {
+            RemoteMatchKind.Md5 => $"Md5:{file.Md5}",
             RemoteMatchKind.OsHash => $"OsHash:{file.OsHash}",
             RemoteMatchKind.PerceptualHash => $"PerceptualHash:{file.PerceptualHash}",
             RemoteMatchKind.Filename => $"Filename:{Path.GetFileName(file.RelativePath)}",

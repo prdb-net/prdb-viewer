@@ -1387,7 +1387,8 @@ public sealed class IdentificationReviewService(
                     file.DurationMilliseconds,
                     IdentificationCasePresentation.Summarized(file.OsHash),
                     IdentificationCasePresentation.Summarized(file.PerceptualHash),
-                    file.HashState))
+                    file.HashState,
+                    IdentificationCasePresentation.Summarized(file.Md5)))
                 .ToArray(),
             decisions
                 .Select(decision => new IdentificationDecisionView(

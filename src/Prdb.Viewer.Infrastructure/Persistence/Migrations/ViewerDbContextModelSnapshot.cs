@@ -1400,6 +1400,15 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("LibraryDirectoryId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Md5")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Md5AttemptedSha256")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Md5FailureReason")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("NeighbourhoodComparedAt")
                         .HasColumnType("TEXT");
 

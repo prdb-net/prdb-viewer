@@ -870,10 +870,15 @@ they remain dormant only while their Video is removed from the active Library.
 After technical inspection admits a Video File, four further bounded lanes run
 on their own durable schedule and never write beneath a Library Directory:
 
-1. **Hashing** computes the `osHash` and `pHash` of the inspected content with
+1. **Hashing** computes full-file MD5 by a cancellable, streaming, read-only
+   read, and the `osHash` and `pHash` of the inspected content with
    the official `Prdb.Hashing` package, so both values match what the prdb
    Public API stores. A file that yields neither hash stays in the library and
-   remains identifiable by its name.
+   remains identifiable by its name. Existing Available files of Unknown Videos
+   receive one MD5 backfill attempt per inspected content; established works are
+   not reread for this addition. A failed attempt retains its reason and can be
+   retried on a later scan; interruption commits no completion marker. Pause and
+   playback priority apply between files, the hashing lane's safe boundary.
 2. **Preview generation** writes one still frame per Video File with `ffmpeg`
    into the application's own data directory. Previews are regenerable
    artefacts rather than identity, and a failed one is a visible Work Issue that

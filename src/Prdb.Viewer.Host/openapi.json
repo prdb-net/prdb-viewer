@@ -3673,6 +3673,12 @@
           },
           "hashState": {
             "$ref": "#/components/schemas/VideoFileHashState"
+          },
+          "md5Summary": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
