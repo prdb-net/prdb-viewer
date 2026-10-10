@@ -44,11 +44,16 @@ public sealed class SiteRecognitionRunner(
             file.Availability == VideoFileAvailability.Available &&
             file.IdentifiedSha256 != null &&
             file.IdentifiedSha256 == file.Sha256 &&
-            !Database.IdentificationClaims.Any(claim =>
+            ((!Database.IdentificationClaims.Any(claim =>
                 claim.VideoId == file.VideoId &&
                 claim.Dimension == IdentificationDimension.SiteRecognition &&
                 claim.Status == IdentificationClaimStatus.Current) &&
-            (file.SiteRecognisedPath == null || file.SiteRecognisedPath != file.RelativePath));
+              (file.SiteRecognisedPath == null || file.SiteRecognisedPath != file.RelativePath)) ||
+             Database.IdentificationClaims.Any(claim => claim.VideoId == file.VideoId &&
+                claim.Dimension == IdentificationDimension.SiteRecognition &&
+                claim.Status == IdentificationClaimStatus.Current &&
+                claim.Source == IdentificationSource.LocalInference && !claim.IsAdministrativeOverride &&
+                claim.SiteRecognitionPolicyVersion == 0)));
 
     /// <summary>
     /// A new run reads the paths of Videos whose Site is still Unknown again, because the Site
@@ -98,6 +103,10 @@ public sealed class SiteRecognitionRunner(
 
         foreach (var file in files)
         {
+            await identification.ReviewLegacySiteRecognitionAsync(file.VideoId, vocabulary, cancellationToken);
+            if (await Database.IdentificationClaims.AnyAsync(claim => claim.VideoId == file.VideoId &&
+                claim.Dimension == IdentificationDimension.SiteRecognition &&
+                claim.Status == IdentificationClaimStatus.Current, cancellationToken)) continue;
             Count(
                 work,
                 await identification.ApplyLocalSiteRecognitionAsync(

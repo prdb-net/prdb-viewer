@@ -116,7 +116,8 @@ public sealed class SiteDirectory(
     {
         var directory = await database.SiteDirectoryEntries
             .AsNoTracking()
-            .Select(entry => new SiteVocabularyEntry(entry.SiteKey, entry.Title, entry.Url))
+            .Select(entry => new SiteVocabularyEntry(entry.SiteKey, entry.Title, entry.Url,
+                entry.PlatformId, entry.PlatformKey, entry.PlatformTitle, entry.AccountHandle))
             .ToListAsync(cancellationToken);
         var established = await database.IdentificationClaims
             .AsNoTracking()
@@ -134,9 +135,17 @@ public sealed class SiteDirectory(
             .Select(entry => entry.Key)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
+        var retainedMetadata = await database.VideoMetadata.AsNoTracking()
+            .Where(row => row.SiteFactsJson != null).Select(row => row.SiteFactsJson)
+            .ToListAsync(cancellationToken);
+        var retainedSites = retainedMetadata.Select(RetainedWorkFacts.Site).OfType<RemoteSite>()
+            .DistinctBy(site => site.Id).ToDictionary(site => site.Id, StringComparer.OrdinalIgnoreCase);
         directory.AddRange(established
             .Where(entry => known.Add(entry.Key))
-            .Select(entry => new SiteVocabularyEntry(entry.Key, entry.Title, entry.Url)));
+            .Select(entry => retainedSites.TryGetValue(entry.Key, out var site)
+                ? new SiteVocabularyEntry(entry.Key, entry.Title, entry.Url,
+                    site.PlatformId, site.PlatformKey, site.PlatformTitle, site.AccountHandle)
+                : new SiteVocabularyEntry(entry.Key, entry.Title, entry.Url)));
 
         return SiteVocabulary.From(directory);
     }

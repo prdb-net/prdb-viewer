@@ -395,6 +395,52 @@ public sealed class IdentificationService(
         return survivor;
     }
 
+    public async Task ReviewLegacySiteRecognitionAsync(
+        Guid videoId, SiteVocabulary vocabulary, CancellationToken cancellationToken)
+    {
+        await using var transaction = await database.Database.BeginTransactionAsync(cancellationToken);
+        var video = await LoadAsync(videoId, cancellationToken);
+        var claims = video.IdentificationClaims.Where(claim =>
+            claim.Dimension == IdentificationDimension.SiteRecognition &&
+            claim.Status == IdentificationClaimStatus.Current &&
+            claim.Source == IdentificationSource.LocalInference &&
+            !claim.IsAdministrativeOverride && claim.SiteRecognitionPolicyVersion == 0).ToArray();
+        foreach (var claim in claims)
+        {
+            claim.SiteRecognitionPolicyVersion = 1;
+            var supporting = await database.VideoFiles.AsTracking().SingleOrDefaultAsync(
+                file => file.Id == claim.SupportingVideoFileId && file.VideoId == videoId, cancellationToken);
+            if (supporting is null) continue;
+            var reading = vocabulary.Recognise(supporting.SiteRecognisedPath ?? supporting.RelativePath);
+            if (reading.Evidence == IdentificationEvidenceClass.Conclusive &&
+                reading.Matches.Any(match => match.Site.Key == claim.TargetKey)) continue;
+            var key = $"SitePolicy:1:{claim.Id}";
+            if (video.IdentificationCandidates.Any(candidate => candidate.EvidenceKey == key)) continue;
+            video.IdentificationCandidates.Add(new IdentificationCandidateRow
+            {
+                Id = Guid.CreateVersion7(),
+                VideoId = video.Id,
+                Dimension = IdentificationDimension.SiteRecognition,
+                Status = IdentificationCandidateStatus.Pending,
+                TargetKey = claim.TargetKey,
+                TargetTitle = claim.TargetTitle,
+                TargetUrl = claim.TargetUrl,
+                Source = IdentificationSource.LocalInference,
+                EvidenceClass = IdentificationEvidenceClass.Suggestive,
+                Reason = IdentificationReviewReason.SuggestiveEvidence,
+                MatchedBy = "legacy path evidence no longer uniquely names this Site under the Creator Platform rule",
+                EvidenceKey = key,
+                SupportingVideoFileId = supporting.Id,
+                CreatedAt = Now(),
+            });
+            video.CaseVersion++;
+        }
+        await database.SaveChangesAsync(cancellationToken);
+        await projection.RefreshAsync(video.Id, cancellationToken);
+        await database.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+    }
+
     public void AddClaim(
         VideoRow video,
         IdentificationDimension dimension,
@@ -419,6 +465,7 @@ public sealed class IdentificationService(
             TargetUrl = target.Url,
             Source = source,
             EvidenceClass = evidence,
+            SiteRecognitionPolicyVersion = 1,
             MatchedBy = matchedBy,
             IsAdministrativeOverride = administrativeOverride,
             SupportingVideoFileId = supportingVideoFileId,

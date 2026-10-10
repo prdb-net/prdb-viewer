@@ -24,6 +24,8 @@ public sealed class IdentificationClaimRow
 
     public IdentificationEvidenceClass EvidenceClass { get; set; }
 
+    public int SiteRecognitionPolicyVersion { get; set; }
+
     public string? MatchedBy { get; set; }
 
     public bool IsAdministrativeOverride { get; set; }

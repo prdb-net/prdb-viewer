@@ -173,6 +173,7 @@ public sealed class VideoProjection(ViewerDbContext database, TimeProvider timeP
             .Include(video => video.Metadata)
             .Include(video => video.VideoFiles)
             .Include(video => video.IdentificationClaims)
+            .Include(video => video.IdentificationCandidates)
             .Include(video => video.ProjectedActors);
 
     /// <summary>

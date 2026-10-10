@@ -923,6 +923,12 @@ labelled as such wherever a Site is shown. The match is whole words of the path,
 so a folder called `midnightowl` never names the site `Night Owl`, and the
 longest name a path gives wins, so `Harbour Nights` is not read as `Harbour`.
 
+A Creator Platform domain alone (for example `onlyfans/unknown.mp4`) identifies
+no individual Creator Site. `platform/alice/scene.mp4` may name Alice only when
+prdb supplies that platform's explicit handle; `alice/scene.mp4` alone does not.
+A distinct Site title remains useful. Older local claims based only on a shared
+host keep their provenance and appear once in Administrator review.
+
 A path that names several known sites, or names one only through a word short
 enough to be an ordinary word, proposes an Identification Candidate instead and
 establishes nothing. A locally recognised Site never replaces one prdb

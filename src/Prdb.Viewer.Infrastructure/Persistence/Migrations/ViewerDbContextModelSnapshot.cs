@@ -546,6 +546,9 @@ namespace Prdb.Viewer.Infrastructure.Persistence.Migrations
                     b.Property<string>("Note")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("SiteRecognitionPolicyVersion")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Source")
                         .IsRequired()
                         .HasColumnType("TEXT");

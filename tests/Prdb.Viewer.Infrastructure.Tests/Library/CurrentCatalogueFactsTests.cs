@@ -25,6 +25,52 @@ public sealed class CurrentCatalogueFactsTests
         """;
 
     [Fact]
+    public async Task A_legacy_platform_host_claim_is_retained_and_reviewed_once()
+    {
+        await using var store = await TestDatabase.CreateAsync(mediaProbe: new FixtureProbe(), hasher: new FixtureHasher(),
+            previewGenerator: new FixturePreviewGenerator(), identificationClient: new FixtureIdentificationClient());
+        var path = Path.Combine(store.LibraryMountRoot.Path, "source");
+        Directory.CreateDirectory(Path.Combine(path, "platform"));
+        await File.WriteAllBytesAsync(Path.Combine(path, "platform", "video.mp4"), [1, 2, 3], TestContext.Current.CancellationToken);
+        var directory = await LibraryPipeline.ActivateAsync(store, path);
+        await LibraryPipeline.SetCredentialAsync(store, "fixture");
+        await LibraryPipeline.DrainAsync(store);
+        await using (var scope = store.Scope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+            var file = await db.VideoFiles.SingleAsync(TestContext.Current.CancellationToken);
+            await scope.ServiceProvider.GetRequiredService<IdentificationService>().ApplyLocalSiteRecognitionAsync(file.Id,
+                SiteVocabulary.From([new(SiteId, "Alice", "https://platform.example/alice")]).Recognise(file.RelativePath),
+                TestContext.Current.CancellationToken);
+            await db.IdentificationClaims.ExecuteUpdateAsync(update => update.SetProperty(claim => claim.SiteRecognitionPolicyVersion, 0),
+                TestContext.Current.CancellationToken);
+            await db.InstallationConfigurations.ExecuteUpdateAsync(update => update.SetProperty(config => config.SiteDirectoryFetchedAt, DateTime.UtcNow),
+                TestContext.Current.CancellationToken);
+            db.SiteDirectoryEntries.Add(new SiteDirectoryEntryRow
+            {
+                SiteKey = SiteId,
+                Title = "Alice",
+                Url = "https://platform.example/alice",
+                PlatformId = SiteId,
+                PlatformKey = "platform",
+                PlatformTitle = "platform",
+                AccountHandle = "alice"
+            });
+            await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+        }
+        await LibraryPipeline.RescanAsync(store, directory);
+        await LibraryPipeline.RescanAsync(store, directory);
+        await using var final = store.Scope();
+        var database = final.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var claim = await database.IdentificationClaims.SingleAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(IdentificationClaimStatus.Current, claim.Status);
+        Assert.Equal(IdentificationSource.LocalInference, claim.Source);
+        Assert.Equal(1, claim.SiteRecognitionPolicyVersion);
+        Assert.Single(await database.IdentificationCandidates.ToListAsync(TestContext.Current.CancellationToken));
+        Assert.True((await database.Videos.SingleAsync(TestContext.Current.CancellationToken)).ReviewNeeded);
+    }
+
+    [Fact]
     public async Task Identification_and_batch_detail_read_the_same_current_facts_through_the_real_SDK()
     {
         var fileId = Guid.NewGuid();

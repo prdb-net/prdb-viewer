@@ -7,7 +7,7 @@ itself.
 
 The match is a deterministic mapping, not a similarity. A site's aliases are its
 title as words, that title written as one word, and the distinctive label of its
-web address, all normalised the way search normalises. An alias matches only as
+web address for a classic independent Site, all normalised the way search normalises. An alias matches only as
 whole words of the path — its directories and its file name — with the longest
 alias at a position winning, so `Harbour Nights` names that site rather than
 ambiguously naming it and `Harbour`. Nothing looks inside a word, except that a
@@ -24,6 +24,18 @@ A locally established Site gives way, without review, to the canonical Site of a
 work prdb later identifies. Nothing else about it yields: an Administrative
 Override is never replaced, and two remote results that disagree still require
 review.
+
+Creator Sites never take a shared Creator Platform name or host as an account
+alias. A platform-qualified explicit Creator Account Handle can name a unique
+Site; the handle alone cannot. A distinct Site title remains an alias unless it
+is merely the platform label or bare handle. Known shared domains are excluded
+also in legacy entries without platform metadata. Two platform-qualified handles
+in one path still require review. Ownership is never inferred.
+
+On upgrade, old LocalInference claims whose supporting path no longer gives
+Conclusive evidence keep their claim and original provenance, but gain one
+versioned review candidate. A completed review is not repeated on every scan.
+Remote claims and Administrative Overrides are excluded from this audit.
 
 ## Why
 
