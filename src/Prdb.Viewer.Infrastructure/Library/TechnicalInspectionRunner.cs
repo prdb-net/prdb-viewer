@@ -92,6 +92,7 @@ public sealed class TechnicalInspectionRunner(
         await database.SaveChangesAsync(cancellationToken);
 
         var path = SourceFile.Resolve(work.LibraryDirectory.ContainerPath, candidate.RelativePath);
+        var knownSha256 = await UnchangedContentHashAsync(work, candidate, cancellationToken);
         FileObservation? observation = null;
         MediaProbeFacts? facts = null;
 
@@ -99,7 +100,7 @@ public sealed class TechnicalInspectionRunner(
         {
             try
             {
-                observation = await ObserveAsync(path, cancellationToken);
+                observation = await ObserveAsync(path, candidate, knownSha256, cancellationToken);
                 facts = await mediaProbe.InspectAsync(path, cancellationToken);
                 var after = new FileInfo(path);
 
@@ -375,13 +376,62 @@ public sealed class TechnicalInspectionRunner(
         await database.SaveChangesAsync(cancellationToken);
     }
 
+    /// <summary>
+    /// The content hash of the Video File already at the candidate's path, when the Library Scan
+    /// observed it at the size and modification time that file was inspected at.
+    /// </summary>
+    /// <remarks>
+    /// Every Library Scan admits every recognised file again, so without this a periodic scan read
+    /// the whole library in full every six hours — hundreds of gigabytes of a library nothing had
+    /// touched, competing for the disk with everything else on the host. A file whose size and
+    /// modification time are unchanged keeps the hash it was inspected with; the media facts are
+    /// still probed, which reads only the container's headers. Content rewritten in place at the
+    /// same size and modification time is therefore not recognised as Replaced until either of
+    /// them changes.
+    /// </remarks>
+    private async Task<string?> UnchangedContentHashAsync(
+        BackgroundWorkRow work,
+        VideoFileCandidateRow candidate,
+        CancellationToken cancellationToken)
+    {
+        var current = await database.VideoFiles
+            .Where(file => file.LibraryDirectoryId == work.LibraryDirectoryId &&
+                           file.RelativePath == candidate.RelativePath &&
+                           file.Availability != VideoFileAvailability.Replaced &&
+                           file.Availability != VideoFileAvailability.Removed)
+            .OrderByDescending(file => file.InspectedAt)
+            .Select(file => new { file.Size, file.LastWriteTimeUtc, file.Sha256 })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return current is not null &&
+               current.Sha256.Length > 0 &&
+               current.Size == candidate.ObservedSize &&
+               current.LastWriteTimeUtc == candidate.ObservedLastWriteTimeUtc
+            ? current.Sha256
+            : null;
+    }
+
+    /// <summary>
+    /// Observes the file as it is now. Its content is hashed unless it still has the size and
+    /// modification time under which <paramref name="knownSha256"/> was established.
+    /// </summary>
     private static async Task<FileObservation> ObserveAsync(
         string path,
+        VideoFileCandidateRow candidate,
+        string? knownSha256,
         CancellationToken cancellationToken)
     {
         var file = new FileInfo(path);
         var size = file.Length;
         var modified = file.LastWriteTimeUtc;
+
+        if (knownSha256 is not null &&
+            size == candidate.ObservedSize &&
+            modified == candidate.ObservedLastWriteTimeUtc)
+        {
+            return new FileObservation(size, modified, knownSha256);
+        }
+
         await using var stream = new FileStream(
             path,
             FileMode.Open,
