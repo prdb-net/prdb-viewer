@@ -34,6 +34,16 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   precious facts, resets regenerable feed state and revalidates remote status.
   Take an application-data snapshot before upgrading if rollback is needed.
 
+### Fixed
+
+- A Library Scan no longer reads the whole library again. Every scan admits
+  every file to technical inspection, which hashed each one in full, so the
+  six-hourly periodic scan reread an unchanged library four times a day. A file
+  whose size and modification time match its inspected Video File now keeps its
+  content hash; its media facts are still probed, which reads only the headers.
+  Content rewritten in place at the same size and modification time is
+  recognised as Replaced only once either of them changes.
+
 ## [0.19.0] - 2026-09-14
 
 The administrative surface and the Video page managed "what" and left "why" to

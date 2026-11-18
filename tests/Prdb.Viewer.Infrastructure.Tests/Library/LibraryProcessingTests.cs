@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Prdb.Viewer.Core.Configuration;
@@ -343,6 +345,74 @@ public sealed class LibraryProcessingTests
         Assert.Equal(3, scan.DiscoveredCandidateCount);
         Assert.Equal(3, scan.CompletedItemCount);
     }
+
+    /// <summary>
+    /// Every Library Scan admits every file again, and technical inspection used to hash each one
+    /// in full: a periodic scan read the whole library every six hours although nothing in it had
+    /// changed. The bytes below change behind an unchanged size and modification time, which is
+    /// exactly what a rescan no longer reads — the hash it keeps is the proof that it did not.
+    /// </summary>
+    [Fact]
+    public async Task A_rescan_does_not_read_a_file_whose_size_and_modification_time_are_unchanged()
+    {
+        await using var store = await TestDatabase.CreateAsync(mediaProbe: new FixtureProbe());
+        var source = Path.Combine(store.LibraryMountRoot.Path, "source");
+        Directory.CreateDirectory(source);
+        var path = Path.Combine(source, "first.mp4");
+        await File.WriteAllBytesAsync(path, [1, 2, 3, 4], TestContext.Current.CancellationToken);
+        var modified = File.GetLastWriteTimeUtc(path);
+        var directoryId = await ActivateAsync(store, source);
+        await DrainAsync(store);
+        var before = await SingleVideoFileAsync(store);
+
+        await File.WriteAllBytesAsync(path, [9, 9, 9, 9], TestContext.Current.CancellationToken);
+        File.SetLastWriteTimeUtc(path, modified);
+        await QueueAndDrainAsync(store, directoryId);
+
+        var after = await SingleVideoFileAsync(store);
+        Assert.Equal(before.Id, after.Id);
+        Assert.Equal(Sha256Of([1, 2, 3, 4]), after.Sha256);
+        Assert.Equal(VideoFileAvailability.Available, after.Availability);
+        Assert.NotEqual(before.LastObservedScanId, after.LastObservedScanId);
+    }
+
+    [Fact]
+    public async Task A_rescan_reads_a_file_again_once_its_modification_time_changes()
+    {
+        await using var store = await TestDatabase.CreateAsync(mediaProbe: new FixtureProbe());
+        var source = Path.Combine(store.LibraryMountRoot.Path, "source");
+        Directory.CreateDirectory(source);
+        var path = Path.Combine(source, "first.mp4");
+        await File.WriteAllBytesAsync(path, [1, 2, 3, 4], TestContext.Current.CancellationToken);
+        var modified = File.GetLastWriteTimeUtc(path);
+        var directoryId = await ActivateAsync(store, source);
+        await DrainAsync(store);
+        var before = await SingleVideoFileAsync(store);
+
+        await File.WriteAllBytesAsync(path, [9, 9, 9, 9], TestContext.Current.CancellationToken);
+        File.SetLastWriteTimeUtc(path, modified.AddMinutes(1));
+        await QueueAndDrainAsync(store, directoryId);
+
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        var files = await database.VideoFiles.ToListAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(
+            VideoFileAvailability.Replaced,
+            files.Single(file => file.Id == before.Id).Availability);
+        var current = files.Single(file => file.Id != before.Id);
+        Assert.Equal(Sha256Of([9, 9, 9, 9]), current.Sha256);
+        Assert.Equal(VideoFileAvailability.Available, current.Availability);
+    }
+
+    private static async Task<VideoFileRow> SingleVideoFileAsync(TestDatabase store)
+    {
+        await using var scope = store.Scope();
+        var database = scope.ServiceProvider.GetRequiredService<ViewerDbContext>();
+        return await database.VideoFiles.SingleAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static string Sha256Of(byte[] content) =>
+        Convert.ToHexString(SHA256.HashData(content));
 
     private static async Task<Guid> ActivateAsync(TestDatabase store, string path)
     {

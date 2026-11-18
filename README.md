@@ -482,6 +482,8 @@ only a scan that admitted nothing at all has anything to explain.
 
 Recognised regular files are hashed and inspected with `ffprobe`. Technical
 facts are committed only if the file remains unchanged throughout inspection.
+A file whose size and modification time match its last inspection keeps its
+content hash and is not read again; only its media facts are probed.
 A stable content identity preserves a Video File across a rename, while a
 changed file at an existing path is retained as Replaced. One trustworthy
 complete absence records Unreachable; a second records Missing. An incomplete
