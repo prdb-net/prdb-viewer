@@ -7,6 +7,18 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.20.0] - 2026-11-18
+
+The installation now follows prdb's current catalogue rather than the copy it
+took when a file was first identified. Sites and the works this library holds
+are refreshed through resumable change feeds, a work prdb deletes or merges says
+so on its page instead of silently going stale, and a full-file MD5 gives
+identification one more rung to stand on. A Library Scan also stops rereading
+every file it already knows. **This release migrates**, by adding tables and
+columns; existing claims, overrides and every Account's private state are kept.
+Files that are still Unknown are read once after the upgrade to compute their
+MD5; established works are not.
+
 ### Added
 
 - Optional full-file MD5 in bounded Background Work and identification through

@@ -6,8 +6,8 @@ knowingly carries. It is a review of this codebase rather than a general threat
 model for self-hosting.
 
 First reviewed at product version 0.1.0 on 2026-08-28, and revisited at
-0.16.0 on 2026-09-04, 0.17.0 on 2026-09-13, 0.18.0 on 2026-09-13, and 0.19.0 on
-2026-09-14. Sections carry what is true of
+0.16.0 on 2026-09-04, 0.17.0 on 2026-09-13, 0.18.0 on 2026-09-13, 0.19.0 on
+2026-09-14, and 0.20.0 on 2026-11-18. Sections carry what is true of
 the current product;
 [Since the first review](#since-the-first-review) records what was added
 after 0.1.0 and what it changed here.
@@ -177,7 +177,7 @@ The trust boundaries this product actually has:
 ## Dependencies
 
 - Production dependencies are pinned to exact versions through central package
-  management: ASP.NET Core and EF Core 10.0.10, `Prdb.Sdk` 0.13.0,
+  management: ASP.NET Core and EF Core 10.0.10, `Prdb.Sdk` 0.17.0,
   `Prdb.Hashing` 0.1.0, and `Konscious.Security.Cryptography.Argon2` 1.3.1.
 - The container ships `ffmpeg` and `ffprobe` from the base image's package feed.
   Both are invoked with an explicit argument list and never through a shell, so
@@ -298,3 +298,26 @@ The trust boundaries this product actually has:
   codecs were both on it, less legibly. It remains a statement about the file
   rather than about the client, and no Account's playback evidence is exposed by
   it.
+- Identification sends a full-file MD5 since 0.20.0, in the same request that
+  already carried the file's name, size, `osHash` and `pHash`, over the same
+  transport and with the same redacted `X-Api-Key` header. It is one more digest
+  of a file prdb was already asked about, so it adds no new subject to what
+  leaves the installation; a value that is not exactly 32 hexadecimal digits is
+  left out rather than sent.
+- The catalogue refresh added in 0.20.0 replaces the daily `GET /sites` with
+  `GET /sites/changes`, and adds `GET /videos/changes` at most every fifteen
+  minutes once caught up. Both requests carry the installation credential and a
+  cursor, and nothing about the library: the Video feed is read whole and
+  filtered here, so prdb is not told which works this installation holds, at the
+  cost of reading rows that concern nobody here. Repairing a held work's details
+  uses the batch detail request identification already made. A rate-limit answer
+  defers the lane by the window prdb names instead of retrying, and a refused
+  credential stops it. Feed cursors and staged Site baselines are regenerable and
+  absent from the Backup Archive, and a Restore forgets every work's remote
+  status, so a target never believes what the source installation last observed.
+- The Video page gained the first links to other sites an ordinary User can
+  follow: the Site links prdb publishes. Only `http` and `https` addresses
+  without embedded credentials are shown, and they open in a new tab with
+  `noreferrer noopener`, so the destination learns neither this installation's
+  address nor gets a handle on its window. Creator Platform, account handle and
+  the remote deletion or merge notice are rendered as text and name no path.
